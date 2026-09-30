@@ -1,6 +1,6 @@
 # Fleet: one view of every OpenCode session on Box
 
-Status: design, not built. Single user (magoz), private, Box only.
+Status: built (stages 1–4 live at https://fleet.oox.sh; terminal view in the dotfiles). Single user (magoz), private, Box only.
 
 ## Problem
 
@@ -93,7 +93,7 @@ Mark seen, and two ways out:
   The OpenCode desktop app registers no URL scheme, so it cannot be targeted.
 - Copy `ocb -s <id>` as the always-works fallback. Live via SSE. Installable to the phone home screen.
 
-**Terminal (CLI plugin in dotfiles `cli.json`, runs inside `ocb`):**
+**Terminal (CLI plugin in the dotfiles, runs inside `ocb`):**
 - `home.footer.status` / `prompt.footer.status` badge: `2 need you · 3 working · 1 done`.
 - Full-page route (`ctrl+x f`): same grouping; Enter opens the session
   (`router.navigate({ type: "session" })`), which also marks it seen.
@@ -154,8 +154,10 @@ Layout:
 - `lib/services/opencode/` OpenCode client (discover, never ensure) + event stream.
 - `lib/data/fleet/` state machine, snapshot/resync, types (Effect Schema).
 - `app/` dashboard page, API routes, server actions.
-- `opencode-plugin/` workspace package: the OpenCode CLI plugin (OpenTUI/Solid) loaded from
-  dotfiles `cli.json`.
+- Terminal view: an OpenCode CLI plugin in the dotfiles (`home/opencode/.config/opencode/plugins/
+  fleet/`, auto-discovered, plain JS), so both Macs get it; it only reads `/api/fleet` and
+  `/api/fleet/events`. Keys: `ctrl+x f` page, `ctrl+x j` next needs-you. Notifications only
+  fill gaps in OpenCode's built-in ones (subagent-originated needs-you).
 
 Runs entirely on Box from this one checkout (`~/dev/repos/fleet`); no Vercel, no separate
 deployment copy:
