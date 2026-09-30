@@ -301,7 +301,11 @@ function WaysOut({ row }: { readonly row: BoardRow['row'] }) {
         >
           Open in OpenCode
         </a>
-        <a href={row.links.terminal} className={buttonVariants({ variant: 'outline' })}>
+        {/* `ocb://` is handled by the Mac URL-scheme app only; touch devices cannot open it. */}
+        <a
+          href={row.links.terminal}
+          className={cn(buttonVariants({ variant: 'outline' }), 'pointer-coarse:hidden')}
+        >
           Open in terminal
         </a>
       </div>

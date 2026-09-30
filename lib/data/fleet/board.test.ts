@@ -85,6 +85,19 @@ describe('state-first board', () => {
     expect(board.counts).toEqual({ 'needs-you': 1, failed: 1, working: 1, done: 2, idle: 2 })
   })
 
+  it("lists the project's own checkout before its worktrees", () => {
+    const newerWorktree = fromSnapshot(
+      snapshotOf([
+        sessionRecord('ses_root', seen(now - 5 * hour)),
+        sessionRecord('ses_wt', { ...seen(now - hour), directory: worktree })
+      ])
+    )
+
+    expect(
+      buildBoard(newerWorktree, now, false).idle[0]?.worktrees.map(item => item.label)
+    ).toEqual([undefined, 'feat-panel'])
+  })
+
   it('shows older idle sessions on request', () => {
     const all = buildBoard(live, now, true)
 

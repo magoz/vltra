@@ -63,9 +63,6 @@ function IdleGroup({
   readonly onShowOlder: (show: boolean) => void
   readonly selection: Selection
 }) {
-  const worktreeCount = (label: string | undefined, count: number) =>
-    label === undefined ? `${count}` : `${label} ${count}`
-
   return (
     <details className="group border-hairline border-t" aria-label="Idle sessions">
       <summary className="text-muted-foreground hover:text-foreground flex cursor-pointer list-none justify-between px-4 py-3 text-xs tracking-widest uppercase md:py-2.5 [&::-webkit-details-marker]:hidden">
@@ -87,16 +84,15 @@ function IdleGroup({
               <span className="font-medium">{project.name}</span>
               <span className="text-muted-foreground">
                 {' '}
-                ·{' '}
-                {project.worktrees
-                  .map(worktree => worktreeCount(worktree.label, worktree.rows.length))
-                  .join(' · ')}
+                · {project.worktrees.reduce((sum, worktree) => sum + worktree.rows.length, 0)}
               </span>
             </p>
             {project.worktrees.map(worktree => (
               <div key={worktree.label ?? ''}>
                 {worktree.label === undefined ? null : (
-                  <p className="text-muted-foreground px-4 pt-1 pl-10 text-xs">{worktree.label}</p>
+                  <p className="text-muted-foreground px-4 pt-1.5 pl-10 text-xs">
+                    {worktree.label} · {worktree.rows.length}
+                  </p>
                 )}
                 <ul>
                   {worktree.rows.map(item => (

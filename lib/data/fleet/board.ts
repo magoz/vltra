@@ -160,14 +160,17 @@ const groupIdle = (rows: ReadonlyArray<BoardRow>): ReadonlyArray<IdleProject> =>
     projects.set(item.row.projectID, project)
   }
 
-  // Rows arrive newest first, so insertion order is recency order for projects and worktrees.
+  // Rows arrive newest first, so insertion order is recency order for projects and worktrees;
+  // the project's own checkout comes first, then its worktrees.
   return Array.from(projects, ([id, project]) => ({
     id,
     name: project.name,
     worktrees: Array.from(project.worktrees, ([key, worktreeRows]) => ({
       label: key === '' ? undefined : key,
       rows: worktreeRows
-    }))
+    })).toSorted(
+      (left, right) => Number(left.label !== undefined) - Number(right.label !== undefined)
+    )
   }))
 }
 
