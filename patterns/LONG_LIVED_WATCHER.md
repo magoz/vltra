@@ -66,9 +66,35 @@ revalidateTag <tag>` (E263) when there is no request store; tags are queued on
   that invariant.
 - `updateTag` is Server Actions only (it throws elsewhere), so it is for actions, not the watcher.
 
-So when stage 2 adds `'use cache'` helpers (`fleet:projects`, `fleet:session:<id>`), the watcher
+So if Fleet ever adds `'use cache'` helpers (`fleet:projects`, `fleet:session:<id>`), the watcher
 must invalidate through a tiny internal route handler, e.g. `POST /api/internal/revalidate`
 (loopback-only, shared secret from the environment, JSON `{ tags }`), which calls
 `revalidateTag(tag, { expire: 0 })` inside a real request. Server actions keep using
 `updateTag`. Stage 1 has no cached data: projects and worktrees live in the watcher model, which
 the snapshot already reads, so nothing needs invalidation yet.
+
+## Stage 2: no `'use cache'`; finished-run summaries in an Effect `Cache`
+
+The dashboard's only slow-changing OpenCode read is a finished run's answer excerpt and change
+totals (done rows). It lives in `SessionSummaries` (`lib/data/fleet/session-detail.ts`), an Effect
+`Cache` in the runtime keyed by `(sessionID, idle)`:
+
+- A run's answer and files are fixed once it is idle, and the next run gets a new `idle`, so
+  entries never need invalidation (nothing for the watcher to call).
+- Failures get a zero TTL, so an unreachable OpenCode is never cached. (It is unclear whether a
+  `'use cache'` function that throws stores its error; the Effect `Cache` makes it explicit.)
+- Capacity 500, TTL 1 day. The browser may also keep a summary (`private, max-age=3600`).
+
+The session panel's transcript tail and files (`GET /api/fleet/sessions/:id`) are live data for a
+possibly running session, so they are never cached. Projects and worktrees still come from the
+watcher model.
+
+## Shutdown
+
+`instrumentation.ts` also registers `stopFleetOnSignals()`: on SIGTERM/SIGINT the runtime is
+disposed, which closes the store's `PubSub` and ends every open `GET /api/fleet/events` stream.
+Next's own handler closes the HTTP server and waits for open connections, so without this a
+connected dashboard kept `next start` (and `systemctl restart fleet`) waiting for the stop
+timeout. After `stopFleet` the runtime is never rebuilt; requests that race the shutdown (an
+EventSource reconnecting over a kept-alive connection) fail, and the process exits once those
+connections go idle (seconds).

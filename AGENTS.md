@@ -31,6 +31,9 @@ single-user (no auth, no database). `DESIGN.md` is the settled spec. Stack and c
 | Runtime (one per process)   | `lib/runtime/fleet-runtime.ts`           | `ManagedRuntime` on `globalThis`; `runFleet`         |
 | Watcher start               | `instrumentation.ts`                     | Node runtime only; skipped during `next build`       |
 | Page / API routes / actions | `app/`                                   | `api/fleet`, `api/fleet/events`, `*-action.ts`       |
+| Dashboard UI                | `app/fleet-dashboard.tsx` and siblings   | Client tree seeded by `fleet-live.tsx`; see below    |
+| Board (sections, idle 24h)  | `lib/data/fleet/board.ts`                | Pure: live row map, `fleet.changed` apply, grouping  |
+| Session panel data          | `lib/data/fleet/session-detail.ts`       | Transcript tail + diff; summaries cached by `idle`   |
 | Test doubles                | `lib/**/testing/`                        | Fake OpenCode layer, throwaway `opencode serve`      |
 | Conventions                 | `patterns/`, then `../10x/patterns/`     | Fleet notes only where it differs from 10x           |
 
@@ -51,10 +54,30 @@ single-user (no auth, no database). `DESIGN.md` is the settled spec. Stack and c
 - Code style: no semicolons, single quotes, no trailing commas, 100 columns (oxfmt).
   `DESIGN.md` is excluded from formatting.
 
+## DASHBOARD
+
+- One page (`app/page.tsx`): the prerendered shell is the Suspense fallback
+  (`fleet-dashboard-skeleton.tsx`, title + header frame); `fleet-live.tsx` reads the watcher's
+  snapshot per request and seeds the client `FleetDashboard`, which stays live from
+  `GET /api/fleet/events` (`use-fleet-live.ts`: reload the snapshot after every `initial` event,
+  apply other changes in place, reconnect with backoff and on visibility).
+- State-first sections (needs you, failed, working, done) then idle, collapsed and grouped
+  project → worktree; idle rows are listed for 24h after their last activity (`board.ts`).
+- The open session lives in the URL (`?session=<id>`, `use-selected-session.ts`): side panel from
+  `lg`, full screen below it, so the phone's back button closes it.
+- Mutations go through `FleetActions` (`app/fleet-actions.tsx`): the dashboard provides the server
+  actions, component tests provide recording fakes (`app/testing/dashboard-fixtures.tsx`).
+- Panel data: `GET /api/fleet/sessions/:id` (transcript tail + latest turn's files, uncached) and,
+  for done rows, `GET /api/fleet/sessions/:id/summary?idle=` (answer excerpt + change totals,
+  cached in the runtime by `(id, idle)`; see `patterns/LONG_LIVED_WATCHER.md`).
+- Look: the approved paper-and-ink mock (`app/globals.css` tokens, mono type, `attention` green
+  and `destructive` red only); light/dark follow the system (`prefers-color-scheme`), no toggle.
+- PWA: `app/manifest.ts`, `app/icon.svg`, `app/apple-icon.png`, `public/icon-*.png` (no offline).
+
 ## TESTS
 
-- `pnpm test` runs two Vitest projects: `unit` (jsdom, colocated `*.test.ts`, includes the
-  anti-slop/local lint rule suites) and `integration` (`*.integration.test.ts`, node).
+- `pnpm test` runs two Vitest projects: `unit` (jsdom, colocated `*.test.ts(x)` including
+  Testing Library component tests, and the anti-slop/local lint rule suites) and `integration` (`*.integration.test.ts`, node).
 - Effect tests use `@effect/vitest`; backoff/timeouts use `TestClock`. Fake services with typed
   layers (`lib/services/opencode/testing/fake-opencode.ts`); `vi.mock` is a lint error.
 - The integration suite starts a real, isolated `opencode serve` (v2.0.20) on a random loopback

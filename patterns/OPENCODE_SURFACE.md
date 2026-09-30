@@ -24,10 +24,14 @@ stable API; the integration suite is the tripwire when OpenCode is upgraded.
 | Pending forms        | `GET /api/form?location[directory]=…` per location                 |
 | Projects / worktrees | `GET /api/project`, `GET /api/worktree?projectID=…`                |
 | One session          | `GET /api/session/:id` (outside window, created/moved/forked)      |
+| Transcript tail      | `GET /api/session/:id/message?order=desc&limit=…` (one page)       |
+| Latest turn's files  | `GET /api/session/:id/diff?context=0` (patch text dropped)         |
 
 Permissions and forms are **per location** in 2.0.20 (each loaded location has its own pending
 map), so the DESIGN's `GET /api/permission/request` and `GET /api/form` are called once per
-loaded location. Querying only loaded locations avoids booting new ones. Forms with the
+loaded location. Querying only loaded locations avoids booting new ones. Forms keep their fields
+(Fleet's `FormField`, minus validation details; `hidden` fields are dropped, OpenCode applies their
+default) so the dashboard can answer them inline; OpenCode validates the answer. Forms with the
 temporary MCP `sessionID: "global"` owner are kept in the model but not attached to any row.
 
 ## Events → Fleet
@@ -37,7 +41,12 @@ interruptions do not advance `time.idle`), `session.step.failed`, `session.retry
 `session.status`, `session.viewed`, `session.created/moved/forked` (re-read), `session.deleted`,
 `session.renamed`, `session.agent.selected`, `session.model.selected`, `session.usage.updated`,
 `permission.asked/replied`, `form.created/replied/cancelled`, `project.updated`,
-`worktree.updated`, `worktree.resolved`. Everything else is ignored. On location shutdown
+`worktree.updated`, `worktree.resolved`. Live activity (dashboard only, never a state change):
+`session.step.started` / `session.reasoning.started` → thinking, `session.text.started` →
+writing, `session.tool.input.started` → tool name, `session.tool.called` → tool input summary
+(command, path, pattern, ...). Activity is cleared when a run starts or ends and is not in the
+snapshot, so it is unknown until the next step after a (re)connect. Everything else (deltas,
+progress, ...) is ignored. On location shutdown
 OpenCode itself emits `permission.replied` (reject) and `form.cancelled` for pending requests.
 
 ## Seen state
