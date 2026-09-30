@@ -25,9 +25,15 @@ type FleetRuntime = ManagedRuntime.ManagedRuntime<FleetServices, OpenCodeUnavail
 // reload) shares a single watcher.
 const runtimeKey: unique symbol = Symbol.for('fleet.runtime')
 
-const scope: typeof globalThis & { [runtimeKey]?: FleetRuntime } = globalThis
+const stoppedKey: unique symbol = Symbol.for('fleet.stopped')
+
+const scope: typeof globalThis & { [runtimeKey]?: FleetRuntime; [stoppedKey]?: true } = globalThis
 
 export const getFleetRuntime = (): FleetRuntime => {
+  // During shutdown, never build a second runtime (e.g. for an event stream reconnecting over a
+  // kept-alive connection): the request fails and the browser reconnects to the next server.
+  if (scope[stoppedKey] === true) throw new Error('Fleet is shutting down')
+
   const existing = scope[runtimeKey]
 
   if (existing !== undefined) return existing
@@ -46,6 +52,35 @@ export const startFleet = (): Promise<void> =>
     .catch((error: Error) => {
       console.error('Fleet failed to start', error)
     })
+
+/**
+ * Disposes the runtime: stops the watcher and closes the store, which ends every open
+ * `GET /api/fleet/events` stream. Next's graceful shutdown (`server.close`) waits for open
+ * connections, so without this a connected dashboard keeps `next start` alive after SIGTERM.
+ */
+export const stopFleet = async (): Promise<void> => {
+  const runtime = scope[runtimeKey]
+
+  scope[stoppedKey] = true
+
+  if (runtime === undefined) return
+
+  delete scope[runtimeKey]
+  await runtime.dispose()
+}
+
+/**
+ * Next's own SIGTERM/SIGINT handler closes the HTTP server and waits for open connections;
+ * stopping Fleet ends the event streams so it can finish (otherwise `systemctl restart fleet`
+ * waits for systemd's stop timeout while a dashboard is open).
+ */
+export const stopFleetOnSignals = () => {
+  for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+    process.once(signal, () => {
+      stopFleet().catch((error: Error) => console.error('Fleet failed to stop', error))
+    })
+  }
+}
 
 export const runFleet = <A, E>(effect: Effect.Effect<A, E, FleetServices>): Promise<A> =>
   getFleetRuntime().runPromise(effect)

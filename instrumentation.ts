@@ -6,9 +6,10 @@ export async function register() {
 
   if (process.env.NEXT_PHASE === 'phase-production-build') return
 
-  const { startFleet } = await import('@/lib/runtime/fleet-runtime')
+  const { startFleet, stopFleetOnSignals } = await import('@/lib/runtime/fleet-runtime')
 
   // Not awaited: `register` must finish before the server accepts requests, and the watcher
   // reconnects with backoff on its own.
   void startFleet()
+  stopFleetOnSignals()
 }
