@@ -134,10 +134,16 @@ Layout:
 - `opencode-plugin/` workspace package: the OpenCode CLI plugin (OpenTUI/Solid) loaded from
   dotfiles `cli.json`.
 
-Deploy on Box: `pnpm build`, `fleet.service` user unit (`next start` on a loopback port) in
-`session.slice` like opencode.service, Portless static route `fleet.oox.sh` in the box
-repo's `portless/static-routes.json`, DNS A record `fleet.oox.sh` → 100.122.135.127.
-Dev: `pnpm dev` → `https://fleet.dev.oox.sh` against the same OpenCode service.
+Runs entirely on Box (no Vercel/hosting):
+- Dev: `pnpm dev` in `~/dev/repos/fleet` → `https://fleet.dev.oox.sh`, against the same local
+  OpenCode service.
+- Production: `~/fleet` is a deployment checkout (like `~/usage`, `~/aha`, `~/collie`; never
+  edited in place). `scripts/deploy` pulls, runs `pnpm install --frozen-lockfile` and
+  `pnpm build`, and restarts `fleet.service` only if the build succeeds.
+- `fleet.service` user unit runs `next start` on a loopback port, in `session.slice` like
+  opencode.service, `Restart=always`. Unit and runbook live in the box repo.
+- Portless static route `fleet.oox.sh` in the box repo's `portless/static-routes.json`, DNS
+  A record `fleet.oox.sh` → 100.122.135.127.
 
 ## Build order
 
