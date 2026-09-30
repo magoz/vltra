@@ -109,6 +109,22 @@ Differences from 10x, on purpose:
   handlers and server actions read its state. Box runs `next start`, never serverless.
   10x has no precedent for this, so it gets its own pattern note.
 
+Effect everywhere (10x `patterns/EFFECT_*.md`, `TYPESCRIPT_CONVENTIONS.md`):
+- OpenCode access via `@opencode/client/effect` (typed Effects/Streams), wrapped in an
+  `OpenCode` `Context.Service` + `Layer` with `Schema.TaggedError` errors.
+- Watcher = one scoped Effect program: `Stream` over `/api/event`, `Schedule` backoff on
+  disconnect, resync (subscribe → snapshot → apply buffered), state in a `SubscriptionRef`,
+  changes fanned out through a `PubSub` that the SSE route consumes.
+- Fleet state machine is a pure function (event → state), tested exhaustively.
+- "Seen" store: `@effect/sql-sqlite-node` (SQLite file), behind a `SeenStore` service.
+- Everything composed into one `ManagedRuntime` started from `instrumentation.ts`; pages,
+  route handlers and server actions run Effects against it (10x `NextEffect` helpers,
+  `catchTag` chains, `Schema` parsing at every boundary).
+- Scripts (`scripts/deploy`) are Effect programs run once at the outer boundary.
+- Tests: `@effect/vitest`, `TestClock` for backoff/timeouts, fake services via typed
+  layers (no module mocking), plus an integration suite against a real throwaway
+  `opencode serve`.
+
 Cache Components (as in 10x `next.config.ts` and `patterns/EFFECT_PAGES.md`):
 - `cacheComponents: true`, `partialPrefetching: true`; no removed route-segment options
   (`dynamic`, `revalidate`, `fetchCache`, `dynamicParams`).
