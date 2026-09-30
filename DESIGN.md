@@ -15,7 +15,7 @@ project/worktree, and it only exists while a client is open.
 Box
   opencode.service  127.0.0.1:49374            (unchanged)
         ▲ loopback HTTP, auth via @opencode/client Service.discover/headers
-  fleet.service     127.0.0.1:<port>           (new, Effect v4, systemd user unit)
+  fleet.service     127.0.0.1:<port>           (new: Next.js app, `next start`, systemd user unit)
         ▲ Portless static route fleet.oox.sh → <port>   (like usage.oox.sh)
 Mac browser / phone → https://fleet.oox.sh     (web dashboard)
 Mac ocb             → fleet CLI plugin in dotfiles cli.json (terminal view)
@@ -66,18 +66,16 @@ Resync rule: subscribe to `/api/event` first, then load the snapshot, then apply
 events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
 `opencode serve` because none of this is a declared-stable API.
 
-## Fleet API (served by fleet.service)
+## Fleet API (Next route handlers)
 
 - `GET /api/fleet` → snapshot: projects → worktrees → sessions (state, title, agent,
   model, updated, cost, pending permission/form summary, children).
 - `GET /api/fleet/events` → SSE: `fleet.changed` with changed rows (clients refetch on
   reconnect).
-- `POST /api/sessions/:id/seen`
-- `POST /api/sessions/:id/permission/:requestID` `{ reply }` (proxied to OpenCode)
-- `POST /api/sessions/:id/form/:formID` `{ answers }` (proxied)
-- `POST /api/sessions/:id/prompt` `{ text }` (proxied)
-
-Effect `HttpApi` with Schema, so the web app and CLI plugin share typed clients.
+- Actions for the web UI are server actions (typed inputs, per 10x conventions): mark seen,
+  reply to permission, answer form, send prompt, interrupt (proxied to OpenCode).
+- The CLI plugin uses the two GET routes plus `POST /api/sessions/:id/seen` (it cannot call
+  server actions).
 
 ## Clients
 
@@ -92,21 +90,42 @@ its last messages and a prompt box. Live via SSE. Installable to the phone home 
 - Jump to next `needs-you` session (key TBD, must not collide with OpenCode defaults).
 - Mac notification via `attention.notify({ when: "blurred" })` on → needs-you and → done.
 
-## Repo and deploy
+## Stack and repo
 
-- `magoz/fleet` (private): `packages/server` (Effect v4 service), `packages/web` (static
-  build served by the server), `packages/cli-plugin` (OpenCode CLI plugin), shared schema.
-- Node 24 + pnpm; `effect` pinned to the version `@opencode/client@2.0.20` resolves.
-- Box: `fleet.service` user unit in `session.slice` (like opencode.service), loopback
-  port, Portless static route `fleet.oox.sh` added to the box repo's
-  `portless/static-routes.json`, DNS A record `fleet.oox.sh` → 100.122.135.127.
-- Dotfiles: add the CLI plugin to `cli.json` once published/installed.
+Same stack and conventions as `~/dev/repos/10x` (copy its tooling, not its product code):
+Next.js 16 App Router, React 19, Effect v4, shadcn/ui (Base UI) + Tailwind v4, oxlint (with
+the vendored anti-slop rules) + oxfmt, Vitest + `@effect/vitest`, Playwright, pnpm 11,
+Node 24, `portless run next dev`, root-level `app/` `components/` `lib/` (no `src/`),
+`AGENTS.md` + `patterns/` conventions.
+
+Differences from 10x, on purpose:
+- **No auth** (private, single user).
+- **SQLite, not Postgres**: one small table for "seen" on Box (Drizzle + SQLite file under
+  `~/.local/share/fleet/`). No Neon/sandbox provisioning.
+- **Effect pinned to `4.0.0-rc.112`**, the exact version `@opencode/client@2.0.20` depends on,
+  so there is one Effect runtime and no overrides (10x is on rc.115 because of Yolk).
+- **Long-lived watcher inside Next**: `instrumentation.ts` `register()` (Node runtime) starts
+  the OpenCode watcher once in a `ManagedRuntime` (guarded against dev reloads); route
+  handlers and server actions read its state. Box runs `next start`, never serverless.
+  10x has no precedent for this, so it gets its own pattern note.
+
+Layout:
+- `lib/services/opencode/` OpenCode client (discover, never ensure) + event stream.
+- `lib/data/fleet/` state machine, snapshot/resync, types (Effect Schema), seen store.
+- `app/` dashboard page, API routes, server actions.
+- `opencode-plugin/` workspace package: the OpenCode CLI plugin (OpenTUI/Solid) loaded from
+  dotfiles `cli.json`.
+
+Deploy on Box: `pnpm build`, `fleet.service` user unit (`next start` on a loopback port) in
+`session.slice` like opencode.service, Portless static route `fleet.oox.sh` in the box
+repo's `portless/static-routes.json`, DNS A record `fleet.oox.sh` → 100.122.135.127.
+Dev: `pnpm dev` → `https://fleet.dev.oox.sh` against the same OpenCode service.
 
 ## Build order
 
-1. Server: snapshot + event stream + state machine + SQLite "seen" + API, with tests
-   against a throwaway `opencode serve` (state transitions, resync after disconnect).
-2. Web page on the Mac browser.
+1. Scaffold from 10x tooling; watcher + state machine + SQLite "seen" + API routes, with
+   tests against a throwaway `opencode serve` (state transitions, resync after disconnect).
+2. Dashboard page on the Mac browser.
 3. Terminal plugin in `ocb`.
 4. Phone: needs a certificate the phone trusts (Portless CA is Mac-only today; reuse the
    aha.oox.sh Let's Encrypt renewal or install the CA on the phone).
@@ -116,4 +135,3 @@ its last messages and a prompt box. Live via SSE. Installable to the phone home 
 - Does `session.viewed` fire for ocb and web views, and is it enough for "seen"?
 - Does the CLI plugin's fetch trust the Portless CA on the Mac (Bun runtime; may need
   `NODE_USE_SYSTEM_CA=1` or `NODE_EXTRA_CA_CERTS` in `ocb`)?
-- Web UI framework: plain Vite + React unless you prefer otherwise.
