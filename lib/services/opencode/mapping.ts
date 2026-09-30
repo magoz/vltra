@@ -1,19 +1,25 @@
 import { DateTime, Predicate } from 'effect'
+import type { Effect } from 'effect'
 import type {
   Form,
   Model,
+  OpenCodeClient,
   OpenCodeEvent,
   Permission,
   Project,
-  Session
+  Session,
+  SessionMessage
 } from '@opencode/client/effect'
 import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
 import type {
+  FileChange,
   FormField,
   PendingForm,
   PendingPermission,
   ProjectRecord,
-  SessionRecord
+  SessionRecord,
+  Transcript,
+  TranscriptEntry
 } from '@/lib/data/fleet/types'
 
 // OpenCode (v2.0.20 schema) → Fleet domain types. Everything OpenCode-shaped stops here.
@@ -140,6 +146,156 @@ export const toProjectRecord = (project: Project.Info): ProjectRecord => ({
 const apply = (event: FleetEvent): ReadonlyArray<OpenCodeSignal> => [
   OpenCodeSignal.Apply({ event })
 ]
+
+const entryLimit = 1500
+
+const clip = (text: string, limit = entryLimit) =>
+  text.length > limit ? `${text.slice(0, limit - 1)}…` : text
+
+const toolEntryStatus = (state: SessionMessage.ToolState): TranscriptEntry['status'] => {
+  switch (state.status) {
+    case 'streaming':
+    case 'running':
+      return 'running'
+    case 'completed':
+      return 'completed'
+    case 'error':
+      return 'error'
+  }
+}
+
+const toolInput = (state: SessionMessage.ToolState): ToolInput =>
+  state.status === 'streaming' ? {} : state.input
+
+const assistantEntries = (message: SessionMessage.Assistant): ReadonlyArray<TranscriptEntry> => {
+  const at = DateTime.toEpochMillis(message.time.created)
+
+  const entries = message.content.flatMap((part, index): ReadonlyArray<TranscriptEntry> => {
+    switch (part.type) {
+      case 'text':
+        return part.text.trim() === ''
+          ? []
+          : [{ id: `${message.id}:${index}`, role: 'agent', text: clip(part.text.trim()), at }]
+      case 'tool': {
+        const detail = toolDetail(toolInput(part.state))
+
+        return [
+          {
+            id: `${message.id}:${index}`,
+            role: 'tool',
+            text: detail === undefined ? part.name : `${part.name} · ${detail}`,
+            at,
+            status: toolEntryStatus(part.state)
+          }
+        ]
+      }
+
+      case 'reasoning':
+        return []
+    }
+  })
+
+  return message.error === undefined
+    ? entries
+    : [
+        ...entries,
+        { id: `${message.id}:error`, role: 'error', text: clip(message.error.message), at }
+      ]
+}
+
+const shellStatus = (status: SessionMessage.Shell['status']): TranscriptEntry['status'] => {
+  switch (status) {
+    case 'running':
+      return 'running'
+    case 'exited':
+      return 'completed'
+    case 'timeout':
+    case 'killed':
+      return 'error'
+  }
+}
+
+const messageEntries = (message: SessionMessage.Info): ReadonlyArray<TranscriptEntry> => {
+  const at = DateTime.toEpochMillis(message.time.created)
+
+  switch (message.type) {
+    case 'user':
+      return [{ id: message.id, role: 'user', text: clip(message.text), at }]
+    case 'assistant':
+      return assistantEntries(message)
+    case 'shell':
+      return [
+        {
+          id: message.id,
+          role: 'shell',
+          text: clip(`$ ${message.command}`, 300),
+          at,
+          status: shellStatus(message.status)
+        }
+      ]
+    case 'compaction':
+      return [{ id: message.id, role: 'note', text: 'Context compacted', at }]
+    case 'idle':
+      return message.outcome === 'succeeded'
+        ? []
+        : [{ id: message.id, role: 'note', text: `Run ${message.outcome}`, at }]
+    case 'agent-switched':
+    case 'model-switched':
+    case 'location-switched':
+    case 'synthetic':
+    case 'system':
+    case 'skill':
+      return []
+  }
+}
+
+/** The newest assistant text in `messages` (any order), i.e. the latest final answer. */
+const latestAnswer = (messages: ReadonlyArray<SessionMessage.Info>): string | undefined => {
+  const newestFirst = messages.toSorted(
+    (left, right) =>
+      DateTime.toEpochMillis(right.time.created) - DateTime.toEpochMillis(left.time.created)
+  )
+
+  for (const message of newestFirst) {
+    if (message.type !== 'assistant') continue
+
+    const text = message.content
+      .flatMap(part => (part.type === 'text' ? [part.text.trim()] : []))
+      .filter(part => part !== '')
+      .join('\n\n')
+
+    if (text !== '') return clip(text)
+  }
+
+  return undefined
+}
+
+/**
+ * A bounded transcript tail: `messages` as returned by OpenCode (any order), oldest first, at
+ * most `limit` entries, each clipped.
+ */
+export const toTranscript = (
+  messages: ReadonlyArray<SessionMessage.Info>,
+  limit: number
+): Transcript => {
+  const entries = messages
+    .toSorted(
+      (left, right) =>
+        DateTime.toEpochMillis(left.time.created) - DateTime.toEpochMillis(right.time.created)
+    )
+    .flatMap(messageEntries)
+
+  return { entries: entries.slice(-limit), answer: latestAnswer(messages) }
+}
+
+type FileDiffInfo = Effect.Success<ReturnType<OpenCodeClient['session']['diff']>>[number]
+
+export const toFileChange = (diff: FileDiffInfo): FileChange => ({
+  file: diff.file,
+  additions: diff.additions,
+  deletions: diff.deletions,
+  status: diff.status
+})
 
 /**
  * Narrows one OpenCode event to the Fleet signals it implies. Events Fleet does not track

@@ -2,8 +2,8 @@ import { Deferred, Effect, Layer, Option, Queue, Ref, Stream } from 'effect'
 import type { Cause } from 'effect'
 import { OpenCodeSignal } from '@/lib/data/fleet/events'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
-import type { SessionRecord } from '@/lib/data/fleet/types'
-import { OpenCodeUnavailableError } from '@/lib/services/opencode/errors'
+import type { FileChange, SessionRecord, Transcript } from '@/lib/data/fleet/types'
+import { OpenCodeRequestError, OpenCodeUnavailableError } from '@/lib/services/opencode/errors'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type { OpenCodeConnection } from '@/lib/services/opencode/service'
 
@@ -14,6 +14,8 @@ export type FakeCall =
   | { readonly op: 'replyForm'; readonly sessionID: string; readonly formID: string }
   | { readonly op: 'prompt'; readonly sessionID: string; readonly text: string }
   | { readonly op: 'interrupt'; readonly sessionID: string }
+  | { readonly op: 'transcript'; readonly sessionID: string; readonly assistantOnly: boolean }
+  | { readonly op: 'diff'; readonly sessionID: string }
 
 export type FakeOpenCode = {
   readonly layer: Layer.Layer<OpenCode>
@@ -30,6 +32,12 @@ export type FakeOpenCode = {
   readonly connectAttempts: Effect.Effect<number>
   readonly snapshotLoads: Effect.Effect<number>
   readonly calls: Effect.Effect<ReadonlyArray<FakeCall>>
+  /** Transcripts and diffs served per session (missing: empty transcript, no files). */
+  readonly setTranscript: (sessionID: string, transcript: Transcript) => Effect.Effect<void>
+  readonly setDiff: (
+    sessionID: string,
+    files: ReadonlyArray<FileChange> | 'fail'
+  ) => Effect.Effect<void>
 }
 
 export const emptySnapshot: OpenCodeSnapshot = {
@@ -50,6 +58,11 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
     const loads = yield* Ref.make(0)
     const calls = yield* Ref.make<ReadonlyArray<FakeCall>>([])
     const gate = yield* Ref.make<Option.Option<Deferred.Deferred<void>>>(Option.none())
+    const transcripts = yield* Ref.make<ReadonlyMap<string, Transcript>>(new Map())
+
+    const diffs = yield* Ref.make<ReadonlyMap<string, ReadonlyArray<FileChange> | 'fail'>>(
+      new Map()
+    )
 
     const current = yield* Ref.make<Option.Option<Queue.Queue<OpenCodeSignal, Cause.Done>>>(
       Option.none()
@@ -99,7 +112,28 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
         record({ op: 'replyPermission', sessionID, requestID }),
       replyForm: ({ sessionID, formID }) => record({ op: 'replyForm', sessionID, formID }),
       prompt: ({ sessionID, text }) => record({ op: 'prompt', sessionID, text }),
-      interrupt: ({ sessionID }) => Effect.as(record({ op: 'interrupt', sessionID }), true)
+      interrupt: ({ sessionID }) => Effect.as(record({ op: 'interrupt', sessionID }), true),
+      transcript: ({ sessionID, assistantOnly }) =>
+        Effect.andThen(
+          record({ op: 'transcript', sessionID, assistantOnly }),
+          Effect.map(
+            Ref.get(transcripts),
+            (map): Transcript => map.get(sessionID) ?? { entries: [], answer: undefined }
+          )
+        ),
+      diff: ({ sessionID }) =>
+        Effect.andThen(
+          record({ op: 'diff', sessionID }),
+          Effect.flatMap(Ref.get(diffs), map => {
+            const files = map.get(sessionID) ?? []
+
+            return files === 'fail'
+              ? Effect.fail(
+                  new OpenCodeRequestError({ operation: 'session.diff', message: 'fake: no diff' })
+                )
+              : Effect.succeed(files)
+          })
+        )
     })
 
     const layer = Layer.succeed(OpenCode, {
@@ -142,7 +176,10 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
       disconnect: withQueue(queue => Effect.asVoid(Queue.end(queue))),
       connectAttempts: Ref.get(attempts),
       snapshotLoads: Ref.get(loads),
-      calls: Ref.get(calls)
+      calls: Ref.get(calls),
+      setTranscript: (sessionID, transcript) =>
+        Ref.update(transcripts, map => new Map(map).set(sessionID, transcript)),
+      setDiff: (sessionID, files) => Ref.update(diffs, map => new Map(map).set(sessionID, files))
     }
 
     return fake

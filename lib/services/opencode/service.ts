@@ -2,7 +2,7 @@ import { Context } from 'effect'
 import type { Effect, Option, Stream } from 'effect'
 import type { OpenCodeSignal } from '@/lib/data/fleet/events'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
-import type { SessionRecord } from '@/lib/data/fleet/types'
+import type { FileChange, SessionRecord, Transcript } from '@/lib/data/fleet/types'
 import type {
   OpenCodeInvalidInputError,
   OpenCodeRequestError,
@@ -55,6 +55,19 @@ export type OpenCodeConnection = {
     readonly text: string
   }) => Effect.Effect<void, ActionError>
   readonly interrupt: (input: { readonly sessionID: string }) => Effect.Effect<boolean, ActionError>
+  /**
+   * `GET /api/session/:id/message`: the newest `limit` messages as a transcript tail. With
+   * `assistantOnly`, only assistant messages are read (enough for the latest answer).
+   */
+  readonly transcript: (input: {
+    readonly sessionID: string
+    readonly limit: number
+    readonly assistantOnly: boolean
+  }) => Effect.Effect<Transcript, ActionError>
+  /** `GET /api/session/:id/diff`: files changed by the latest turn (patch text dropped). */
+  readonly diff: (input: {
+    readonly sessionID: string
+  }) => Effect.Effect<ReadonlyArray<FileChange>, ActionError>
 }
 
 export type OpenCodeOperations = {

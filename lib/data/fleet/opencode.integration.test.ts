@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@effect/vitest'
 import { ConfigProvider, Effect, Layer, Schedule } from 'effect'
 import { markSeen, replyForm, replyPermission } from '@/lib/data/fleet/actions'
+import { loadSessionDetail, loadSessionSummary } from '@/lib/data/fleet/session-detail'
 import { snapshotRows } from '@/lib/data/fleet/snapshot'
 import { FleetStore, FleetStoreLive } from '@/lib/data/fleet/store'
 import type { FleetRow, FleetSnapshot } from '@/lib/data/fleet/types'
@@ -144,6 +145,16 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
           expect(failed.outcome).toBe('failed')
           expect(failed.unseen).toBe(true)
 
+          // Session panel data: the transcript tail (prompt, then the failure) and the summary.
+          const detail = yield* loadSessionDetail({ sessionID })
+
+          expect(detail.transcript.entries[0]).toMatchObject({ role: 'user', text: 'hello' })
+          expect(detail.transcript.entries.some(entry => entry.role !== 'user')).toBe(true)
+
+          const summary = yield* loadSessionSummary({ sessionID, idle: failed.idle ?? 1 })
+
+          expect(summary.sessionID).toBe(sessionID)
+
           // Mark seen through Fleet → OpenCode `session.viewed` → idle.
           expect(yield* markSeen({ sessionID })).toBe('marked')
           yield* eventually(rowIn(sessionID, 'idle'), 'seen failed run')
@@ -170,7 +181,11 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
             { title: 'Pick one', fields: [{ key: 'choice', type: 'string', title: 'Choice?' }] }
           )
 
-          yield* eventually(rowIn(sessionID, 'needs-you'), 'form')
+          const asking = yield* eventually(rowIn(sessionID, 'needs-you'), 'form')
+
+          expect(asking.forms[0]?.fields).toMatchObject([
+            { key: 'choice', type: 'string', title: 'Choice?' }
+          ])
           yield* replyForm({ sessionID, formID: form.data.id, answer: { choice: 'a' } })
           yield* eventually(rowIn(sessionID, 'idle'), 'form answered')
 

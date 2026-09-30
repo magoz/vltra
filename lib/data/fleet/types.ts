@@ -283,3 +283,60 @@ export const FleetChange = Schema.Struct({
 })
 
 export type FleetChange = typeof FleetChange.Type
+
+/** One line of a session's recent transcript, as shown in the session panel. */
+export const TranscriptEntry = Schema.Struct({
+  id: Schema.String,
+  role: Schema.Literals(['user', 'agent', 'tool', 'shell', 'error', 'note']),
+  text: Schema.String,
+  at: Schema.Number,
+  /** Tool and shell entries: whether the call is still running, finished, or failed. */
+  status: Schema.optional(Schema.Literals(['running', 'completed', 'error']))
+})
+
+export type TranscriptEntry = typeof TranscriptEntry.Type
+
+/** The tail of a session's transcript, oldest first, and its latest final answer text. */
+export const Transcript = Schema.Struct({
+  entries: Schema.Array(TranscriptEntry),
+  answer: Schema.optional(Schema.String)
+})
+
+export type Transcript = typeof Transcript.Type
+
+export const FileChange = Schema.Struct({
+  file: Schema.String,
+  additions: Schema.Number,
+  deletions: Schema.Number,
+  status: Schema.Literals(['added', 'deleted', 'modified'])
+})
+
+export type FileChange = typeof FileChange.Type
+
+/** `GET /api/fleet/sessions/:id`: the session panel's transcript tail and last turn's files. */
+export const SessionDetail = Schema.Struct({
+  sessionID: Schema.String,
+  transcript: Transcript,
+  /** Files changed by the latest turn; absent when OpenCode could not diff it. */
+  files: Schema.optional(Schema.Array(FileChange))
+})
+
+export type SessionDetail = typeof SessionDetail.Type
+
+export const ChangeTotals = Schema.Struct({
+  files: Schema.Number,
+  additions: Schema.Number,
+  deletions: Schema.Number
+})
+
+export type ChangeTotals = typeof ChangeTotals.Type
+
+/** `GET /api/fleet/sessions/:id/summary?idle=`: a finished run's answer excerpt and change totals. */
+export const SessionSummary = Schema.Struct({
+  sessionID: Schema.String,
+  idle: Schema.Number,
+  answer: Schema.optional(Schema.String),
+  changes: Schema.optional(ChangeTotals)
+})
+
+export type SessionSummary = typeof SessionSummary.Type

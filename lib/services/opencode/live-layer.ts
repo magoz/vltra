@@ -24,8 +24,10 @@ import {
   toPendingForm,
   toPendingPermission,
   toProjectRecord,
+  toFileChange,
   toSessionRecord,
-  toSignals
+  toSignals,
+  toTranscript
 } from '@/lib/services/opencode/mapping'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type { OpenCodeConnection } from '@/lib/services/opencode/service'
@@ -35,6 +37,9 @@ const requestTimeout = Duration.seconds(15)
 const pageSize = 100
 
 const concurrency = 4
+
+/** Most transcript entries (messages, tool calls, ...) returned for one session. */
+const transcriptEntries = 60
 
 const errorMessage = (cause: unknown) => (Predicate.isError(cause) ? cause.message : String(cause))
 
@@ -355,6 +360,33 @@ const makeConnection = (endpoint: Endpoint, limit: number, http: HttpClient.Http
             .pipe(action('session.interrupt', sessionID))
 
           return result.interrupted
+        }),
+      transcript: ({ sessionID, limit, assistantOnly }) =>
+        Effect.gen(function* () {
+          const id = yield* decodeSessionId(sessionID)
+
+          const page = yield* client.message
+            .list({
+              sessionID: id,
+              limit,
+              order: 'desc',
+              type: assistantOnly ? 'assistant' : undefined
+            })
+            .pipe(action('message.list', sessionID))
+
+          // One page is enough: it holds the newest messages, and entries are clipped.
+          return toTranscript(page.data, transcriptEntries)
+        }),
+      diff: ({ sessionID }) =>
+        Effect.gen(function* () {
+          const id = yield* decodeSessionId(sessionID)
+
+          // `context: 0` keeps the (unused) patches small.
+          const files = yield* client.session
+            .diff({ sessionID: id, context: 0 })
+            .pipe(action('session.diff', sessionID))
+
+          return files.map(toFileChange)
         })
     } satisfies OpenCodeConnection
   })

@@ -1,13 +1,14 @@
 import { describe, expect, it } from '@effect/vitest'
 import { OpenCodeEvent } from '@opencode/protocol/groups/event'
-import { Session } from '@opencode/client/effect'
+import { Session, SessionMessage } from '@opencode/client/effect'
 import { Effect, Schema } from 'effect'
 import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
 import {
   toFormField,
   toolDetail,
   toSessionRecord,
-  toSignals
+  toSignals,
+  toTranscript
 } from '@/lib/services/opencode/mapping'
 import type { JsonValue } from '@/lib/services/opencode/testing/opencode-server'
 
@@ -421,6 +422,67 @@ describe('session row mapping', () => {
         archived: undefined,
         outcome: 'failed'
       })
+    })
+  )
+})
+
+describe('transcript mapping', () => {
+  const model = { id: 'none', providerID: 'fleet-none' }
+
+  // Newest first, as `GET /api/session/:id/message?order=desc` returns them.
+  const messages = [
+    { id: 'msg_4', type: 'idle', outcome: 'failed', time: { created: 1790806600400 } },
+    {
+      id: 'msg_3',
+      type: 'assistant',
+      agent: 'build',
+      model,
+      time: { created: 1790806600300 },
+      content: [
+        { type: 'reasoning', text: 'Let me check.' },
+        { type: 'text', text: '  Updated README and 3 guides.  ' },
+        {
+          type: 'tool',
+          id: 'call_1',
+          name: 'bash',
+          state: { status: 'running', input: { command: 'pnpm build' }, metadata: {} },
+          time: { created: 1790806600310 }
+        }
+      ],
+      error: { type: 'provider.no-route', message: 'Model unavailable' }
+    },
+    {
+      id: 'msg_2',
+      type: 'shell',
+      shellID: 'sh_1',
+      command: 'ls',
+      status: 'exited',
+      time: { created: 1790806600200 }
+    },
+    {
+      id: 'msg_1',
+      type: 'user',
+      text: 'Rewrite the README',
+      time: { created: 1790806600100 }
+    }
+  ]
+
+  it.effect('orders oldest first, keeps text, tools and failures, drops reasoning', () =>
+    Effect.gen(function* () {
+      const decoded = yield* Schema.decodeUnknownEffect(Schema.Array(SessionMessage.Info))(messages)
+      const transcript = toTranscript(decoded, 60)
+
+      expect(transcript.entries.map(entry => [entry.role, entry.text, entry.status])).toEqual([
+        ['user', 'Rewrite the README', undefined],
+        ['shell', '$ ls', 'completed'],
+        ['agent', 'Updated README and 3 guides.', undefined],
+        ['tool', 'bash · pnpm build', 'running'],
+        ['error', 'Model unavailable', undefined],
+        ['note', 'Run failed', undefined]
+      ])
+
+      expect(transcript.answer).toBe('Updated README and 3 guides.')
+      expect(toTranscript(decoded, 2).entries.map(entry => entry.role)).toEqual(['error', 'note'])
     })
   )
 })

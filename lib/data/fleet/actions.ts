@@ -48,7 +48,10 @@ export type InterruptSessionInput = typeof InterruptSessionInput.Type
 
 export type MarkSeenOutcome = 'marked' | 'already-seen'
 
-const withConnection = <A, E>(run: (connection: OpenCodeConnection) => Effect.Effect<A, E>) =>
+/** Runs `run` against a fresh OpenCode connection (discovered per call). */
+export const withConnection = <A, E>(
+  run: (connection: OpenCodeConnection) => Effect.Effect<A, E>
+) =>
   Effect.gen(function* () {
     const opencode = yield* OpenCode
     const connection = yield* opencode.connect
