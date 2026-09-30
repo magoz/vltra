@@ -109,6 +109,24 @@ Differences from 10x, on purpose:
   handlers and server actions read its state. Box runs `next start`, never serverless.
   10x has no precedent for this, so it gets its own pattern note.
 
+Cache Components (as in 10x `next.config.ts` and `patterns/EFFECT_PAGES.md`):
+- `cacheComponents: true`, `partialPrefetching: true`; no removed route-segment options
+  (`dynamic`, `revalidate`, `fetchCache`, `dynamicParams`).
+- Dashboard route shell (header, section chrome, filters) is prerendered. The live fleet
+  list is request-fresh (it reads the in-process watcher), so it sits in the smallest
+  `<Suspense>` boundary with a shape-matched skeleton and `await connection()`; the client
+  then keeps it live from `GET /api/fleet/events`.
+- `'use cache'` helpers with `cacheTag` for slow-changing OpenCode data:
+  - projects and worktrees (`fleet:projects`), invalidated on `project.updated` /
+    `worktree.updated`;
+  - a finished session's transcript tail for the detail view (`fleet:session:<id>`),
+    invalidated when that session runs again.
+  Server actions use `updateTag` after mutations. Whether the background watcher (started
+  from `instrumentation.ts`, outside a request) may call `revalidateTag` must be verified in
+  the installed Next docs (`node_modules/next/dist/docs/`); otherwise it goes through a
+  tiny internal route.
+- `GET /api/fleet` and the SSE route read runtime state, so they stay request-time.
+
 Layout:
 - `lib/services/opencode/` OpenCode client (discover, never ensure) + event stream.
 - `lib/data/fleet/` state machine, snapshot/resync, types (Effect Schema), seen store.
@@ -133,5 +151,6 @@ Dev: `pnpm dev` → `https://fleet.dev.oox.sh` against the same OpenCode service
 ## Open questions
 
 - Does `session.viewed` fire for ocb and web views, and is it enough for "seen"?
+- Can a background task outside a request call `revalidateTag` (see Cache Components)?
 - Does the CLI plugin's fetch trust the Portless CA on the Mac (Bun runtime; may need
   `NODE_USE_SYSTEM_CA=1` or `NODE_EXTRA_CA_CERTS` in `ocb`)?
