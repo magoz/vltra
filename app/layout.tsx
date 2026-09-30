@@ -4,11 +4,17 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Fleet',
   description: 'Every OpenCode session on Box',
-  applicationName: 'Fleet'
+  applicationName: 'Fleet',
+  appleWebApp: { capable: true, title: 'Fleet', statusBarStyle: 'default' }
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark'
+  colorScheme: 'light dark',
+  interactiveWidget: 'resizes-content',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#faf8f4' },
+    { media: '(prefers-color-scheme: dark)', color: '#1d1d1c' }
+  ]
 }
 
 export default function RootLayout({
@@ -18,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="antialiased">
-      <body className="font-sans">{children}</body>
+      <body>{children}</body>
     </html>
   )
 }
