@@ -120,7 +120,6 @@ Effect everywhere (10x `patterns/EFFECT_*.md`, `TYPESCRIPT_CONVENTIONS.md`):
 - Everything composed into one `ManagedRuntime` started from `instrumentation.ts`; pages,
   route handlers and server actions run Effects against it (10x `NextEffect` helpers,
   `catchTag` chains, `Schema` parsing at every boundary).
-- Scripts (`scripts/deploy`) are Effect programs run once at the outer boundary.
 - Tests: `@effect/vitest`, `TestClock` for backoff/timeouts, fake services via typed
   layers (no module mocking), plus an integration suite against a real throwaway
   `opencode serve`.
@@ -150,14 +149,11 @@ Layout:
 - `opencode-plugin/` workspace package: the OpenCode CLI plugin (OpenTUI/Solid) loaded from
   dotfiles `cli.json`.
 
-Runs entirely on Box (no Vercel/hosting):
-- Dev: `pnpm dev` in `~/dev/repos/fleet` → `https://fleet.dev.oox.sh`, against the same local
-  OpenCode service.
-- Production: `~/fleet` is a deployment checkout (like `~/usage`, `~/aha`, `~/collie`; never
-  edited in place). `scripts/deploy` pulls, runs `pnpm install --frozen-lockfile` and
-  `pnpm build`, and restarts `fleet.service` only if the build succeeds.
-- `fleet.service` user unit runs `next start` on a loopback port, in `session.slice` like
-  opencode.service, `Restart=always`. Unit and runbook live in the box repo.
+Runs entirely on Box from this one checkout (`~/dev/repos/fleet`); no Vercel, no separate
+deployment copy:
+- `fleet.service` user unit runs `next start` from this checkout on a loopback port, in
+  `session.slice` like opencode.service, `Restart=always`. Unit lives in the box repo.
+- Iterate: edit, then `pnpm ship` (`pnpm build && systemctl --user restart fleet`).
 - Portless static route `fleet.oox.sh` in the box repo's `portless/static-routes.json`, DNS
   A record `fleet.oox.sh` → 100.122.135.127.
 
