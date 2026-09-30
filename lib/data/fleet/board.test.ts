@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@effect/vitest'
 import {
   applyChange,
+  boardRow,
   buildBoard,
   fromSnapshot,
   idleWindow,
@@ -124,6 +125,27 @@ describe('worktree labels', () => {
     expect(
       worktreeLabel(withSubdirectory, { projectID: 'prj_fleet', directory: `${fleet}/packages/ui` })
     ).toBe('packages/ui')
+  })
+})
+
+describe('row names', () => {
+  it("names sessions of OpenCode's global project by their directory", () => {
+    const global = fromSnapshot(
+      buildSnapshot(
+        modelFromSnapshot({
+          ...emptySnapshot,
+          sessions: [sessionRecord('ses_tmp', { projectID: 'global', directory: '/tmp/scratch' })],
+          projects: [{ id: 'global', directory: '/' }]
+        }),
+        { connection, webUrl, now }
+      )
+    )
+
+    const row = global.rows.get('ses_tmp')
+
+    if (row === undefined) throw new Error('missing ses_tmp')
+
+    expect(boardRow(global, row)).toMatchObject({ project: 'scratch', worktree: undefined })
   })
 })
 

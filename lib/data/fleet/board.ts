@@ -125,11 +125,23 @@ export const worktreeLabel = (
   return lastSegment(row.directory)
 }
 
-export const boardRow = (live: LiveFleet, row: FleetRow): BoardRow => ({
-  row,
-  project: live.projects.get(row.projectID)?.name ?? lastSegment(row.directory),
-  worktree: worktreeLabel(live, row)
-})
+/**
+ * OpenCode's `global` project (sessions outside any repository) has `/` as its directory; its
+ * sessions, and those of projects the client does not know yet, are named by their directory.
+ */
+const namedProject = (live: LiveFleet, row: FleetRow): ProjectInfo | undefined => {
+  const project = live.projects.get(row.projectID)
+
+  return project === undefined || project.directory === '/' ? undefined : project
+}
+
+export const boardRow = (live: LiveFleet, row: FleetRow): BoardRow => {
+  const project = namedProject(live, row)
+
+  return project === undefined
+    ? { row, project: lastSegment(row.directory), worktree: undefined }
+    : { row, project: project.name, worktree: worktreeLabel(live, row) }
+}
 
 const byRecency = (left: BoardRow, right: BoardRow) =>
   lastActivity(right.row) - lastActivity(left.row)
