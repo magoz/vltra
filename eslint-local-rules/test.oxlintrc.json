@@ -1,0 +1,16 @@
+{
+  "$schema": "../node_modules/oxlint/configuration_schema.json",
+  "plugins": [],
+  "jsPlugins": ["./index.js"],
+  "categories": {
+    "correctness": "off"
+  },
+  "rules": {
+    "local/no-disable-validation": "error",
+    "local/no-catch-cause": "error",
+    "local/no-schema-from-self": "error",
+    "local/no-schema-decode-sync": "error",
+    "local/no-node-deps-in-mcp-tools": "error",
+    "local/prefer-option-from-nullable": "warn"
+  }
+}
