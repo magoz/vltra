@@ -5,6 +5,7 @@ import type {
   PendingPermission,
   ProjectRecord,
   RetryInfo,
+  SessionActivity,
   SessionRecord
 } from '@/lib/data/fleet/types'
 
@@ -30,6 +31,18 @@ export type FleetEvent = Data.TaggedEnum<{
   StepFailed: { readonly sessionID: string }
   RetryScheduled: { readonly sessionID: string; readonly retry: RetryInfo }
   StatusChanged: { readonly sessionID: string; readonly status: 'idle' | 'busy' | 'retry' }
+  /** A step, reasoning, text, or tool call started. `callID` identifies a tool call. */
+  ActivityChanged: {
+    readonly sessionID: string
+    readonly activity: SessionActivity
+    readonly callID: string | undefined
+  }
+  /** A tool call's input is complete; `detail` summarises it for display. */
+  ToolCalled: {
+    readonly sessionID: string
+    readonly callID: string
+    readonly detail: string | undefined
+  }
   Viewed: { readonly sessionID: string; readonly idle: number }
   PermissionAsked: { readonly permission: PendingPermission }
   PermissionReplied: { readonly requestID: string }
@@ -70,6 +83,9 @@ export const eventSessionID = (event: FleetEvent): string | undefined =>
     StepFailed: ({ sessionID }) => sessionID,
     RetryScheduled: ({ sessionID }) => sessionID,
     StatusChanged: ({ sessionID }) => sessionID,
+    // Live activity is cosmetic and frequent: never worth a session read on its own.
+    ActivityChanged: () => undefined,
+    ToolCalled: () => undefined,
     Viewed: ({ sessionID }) => sessionID,
     PermissionAsked: ({ permission }) => permission.sessionID,
     PermissionReplied: () => undefined,

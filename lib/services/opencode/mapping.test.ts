@@ -3,7 +3,12 @@ import { OpenCodeEvent } from '@opencode/protocol/groups/event'
 import { Session } from '@opencode/client/effect'
 import { Effect, Schema } from 'effect'
 import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
-import { toSessionRecord, toSignals } from '@/lib/services/opencode/mapping'
+import {
+  toFormField,
+  toolDetail,
+  toSessionRecord,
+  toSignals
+} from '@/lib/services/opencode/mapping'
 import type { JsonValue } from '@/lib/services/opencode/testing/opencode-server'
 
 // Wire JSON as served by a real `opencode serve` v2.0.20 (captured, ids shortened), decoded with
@@ -112,6 +117,63 @@ const wire = {
     durable: { aggregateID: 'prj_new', seq: 0, version: 1 },
     data: { projectID: 'prj_new', directory: '/tmp/fleet/work', previous: 'global' }
   },
+  formHidden: {
+    id: 'evt_18',
+    created: 1790806673700,
+    type: 'form.created',
+    location,
+    data: {
+      form: {
+        id: 'frm_0f4658abb',
+        sessionID,
+        title: 'Token',
+        fields: [
+          { key: 'region', type: 'string', hidden: true, default: 'eu' },
+          { key: 'ok', type: 'boolean' }
+        ]
+      }
+    }
+  },
+  stepStarted: {
+    id: 'evt_14',
+    created: 1790806577000,
+    type: 'session.step.started',
+    durable: durable(8),
+    data: {
+      sessionID,
+      assistantMessageID: 'msg_0f463c80e',
+      agent: 'build',
+      model: { id: 'none', providerID: 'fleet-none' },
+      started: 1790806577000
+    }
+  },
+  textStarted: {
+    id: 'evt_15',
+    created: 1790806577010,
+    type: 'session.text.started',
+    durable: durable(9),
+    data: { sessionID, assistantMessageID: 'msg_0f463c80e', ordinal: 0 }
+  },
+  toolInputStarted: {
+    id: 'evt_16',
+    created: 1790806577020,
+    type: 'session.tool.input.started',
+    durable: durable(10),
+    data: { sessionID, assistantMessageID: 'msg_0f463c80e', id: 'call_1', name: 'bash' }
+  },
+  toolCalled: {
+    id: 'evt_17',
+    created: 1790806577030,
+    type: 'session.tool.called',
+    durable: durable(11),
+    data: {
+      sessionID,
+      assistantMessageID: 'msg_0f463c80e',
+      id: 'call_1',
+      input: { command: 'pnpm build\nexit', timeout: 120 },
+      executed: true
+    }
+  },
   textDelta: {
     id: 'evt_13',
     created: 1790806577088,
@@ -202,7 +264,27 @@ describe('OpenCode event mapping', () => {
 
       expect(yield* signalsFor(wire.formCreated)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.FormCreated({ form: { id: 'frm_0f4658aba', sessionID, title: 'Pick' } })
+          event: FleetEvent.FormCreated({
+            form: {
+              id: 'frm_0f4658aba',
+              sessionID,
+              title: 'Pick',
+              fields: [
+                {
+                  key: 'a',
+                  title: 'A?',
+                  type: 'string',
+                  description: undefined,
+                  required: undefined,
+                  when: undefined,
+                  placeholder: undefined,
+                  default: undefined,
+                  options: undefined,
+                  custom: undefined
+                }
+              ]
+            }
+          })
         })
       ])
 
@@ -219,6 +301,85 @@ describe('OpenCode event mapping', () => {
       ])
 
       expect(yield* signalsFor(wire.resolvedAdopting)).toEqual([OpenCodeSignal.Resync()])
+    })
+  )
+
+  it.effect('steps, text and tool calls map to live activity', () =>
+    Effect.gen(function* () {
+      expect(yield* signalsFor(wire.stepStarted)).toEqual([
+        OpenCodeSignal.Apply({
+          event: FleetEvent.ActivityChanged({
+            sessionID,
+            activity: { kind: 'thinking' },
+            callID: undefined
+          })
+        })
+      ])
+
+      expect(yield* signalsFor(wire.textStarted)).toEqual([
+        OpenCodeSignal.Apply({
+          event: FleetEvent.ActivityChanged({
+            sessionID,
+            activity: { kind: 'writing' },
+            callID: undefined
+          })
+        })
+      ])
+
+      expect(yield* signalsFor(wire.toolInputStarted)).toEqual([
+        OpenCodeSignal.Apply({
+          event: FleetEvent.ActivityChanged({
+            sessionID,
+            activity: { kind: 'tool', tool: 'bash' },
+            callID: 'call_1'
+          })
+        })
+      ])
+
+      expect(yield* signalsFor(wire.toolCalled)).toEqual([
+        OpenCodeSignal.Apply({
+          event: FleetEvent.ToolCalled({ sessionID, callID: 'call_1', detail: 'pnpm build' })
+        })
+      ])
+    })
+  )
+
+  it('summarises tool input by its most telling field', () => {
+    expect(toolDetail({ filePath: '/repo/src/a.ts', offset: 1 })).toBe('/repo/src/a.ts')
+    expect(toolDetail({ pattern: '**/*.ts' })).toBe('**/*.ts')
+    expect(toolDetail({ command: 'x'.repeat(200) })).toHaveLength(120)
+    expect(toolDetail({ todos: [] })).toBeUndefined()
+  })
+
+  it('maps form fields and skips hidden ones', () => {
+    expect(
+      toFormField({
+        key: 'format',
+        type: 'string',
+        title: 'Which format?',
+        options: [
+          { value: 'pdf', label: 'PDF' },
+          { value: 'docx', label: 'DOCX' }
+        ]
+      })
+    ).toMatchObject({
+      key: 'format',
+      type: 'string',
+      options: [{ value: 'pdf' }, { value: 'docx' }]
+    })
+
+    expect(
+      toFormField({ key: 'tags', type: 'multiselect', options: [{ value: 'a', label: 'A' }] })
+    ).toMatchObject({ type: 'multiselect', options: [{ value: 'a', label: 'A' }] })
+  })
+
+  it.effect('skips hidden form fields (OpenCode uses their default)', () =>
+    Effect.gen(function* () {
+      const [signal] = yield* signalsFor(wire.formHidden)
+
+      expect(signal).toMatchObject({
+        event: { form: { fields: [{ key: 'ok', type: 'boolean' }] } }
+      })
     })
   )
 

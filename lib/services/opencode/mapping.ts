@@ -1,4 +1,4 @@
-import { DateTime } from 'effect'
+import { DateTime, Predicate } from 'effect'
 import type {
   Form,
   Model,
@@ -9,6 +9,7 @@ import type {
 } from '@opencode/client/effect'
 import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
 import type {
+  FormField,
   PendingForm,
   PendingPermission,
   ProjectRecord,
@@ -47,11 +48,88 @@ export const toPendingPermission = (request: Permission.Request): PendingPermiss
   message: request.message
 })
 
+const fieldBase = (field: Exclude<Form.Field, Form.ExternalField>) => ({
+  key: field.key,
+  title: field.title,
+  description: field.description,
+  required: field.required,
+  when: field.when
+})
+
+export const toFormField = (field: Form.Field): FormField => {
+  switch (field.type) {
+    case 'string':
+      return {
+        ...fieldBase(field),
+        type: 'string',
+        placeholder: field.placeholder,
+        default: field.default,
+        options: field.options,
+        custom: field.custom
+      }
+    case 'number':
+    case 'integer':
+      return {
+        ...fieldBase(field),
+        type: field.type,
+        minimum: field.minimum,
+        maximum: field.maximum,
+        default: field.default
+      }
+    case 'boolean':
+      return { ...fieldBase(field), type: 'boolean', default: field.default }
+    case 'multiselect':
+      return {
+        ...fieldBase(field),
+        type: 'multiselect',
+        options: field.options,
+        default: field.default
+      }
+    case 'external':
+      return {
+        key: field.key,
+        type: 'external',
+        url: field.url,
+        title: field.title,
+        description: field.description
+      }
+  }
+}
+
 export const toPendingForm = (form: Form.Info): PendingForm => ({
   id: form.id,
   sessionID: form.sessionID,
-  title: form.title
+  title: form.title,
+  // Hidden fields take their default unless answered; Fleet does not ask for them.
+  fields: form.fields.flatMap(field =>
+    field.type !== 'external' && field.hidden === true ? [] : [toFormField(field)]
+  )
 })
+
+/** OpenCode's own tool input type (`session.tool.called`). */
+type ToolInput = Extract<OpenCodeEvent, { readonly type: 'session.tool.called' }>['data']['input']
+
+const detailKeys = ['command', 'description', 'filePath', 'path', 'pattern', 'url', 'query']
+
+const detailLimit = 120
+
+/**
+ * A short, human-readable summary of a tool call's input (the command, path, pattern, ...), for
+ * the dashboard's live activity. Unknown inputs yield nothing.
+ */
+export const toolDetail = (input: ToolInput): string | undefined => {
+  for (const key of detailKeys) {
+    const value = input[key]
+
+    if (Predicate.isString(value) && value.trim() !== '') {
+      const line = value.trim().split('\n')[0] ?? ''
+
+      return line.length > detailLimit ? `${line.slice(0, detailLimit - 1)}…` : line
+    }
+  }
+
+  return undefined
+}
 
 export const toProjectRecord = (project: Project.Info): ProjectRecord => ({
   id: project.id,
@@ -139,6 +217,39 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
             at: event.data.at,
             message: event.data.error.message
           }
+        })
+      )
+    case 'session.step.started':
+    case 'session.reasoning.started':
+      return apply(
+        FleetEvent.ActivityChanged({
+          sessionID: event.data.sessionID,
+          activity: { kind: 'thinking' },
+          callID: undefined
+        })
+      )
+    case 'session.text.started':
+      return apply(
+        FleetEvent.ActivityChanged({
+          sessionID: event.data.sessionID,
+          activity: { kind: 'writing' },
+          callID: undefined
+        })
+      )
+    case 'session.tool.input.started':
+      return apply(
+        FleetEvent.ActivityChanged({
+          sessionID: event.data.sessionID,
+          activity: { kind: 'tool', tool: event.data.name },
+          callID: event.data.id
+        })
+      )
+    case 'session.tool.called':
+      return apply(
+        FleetEvent.ToolCalled({
+          sessionID: event.data.sessionID,
+          callID: event.data.id,
+          detail: toolDetail(event.data.input)
         })
       )
     case 'session.status':

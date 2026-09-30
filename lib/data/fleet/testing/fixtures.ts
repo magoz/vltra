@@ -22,6 +22,14 @@ export const sessionRecord = (
 export const trackedSession = (
   info: SessionRecord,
   overrides: Partial<Omit<TrackedSession, 'info'>> = {}
-): TrackedSession => ({ info, running: false, stepFailed: false, retry: undefined, ...overrides })
+): TrackedSession => ({
+  info,
+  running: false,
+  stepFailed: false,
+  retry: undefined,
+  activity: undefined,
+  activityCall: undefined,
+  ...overrides
+})
 
 export const webUrl = new URL('https://box.tail129a86.ts.net:9446')

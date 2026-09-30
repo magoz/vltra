@@ -4,6 +4,7 @@ import type {
   PendingPermission,
   ProjectRecord,
   RetryInfo,
+  SessionActivity,
   SessionRecord
 } from '@/lib/data/fleet/types'
 
@@ -14,6 +15,10 @@ export type TrackedSession = {
   /** A step failed during the current or last run; cleared on the next start or when seen. */
   readonly stepFailed: boolean
   readonly retry: RetryInfo | undefined
+  /** Live activity while running; only known from events seen since the last (re)connect. */
+  readonly activity: SessionActivity | undefined
+  /** The tool call `activity` describes, to attach its input summary once it is complete. */
+  readonly activityCall: string | undefined
 }
 
 /** Everything Fleet knows about OpenCode. Rebuilt from a snapshot on every (re)connect. */
@@ -52,7 +57,9 @@ const track = (info: SessionRecord, running: boolean): TrackedSession => ({
   info,
   running,
   stepFailed: false,
-  retry: undefined
+  retry: undefined,
+  activity: undefined,
+  activityCall: undefined
 })
 
 export const fromSnapshot = (snapshot: OpenCodeSnapshot): FleetModel => {
@@ -105,11 +112,36 @@ const patchInfo = (session: TrackedSession, info: Partial<SessionRecord>): Track
   info: { ...session.info, ...info }
 })
 
+/** Not running: no retry and no live activity. */
+const idleSession = (session: TrackedSession): TrackedSession => ({
+  ...session,
+  running: false,
+  retry: undefined,
+  activity: undefined,
+  activityCall: undefined
+})
+
+const setActivity = (
+  session: TrackedSession,
+  activity: SessionActivity,
+  callID: string | undefined
+): TrackedSession => ({ ...session, activity, activityCall: callID })
+
+/** Attach a finished tool input summary to the matching current tool call, if it still is. */
+const describeCall = (
+  session: TrackedSession,
+  callID: string,
+  detail: string | undefined
+): TrackedSession =>
+  session.activityCall === callID && session.activity !== undefined && detail !== undefined
+    ? { ...session, activity: { ...session.activity, detail } }
+    : session
+
 const endExecution = (
   session: TrackedSession,
   event: Extract<FleetEvent, { readonly _tag: 'ExecutionEnded' }>
 ): TrackedSession => {
-  const stopped = { ...session, running: false, stepFailed: false, retry: undefined }
+  const stopped = { ...idleSession(session), stepFailed: false }
 
   if (event.shutdown) return stopped
 
@@ -167,7 +199,14 @@ export const applyEvent = (model: FleetModel, event: FleetEvent): FleetModel =>
     ExecutionStarted: ({ sessionID, at }) =>
       updateSession(model, sessionID, session =>
         patchInfo(
-          { ...session, running: true, stepFailed: false, retry: undefined },
+          {
+            ...session,
+            running: true,
+            stepFailed: false,
+            retry: undefined,
+            activity: undefined,
+            activityCall: undefined
+          },
           { updated: Math.max(session.info.updated, at) }
         )
       ),
@@ -179,10 +218,12 @@ export const applyEvent = (model: FleetModel, event: FleetEvent): FleetModel =>
       updateSession(model, sessionID, session => ({ ...session, running: true, retry })),
     StatusChanged: ({ sessionID, status }) =>
       updateSession(model, sessionID, session =>
-        status === 'idle'
-          ? { ...session, running: false, retry: undefined }
-          : { ...session, running: true }
+        status === 'idle' ? idleSession(session) : { ...session, running: true }
       ),
+    ActivityChanged: ({ sessionID, activity, callID }) =>
+      updateSession(model, sessionID, session => setActivity(session, activity, callID)),
+    ToolCalled: ({ sessionID, callID, detail }) =>
+      updateSession(model, sessionID, session => describeCall(session, callID, detail)),
     Viewed: ({ sessionID, idle }) =>
       updateSession(model, sessionID, session => markViewed(session, idle)),
     PermissionAsked: ({ permission }) => ({

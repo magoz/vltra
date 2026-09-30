@@ -123,6 +123,7 @@ const buildNode = (
     unseen: isUnseen(info),
     running: session.running,
     retry: session.retry,
+    activity: session.running ? session.activity : undefined,
     permissions,
     forms,
     links: sessionLinks(tree.webUrl, info.id)

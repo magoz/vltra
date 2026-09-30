@@ -51,10 +51,79 @@ export const PendingPermission = Schema.Struct({
 
 export type PendingPermission = typeof PendingPermission.Type
 
+export const FormOption = Schema.Struct({
+  value: Schema.String,
+  label: Schema.String,
+  description: Schema.optional(Schema.String)
+})
+
+export type FormOption = typeof FormOption.Type
+
+/** One visibility condition: the field is active only while every condition holds. */
+export const FormCondition = Schema.Struct({
+  key: Schema.String,
+  op: Schema.Literals(['eq', 'neq']),
+  value: Schema.Union([Schema.String, Schema.Number, Schema.Boolean])
+})
+
+export type FormCondition = typeof FormCondition.Type
+
+const formFieldBase = {
+  key: Schema.String,
+  title: Schema.optional(Schema.String),
+  description: Schema.optional(Schema.String),
+  required: Schema.optional(Schema.Boolean),
+  when: Schema.optional(Schema.Array(FormCondition))
+}
+
+/**
+ * A form (agent question) field, as OpenCode's `Form.Field` minus validation details Fleet does not
+ * enforce (OpenCode validates the answer). `external` fields link out and take no answer.
+ */
+export const FormField = Schema.Union([
+  Schema.Struct({
+    ...formFieldBase,
+    type: Schema.Literal('string'),
+    placeholder: Schema.optional(Schema.String),
+    default: Schema.optional(Schema.String),
+    options: Schema.optional(Schema.Array(FormOption)),
+    /** With options: a free-text answer is allowed too. */
+    custom: Schema.optional(Schema.Boolean)
+  }),
+  Schema.Struct({
+    ...formFieldBase,
+    type: Schema.Literals(['number', 'integer']),
+    minimum: Schema.optional(Schema.Number),
+    maximum: Schema.optional(Schema.Number),
+    default: Schema.optional(Schema.Number)
+  }),
+  Schema.Struct({
+    ...formFieldBase,
+    type: Schema.Literal('boolean'),
+    default: Schema.optional(Schema.Boolean)
+  }),
+  Schema.Struct({
+    ...formFieldBase,
+    type: Schema.Literal('multiselect'),
+    options: Schema.Array(FormOption),
+    default: Schema.optional(Schema.Array(Schema.String))
+  }),
+  Schema.Struct({
+    key: Schema.String,
+    type: Schema.Literal('external'),
+    url: Schema.String,
+    title: Schema.optional(Schema.String),
+    description: Schema.optional(Schema.String)
+  })
+])
+
+export type FormField = typeof FormField.Type
+
 export const PendingForm = Schema.Struct({
   id: Schema.String,
   sessionID: Schema.String,
-  title: Schema.String
+  title: Schema.String,
+  fields: Schema.Array(FormField)
 })
 
 export type PendingForm = typeof PendingForm.Type
@@ -74,6 +143,20 @@ export const RetryInfo = Schema.Struct({
 })
 
 export type RetryInfo = typeof RetryInfo.Type
+
+/**
+ * What a running session is doing right now, from the live event stream only (a resync forgets
+ * it until the next step): waiting on the model, writing its answer, or calling a tool.
+ */
+export const SessionActivity = Schema.Struct({
+  kind: Schema.Literals(['thinking', 'writing', 'tool']),
+  /** Tool name, for `tool`. */
+  tool: Schema.optional(Schema.String),
+  /** Short human-readable tool input (command, path, pattern, ...), for `tool`. */
+  detail: Schema.optional(Schema.String)
+})
+
+export type SessionActivity = typeof SessionActivity.Type
 
 export const SessionLinks = Schema.Struct({
   /** OpenCode's own web UI for this session. */
@@ -106,6 +189,8 @@ const rowFields = {
   unseen: Schema.Boolean,
   running: Schema.Boolean,
   retry: Schema.optional(RetryInfo),
+  /** Live activity while running (see `SessionActivity`). */
+  activity: Schema.optional(SessionActivity),
   permissions: Schema.Array(PendingPermission),
   forms: Schema.Array(PendingForm),
   links: SessionLinks

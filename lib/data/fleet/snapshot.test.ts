@@ -160,3 +160,30 @@ describe('grouping and ordering', () => {
     })
   })
 })
+
+describe('live activity on rows', () => {
+  it('shows activity only while the session runs', () => {
+    const model = fromSnapshot({
+      ...emptySnapshot,
+      sessions: [sessionRecord('ses_run'), sessionRecord('ses_stopped')],
+      running: ['ses_run']
+    })
+
+    const activity = { kind: 'tool' as const, tool: 'bash', detail: 'pnpm build' }
+
+    const withActivity = {
+      ...model,
+      sessions: new Map(
+        Array.from(model.sessions, ([key, session]) => [
+          key,
+          { ...session, activity, activityCall: 'call_1' }
+        ])
+      )
+    }
+
+    const rows = buildRows(withActivity, webUrl)
+
+    expect(rows.find(row => row.id === 'ses_run')?.activity).toEqual(activity)
+    expect(rows.find(row => row.id === 'ses_stopped')?.activity).toBeUndefined()
+  })
+})

@@ -35,7 +35,9 @@ const permission = FleetEvent.PermissionAsked({
   permission: { id: 'per_1', sessionID: id, action: 'bash', resources: ['rm -rf build'] }
 })
 
-const form = FleetEvent.FormCreated({ form: { id: 'frm_1', sessionID: id, title: 'Which?' } })
+const form = FleetEvent.FormCreated({
+  form: { id: 'frm_1', sessionID: id, title: 'Which?', fields: [] }
+})
 
 describe('state machine transitions (DESIGN.md "Session state")', () => {
   it('idle → working on session.execution.started', () => {
@@ -260,6 +262,65 @@ describe('resync replay', () => {
   it('snapshot running ids start as working', () => {
     expect(stateOf(withSession(sessionRecord(id), true))).toBe('working')
     expect(emptyModel.sessions.size).toBe(0)
+  })
+})
+
+describe('live activity', () => {
+  const thinking = FleetEvent.ActivityChanged({
+    sessionID: id,
+    activity: { kind: 'thinking' },
+    callID: undefined
+  })
+
+  const tool = FleetEvent.ActivityChanged({
+    sessionID: id,
+    activity: { kind: 'tool', tool: 'bash' },
+    callID: 'call_1'
+  })
+
+  const activityOf = (model: FleetModel) => model.sessions.get(id)?.activity
+
+  it('follows steps and tool calls while running', () => {
+    const model = applyEvents(withSession(), [started(baseTime + 1), thinking])
+
+    expect(activityOf(model)).toEqual({ kind: 'thinking' })
+    expect(activityOf(applyEvent(model, tool))).toEqual({ kind: 'tool', tool: 'bash' })
+  })
+
+  it('adds the tool input summary only to the current call', () => {
+    const model = applyEvents(withSession(), [started(baseTime + 1), tool])
+
+    const described = applyEvent(
+      model,
+      FleetEvent.ToolCalled({ sessionID: id, callID: 'call_1', detail: 'pnpm build' })
+    )
+
+    expect(activityOf(described)).toEqual({ kind: 'tool', tool: 'bash', detail: 'pnpm build' })
+
+    const stale = applyEvent(
+      model,
+      FleetEvent.ToolCalled({ sessionID: id, callID: 'call_0', detail: 'ls' })
+    )
+
+    expect(activityOf(stale)).toEqual({ kind: 'tool', tool: 'bash' })
+  })
+
+  it('clears on end, idle status and the next start', () => {
+    const busy = applyEvents(withSession(), [started(baseTime + 1), tool])
+
+    expect(activityOf(applyEvent(busy, ended(baseTime + 2, 'succeeded')))).toBeUndefined()
+
+    expect(
+      activityOf(applyEvent(busy, FleetEvent.StatusChanged({ sessionID: id, status: 'idle' })))
+    ).toBeUndefined()
+
+    expect(activityOf(applyEvent(busy, started(baseTime + 3)))).toBeUndefined()
+  })
+
+  it('does not change the session state', () => {
+    const busy = applyEvents(withSession(), [started(baseTime + 1), tool])
+
+    expect(stateOf(busy)).toBe('working')
   })
 })
 
