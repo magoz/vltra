@@ -45,15 +45,17 @@ One row per root session (subagents nest under their parent and roll up into it)
 Priority when several apply: needs-you > failed > working > done > idle. A parent is
 `needs-you`/`working` if any descendant is.
 
-"Seen" = opened in any client (OpenCode emits `session.viewed`; verify it covers ocb and
-the web UI) or dismissed in fleet. Stored by fleet (SQLite), so every device agrees.
+"Seen" is OpenCode's own: each session has `outcome` (`succeeded`/`failed`), `time.idle` and
+`time.viewed`; a finished session is unseen while `viewed < idle` (core
+`session/session.ts`). Any client viewing it (ocb, OpenCode web UI) advances `viewed`;
+fleet's "Mark seen" calls `POST /api/session/:id/view { idle }`. Fleet stores nothing.
 
 ## OpenCode surface used (verified in v2.0.20 source)
 
 - Stream: `GET /api/event` (all locations; live only, no replay; slow consumers are dropped).
 - Snapshot: `GET /api/session`, `GET /api/project`, `GET /api/permission/request`,
   `GET /api/form`, `GET /api/session/active`, `GET /api/worktree/:projectID`.
-- Actions: `POST /api/session/:id/permission/:requestID/reply`,
+- Actions: `POST /api/session/:id/permission/:requestID/reply`, `POST /api/session/:id/view`,
   `POST /api/session/:id/form/:formID/reply`, `POST /api/session/:id/prompt`,
   `POST /api/session/:id/interrupt`.
 - Events: `session.execution.{started,succeeded,failed,interrupted}`, `session.status`,
@@ -74,14 +76,22 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
   reconnect).
 - Actions for the web UI are server actions (typed inputs, per 10x conventions): mark seen,
   reply to permission, answer form, send prompt, interrupt (proxied to OpenCode).
-- The CLI plugin uses the two GET routes plus `POST /api/sessions/:id/seen` (it cannot call
-  server actions).
+- The CLI plugin uses the two GET routes; opening a session in ocb marks it seen natively.
 
 ## Clients
 
 **Web (fleet.oox.sh, Mac + phone):** one page. "Needs you" first (inline approve/deny and
 form answers), then working, failed, done, grouped project → worktree. Tap a session for
-its last messages and a prompt box. Live via SSE. Installable to the phone home screen.
+its panel (full screen on the phone): last messages, changed files, prompt box, Interrupt,
+Mark seen, and two ways out:
+- **Open in OpenCode** → OpenCode's own web UI on the same server, verified deep link
+  `https://box.tail129a86.ts.net:9446/server/<base64url(origin)>/session/<id>`
+  (`app/src/shell/routes/session.ts`; server key = page origin). Works on Mac and phone after a
+  one-time `opencode pair` per browser (30-day cookie).
+- **Open in terminal** (Mac only) → `ocb://session/<id>`, handled by a tiny URL-scheme app that
+  `macos/setup-box` installs and that opens a new Ghostty window running `ocb -s <id>`.
+  The OpenCode desktop app registers no URL scheme, so it cannot be targeted.
+- Copy `ocb -s <id>` as the always-works fallback. Live via SSE. Installable to the phone home screen.
 
 **Terminal (CLI plugin in dotfiles `cli.json`, runs inside `ocb`):**
 - `home.footer.status` / `prompt.footer.status` badge: `2 need you · 3 working · 1 done`.
@@ -100,8 +110,7 @@ Node 24, `portless run next dev`, root-level `app/` `components/` `lib/` (no `sr
 
 Differences from 10x, on purpose:
 - **No auth** (private, single user).
-- **SQLite, not Postgres**: one small table for "seen" on Box (Drizzle + SQLite file under
-  `~/.local/share/fleet/`). No Neon/sandbox provisioning.
+- **No database**: all state comes from OpenCode (including "seen"); fleet is stateless.
 - **Effect pinned to `4.0.0-rc.112`**, the exact version `@opencode/client@2.0.20` depends on,
   so there is one Effect runtime and no overrides (10x is on rc.115 because of Yolk).
 - **Long-lived watcher inside Next**: `instrumentation.ts` `register()` (Node runtime) starts
@@ -116,7 +125,6 @@ Effect everywhere (10x `patterns/EFFECT_*.md`, `TYPESCRIPT_CONVENTIONS.md`):
   disconnect, resync (subscribe → snapshot → apply buffered), state in a `SubscriptionRef`,
   changes fanned out through a `PubSub` that the SSE route consumes.
 - Fleet state machine is a pure function (event → state), tested exhaustively.
-- "Seen" store: `@effect/sql-sqlite-node` (SQLite file), behind a `SeenStore` service.
 - Everything composed into one `ManagedRuntime` started from `instrumentation.ts`; pages,
   route handlers and server actions run Effects against it (10x `NextEffect` helpers,
   `catchTag` chains, `Schema` parsing at every boundary).
@@ -144,7 +152,7 @@ Cache Components (as in 10x `next.config.ts` and `patterns/EFFECT_PAGES.md`):
 
 Layout:
 - `lib/services/opencode/` OpenCode client (discover, never ensure) + event stream.
-- `lib/data/fleet/` state machine, snapshot/resync, types (Effect Schema), seen store.
+- `lib/data/fleet/` state machine, snapshot/resync, types (Effect Schema).
 - `app/` dashboard page, API routes, server actions.
 - `opencode-plugin/` workspace package: the OpenCode CLI plugin (OpenTUI/Solid) loaded from
   dotfiles `cli.json`.
@@ -159,7 +167,7 @@ deployment copy:
 
 ## Build order
 
-1. Scaffold from 10x tooling; watcher + state machine + SQLite "seen" + API routes, with
+1. Scaffold from 10x tooling; watcher + state machine + API routes, with
    tests against a throwaway `opencode serve` (state transitions, resync after disconnect).
 2. Dashboard page on the Mac browser.
 3. Terminal plugin in `ocb`.
@@ -168,7 +176,7 @@ deployment copy:
 
 ## Open questions
 
-- Does `session.viewed` fire for ocb and web views, and is it enough for "seen"?
+- `ocb://` handler: how Ghostty launches a new window with a command on macOS (test on a Mac).
 - Can a background task outside a request call `revalidateTag` (see Cache Components)?
 - Does the CLI plugin's fetch trust the Portless CA on the Mac (Bun runtime; may need
   `NODE_USE_SYSTEM_CA=1` or `NODE_EXTRA_CA_CERTS` in `ocb`)?
