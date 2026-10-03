@@ -45,7 +45,7 @@ export function AgentCard({ item, cursor }: { readonly item: BoardRow; readonly 
       data-session={row.id}
       data-state={row.state}
       data-cursor={cursor}
-      className="relative overflow-hidden"
+      className="relative shrink-0 overflow-hidden"
     >
       {swipe.offset === 0 ? null : (
         <div
@@ -61,7 +61,7 @@ export function AgentCard({ item, cursor }: { readonly item: BoardRow; readonly 
         data-selected={row.id === selection.selected}
         data-cursor={cursor}
         className={cn(
-          'bg-background hover:border-foreground/40 data-[selected=true]:border-l-attention lg:data-[cursor=true]:outline-attention relative flex flex-col gap-1.5 border border-l-2 px-3 py-2.5 lg:data-[cursor=true]:outline lg:data-[cursor=true]:-outline-offset-1',
+          'bg-background hover:border-foreground/40 data-[selected=true]:border-l-attention lg:data-[cursor=true]:outline-attention relative flex flex-col gap-1.5 border px-3 py-2.5 data-[selected=true]:border-l-2 data-[selected=true]:pl-[11px] lg:data-[cursor=true]:outline lg:data-[cursor=true]:-outline-offset-1',
           finished && 'touch-pan-y',
           swipe.offset === 0 && 'transition-transform'
         )}

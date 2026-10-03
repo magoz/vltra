@@ -9,16 +9,25 @@ import { useKeys } from '@/app/use-keys'
 import { buildProjectCards } from '@/lib/data/fleet/board'
 import type { BoardRow, ProjectCard } from '@/lib/data/fleet/board'
 
-/** `2 need you · 1 working`, zeros left out. */
-const cardCounts = (card: ProjectCard) =>
-  [
-    card.needMe === 0
-      ? undefined
-      : `${card.needMe} ${card.needMe === 1 ? 'needs you' : 'need you'}`,
-    card.working === 0 ? undefined : `${card.working} working`
-  ]
-    .filter(part => part !== undefined)
-    .join(' · ')
+/** `2 need you · 1 working` (need you in green), zeros left out. */
+function CardCounts({ card }: { readonly card: ProjectCard }) {
+  if (card.needMe === 0 && card.working === 0) return null
+
+  return (
+    <>
+      {' '}
+      <span className="text-muted-foreground text-xs whitespace-nowrap">
+        {card.needMe === 0 ? null : (
+          <span className="text-attention">
+            {card.needMe} {card.needMe === 1 ? 'needs you' : 'need you'}
+          </span>
+        )}
+        {card.needMe === 0 || card.working === 0 ? null : ' · '}
+        {card.working === 0 ? null : `${card.working} working`}
+      </span>
+    </>
+  )
+}
 
 /** The rows `j` / `k` move through: every section, then the fold when it is open. */
 const cardRows = (card: ProjectCard, expanded: boolean): ReadonlyArray<BoardRow> => [
@@ -84,7 +93,6 @@ function Card({
   readonly onToggle: () => void
 }) {
   const { now } = useFleet()
-  const counts = cardCounts(card)
   const ref = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -105,12 +113,7 @@ function Card({
         className="hover:bg-accent/60 focus-visible:ring-ring/50 flex items-baseline justify-between gap-3 border-b px-3 py-2 outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
       >
         <span className="font-semibold">{card.name}</span>
-        {counts === '' ? null : (
-          <>
-            {' '}
-            <span className="text-attention text-xs">{counts}</span>
-          </>
-        )}
+        <CardCounts card={card} />
       </NavLink>
       {card.sections.map(section => (
         <div key={section.directory} className="pt-1.5">

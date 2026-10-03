@@ -134,7 +134,9 @@ function Column({
         )}
       >
         <span>{columnNames[column]}</span>
-        <span className="tabular-nums">{column === 'handled' ? '24h' : rows.length}</span>
+        <span className="normal-case tabular-nums">
+          {column === 'handled' ? 'last 24h' : rows.length}
+        </span>
       </h2>
       {rows.length === 0 ? (
         <p className="text-muted-foreground px-3 py-6 text-center text-xs">{emptyText[column]}</p>
@@ -187,7 +189,7 @@ function Segments({
             aria-selected={column === current}
             onClick={() => onSelect(column)}
             className={cn(
-              'focus-visible:ring-ring/50 aria-selected:bg-foreground aria-selected:text-background flex h-9 flex-1 items-center justify-center border-l text-xs outline-none first:border-l-0 focus-visible:ring-[3px] focus-visible:ring-inset',
+              'focus-visible:ring-ring/50 aria-selected:bg-foreground aria-selected:text-background flex h-9 flex-1 items-center justify-center gap-1 border-l text-xs outline-none first:border-l-0 focus-visible:ring-[3px] focus-visible:ring-inset',
               needsMe(column) && count > 0
                 ? 'text-attention font-semibold'
                 : 'text-muted-foreground'
