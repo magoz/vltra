@@ -109,21 +109,35 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
 
 ## Clients
 
-**Web (fleet.oox.sh, Mac + phone):** one page, two areas.
-- **Sidebar = needs me only**, topped by a count line (`4 need you · 17 working · 2 stuck`).
-  Blocked rows first (oldest wait first) with inline approve/deny and form answers; then
-  finished rows (oldest first) with the answer excerpt, change totals, a red mark for failures,
-  and **Handled** (undo toast). Subagent requests show on the parent's row and are answered
-  in place. No "handle all".
-- **Projects = every session**, no time limit yet (maybe 30 days later): project → worktree
-  ordered by latest activity; in a worktree, needs-me and working sessions first, then handled
-  ones newest first. Sessions outside any repository (OpenCode's global project) go in one
-  "Other" group, last, each row showing its directory. Working rows show live activity and
-  stuck labels; handled rows offer Reopen.
-- Keyboard (Mac): `j`/`k` move through the sidebar, `Enter` opens, `h` handled (and next),
-  `u` undo, `a`/`d` approve/deny. Phone: swipe a finished row to mark it handled.
+**Web (fleet.oox.sh, Mac + phone):** two full-width pages, **Agents** and **Projects**, switched
+by header tabs on desktop and a bottom tab bar on the phone (`1` / `2`). The header carries the
+count line (`6 need you · 17 working · 2 stuck`) on both pages.
+- **Agents = a kanban board by state** across all projects, columns `Blocked | Finished |
+  Working | Handled` (the two left columns are "needs me"). Blocked cards (oldest wait first)
+  answer in place: approve/deny, form answers, subagent requests on the parent's card. Finished
+  cards (oldest first): answer excerpt, change totals, red mark for failures, "stopped by
+  OpenCode" for inactivity, **Handled** (undo toast). Working cards: live activity and stuck
+  labels. Handled column: last 24h only, then "N more → Projects"; cards offer Reopen. Cards
+  show project · worktree. No drag and drop (columns show state; actions are buttons and
+  keys). No "handle all". A project filter (`?project=`, chip with ×) narrows the board to one
+  project.
+- **Projects = a grid of project cards** (2–3 columns desktop, 1 on the phone), ordered by
+  latest activity, "Other" (sessions outside any repository, each showing its directory)
+  last. Card header: name + counts; clicking it opens Agents filtered to that project. Inside,
+  worktrees are sections listing needs-me and working sessions; handled ones fold into
+  "N handled · last 2h", expandable in place (Reopen there). No time limit yet (maybe 30 days
+  later).
+- **Phone**: Agents shows one column at a time via a segmented control (`Blocked 2 · Finished
+  4 · Working 5 · Handled`), opening on the first non-empty needs-me column. Swipe left on a
+  finished card marks it handled (no horizontal column scrolling, so the gesture stays
+  unambiguous).
+- **Keyboard (Mac)**: Agents: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns,
+  `h` handled (and next finished card), `u` undo, `a`/`d` approve/deny, `Enter` opens the
+  drawer, `Esc` closes, `/` focuses the project filter; focus starts on the first needs-me card.
+  Projects: arrows move between cards, `j`/`k` within a card, `Enter` on a card opens its
+  filtered board.
 
-Tap a session for its panel (full screen on the phone): last messages, changed files, prompt
+Tap a session for its panel (a right-side drawer over either page, full screen on the phone): last messages, changed files, prompt
 box, Interrupt, Handled / Reopen, subagent tree, and two ways out:
 - **Open in OpenCode** → OpenCode's own web UI on the same server, verified deep link
   `https://box.tail129a86.ts.net:9446/server/<base64url(origin)>/session/<id>`
@@ -135,10 +149,10 @@ box, Interrupt, Handled / Reopen, subagent tree, and two ways out:
 - Copy `ocb -s <id>` as the always-works fallback. Live via SSE. Installable to the phone home screen.
 
 **Terminal (CLI plugin in the dotfiles, runs inside `ocb`):**
-- `home.footer.status` / `prompt.footer.status` badge: the same count line as the sidebar.
+- `home.footer.status` / `prompt.footer.status` badge: the same count line as the web header.
 - Full-page route (`ctrl+x f`): the needs-me list only (Projects stays on the web); Enter
   opens the session (`router.navigate({ type: "session" })`).
-- `ctrl+x j`: jump to the next needs-me session, in sidebar order.
+- `ctrl+x j`: jump to the next needs-me session, in board order (blocked, then finished).
 - A key inside a session marks it handled (writes `metadata.fleet` directly).
 - Mac notification via `attention.notify({ when: "blurred" })` on → blocked.
 
