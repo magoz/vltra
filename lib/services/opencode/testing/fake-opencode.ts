@@ -199,10 +199,8 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
     })
 
     /** Like `location.get`: the known project containing the directory, else a new one. */
-    const resolveLocation = (directory: string) =>
+    const locate = (directory: string) =>
       Effect.gen(function* () {
-        yield* record({ op: 'resolveLocation', directory })
-
         const known = (yield* Ref.get(snapshot)).projects.find(
           project =>
             directory === project.directory || directory.startsWith(`${project.directory}/`)
@@ -230,6 +228,9 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
         return location
       })
 
+    const resolveLocation = (directory: string) =>
+      Effect.andThen(record({ op: 'resolveLocation', directory }), locate(directory))
+
     /** Like `session.create`: a new, never-run session in `directory`, readable afterwards. */
     const createSession = (input: { readonly directory: string; readonly title?: string }) =>
       Effect.gen(function* () {
@@ -239,7 +240,7 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
         )
 
         const count = yield* Ref.updateAndGet(created, value => value + 1)
-        const location = yield* resolveLocation(input.directory)
+        const location = yield* locate(input.directory)
 
         const session: SessionRecord = {
           id: `ses_created_${count}`,

@@ -1,4 +1,6 @@
 import { Effect, Layer, ManagedRuntime } from 'effect'
+import { LaunchesLive } from '@/lib/data/fleet/launches'
+import type { Launches } from '@/lib/data/fleet/launches'
 import { SessionSummaries, SessionSummariesLive } from '@/lib/data/fleet/session-detail'
 import { FleetStore, FleetStoreLive } from '@/lib/data/fleet/store'
 import { FleetWatcherLive } from '@/lib/data/fleet/watcher'
@@ -7,17 +9,31 @@ import type { Directories } from '@/lib/services/directories/service'
 import { OpenCodeLive } from '@/lib/services/opencode/live-layer'
 import type { OpenCodeUnavailableError } from '@/lib/services/opencode/errors'
 import type { OpenCode } from '@/lib/services/opencode/service'
+import { ReposLive } from '@/lib/services/repos/live-layer'
+import type { Repos } from '@/lib/services/repos/service'
 
-export type FleetServices = FleetStore | OpenCode | SessionSummaries | Directories
+export type FleetServices =
+  | FleetStore
+  | OpenCode
+  | SessionSummaries
+  | Directories
+  | Repos
+  | Launches
 
 /**
- * Store + OpenCode client + session folder checks + finished-run summary cache, with the watcher
- * forked for the lifetime of the runtime.
+ * Store + OpenCode client + session folder checks + finished-run summary cache + the launcher's
+ * repositories and launch registry, with the watcher (and any running launch) forked for the
+ * lifetime of the runtime.
  */
-export const FleetLayer = Layer.merge(FleetWatcherLive(), SessionSummariesLive).pipe(
+export const FleetLayer = Layer.mergeAll(
+  FleetWatcherLive(),
+  SessionSummariesLive,
+  LaunchesLive()
+).pipe(
   Layer.provideMerge(FleetStoreLive),
   Layer.provideMerge(OpenCodeLive),
-  Layer.provideMerge(DirectoriesLive)
+  Layer.provideMerge(DirectoriesLive),
+  Layer.provideMerge(ReposLive)
 )
 
 // Fails to build only on invalid configuration (e.g. a malformed OPENCODE_URL).
