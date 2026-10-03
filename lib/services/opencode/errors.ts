@@ -33,3 +33,12 @@ export class SessionNotFoundError extends Schema.TaggedError<SessionNotFoundErro
   'SessionNotFoundError',
   { sessionID: Schema.String }
 ) {}
+
+/**
+ * OpenCode refused a request with its own message (a 4xx such as the worktree plugin's preflight
+ * or retirement refusals). The message is sanitized and safe to show.
+ */
+export class OpenCodeRejectedError extends Schema.TaggedError<OpenCodeRejectedError>()(
+  'OpenCodeRejectedError',
+  { operation: Schema.String, message: Schema.String }
+) {}

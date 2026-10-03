@@ -5,6 +5,7 @@ import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
 import type { FileChange, InterruptReason, SessionRecord, Transcript } from '@/lib/data/fleet/types'
 import type {
   OpenCodeInvalidInputError,
+  OpenCodeRejectedError,
   OpenCodeRequestError,
   OpenCodeUnavailableError,
   SessionNotFoundError
@@ -16,6 +17,17 @@ export type PermissionDecision = 'once' | 'always' | 'reject'
 export type FormValue = string | number | boolean | ReadonlyArray<string>
 
 export type ActionError = OpenCodeRequestError | OpenCodeInvalidInputError | SessionNotFoundError
+
+/** Calls OpenCode may refuse with a message of its own (worktrees, location registration). */
+export type RejectableError = ActionError | OpenCodeRejectedError
+
+/** The project OpenCode resolves (registering it if needed) for a directory. */
+export type ResolvedLocation = {
+  readonly directory: string
+  readonly projectID: string
+  /** The project's canonical directory (its primary checkout). */
+  readonly projectDirectory: string
+}
 
 /** One authenticated connection to a discovered OpenCode service. */
 export type OpenCodeConnection = {
@@ -84,6 +96,31 @@ export type OpenCodeConnection = {
   readonly diff: (input: {
     readonly sessionID: string
   }) => Effect.Effect<ReadonlyArray<FileChange>, ActionError>
+  /**
+   * `GET /api/location?location[directory]=…`: the directory's project, registered on the way
+   * when OpenCode never opened it.
+   */
+  readonly resolveLocation: (directory: string) => Effect.Effect<ResolvedLocation, RejectableError>
+  /**
+   * `POST /api/worktree { projectID, name }`: the new worktree's directory. Synchronous on
+   * OpenCode's side and may take minutes (the dotfiles plugin provisions the checkout).
+   */
+  readonly createWorktree: (input: {
+    readonly projectID: string
+    readonly name: string
+  }) => Effect.Effect<string, RejectableError>
+  /** `DELETE /api/worktree { projectID, directory, force: false }`; never forced. */
+  readonly removeWorktree: (input: {
+    readonly projectID: string
+    readonly directory: string
+  }) => Effect.Effect<void, RejectableError>
+  /** `POST /api/session { location: { directory }, title }`. */
+  readonly createSession: (input: {
+    readonly directory: string
+    readonly title: string | undefined
+  }) => Effect.Effect<SessionRecord, RejectableError>
+  /** `POST /api/experimental/generate { prompt }` with OpenCode's default model: the text. */
+  readonly generateText: (prompt: string) => Effect.Effect<string, RejectableError>
 }
 
 export type OpenCodeOperations = {

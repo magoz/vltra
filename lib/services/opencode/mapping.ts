@@ -2,6 +2,7 @@ import { DateTime, Option, Predicate, Schema } from 'effect'
 import type { Effect, Stream } from 'effect'
 import type {
   Form,
+  Location,
   Model,
   OpenCodeClient,
   OpenCodeEvent,
@@ -11,6 +12,7 @@ import type {
   SessionMessage
 } from '@opencode/client/effect'
 import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
+import type { ResolvedLocation } from '@/lib/services/opencode/service'
 import type {
   FileChange,
   FormField,
@@ -171,6 +173,58 @@ export const toProjectRecord = (project: Project.Info): ProjectRecord => ({
   name: project.name,
   directory: project.canonical
 })
+
+export const toResolvedLocation = (info: Location.PublicInfo): ResolvedLocation => ({
+  directory: info.directory,
+  projectID: info.project.id,
+  projectDirectory: info.project.canonical
+})
+
+/** Longest OpenCode refusal shown to the user. */
+const refusalLimit = 400
+
+/**
+ * OpenCode's refusal text made safe to show: no terminal escapes or control characters, one line
+ * of collapsed whitespace, clipped.
+ */
+export const sanitizeMessage = (message: string): string =>
+  clip(
+    message
+      .replace(/\u001b\[[0-9;?]*[A-Za-z]/g, '')
+      .replace(/[\u0000-\u001f\u007f]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim(),
+    refusalLimit
+  )
+
+/** The worktree group's error body: `{ name: 'WorktreeError', data: { message } }`. */
+const WorktreeFailure = Schema.Struct({
+  name: Schema.Literal('WorktreeError'),
+  data: Schema.Struct({ message: Schema.String })
+})
+
+/** Protocol errors that carry a message meant for the caller. */
+const RequestFailure = Schema.Struct({
+  _tag: Schema.Literals(['InvalidRequestError', 'ProjectNotFoundError', 'ConflictError']),
+  message: Schema.String
+})
+
+const decodeWorktreeFailure = Schema.decodeUnknownOption(WorktreeFailure)
+
+const decodeRequestFailure = Schema.decodeUnknownOption(RequestFailure)
+
+/**
+ * The message of an OpenCode refusal (a worktree error such as the dotfiles plugin's preflight or
+ * retirement refusal, an invalid request, an unknown project), sanitized. None for transport
+ * failures, timeouts and anything else.
+ */
+export const refusalMessage = (cause: unknown): Option.Option<string> =>
+  decodeWorktreeFailure(cause).pipe(
+    Option.map(failure => failure.data.message),
+    Option.orElse(() => Option.map(decodeRequestFailure(cause), failure => failure.message)),
+    Option.map(sanitizeMessage),
+    Option.filter(message => message !== '')
+  )
 
 const apply = (event: FleetEvent): ReadonlyArray<OpenCodeSignal> => [
   OpenCodeSignal.Apply({ event })

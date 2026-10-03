@@ -1,5 +1,5 @@
 import type { Session } from '@opencode/client/effect'
-import { Deferred, Effect, Layer, Option, Queue, Ref, Stream } from 'effect'
+import { Clock, Deferred, Effect, Layer, Option, Queue, Ref, Stream } from 'effect'
 import type { Cause } from 'effect'
 import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
@@ -11,7 +11,12 @@ import {
 } from '@/lib/services/opencode/errors'
 import { fleetHandled, withFleetHandled } from '@/lib/services/opencode/mapping'
 import { OpenCode } from '@/lib/services/opencode/service'
-import type { OpenCodeConnection } from '@/lib/services/opencode/service'
+import type {
+  ActionError,
+  OpenCodeConnection,
+  RejectableError,
+  ResolvedLocation
+} from '@/lib/services/opencode/service'
 
 /** A call Fleet made against the fake, for assertions. */
 export type FakeCall =
@@ -24,6 +29,41 @@ export type FakeCall =
   | { readonly op: 'interrupt'; readonly sessionID: string }
   | { readonly op: 'transcript'; readonly sessionID: string; readonly assistantOnly: boolean }
   | { readonly op: 'diff'; readonly sessionID: string }
+  | { readonly op: 'resolveLocation'; readonly directory: string }
+  | { readonly op: 'createWorktree'; readonly projectID: string; readonly name: string }
+  | { readonly op: 'removeWorktree'; readonly projectID: string; readonly directory: string }
+  | { readonly op: 'createSession'; readonly directory: string; readonly title: string | undefined }
+  | { readonly op: 'generateText'; readonly prompt: string }
+
+/** How the fake answers the launcher's calls; each defaults to a quick success (text: a refusal). */
+export type FakeLauncherBehavior = {
+  readonly createWorktree: (input: {
+    readonly projectID: string
+    readonly name: string
+  }) => Effect.Effect<string, RejectableError>
+  readonly removeWorktree: (input: {
+    readonly projectID: string
+    readonly directory: string
+  }) => Effect.Effect<void, RejectableError>
+  readonly createSession: (input: {
+    readonly directory: string
+    readonly title: string | undefined
+  }) => Effect.Effect<void, RejectableError>
+  readonly prompt: (input: {
+    readonly sessionID: string
+    readonly text: string
+  }) => Effect.Effect<void, ActionError>
+  readonly generateText: (prompt: string) => Effect.Effect<string, RejectableError>
+}
+
+const defaultLauncherBehavior: FakeLauncherBehavior = {
+  createWorktree: ({ name }) => Effect.succeed(`/worktrees/${name}`),
+  removeWorktree: () => Effect.void,
+  createSession: () => Effect.void,
+  prompt: () => Effect.void,
+  generateText: () =>
+    Effect.fail(new OpenCodeRequestError({ operation: 'generate.text', message: 'fake: no model' }))
+}
 
 export type FakeOpenCode = {
   readonly layer: Layer.Layer<OpenCode>
@@ -54,6 +94,8 @@ export type FakeOpenCode = {
   readonly metadata: (sessionID: string) => Effect.Effect<Session.Metadata | undefined>
   /** What the session log says about the latest run's interruption (default: nothing). */
   readonly setInterruptReason: (sessionID: string, reason: InterruptReason) => Effect.Effect<void>
+  /** Override how the launcher's calls answer. */
+  readonly setLauncherBehavior: (behavior: Partial<FakeLauncherBehavior>) => Effect.Effect<void>
 }
 
 export const emptySnapshot: OpenCodeSnapshot = {
@@ -82,6 +124,8 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
 
     const metadata = yield* Ref.make<ReadonlyMap<string, Session.Metadata>>(new Map())
     const interrupts = yield* Ref.make<ReadonlyMap<string, InterruptReason>>(new Map())
+    const launcher = yield* Ref.make(defaultLauncherBehavior)
+    const created = yield* Ref.make(0)
 
     const current = yield* Ref.make<Option.Option<Queue.Queue<OpenCodeSignal, Cause.Done>>>(
       Option.none()
@@ -154,6 +198,63 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
       return yield* Ref.get(snapshot)
     })
 
+    /** Like `location.get`: the known project containing the directory, else a new one. */
+    const resolveLocation = (directory: string) =>
+      Effect.gen(function* () {
+        yield* record({ op: 'resolveLocation', directory })
+
+        const known = (yield* Ref.get(snapshot)).projects.find(
+          project =>
+            directory === project.directory || directory.startsWith(`${project.directory}/`)
+        )
+
+        if (known !== undefined) {
+          const location: ResolvedLocation = {
+            directory,
+            projectID: known.id,
+            projectDirectory: known.directory
+          }
+
+          return location
+        }
+
+        const projectID = `prj_${directory.split('/').findLast(part => part !== '') ?? 'root'}`
+
+        yield* Ref.update(snapshot, value => ({
+          ...value,
+          projects: [...value.projects, { id: projectID, directory }]
+        }))
+
+        const location: ResolvedLocation = { directory, projectID, projectDirectory: directory }
+
+        return location
+      })
+
+    /** Like `session.create`: a new, never-run session in `directory`, readable afterwards. */
+    const createSession = (input: { readonly directory: string; readonly title?: string }) =>
+      Effect.gen(function* () {
+        yield* record({ op: 'createSession', directory: input.directory, title: input.title })
+        yield* Effect.flatMap(Ref.get(launcher), behavior =>
+          behavior.createSession({ directory: input.directory, title: input.title })
+        )
+
+        const count = yield* Ref.updateAndGet(created, value => value + 1)
+        const location = yield* resolveLocation(input.directory)
+
+        const session: SessionRecord = {
+          id: `ses_created_${count}`,
+          projectID: location.projectID,
+          directory: input.directory,
+          title: input.title,
+          cost: 0,
+          created: yield* Clock.currentTimeMillis
+        }
+
+        yield* Ref.update(snapshot, value => ({ ...value, sessions: [...value.sessions, session] }))
+
+        return session
+      })
+
     const connection = (queue: Queue.Queue<OpenCodeSignal, Cause.Done>): OpenCodeConnection => ({
       url: 'http://fake.opencode',
       version: 'fake',
@@ -186,7 +287,11 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
       replyPermission: ({ sessionID, requestID }) =>
         record({ op: 'replyPermission', sessionID, requestID }),
       replyForm: ({ sessionID, formID }) => record({ op: 'replyForm', sessionID, formID }),
-      prompt: ({ sessionID, text }) => record({ op: 'prompt', sessionID, text }),
+      prompt: ({ sessionID, text }) =>
+        Effect.andThen(
+          record({ op: 'prompt', sessionID, text }),
+          Effect.flatMap(Ref.get(launcher), behavior => behavior.prompt({ sessionID, text }))
+        ),
       interrupt: ({ sessionID }) => Effect.as(record({ op: 'interrupt', sessionID }), true),
       transcript: ({ sessionID, assistantOnly }) =>
         Effect.andThen(
@@ -208,6 +313,28 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
                 )
               : Effect.succeed(files)
           })
+        ),
+      resolveLocation,
+      createWorktree: ({ projectID, name }) =>
+        Effect.andThen(
+          record({ op: 'createWorktree', projectID, name }),
+          Effect.flatMap(Ref.get(launcher), behavior =>
+            behavior.createWorktree({ projectID, name })
+          )
+        ),
+      removeWorktree: ({ projectID, directory }) =>
+        Effect.andThen(
+          record({ op: 'removeWorktree', projectID, directory }),
+          Effect.flatMap(Ref.get(launcher), behavior =>
+            behavior.removeWorktree({ projectID, directory })
+          )
+        ),
+      createSession: ({ directory, title }) =>
+        createSession(title === undefined ? { directory } : { directory, title }),
+      generateText: prompt =>
+        Effect.andThen(
+          record({ op: 'generateText', prompt }),
+          Effect.flatMap(Ref.get(launcher), behavior => behavior.generateText(prompt))
         )
     })
 
@@ -257,7 +384,9 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
           })
         ),
       setInterruptReason: (sessionID, reason) =>
-        Ref.update(interrupts, map => new Map(map).set(sessionID, reason))
+        Ref.update(interrupts, map => new Map(map).set(sessionID, reason)),
+      setLauncherBehavior: behavior =>
+        Ref.update(launcher, current => ({ ...current, ...behavior }))
     }
 
     return fake

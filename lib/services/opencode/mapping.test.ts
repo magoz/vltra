@@ -1,11 +1,15 @@
 import { describe, expect, it } from '@effect/vitest'
+import { InvalidRequestError, ProjectNotFoundError } from '@opencode/protocol/errors'
 import { OpenCodeEvent } from '@opencode/protocol/groups/event'
+import { WorktreeError } from '@opencode/protocol/groups/worktree'
 import { Session, SessionMessage } from '@opencode/client/effect'
-import { Effect, Schema } from 'effect'
+import { Effect, Option, Schema } from 'effect'
 import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
 import {
   fleetHandled,
   latestRunEnd,
+  refusalMessage,
+  sanitizeMessage,
   toFormField,
   toolDetail,
   toSessionRecord,
@@ -653,4 +657,38 @@ describe('transcript mapping', () => {
       expect(toTranscript(decoded, 2).entries.map(entry => entry.role)).toEqual(['error', 'note'])
     })
   )
+})
+
+describe('refusalMessage', () => {
+  it("passes OpenCode's own refusal messages through, sanitized", () => {
+    const worktree = new WorktreeError({
+      name: 'WorktreeError',
+      data: { message: 'worktree-manage: \u001b[31mrefusing\u001b[0m dirty checkout\n  /x' }
+    })
+
+    expect(refusalMessage(worktree)).toEqual(
+      Option.some('worktree-manage: refusing dirty checkout /x')
+    )
+    expect(refusalMessage(new InvalidRequestError({ message: 'Bad directory' }))).toEqual(
+      Option.some('Bad directory')
+    )
+    expect(
+      refusalMessage(new ProjectNotFoundError({ projectID: 'nope', message: 'Project not found' }))
+    ).toEqual(Option.some('Project not found'))
+  })
+
+  it('leaves transport failures and anything else to the generic error', () => {
+    expect(refusalMessage(new Error('fetch failed'))).toEqual(Option.none())
+    expect(refusalMessage({ name: 'WorktreeError', data: { message: '   ' } })).toEqual(
+      Option.none()
+    )
+    expect(refusalMessage('boom')).toEqual(Option.none())
+  })
+
+  it('clips long messages to one line', () => {
+    const message = sanitizeMessage(`a\tb\r\n${'x'.repeat(1000)}`)
+
+    expect(message.startsWith('a b x')).toBe(true)
+    expect(message.length).toBe(400)
+  })
 })

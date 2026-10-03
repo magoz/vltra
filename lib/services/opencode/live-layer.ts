@@ -1,5 +1,7 @@
 import * as NodeFileSystem from '@effect/platform-node/NodeFileSystem'
+import * as NodeHttpClient from '@effect/platform-node/NodeHttpClient'
 import {
+  AbsolutePath,
   Form,
   OpenCode as OpenCodeApi,
   Permission,
@@ -16,16 +18,19 @@ import type { PendingForm, PendingPermission, SessionRecord } from '@/lib/data/f
 import { endpointOverride, serviceFile, sessionLimit } from '@/lib/services/opencode/config'
 import {
   OpenCodeInvalidInputError,
+  OpenCodeRejectedError,
   OpenCodeRequestError,
   OpenCodeUnavailableError,
   SessionNotFoundError
 } from '@/lib/services/opencode/errors'
 import {
   latestRunEnd,
+  refusalMessage,
   toPendingForm,
   toPendingPermission,
   toProjectRecord,
   toFileChange,
+  toResolvedLocation,
   toSessionRecord,
   toSignals,
   toTranscript,
@@ -46,6 +51,15 @@ const transcriptEntries = 60
 
 /** A long session's whole durable log can take a while to replay. */
 const logTimeout = Duration.seconds(60)
+
+/**
+ * `worktree.create` answers once the checkout is provisioned: the dotfiles plugin bounds its CLI
+ * at 30 minutes, so Fleet waits a little longer.
+ */
+const createWorktreeTimeout = Duration.minutes(35)
+
+/** `worktree.remove`: the plugin bounds planning and retirement at 5 + 15 minutes. */
+const removeWorktreeTimeout = Duration.minutes(21)
 
 const errorMessage = (cause: unknown) => (Predicate.isError(cause) ? cause.message : String(cause))
 
@@ -73,6 +87,22 @@ const decodeProjectId = decodeId(Project.ID, 'projectID')
 const decodePermissionId = decodeId(Permission.ID, 'requestID')
 
 const decodeFormId = decodeId(Form.ID, 'formID')
+
+const decodeDirectory = decodeId(AbsolutePath, 'directory')
+
+/** Calls OpenCode may refuse with its own message: that message, else a request error. */
+const refusable =
+  (operation: string, timeout: Duration.Duration = requestTimeout) =>
+  <A, E>(effect: Effect.Effect<A, E>) =>
+    effect.pipe(
+      Effect.timeout(timeout),
+      Effect.mapError(cause =>
+        Option.match(refusalMessage(cause), {
+          onSome: message => new OpenCodeRejectedError({ operation, message }),
+          onNone: () => new OpenCodeRequestError({ operation, message: errorMessage(cause), cause })
+        })
+      )
+    )
 
 /** Maps OpenCode's typed not-found error to Fleet's, everything else to a request error. */
 const action =
@@ -287,18 +317,25 @@ const makeSnapshot = (
 const makeConnection = (
   endpoint: Endpoint,
   limit: Option.Option<number>,
-  http: HttpClient.HttpClient
+  http: HttpClient.HttpClient,
+  longHttp: HttpClient.HttpClient
 ) =>
   Effect.gen(function* () {
     const headers = Service.headers(endpoint)
 
-    const authed =
+    const authorize = (base: HttpClient.HttpClient) =>
       headers === undefined
-        ? http
-        : HttpClient.mapRequest(http, HttpClientRequest.setHeaders(headers))
+        ? base
+        : HttpClient.mapRequest(base, HttpClientRequest.setHeaders(headers))
 
     const client = yield* OpenCodeApi.make({ baseUrl: endpoint.url }).pipe(
-      Effect.provideService(HttpClient.HttpClient, authed)
+      Effect.provideService(HttpClient.HttpClient, authorize(http))
+    )
+
+    // Worktree calls can take many minutes; `fetch` (undici's defaults) gives up on a response's
+    // headers after 5. This client leaves time limits to `Effect.timeout`.
+    const longClient = yield* OpenCodeApi.make({ baseUrl: endpoint.url }).pipe(
+      Effect.provideService(HttpClient.HttpClient, authorize(longHttp))
     )
 
     const info = yield* client.server.info().pipe(request('server.info'))
@@ -438,7 +475,51 @@ const makeConnection = (
             .pipe(action('session.diff', sessionID))
 
           return files.map(toFileChange)
-        })
+        }),
+      resolveLocation: directory =>
+        Effect.gen(function* () {
+          const path = yield* decodeDirectory(directory)
+
+          const info = yield* client.location
+            .get({ location: { directory: path } })
+            .pipe(refusable('location.get'))
+
+          return toResolvedLocation(info)
+        }),
+      createWorktree: ({ projectID, name }) =>
+        Effect.gen(function* () {
+          const id = yield* decodeProjectId(projectID)
+
+          const created = yield* longClient.worktree
+            .create({ projectID: id, name })
+            .pipe(refusable('worktree.create', createWorktreeTimeout))
+
+          return created.directory
+        }),
+      removeWorktree: ({ projectID, directory }) =>
+        Effect.gen(function* () {
+          const id = yield* decodeProjectId(projectID)
+          const path = yield* decodeDirectory(directory)
+
+          yield* longClient.worktree
+            .remove({ projectID: id, directory: path, force: false })
+            .pipe(refusable('worktree.remove', removeWorktreeTimeout))
+        }),
+      createSession: ({ directory, title }) =>
+        Effect.gen(function* () {
+          const path = yield* decodeDirectory(directory)
+
+          const info = yield* client.session
+            .create({ title, location: { directory: path } })
+            .pipe(refusable('session.create'))
+
+          return toSessionRecord(info)
+        }),
+      generateText: prompt =>
+        client.generate.text({ prompt }).pipe(
+          refusable('generate.text'),
+          Effect.map(output => output.text)
+        )
     } satisfies OpenCodeConnection
   })
 
@@ -446,12 +527,19 @@ export const OpenCodeLive = Layer.effect(
   OpenCode,
   Effect.gen(function* () {
     const http = yield* HttpClient.HttpClient
+    // Its own undici agent, closed with the layer (the runtime).
+    const dispatcher = yield* NodeHttpClient.makeDispatcher
+
+    const longHttp = yield* NodeHttpClient.makeUndici.pipe(
+      Effect.provideService(NodeHttpClient.Dispatcher, dispatcher)
+    )
+
     const source = yield* endpointSource
     const limit = yield* sessionLimit
 
     return {
       connect: Effect.flatMap(resolveEndpoint(source), endpoint =>
-        makeConnection(endpoint, limit, http)
+        makeConnection(endpoint, limit, http, longHttp)
       )
     }
   }).pipe(
