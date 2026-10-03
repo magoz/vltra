@@ -5,6 +5,7 @@ import type { MouseEvent } from 'react'
 import { AgentCard } from '@/app/agent-card'
 import { useFleet } from '@/app/fleet-context'
 import { firstPermission } from '@/app/pending-asks'
+import { PendingLaunches } from '@/app/pending-launches'
 import { ProjectFilter } from '@/app/project-filter'
 import { SessionPanel } from '@/app/session-panel'
 import type { DrawerTab } from '@/app/use-drawer-tab'
@@ -202,6 +203,15 @@ function Focus({
           }}
         >
           <ProjectFilter filterRef={filterRef} className="px-3 pt-3" />
+          {view.launches.length === 0 ? null : (
+            <section aria-label="Provisioning" className="pt-3">
+              <h2 className="text-muted-foreground flex items-baseline justify-between px-3 pb-1.5 text-xs tracking-widest uppercase">
+                <span>Provisioning</span>
+                <span className="tabular-nums">{view.launches.length}</span>
+              </h2>
+              <PendingLaunches launches={view.launches} className="border-t" />
+            </section>
+          )}
           <Section name="Blocked" rows={needsMe.blocked} cursor={focused?.row.id} />
           <Section name="Finished" rows={needsMe.finished} cursor={focused?.row.id} />
           {list.length === 0 ? (
@@ -239,9 +249,10 @@ function Focus({
 }
 
 /**
- * The Agents page's focus mode (the default, DESIGN.md "Clients" → Web): a sidebar listing only
- * the sessions that need me (blocked, longest wait first, answered in place; then finished,
- * oldest first, with Handled), narrowed by `?project=`, and the open session (`?session=`, also
+ * The Agents page's focus mode (the default, DESIGN.md "Clients" → Web): a sidebar listing the
+ * launcher's launches ("Provisioning", unfiltered) and the sessions that need me (blocked,
+ * longest wait first, answered in place; then finished, oldest first, with Handled), narrowed by
+ * `?project=`, and the open session (`?session=`, also
  * one opened from elsewhere) inline in the rest of the page, Chat first. Handling the open
  * session opens the next one in list order. Phone: the list; a session opens full screen. Keys:
  * `j`/`k` (`↓`/`↑`) move, `Enter` opens, `h` handled (the focused or open finished session; the

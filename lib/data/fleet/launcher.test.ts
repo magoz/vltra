@@ -1,10 +1,9 @@
 import { describe, expect, it } from '@effect/vitest'
 import { Effect, Fiber, Layer, Option } from 'effect'
 import { TestClock } from 'effect/testing'
+import { busySessions, latestSessionIn } from '@/lib/data/fleet/checkouts'
 import {
   buildLauncher,
-  busySessions,
-  latestSessionIn,
   loadLauncher,
   openCheckout,
   retireRefusal,

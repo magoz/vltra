@@ -2,13 +2,13 @@ import path from 'node:path'
 import { Clock, Effect, Option, Schema } from 'effect'
 import { withConnection } from '@/lib/data/fleet/actions'
 import { Branch, fallbackBranch, parseSuggestion, suggestionPrompt } from '@/lib/data/fleet/branch'
+import { busySessions, isWithin, latestSessionIn } from '@/lib/data/fleet/checkouts'
 import { NotACheckoutError, RetireRefusedError } from '@/lib/data/fleet/errors'
 import { folderGone } from '@/lib/data/fleet/folders'
 import { snapshotRows } from '@/lib/data/fleet/snapshot'
 import { FleetStore } from '@/lib/data/fleet/store'
 import type {
   BranchSuggestion,
-  FleetChildRow,
   FleetRow,
   LauncherEntry,
   LauncherList,
@@ -58,10 +58,6 @@ export type SuggestBranchInput = typeof SuggestBranchInput.Type
 export const DismissLaunchInput = Schema.Struct({ id: Id })
 
 export type DismissLaunchInput = typeof DismissLaunchInput.Type
-
-/** `directory` is `place` or inside it. */
-export const isWithin = (directory: string, place: string) =>
-  directory === place || directory.startsWith(place.endsWith('/') ? place : `${place}/`)
 
 const emptyTally: SessionTally = { blocked: 0, working: 0, finished: 0, handled: 0 }
 
@@ -226,18 +222,6 @@ export const suggestBranch = (input: SuggestBranchInput) =>
     Effect.withSpan('launcher.suggest-branch')
   )
 
-/** The newest live root session in `directory` (or below it) whose folder still exists. */
-export const latestSessionIn = (
-  rows: ReadonlyArray<FleetRow>,
-  directory: string
-): string | undefined =>
-  rows
-    .filter(row => !row.gone && isWithin(row.directory, directory))
-    .reduce<FleetRow | undefined>(
-      (best, row) => (best === undefined || row.activeAt > best.activeAt ? row : best),
-      undefined
-    )?.id
-
 export type OpenedCheckout = { readonly sessionID: string; readonly created: boolean }
 
 /**
@@ -269,17 +253,6 @@ export const openCheckout = (input: OpenCheckoutInput) =>
 
     return opened
   }).pipe(Effect.withSpan('launcher.open'))
-
-const busyStates: ReadonlyArray<FleetRow['state']> = ['working', 'blocked']
-
-/** Root rows and subagents running in `directory` (or below it) that are working or blocked. */
-export const busySessions = (
-  rows: ReadonlyArray<FleetRow>,
-  directory: string
-): ReadonlyArray<FleetRow | FleetChildRow> =>
-  rows
-    .flatMap((row): ReadonlyArray<FleetRow | FleetChildRow> => [row, ...row.children])
-    .filter(row => isWithin(row.directory, directory) && busyStates.includes(row.ownState))
 
 /**
  * Why a worktree cannot be retired from Fleet, if it cannot: only a linked worktree carrying the

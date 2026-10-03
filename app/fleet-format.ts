@@ -27,6 +27,18 @@ export const relativeTime = (at: number, now: number): string => {
   return `${Math.floor(age / day)}d`
 }
 
+/** Elapsed time as a clock: `0:07`, `3:05`, `1:02:10`. */
+export const elapsedText = (ms: number): string => {
+  const total = Math.max(0, Math.floor(ms / 1000))
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = String(total % 60).padStart(2, '0')
+
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}`
+    : `${minutes}:${seconds}`
+}
+
 /** `openai/gpt-6-astra` → `gpt-6-astra`. */
 export const modelName = (model: string | undefined): string | undefined =>
   model === undefined ? undefined : (model.split('/').at(-1) ?? model)

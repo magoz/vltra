@@ -1,6 +1,6 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { CountLine, FleetHeader, linkStatus } from '@/app/fleet-header'
+import { BottomTabs, CountLine, FleetHeader, linkStatus } from '@/app/fleet-header'
 import { fakeActions, WithFleet } from '@/app/testing/dashboard-fixtures'
 import type { FleetConnection, FleetCounts } from '@/lib/data/fleet/types'
 
@@ -62,22 +62,54 @@ describe('header', () => {
     renderHeader('agents')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ↵ open · h handled · u undo · a d allow/deny · c chat · b board · / filter · 1 2 pages'
+      'j k move · ↵ open · h handled · u undo · a d allow/deny · c chat · b board · n ⌘K new · / filter · 1 2 pages'
     )
 
     cleanup()
     renderHeader('agents', 'board')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ← → column · ↵ open · h handled · u undo · a d allow/deny · b focus · / filter · c chat · 1 2 pages'
+      'j k move · ← → column · ↵ open · h handled · u undo · a d allow/deny · b focus · n ⌘K new · / filter · c chat · 1 2 pages'
     )
 
     cleanup()
     renderHeader('projects')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      '← → ↑ ↓ card · j k session · ↵ open · c chat · 1 2 pages'
+      '← → ↑ ↓ card · j k session · ↵ open · n ⌘K new · c chat · 1 2 pages'
     )
+  })
+})
+
+describe('new', () => {
+  it('opens the launcher from the header (desktop) and the tab bar + (phone)', () => {
+    let opened = 0
+
+    render(
+      <WithFleet actions={fakeActions().actions} now={0}>
+        <FleetHeader
+          page="agents"
+          view="focus"
+          counts={counts}
+          stream="live"
+          connection={connected}
+          onNew={() => {
+            opened += 1
+          }}
+        />
+        <BottomTabs
+          page="agents"
+          onNew={() => {
+            opened += 1
+          }}
+        />
+      </WithFleet>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'New' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New (launcher)' }))
+
+    expect(opened).toBe(2)
   })
 })
 

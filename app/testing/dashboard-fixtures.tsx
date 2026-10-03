@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Agents } from '@/app/agents'
-import { FleetActionResult } from '@/app/fleet-action-result'
+import { FleetActionResult, FleetActionValue } from '@/app/fleet-action-result'
 import type { FleetActions } from '@/app/fleet-actions'
 import { FleetActionsProvider } from '@/app/fleet-actions'
 import { FleetProvider } from '@/app/fleet-context'
@@ -93,10 +93,35 @@ export type ActionCall =
   | { readonly action: 'replyForm'; readonly input: Input<'replyForm'> }
   | { readonly action: 'sendPrompt'; readonly input: Input<'sendPrompt'> }
   | { readonly action: 'interrupt'; readonly input: Input<'interrupt'> }
+  | { readonly action: 'launch'; readonly input: Input<'launch'> }
+  | { readonly action: 'dismissLaunch'; readonly input: Input<'dismissLaunch'> }
+  | { readonly action: 'openCheckout'; readonly input: Input<'openCheckout'> }
+  | { readonly action: 'retireWorktree'; readonly input: Input<'retireWorktree'> }
+  | { readonly action: 'suggestBranch'; readonly input: Input<'suggestBranch'> }
 
-/** Recording fake actions; `failWith` makes every action return that error message. */
-export const fakeActions = (failWith?: string) => {
+/** What the fake value actions answer (a suggestion per task, else the fallback-like default). */
+export type FakeValues = {
+  readonly launchID: string
+  readonly opened: { readonly sessionID: string; readonly created: boolean }
+  readonly suggest: (task: string) => {
+    readonly branch: string
+    readonly source: 'model' | 'fallback'
+  }
+}
+
+const defaultValues: FakeValues = {
+  launchID: 'launch-1',
+  opened: { sessionID: 'ses_opened', created: false },
+  suggest: () => ({ branch: 'feat/suggested-name', source: 'model' })
+}
+
+/**
+ * Recording fake actions; `failWith` makes every action return that error message, `values` sets
+ * what the value actions (launch, open, suggest) answer.
+ */
+export const fakeActions = (failWith?: string, values: Partial<FakeValues> = {}) => {
   const calls: Array<ActionCall> = []
+  const answers = { ...defaultValues, ...values }
 
   const result = () =>
     Promise.resolve(
@@ -111,6 +136,16 @@ export const fakeActions = (failWith?: string) => {
     return result()
   }
 
+  const recordValue = <A,>(call: ActionCall, value: A): Promise<FleetActionValue<A>> => {
+    calls.push(call)
+
+    return Promise.resolve(
+      failWith === undefined
+        ? FleetActionValue.Success(value)
+        : FleetActionResult.Error({ message: failWith })
+    )
+  }
+
   const actions: FleetActions = {
     markHandled: input => record({ action: 'markHandled', input }),
     reopen: input => record({ action: 'reopen', input }),
@@ -118,7 +153,13 @@ export const fakeActions = (failWith?: string) => {
     replyPermission: input => record({ action: 'replyPermission', input }),
     replyForm: input => record({ action: 'replyForm', input }),
     sendPrompt: input => record({ action: 'sendPrompt', input }),
-    interrupt: input => record({ action: 'interrupt', input })
+    interrupt: input => record({ action: 'interrupt', input }),
+    launch: input => recordValue({ action: 'launch', input }, { launchID: answers.launchID }),
+    dismissLaunch: input => record({ action: 'dismissLaunch', input }),
+    openCheckout: input => recordValue({ action: 'openCheckout', input }, answers.opened),
+    retireWorktree: input => record({ action: 'retireWorktree', input }),
+    suggestBranch: input =>
+      recordValue({ action: 'suggestBranch', input }, answers.suggest(input.task))
   }
 
   return { actions, calls }
@@ -167,7 +208,8 @@ const staticNav: FleetNav = {
   href: (page, project, view) => fleetHref(page, { project, view }),
   go: () => undefined,
   setProject: () => undefined,
-  setView: () => undefined
+  setView: () => undefined,
+  openSession: () => undefined
 }
 
 /**
@@ -191,7 +233,8 @@ export function WithFleet({
     connection: { status: 'connected', since: now, failures: 0 },
     rows,
     projects: new Map(),
-    worktrees: new Map()
+    worktrees: new Map(),
+    launches: []
   }
 
   const fleet = {
@@ -209,8 +252,8 @@ export function WithFleet({
 }
 
 /**
- * A navigation the test dashboard made: a page switch (`go`), a filter change in place, or an
- * Agents mode switch.
+ * A navigation the test dashboard made: a page switch (`go`), a filter change in place, an Agents
+ * mode switch, or a session opened in focus mode (the launcher).
  */
 export type NavCall =
   | {
@@ -221,6 +264,7 @@ export type NavCall =
     }
   | { readonly kind: 'filter'; readonly project: string | undefined }
   | { readonly kind: 'view'; readonly view: AgentsView }
+  | { readonly kind: 'open'; readonly session: string }
 
 /**
  * The whole dashboard as the layout renders it, with the URL kept in state: the page, the Agents
@@ -273,6 +317,13 @@ export function TestDashboard({
 
       navigations.push({ kind: 'view', view: mode })
       setView(mode)
+    },
+    openSession: sessionID => {
+      navigations.push({ kind: 'open', session: sessionID })
+      setPage('agents')
+      setView('focus')
+      setProject(undefined)
+      setSelected(sessionID)
     }
   }
 

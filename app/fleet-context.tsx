@@ -28,6 +28,11 @@ export type FleetNav = {
   readonly setProject: (project: string | undefined) => void
   /** Switches the Agents mode (pushes a history entry), keeping the filter and the session. */
   readonly setView: (view: AgentsView) => void
+  /**
+   * Opens a session in Agents focus mode, unfiltered (the launcher's landing): pushes a history
+   * entry.
+   */
+  readonly openSession: (sessionID: string) => void
 }
 
 /** What both pages read: the live fleet (optimistic overrides applied), the clock, the URL. */

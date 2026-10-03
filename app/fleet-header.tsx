@@ -5,6 +5,7 @@ import type { AgentsView, FleetPage } from '@/app/fleet-href'
 import { NavLink } from '@/app/nav-link'
 import { isPlainClick } from '@/app/session-row'
 import type { StreamStatus } from '@/app/use-fleet-live'
+import { Button } from '@/components/ui/button'
 import type { FleetConnection, FleetCounts } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
@@ -82,8 +83,8 @@ export const keyHintSet = (page: FleetPage, view: AgentsView): KeyHintSet =>
 
 /**
  * Each page's keys (`agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`), plus the
- * shell's: `c` (Summary / Chat), `b` (the other Agents mode), `1` / `2`. Most needed first: on
- * narrower desktops the last ones drop.
+ * shell's: `n` (the launcher, also `⌘K`), `c` (Summary / Chat), `b` (the other Agents mode),
+ * `1` / `2`. Most needed first: on narrower desktops the last ones drop.
  */
 export const keyHints: Readonly<Record<KeyHintSet, ReadonlyArray<KeyHint>>> = {
   focus: [
@@ -94,6 +95,7 @@ export const keyHints: Readonly<Record<KeyHintSet, ReadonlyArray<KeyHint>>> = {
     { keys: 'a d', label: 'allow/deny' },
     { keys: 'c', label: 'chat' },
     { keys: 'b', label: 'board' },
+    { keys: 'n ⌘K', label: 'new' },
     { keys: '/', label: 'filter' },
     { keys: '1 2', label: 'pages' }
   ],
@@ -105,6 +107,7 @@ export const keyHints: Readonly<Record<KeyHintSet, ReadonlyArray<KeyHint>>> = {
     { keys: 'u', label: 'undo' },
     { keys: 'a d', label: 'allow/deny' },
     { keys: 'b', label: 'focus' },
+    { keys: 'n ⌘K', label: 'new' },
     { keys: '/', label: 'filter' },
     { keys: 'c', label: 'chat' },
     { keys: '1 2', label: 'pages' }
@@ -113,6 +116,7 @@ export const keyHints: Readonly<Record<KeyHintSet, ReadonlyArray<KeyHint>>> = {
     { keys: '← → ↑ ↓', label: 'card' },
     { keys: 'j k', label: 'session' },
     { keys: '↵', label: 'open' },
+    { keys: 'n ⌘K', label: 'new' },
     { keys: 'c', label: 'chat' },
     { keys: '1 2', label: 'pages' }
   ]
@@ -199,8 +203,14 @@ function HeaderTabs({ page }: { readonly page: FleetPage }) {
   )
 }
 
-/** Agents | Projects: the phone's bottom tab bar. */
-export function BottomTabs({ page }: { readonly page: FleetPage }) {
+/** Agents | Projects | +: the phone's bottom tab bar (+ opens the launcher, full screen). */
+export function BottomTabs({
+  page,
+  onNew
+}: {
+  readonly page: FleetPage
+  readonly onNew?: () => void
+}) {
   return (
     <nav
       aria-label="Pages"
@@ -216,26 +226,38 @@ export function BottomTabs({ page }: { readonly page: FleetPage }) {
           {item.label}
         </NavLink>
       ))}
+      {onNew === undefined ? null : (
+        <button
+          type="button"
+          aria-label="New (launcher)"
+          onClick={onNew}
+          className="text-attention focus-visible:ring-ring/50 flex h-12 w-16 items-center justify-center border-l text-lg outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
+        >
+          +
+        </button>
+      )}
     </nav>
   )
 }
 
 /**
- * Title, the page tabs (desktop), the Agents mode toggle, the count line, the page's key hint,
- * the connection.
+ * Title, the page tabs (desktop), the Agents mode toggle, the count line, the launcher's New
+ * (desktop; the phone's is the tab bar's +), the page's key hint, the connection.
  */
 export function FleetHeader({
   page,
   view,
   counts,
   stream,
-  connection
+  connection,
+  onNew
 }: {
   readonly page: FleetPage
   readonly view: AgentsView
   readonly counts: FleetCounts
   readonly stream: StreamStatus
   readonly connection: FleetConnection
+  readonly onNew?: () => void
 }) {
   const link = linkStatus(stream, connection)
 
@@ -248,6 +270,17 @@ export function FleetHeader({
         <CountLine counts={counts} />
       </div>
       <div className="flex min-w-0 items-center gap-x-5 max-lg:ml-auto">
+        {onNew === undefined ? null : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onNew}
+            title="New: open a repo or start a worktree (n, ⌘K)"
+            className="max-lg:hidden"
+          >
+            New
+          </Button>
+        )}
         <KeyHintLine set={keyHintSet(page, view)} />
         <p role="status" title={link.detail} className="flex shrink-0 items-center gap-1.5 text-xs">
           <span

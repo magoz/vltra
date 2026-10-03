@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   activityText,
+  elapsedText,
   endText,
   formatCost,
   modelName,
@@ -15,6 +16,13 @@ describe('formatting', () => {
     expect(relativeTime(0, 5 * 3_600_000)).toBe('5h')
     expect(relativeTime(0, 3 * 86_400_000)).toBe('3d')
     expect(relativeTime(10, 0)).toBe('now')
+  })
+
+  it('shows elapsed time as a clock', () => {
+    expect(elapsedText(7_400)).toBe('0:07')
+    expect(elapsedText(185_000)).toBe('3:05')
+    expect(elapsedText(3_730_000)).toBe('1:02:10')
+    expect(elapsedText(-5)).toBe('0:00')
   })
 
   it('shortens models and hides free sessions’ cost', () => {

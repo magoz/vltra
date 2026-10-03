@@ -1,3 +1,5 @@
+import { isWithin } from '@/lib/data/fleet/checkouts'
+import { worktreeName } from '@/lib/data/fleet/palette'
 import { compareStates, isStuck } from '@/lib/data/fleet/state'
 import type {
   FleetChange,
@@ -5,6 +7,9 @@ import type {
   FleetRow,
   FleetSnapshot,
   FleetState,
+  Launch,
+  LauncherEntry,
+  LauncherWorktree,
   WorktreeKind
 } from '@/lib/data/fleet/types'
 
@@ -21,6 +26,8 @@ export type LiveFleet = {
   readonly projects: ReadonlyMap<string, ProjectInfo>
   /** Worktree kind by directory, as last reported by a snapshot. */
   readonly worktrees: ReadonlyMap<string, WorktreeKind>
+  /** The launcher's launches (provisioning, failed, recently ready), oldest first. */
+  readonly launches: ReadonlyArray<Launch>
 }
 
 export const fromSnapshot = (snapshot: FleetSnapshot): LiveFleet => ({
@@ -39,7 +46,8 @@ export const fromSnapshot = (snapshot: FleetSnapshot): LiveFleet => ({
     snapshot.projects.flatMap(project =>
       project.worktrees.map(worktree => [worktree.directory, worktree.kind] as const)
     )
-  )
+  ),
+  launches: snapshot.launches
 })
 
 export type AppliedChange = { readonly live: LiveFleet; readonly stale: boolean }
@@ -56,7 +64,12 @@ export const applyChange = (live: LiveFleet, change: FleetChange): AppliedChange
   for (const row of change.rows) rows.set(row.id, row)
 
   return {
-    live: { ...live, connection: change.connection, rows },
+    live: {
+      ...live,
+      connection: change.connection,
+      rows,
+      launches: change.launches ?? live.launches
+    },
     stale: change.rows.some(row => !live.projects.has(row.projectID))
   }
 }
@@ -355,4 +368,39 @@ export const buildProjectCards = (live: LiveFleet): ReadonlyArray<ProjectCard> =
         left.name.localeCompare(right.name)
     )
     .map(({ latest: _latest, ...card }) => card)
+}
+
+/** A card section with the launcher's facts for its worktree (branch, owner, PR), if any. */
+export type WorktreeSection = CardSection & { readonly worktree: LauncherWorktree | undefined }
+
+/**
+ * A card's sections with the launcher's worktree facts: each section gets the linked worktree it
+ * runs in; the repository's other branch worktrees follow as sections without sessions, so their
+ * PR state and Retire show too (detached ones only show with sessions).
+ */
+export const cardSections = (
+  card: ProjectCard,
+  entry: LauncherEntry | undefined
+): ReadonlyArray<WorktreeSection> => {
+  if (entry === undefined || card.other) {
+    return card.sections.map(section => ({ ...section, worktree: undefined }))
+  }
+
+  const sections = card.sections.map(section => ({
+    ...section,
+    worktree: entry.worktrees.find(worktree => isWithin(section.directory, worktree.directory))
+  }))
+
+  const shown = new Set(sections.map(section => section.worktree?.directory))
+
+  const idle = entry.worktrees
+    .filter(worktree => worktree.branch !== undefined && !shown.has(worktree.directory))
+    .map((worktree): WorktreeSection => ({
+      directory: worktree.directory,
+      name: worktreeName(worktree),
+      rows: [],
+      worktree
+    }))
+
+  return [...sections, ...idle]
 }

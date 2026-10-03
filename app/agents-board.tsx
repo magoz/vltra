@@ -7,12 +7,14 @@ import { AgentCard } from '@/app/agent-card'
 import { useFleet } from '@/app/fleet-context'
 import { NavLink } from '@/app/nav-link'
 import { firstPermission } from '@/app/pending-asks'
+import { PendingLaunches } from '@/app/pending-launches'
 import { ProjectFilter } from '@/app/project-filter'
 import { useHandled } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
 import { usePermissionReply } from '@/app/use-permission-reply'
 import { boardColumns, buildAgentsBoard, initialColumn } from '@/lib/data/fleet/board'
 import type { AgentsBoard as Board, BoardColumn, BoardRow } from '@/lib/data/fleet/board'
+import type { Launch } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
 const columnNames: Readonly<Record<BoardColumn, string>> = {
@@ -96,6 +98,7 @@ const clickedCard = (event: MouseEvent) =>
 function Column({
   column,
   rows,
+  launches,
   cursor,
   olderHandled,
   shown,
@@ -103,6 +106,8 @@ function Column({
 }: {
   readonly column: BoardColumn
   readonly rows: ReadonlyArray<BoardRow>
+  /** The launcher's launches, at the top of Working. */
+  readonly launches: ReadonlyArray<Launch>
   readonly cursor: string | undefined
   readonly olderHandled: number
   /** The phone shows one column at a time. */
@@ -131,8 +136,16 @@ function Column({
           {column === 'handled' ? 'last 24h' : rows.length}
         </span>
       </h2>
+      {launches.length === 0 ? null : (
+        <PendingLaunches
+          launches={launches}
+          className="bg-background mx-2 mb-2 border max-lg:mt-2"
+        />
+      )}
       {rows.length === 0 ? (
-        <p className="text-muted-foreground px-3 py-6 text-center text-xs">{emptyText[column]}</p>
+        launches.length === 0 ? (
+          <p className="text-muted-foreground px-3 py-6 text-center text-xs">{emptyText[column]}</p>
+        ) : null
       ) : (
         <ul
           className="flex flex-col gap-2 px-2 pb-2 max-lg:pt-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
@@ -284,6 +297,7 @@ function Board({ project }: { readonly project: string | undefined }) {
             key={column}
             column={column}
             rows={board.columns[column]}
+            launches={column === 'working' ? view.launches : []}
             cursor={cursorID}
             olderHandled={board.olderHandled}
             shown={column === segment}
@@ -303,7 +317,8 @@ function Board({ project }: { readonly project: string | undefined }) {
 
 /**
  * The Agents page's board mode (`?view=board`, DESIGN.md "Clients" → Web): a kanban board by
- * state across all projects, or one project (`?project=`), with the session drawer. Columns `Blocked | Finished | Working | Handled` on desktop, one at a
+ * state across all projects, or one project (`?project=`), with the session drawer. Columns `Blocked | Finished | Working | Handled` (the launcher's launches top
+ * Working) on desktop, one at a
  * time on the phone. Keys: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns, `h`
  * handled (and next finished card), `u` undo, `a`/`d` allow once / deny, `Enter` opens the
  * drawer, `/` focuses the project filter (`b`, focus mode, is the shell's).

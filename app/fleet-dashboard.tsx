@@ -4,13 +4,18 @@ import type { ReactNode } from 'react'
 import type { FleetActions } from '@/app/fleet-actions'
 import { FleetActionsProvider } from '@/app/fleet-actions'
 import { FleetShell } from '@/app/fleet-shell'
+import { dismissLaunchAction } from '@/app/dismiss-launch-action'
 import { interruptSessionAction } from '@/app/interrupt-session-action'
+import { launchAction } from '@/app/launch-action'
 import { markHandledAction } from '@/app/mark-handled-action'
 import { markViewedAction } from '@/app/mark-viewed-action'
+import { openCheckoutAction } from '@/app/open-checkout-action'
 import { replyFormAction } from '@/app/reply-form-action'
 import { replyPermissionAction } from '@/app/reply-permission-action'
 import { reopenAction } from '@/app/reopen-action'
+import { retireWorktreeAction } from '@/app/retire-worktree-action'
 import { sendPromptAction } from '@/app/send-prompt-action'
+import { suggestBranchAction } from '@/app/suggest-branch-action'
 import { useFleetLive } from '@/app/use-fleet-live'
 import { useFleetNav } from '@/app/use-fleet-nav'
 import { useNow } from '@/app/use-now'
@@ -25,7 +30,12 @@ const serverActions: FleetActions = {
   replyPermission: replyPermissionAction,
   replyForm: replyFormAction,
   sendPrompt: sendPromptAction,
-  interrupt: interruptSessionAction
+  interrupt: interruptSessionAction,
+  launch: launchAction,
+  dismissLaunch: dismissLaunchAction,
+  openCheckout: openCheckoutAction,
+  retireWorktree: retireWorktreeAction,
+  suggestBranch: suggestBranchAction
 }
 
 /**

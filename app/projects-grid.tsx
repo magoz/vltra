@@ -3,11 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFleet } from '@/app/fleet-context'
 import { relativeTime } from '@/app/fleet-format'
+import { entryForProject, useLauncher } from '@/app/launcher-context'
 import { NavLink } from '@/app/nav-link'
+import { RetireWorktree } from '@/app/retire-worktree'
 import { ProjectRow } from '@/app/session-row'
 import { useKeys } from '@/app/use-keys'
-import { buildProjectCards } from '@/lib/data/fleet/board'
-import type { BoardRow, ProjectCard } from '@/lib/data/fleet/board'
+import { OwnerBadge, PrBadge } from '@/app/worktree-badges'
+import { buildProjectCards, cardSections } from '@/lib/data/fleet/board'
+import type { BoardRow, ProjectCard, WorktreeSection } from '@/lib/data/fleet/board'
+import type { LauncherEntry } from '@/lib/data/fleet/types'
 
 /** `2 need you · 1 working` (need you in green), zeros left out. */
 function CardCounts({ card }: { readonly card: ProjectCard }) {
@@ -79,21 +83,58 @@ function HandledFold({
   )
 }
 
+/**
+ * A worktree section's heading line: its branch (else its folder), owner (`pi` for Pi/Herdr),
+ * PR state, and Retire for Fleet/OpenCode worktrees.
+ */
+function SectionHeading({
+  section,
+  projectID
+}: {
+  readonly section: WorktreeSection
+  readonly projectID: string
+}) {
+  const { worktree } = section
+
+  return (
+    <div className="text-muted-foreground flex min-h-6 items-center gap-2 px-3 pb-0.5 text-xs">
+      <h3 title={section.directory} className="min-w-0 truncate">
+        {worktree?.branch ?? section.name}
+      </h3>
+      {worktree === undefined ? null : (
+        <>
+          <OwnerBadge owner={worktree.owner} />
+          <PrBadge pr={worktree.pr} link />
+        </>
+      )}
+      <span aria-hidden="true" className="bg-hairline h-px min-w-4 flex-1" />
+      {worktree?.owner === 'dotfiles' ? (
+        <RetireWorktree projectID={projectID} worktree={worktree} />
+      ) : null}
+    </div>
+  )
+}
+
 function Card({
   card,
+  entry,
   cursor,
   rowCursor,
   expanded,
   onToggle
 }: {
   readonly card: ProjectCard
+  /** The card's repository in the launcher, when it is one on Box. */
+  readonly entry: LauncherEntry | undefined
   readonly cursor: boolean
   readonly rowCursor: string | undefined
   readonly expanded: boolean
   readonly onToggle: () => void
 }) {
   const { now } = useFleet()
+  const launcher = useLauncher()
   const ref = useRef<HTMLElement>(null)
+  const sections = useMemo(() => cardSections(card, entry), [card, entry])
 
   useEffect(() => {
     if (cursor) ref.current?.scrollIntoView?.({ block: 'nearest' })
@@ -107,22 +148,32 @@ function Card({
       data-cursor={cursor}
       className="bg-background lg:data-[cursor=true]:border-attention min-w-0 border pb-1"
     >
-      <NavLink
-        page="agents"
-        project={card.id}
-        view="board"
-        className="hover:bg-accent/60 focus-visible:ring-ring/50 flex items-baseline justify-between gap-3 border-b px-3 py-2 outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
-      >
-        <span className="font-semibold">{card.name}</span>
-        <CardCounts card={card} />
-      </NavLink>
-      {card.sections.map(section => (
-        <div key={section.directory} className="pt-1.5">
+      <div className="flex border-b">
+        <NavLink
+          page="agents"
+          project={card.id}
+          view="board"
+          className="hover:bg-accent/60 focus-visible:ring-ring/50 flex min-w-0 flex-1 items-baseline justify-between gap-3 px-3 py-2 outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
+        >
+          <span className="font-semibold">{card.name}</span>
+          <CardCounts card={card} />
+        </NavLink>
+        {entry === undefined ? null : (
+          <button
+            type="button"
+            aria-label={`New worktree in ${entry.name}`}
+            title={`New worktree in ${entry.name}`}
+            onClick={() => launcher.open({ step: 'new', repo: entry.directory })}
+            className="text-attention hover:bg-accent/60 focus-visible:ring-ring/50 border-l px-3 outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
+          >
+            +
+          </button>
+        )}
+      </div>
+      {sections.map(section => (
+        <div key={section.directory} data-worktree={section.directory} className="pt-1.5">
           {card.other ? null : (
-            <h3 className="text-muted-foreground flex items-center gap-2 px-3 pb-0.5 text-xs">
-              <span>{section.name}</span>
-              <span aria-hidden="true" className="bg-hairline h-px flex-1" />
-            </h3>
+            <SectionHeading section={section} projectID={entry?.projectID ?? card.id} />
           )}
           <ul>
             {section.rows.map(item => (
@@ -156,13 +207,16 @@ const gridColumns = (grid: HTMLElement | null) => {
 
 /**
  * The Projects page (DESIGN.md "Clients" → Web): a grid of project cards by latest activity,
- * "Other" last. The header opens the Agents board (`?view=board`) filtered to the project;
- * worktree sections list needs-me and working sessions; handled ones fold into "N handled · last
- * 2h". Keys: arrows move between cards, `j` / `k` within one, `Enter` opens the session or, on
+ * "Other" last. The header opens the Agents board (`?view=board`) filtered to the project, its +
+ * the launcher's new-worktree step for the repository; worktree sections list needs-me and working
+ * sessions under the branch, owner (`pi`), PR state and Retire (Fleet/OpenCode worktrees), and the
+ * repository's other branch worktrees follow without sessions; handled ones fold into "N handled ·
+ * last 2h". Keys: arrows move between cards, `j` / `k` within one, `Enter` opens the session or, on
  * the card, its board.
  */
 export function ProjectsGrid() {
   const { view, selection, nav } = useFleet()
+  const launcher = useLauncher()
   const cards = useMemo(() => buildProjectCards(view), [view])
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
   const [cursor, setCursor] = useState<Cursor>()
@@ -230,6 +284,11 @@ export function ProjectsGrid() {
           <Card
             key={card.id}
             card={card}
+            entry={
+              card.other
+                ? undefined
+                : entryForProject(launcher.list, card.id, view.projects.get(card.id)?.directory)
+            }
             cursor={index === cardIndex}
             rowCursor={index === cardIndex ? rowCursor : undefined}
             expanded={expanded.has(card.id)}

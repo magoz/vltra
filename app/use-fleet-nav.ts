@@ -10,7 +10,8 @@ import type { AgentsView, FleetPage } from '@/app/fleet-href'
  * The dashboard's navigation from the URL: the page from the path; the Agents mode, the project
  * filter and the open session from the query. Page switches are router navigations (both pages
  * share the layout that holds the live fleet, so nothing reloads); the filter changes in place;
- * a mode switch pushes a history entry, so Back returns to the other mode.
+ * a mode switch pushes a history entry, so Back returns to the other mode. The launcher lands in
+ * focus mode with the session open.
  */
 export function useFleetNav(): FleetNav {
   const pathname = usePathname()
@@ -52,8 +53,13 @@ export function useFleetNav(): FleetNav {
     [project, session, view]
   )
 
+  const openSession = useCallback(
+    (sessionID: string) => router.push(fleetHref('agents', { session: sessionID, view: 'focus' })),
+    [router]
+  )
+
   return useMemo(
-    () => ({ page, view, project, href, go, setProject, setView }),
-    [page, view, project, href, go, setProject, setView]
+    () => ({ page, view, project, href, go, setProject, setView, openSession }),
+    [page, view, project, href, go, setProject, setView, openSession]
   )
 }

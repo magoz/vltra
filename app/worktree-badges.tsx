@@ -1,0 +1,71 @@
+import type { PullRequest, WorktreeOwner } from '@/lib/data/fleet/types'
+import { cn } from '@/lib/utils'
+
+// A worktree's owner and PR state, as the launcher palette and the Projects cards show them.
+
+/** Pi/Herdr (and plain git) worktrees get a muted `pi`; Fleet/OpenCode ones nothing. */
+export function OwnerBadge({ owner }: { readonly owner: WorktreeOwner }) {
+  return owner === 'other' ? (
+    <span className="text-muted-foreground" title="Pi/Herdr worktree (retire it through Herdr)">
+      pi
+    </span>
+  ) : null
+}
+
+const prText = (pr: PullRequest): string | undefined => {
+  switch (pr.state) {
+    case 'open':
+      return pr.number === undefined ? 'PR open' : `#${pr.number} open`
+    case 'merged':
+      return 'merged · retire'
+    case 'closed':
+      return 'closed · retire'
+    case 'none':
+    case 'unknown':
+      return undefined
+  }
+}
+
+/**
+ * `#123 open`, `merged · retire` (green: done, time to retire), `closed · retire` (red); nothing
+ * without a PR or while unknown. A link to the PR when `link` (not inside a clickable row).
+ */
+export function PrBadge({
+  pr,
+  link = false,
+  className
+}: {
+  readonly pr: PullRequest
+  readonly link?: boolean
+  readonly className?: string
+}) {
+  const text = prText(pr)
+
+  if (text === undefined) return null
+
+  const classes = cn(
+    'whitespace-nowrap',
+    pr.state === 'merged' && 'text-attention',
+    pr.state === 'closed' && 'text-destructive',
+    pr.state === 'open' && 'text-muted-foreground',
+    className
+  )
+
+  const title = pr.number === undefined ? undefined : `Pull request #${pr.number} (${pr.state})`
+
+  return link && pr.url !== undefined ? (
+    <a
+      href={pr.url}
+      target="_blank"
+      rel="noreferrer"
+      title={title}
+      className={cn(classes, 'hover:underline')}
+    >
+      {text}
+    </a>
+  ) : (
+    <span title={title} className={classes}>
+      {text}
+    </span>
+  )
+}

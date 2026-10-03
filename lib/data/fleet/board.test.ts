@@ -6,6 +6,7 @@ import {
   buildAgentsBoard,
   buildNeedsMe,
   buildProjectCards,
+  cardSections,
   fromSnapshot,
   handledWindow,
   initialColumn,
@@ -22,7 +23,13 @@ import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
 import { buildSnapshot } from '@/lib/data/fleet/snapshot'
 import { countRows, quietAfter } from '@/lib/data/fleet/state'
 import { baseTime, sessionRecord, webUrl } from '@/lib/data/fleet/testing/fixtures'
-import type { FleetConnection, FleetRow, SessionRecord } from '@/lib/data/fleet/types'
+import type {
+  FleetConnection,
+  FleetRow,
+  Launch,
+  LauncherEntry,
+  SessionRecord
+} from '@/lib/data/fleet/types'
 import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 
 const connection: FleetConnection = { status: 'connected', since: baseTime, failures: 0 }
@@ -324,6 +331,56 @@ describe('project cards', () => {
   })
 })
 
+describe('card sections with the launcher', () => {
+  const tally = { blocked: 0, working: 0, finished: 0, handled: 0 }
+
+  const entry: LauncherEntry = {
+    name: 'fleet',
+    directory: fleet,
+    projectID: 'prj_fleet',
+    sessions: tally,
+    worktrees: [
+      {
+        directory: worktree,
+        branch: 'feat/panel',
+        owner: 'dotfiles',
+        pr: { state: 'none' },
+        sessions: tally
+      },
+      {
+        directory: `${fleet}-feat-done`,
+        branch: 'feat/done',
+        owner: 'dotfiles',
+        pr: { state: 'merged', number: 5 },
+        sessions: tally
+      },
+      { directory: `${fleet}-detached`, owner: 'other', pr: { state: 'unknown' }, sessions: tally }
+    ]
+  }
+
+  it("attaches each section's worktree and adds the other branch worktrees without sessions", () => {
+    const card = buildProjectCards(live)[0]
+
+    if (card === undefined) throw new Error('missing fleet card')
+
+    expect(
+      cardSections(card, entry).map(section => [
+        section.name,
+        section.worktree?.branch,
+        ids(section.rows).length
+      ])
+    ).toEqual([
+      ['feat-panel', 'feat/panel', 2],
+      ['fleet', undefined, 4],
+      ['feat/done', 'feat/done', 0]
+    ])
+    expect(cardSections(card, undefined).map(section => section.worktree)).toEqual([
+      undefined,
+      undefined
+    ])
+  })
+})
+
 describe('optimistic overrides', () => {
   const done = live.rows.get('ses_done')
 
@@ -428,6 +485,34 @@ describe('live changes', () => {
     expect(next.connection.status).toBe('disconnected')
     expect(next.rows.get('ses_run')?.state).toBe('finished')
     expect(next.rows.has('ses_done_old')).toBe(false)
+  })
+
+  it('replaces the launches when a change carries them, else keeps them', () => {
+    const started: Launch = {
+      id: 'launch-1',
+      repo: fleet,
+      repoName: 'fleet',
+      branch: 'feat/x',
+      task: 'x',
+      status: 'provisioning',
+      startedAt: now,
+      updatedAt: now
+    }
+
+    const change = {
+      initial: false,
+      connection,
+      counts: countRows(Array.from(live.rows.values()), now),
+      rows: [],
+      removed: []
+    }
+
+    const { live: withLaunch } = applyChange(live, { ...change, launches: [started] })
+
+    expect(live.launches).toEqual([])
+    expect(withLaunch.launches).toEqual([started])
+    expect(applyChange(withLaunch, change).live.launches).toEqual([started])
+    expect(applyChange(withLaunch, { ...change, launches: [] }).live.launches).toEqual([])
   })
 
   it('flags rows of unknown projects so the snapshot is reloaded', () => {
