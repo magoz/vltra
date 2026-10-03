@@ -62,6 +62,7 @@ Priority: blocked > working > finished > handled.
   by OpenCode"; `shutdown` → ignored (no `time.idle`, resumes after restart); `superseded` is
   declared but unused. If Fleet missed the event, it recovers the reason from `session.log`.
 - **Failed** runs are `finished` with a red mark, not their own state.
+- **Folder gone = handled**: a session whose folder no longer exists (a deleted `/tmp/tmp.*` scratch folder, a worktree removed after merge) is `handled` unless it is blocked or working, because OpenCode cannot write metadata for a session whose folder was deleted (so the marker could never be set); Fleet checks the folders itself (same machine) on every snapshot and every minute, and offers no Handled/Reopen for them ("folder deleted").
 - **Stuck** is not a state: a working session shows `retrying (n×, reason)`
   (`session.retry.scheduled`) or `quiet Nm` (no step/tool activity for 10+ minutes). Shown in
   Projects and counted, never in the needs-me list.

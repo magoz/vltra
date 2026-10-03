@@ -70,6 +70,11 @@ step. Verified in 2.0.20 (`core/src/session/projector.ts`):
   parent's marker; only root rows are ever handled, and a child's own run ends later anyway).
 - Mark handled reads the stored `time.idle` fresh (not the event time, which can differ by the
   +1 of `time.idle = max(event.created, previousIdle + 1)`) and writes it.
+- A deleted location folder blocks every location-scoped call: OpenCode resolves the location
+  with `realPath` (`PlatformError: NotFound: FileSystem.realPath`) once it is not loaded, so
+  `PATCH /api/session/:id` (and the diff) fail, 500 on 2.0.20 and 404 on 2.0.22, while
+  `GET /api/session/:id` and messages still work. Fleet counts such sessions handled and skips
+  those calls (`lib/services/directories/`).
 
 OpenCode's own `time.viewed` (`viewed < idle` = unread in OpenCode UIs) is independent: opening
 a session's panel posts `POST /api/session/:id/view { idle }` for OpenCode's unread dots, and
