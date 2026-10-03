@@ -1,7 +1,7 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FleetHeader, linkStatus } from '@/app/fleet-header'
-import { CountLine } from '@/app/needs-me-list'
+import { CountLine, FleetHeader, linkStatus } from '@/app/fleet-header'
+import { fakeActions, WithFleet } from '@/app/testing/dashboard-fixtures'
 import type { FleetConnection, FleetCounts } from '@/lib/data/fleet/types'
 
 const connected: FleetConnection = { status: 'connected', since: 0, failures: 0, version: '2.0.20' }
@@ -10,16 +10,48 @@ const counts: FleetCounts = { blocked: 2, finished: 4, working: 17, stuck: 2, ha
 
 afterEach(cleanup)
 
+const renderHeader = (page: 'agents' | 'projects') =>
+  render(
+    <WithFleet actions={fakeActions().actions} now={0}>
+      <FleetHeader page={page} counts={counts} stream="live" connection={connected} />
+    </WithFleet>
+  )
+
 describe('header', () => {
-  it('shows the title, the key hint and the connection', () => {
-    render(<FleetHeader stream="live" connection={connected} />)
+  it('shows the title, the page tabs, the count line and the connection', () => {
+    renderHeader('agents')
 
     expect(screen.getByRole('heading', { name: 'Fleet' })).toBeTruthy()
+
+    const tabs = screen.getAllByRole('navigation', { name: 'Pages' })[0]
+
+    if (tabs === undefined) throw new Error('missing page tabs')
+
+    expect(within(tabs).getByRole('link', { name: 'Agents' }).getAttribute('aria-current')).toBe(
+      'page'
+    )
+    expect(within(tabs).getByRole('link', { name: 'Projects' }).getAttribute('href')).toBe(
+      '/projects'
+    )
+    expect(screen.getByLabelText('Session counts').textContent).toBe(
+      '6 need you · 17 working · 2 stuck'
+    )
+    expect(screen.getByRole('status').textContent).toContain('live')
+  })
+
+  it("shows each page's keys", () => {
+    renderHeader('agents')
+
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ↵ open · h handled · u undo · a d allow/deny'
+      'j k move · ← → column · ↵ open · h handled · u undo · a d allow/deny · / filter · 1 2 pages'
     )
 
-    expect(screen.getByRole('status').textContent).toContain('live')
+    cleanup()
+    renderHeader('projects')
+
+    expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
+      '← → ↑ ↓ card · j k session · ↵ open · 1 2 pages'
+    )
   })
 })
 

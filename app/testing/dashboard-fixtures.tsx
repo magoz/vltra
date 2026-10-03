@@ -1,8 +1,17 @@
+import { useState } from 'react'
 import type { ReactNode } from 'react'
+import { AgentsBoard } from '@/app/agents-board'
 import { FleetActionResult } from '@/app/fleet-action-result'
 import type { FleetActions } from '@/app/fleet-actions'
 import { FleetActionsProvider } from '@/app/fleet-actions'
+import { FleetProvider } from '@/app/fleet-context'
+import type { FleetNav, SessionSelection } from '@/app/fleet-context'
+import { fleetHref } from '@/app/fleet-href'
+import type { FleetPage } from '@/app/fleet-href'
+import { FleetShell } from '@/app/fleet-shell'
+import { ProjectsGrid } from '@/app/projects-grid'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
+import { Toaster } from '@/components/ui/sonner'
 import { fromSnapshot as liveFromSnapshot } from '@/lib/data/fleet/board'
 import type { BoardRow, LiveFleet } from '@/lib/data/fleet/board'
 import { fromSnapshot } from '@/lib/data/fleet/model'
@@ -146,6 +155,112 @@ export function WithActions({
       <WithHandled actions={actions} rows={rows}>
         {children}
       </WithHandled>
+    </FleetActionsProvider>
+  )
+}
+
+/** A page-and-session stand-in for card tests: the Agents page, nothing open. */
+const staticNav: FleetNav = {
+  page: 'agents',
+  project: undefined,
+  href: (page, project) => fleetHref(page, { project }),
+  go: () => undefined,
+  setProject: () => undefined
+}
+
+/**
+ * The dashboard's providers for one card or row: `actions`, Handled / Undo / Reopen over `rows`,
+ * and the fleet context (`onSelect` records drawer opens).
+ */
+export function WithFleet({
+  actions,
+  rows = noRows,
+  now,
+  onSelect = () => undefined,
+  children
+}: {
+  readonly actions: FleetActions
+  readonly rows?: ReadonlyMap<string, FleetRow> | undefined
+  readonly now: number
+  readonly onSelect?: (sessionID: string) => void
+  readonly children: ReactNode
+}) {
+  const view: LiveFleet = {
+    connection: { status: 'connected', since: now, failures: 0 },
+    rows,
+    projects: new Map(),
+    worktrees: new Map()
+  }
+
+  const fleet = {
+    view,
+    now,
+    selection: { selected: undefined, select: onSelect, close: () => undefined },
+    nav: staticNav
+  }
+
+  return (
+    <WithActions actions={actions} rows={rows}>
+      <FleetProvider fleet={fleet}>{children}</FleetProvider>
+    </WithActions>
+  )
+}
+
+/** A navigation the test dashboard made: a page switch (`go`) or a filter change in place. */
+export type NavCall =
+  | { readonly kind: 'go'; readonly page: FleetPage; readonly project: string | undefined }
+  | { readonly kind: 'filter'; readonly project: string | undefined }
+
+/**
+ * The whole dashboard as the layout renders it, with the URL kept in state: the page, the
+ * project filter and the open session. `navigations` records page switches and filter changes.
+ */
+export function TestDashboard({
+  live,
+  now,
+  actions,
+  page: initialPage = 'agents',
+  project: initialProject,
+  navigations = []
+}: {
+  readonly live: LiveFleet
+  readonly now: number
+  readonly actions: FleetActions
+  readonly page?: FleetPage
+  readonly project?: string
+  readonly navigations?: Array<NavCall>
+}) {
+  const [page, setPage] = useState<FleetPage>(initialPage)
+  const [project, setProject] = useState(initialProject)
+  const [selected, setSelected] = useState<string>()
+
+  const nav: FleetNav = {
+    page,
+    project,
+    href: (target, filter) => fleetHref(target, { project: filter, session: selected }),
+    go: (target, filter) => {
+      navigations.push({ kind: 'go', page: target, project: filter })
+      setPage(target)
+      setProject(target === 'agents' ? filter : undefined)
+    },
+    setProject: filter => {
+      navigations.push({ kind: 'filter', project: filter })
+      setProject(filter)
+    }
+  }
+
+  const selection: SessionSelection = {
+    selected,
+    select: setSelected,
+    close: () => setSelected(undefined)
+  }
+
+  return (
+    <FleetActionsProvider actions={actions}>
+      <FleetShell live={live} stream="live" now={now} selection={selection} nav={nav}>
+        {page === 'agents' ? <AgentsBoard /> : <ProjectsGrid />}
+      </FleetShell>
+      <Toaster theme="light" />
     </FleetActionsProvider>
   )
 }

@@ -1,17 +1,23 @@
 import { describe, expect, it } from '@effect/vitest'
 import {
   applyChange,
+  boardColumns,
   boardRow,
-  buildBoard,
+  buildAgentsBoard,
+  buildProjectCards,
   fromSnapshot,
+  handledWindow,
+  initialColumn,
+  otherProjectID,
+  projectName,
   withOverrides,
   worktreeLabel
 } from '@/lib/data/fleet/board'
-import type { BoardRow, LiveFleet } from '@/lib/data/fleet/board'
+import type { AgentsBoard, BoardRow, LiveFleet } from '@/lib/data/fleet/board'
 import { fromSnapshot as modelFromSnapshot } from '@/lib/data/fleet/model'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
 import { buildSnapshot } from '@/lib/data/fleet/snapshot'
-import { quietAfter } from '@/lib/data/fleet/state'
+import { countRows, quietAfter } from '@/lib/data/fleet/state'
 import { baseTime, sessionRecord, webUrl } from '@/lib/data/fleet/testing/fixtures'
 import type { FleetConnection, FleetRow, SessionRecord } from '@/lib/data/fleet/types'
 import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
@@ -81,79 +87,186 @@ const live = liveOf(sessions, {
   ]
 })
 
-const board = buildBoard(live, now)
+const board = buildAgentsBoard(live, now, undefined)
 
-describe('needs me (sidebar)', () => {
-  it('lists blocked rows longest wait first, then finished rows oldest first', () => {
-    expect(ids(board.needsMe)).toEqual([
-      'ses_wait_long',
-      'ses_wait_short',
-      'ses_done_old',
-      'ses_done',
-      'ses_fail',
-      'ses_tmp'
+const columnIDs = (agents: AgentsBoard) =>
+  Object.fromEntries(boardColumns.map(column => [column, ids(agents.columns[column])]))
+
+describe('agents board', () => {
+  it('puts every root session in its state column, in column order', () => {
+    expect(columnIDs(board)).toEqual({
+      blocked: ['ses_wait_long', 'ses_wait_short'],
+      finished: ['ses_done_old', 'ses_done', 'ses_fail', 'ses_tmp'],
+      working: ['ses_run'],
+      handled: ['ses_handled_recent', 'ses_handled_wt', 'ses_box']
+    })
+  })
+
+  it('shows handled sessions active in the last 24h, newest first, and counts the rest', () => {
+    const agents = buildAgentsBoard(
+      liveOf([
+        sessionRecord('ses_edge', handled(now - handledWindow)),
+        sessionRecord('ses_past', handled(now - handledWindow - 1)),
+        sessionRecord('ses_new', handled(now - hour)),
+        sessionRecord('ses_ancient', handled(now - 90 * 24 * hour))
+      ]),
+      now,
+      undefined
+    )
+
+    expect(ids(agents.columns.handled)).toEqual(['ses_new', 'ses_edge'])
+    expect(agents.olderHandled).toBe(2)
+  })
+
+  it('puts stuck working sessions first, then the newest session first', () => {
+    const running = liveOf(
+      [
+        sessionRecord('ses_old', { created: now - 3 * hour }),
+        sessionRecord('ses_new', { created: now - hour }),
+        sessionRecord('ses_oldest', { created: now - 5 * hour })
+      ],
+      { running: ['ses_old', 'ses_new', 'ses_oldest'] }
+    )
+
+    expect(ids(buildAgentsBoard(running, now, undefined).columns.working)).toEqual([
+      'ses_new',
+      'ses_old',
+      'ses_oldest'
+    ])
+
+    const oldest = running.rows.get('ses_oldest')
+
+    if (oldest === undefined) throw new Error('missing ses_oldest')
+
+    const retrying: LiveFleet = {
+      ...running,
+      rows: new Map(running.rows).set('ses_oldest', {
+        ...oldest,
+        retry: { attempt: 2, at: now, message: 'rate limited' }
+      })
+    }
+
+    expect(ids(buildAgentsBoard(retrying, now, undefined).columns.working)).toEqual([
+      'ses_oldest',
+      'ses_new',
+      'ses_old'
     ])
   })
 
+  it('narrows every column, and the older-handled count, to one project', () => {
+    const fleetOnly = buildAgentsBoard(live, now, 'prj_fleet')
+
+    expect(columnIDs(fleetOnly)).toEqual({
+      blocked: ['ses_wait_long', 'ses_wait_short'],
+      finished: ['ses_done_old', 'ses_done', 'ses_fail'],
+      working: ['ses_run'],
+      handled: ['ses_handled_recent', 'ses_handled_wt']
+    })
+    expect(fleetOnly.olderHandled).toBe(1)
+    expect(columnIDs(buildAgentsBoard(live, now, 'prj_box'))).toMatchObject({
+      finished: [],
+      handled: ['ses_box']
+    })
+    expect(buildAgentsBoard(live, now, 'prj_box').olderHandled).toBe(0)
+  })
+
+  it("files OpenCode's global project under Other", () => {
+    expect(columnIDs(buildAgentsBoard(live, now, otherProjectID))).toEqual({
+      blocked: [],
+      finished: ['ses_tmp'],
+      working: [],
+      handled: []
+    })
+    expect(columnIDs(buildAgentsBoard(live, now, 'global')).finished).toEqual([])
+    expect(projectName(live, otherProjectID)).toBe('Other')
+    expect(projectName(live, 'prj_box')).toBe('box')
+  })
+
+  it('opens the phone on the first needs-me column with cards, else Working', () => {
+    expect(initialColumn(board)).toBe('blocked')
+    expect(initialColumn(buildAgentsBoard(live, now, 'prj_box'))).toBe('working')
+    expect(initialColumn(buildAgentsBoard(live, now, otherProjectID))).toBe('finished')
+  })
+})
+
+describe('counts', () => {
+  const rowsOf = (fleet: LiveFleet) => Array.from(fleet.rows.values())
+
   it('counts needs me, working and stuck', () => {
-    expect(board.counts).toEqual({ blocked: 2, finished: 4, working: 1, stuck: 0, handled: 4 })
+    expect(countRows(rowsOf(live), now)).toEqual({
+      blocked: 2,
+      finished: 4,
+      working: 1,
+      stuck: 0,
+      handled: 4
+    })
   })
 
   it('counts a working session quiet for the threshold as stuck', () => {
     const quiet = liveOf(sessions, { running: ['ses_run'] }, now - quietAfter)
 
-    expect(buildBoard(quiet, now).counts.stuck).toBe(1)
-    expect(buildBoard(quiet, now - 1).counts.stuck).toBe(0)
+    expect(countRows(rowsOf(quiet), now).stuck).toBe(1)
+    expect(countRows(rowsOf(quiet), now - 1).stuck).toBe(0)
   })
 })
 
-describe('projects', () => {
-  it('lists every session, with no time limit, project → worktree by latest activity', () => {
+describe('project cards', () => {
+  const cards = buildProjectCards(live)
+
+  it('groups every session, no time limit, by project; worktrees list needs-me and working', () => {
     expect(
-      board.projects.map(project => [
-        project.name,
-        project.worktrees.map(item => [item.label, ids(item.rows)])
-      ])
+      cards.map(card => ({
+        name: card.name,
+        needMe: card.needMe,
+        working: card.working,
+        sections: card.sections.map(section => [section.name, ids(section.rows)]),
+        handled: ids(card.handled)
+      }))
     ).toEqual([
-      [
-        'fleet',
-        [
-          ['feat-panel', ['ses_wait_long', 'ses_run', 'ses_handled_wt']],
-          [
-            undefined,
-            [
-              'ses_wait_short',
-              'ses_fail',
-              'ses_done',
-              'ses_done_old',
-              'ses_handled_recent',
-              'ses_handled_old'
-            ]
-          ]
-        ]
-      ],
-      ['box', [[undefined, ['ses_box']]]],
-      ['Other', [[undefined, ['ses_tmp']]]]
+      {
+        name: 'fleet',
+        needMe: 5,
+        working: 1,
+        sections: [
+          ['feat-panel', ['ses_wait_long', 'ses_run']],
+          ['fleet', ['ses_wait_short', 'ses_fail', 'ses_done', 'ses_done_old']]
+        ],
+        handled: ['ses_handled_recent', 'ses_handled_wt', 'ses_handled_old']
+      },
+      { name: 'box', needMe: 0, working: 0, sections: [], handled: ['ses_box'] },
+      { name: 'Other', needMe: 1, working: 0, sections: [['Other', ['ses_tmp']]], handled: [] }
     ])
   })
 
   it("puts OpenCode's global project last as Other, even when it is the most recent", () => {
-    const other = board.projects.at(-1)
-
-    expect(other).toMatchObject({ id: 'other', name: 'Other', other: true })
-    expect(board.projects.filter(project => project.other)).toHaveLength(1)
+    expect(cards.at(-1)).toMatchObject({ id: otherProjectID, name: 'Other', other: true })
+    expect(cards.filter(card => card.other)).toHaveLength(1)
   })
 
-  it('orders a newer project first', () => {
-    const newer = buildBoard(
+  it('orders cards by latest activity, handled sessions included', () => {
+    const newer = buildProjectCards(
       liveOf([
         sessionRecord('ses_fleet', handled(now - 2 * hour)),
-        sessionRecord('ses_box', { ...handled(now - hour), projectID: 'prj_box', directory: box })
-      ]),
-      now
+        sessionRecord('ses_box', { ...handled(now - hour), projectID: 'prj_box', directory: box }),
+        sessionRecord('ses_tmp', { ...handled(now), projectID: 'global', directory: '/tmp/x' })
+      ])
     )
 
-    expect(newer.projects.map(project => project.name)).toEqual(['box', 'fleet'])
+    expect(newer.map(card => [card.id, card.name])).toEqual([
+      ['prj_box', 'box'],
+      ['prj_fleet', 'fleet'],
+      [otherProjectID, 'Other']
+    ])
+  })
+
+  it('folds handled sessions newest first, with no time limit', () => {
+    const fold = cards[0]?.handled ?? []
+
+    expect(fold.map(item => [item.row.id, item.worktree])).toEqual([
+      ['ses_handled_recent', undefined],
+      ['ses_handled_wt', 'feat-panel'],
+      ['ses_handled_old', undefined]
+    ])
   })
 })
 
@@ -169,12 +282,15 @@ describe('optimistic overrides', () => {
     )
 
     expect(optimistic.rows.get('ses_done')).toMatchObject({ state: 'handled', handled: done.idle })
-    expect(ids(buildBoard(optimistic, now).needsMe)).not.toContain('ses_done')
+    expect(ids(buildAgentsBoard(optimistic, now, undefined).columns.finished)).not.toContain(
+      'ses_done'
+    )
+    expect(ids(buildAgentsBoard(optimistic, now, undefined).columns.handled)).toContain('ses_done')
 
     const { live: updated } = applyChange(live, {
       initial: false,
       connection,
-      counts: board.counts,
+      counts: countRows(Array.from(live.rows.values()), now),
       rows: [{ ...done, title: 'renamed' }],
       removed: []
     })
@@ -249,7 +365,7 @@ describe('live changes', () => {
     const { live: next, stale } = applyChange(live, {
       initial: false,
       connection: { ...connection, status: 'disconnected' },
-      counts: board.counts,
+      counts: countRows(Array.from(live.rows.values()), now),
       rows: [changed],
       removed: ['ses_done_old']
     })
@@ -268,7 +384,7 @@ describe('live changes', () => {
     const { stale } = applyChange(live, {
       initial: false,
       connection,
-      counts: board.counts,
+      counts: countRows(Array.from(live.rows.values()), now),
       rows: [{ ...row, id: 'ses_new', projectID: 'prj_new' }],
       removed: []
     })

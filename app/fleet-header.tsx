@@ -1,5 +1,9 @@
+'use client'
+
+import type { FleetPage } from '@/app/fleet-href'
+import { NavLink } from '@/app/nav-link'
 import type { StreamStatus } from '@/app/use-fleet-live'
-import type { FleetConnection } from '@/lib/data/fleet/types'
+import type { FleetConnection, FleetCounts } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
 type Link = { readonly label: string; readonly detail: string; readonly healthy: boolean }
@@ -31,19 +35,68 @@ export const linkStatus = (stream: StreamStatus, connection: FleetConnection): L
   }
 }
 
-const keyHints = [
-  { keys: 'j k', label: 'move' },
-  { keys: '↵', label: 'open' },
-  { keys: 'h', label: 'handled' },
-  { keys: 'u', label: 'undo' },
-  { keys: 'a d', label: 'allow/deny' }
-]
+function Separator() {
+  return <span className="text-muted-foreground"> · </span>
+}
 
-/** The sidebar's keys, desktop only (`use-fleet-keys.ts`). */
-function KeyHint() {
+/** The count line: `4 need you · 17 working · 2 stuck` (needs me = blocked + finished). */
+export function CountLine({ counts }: { readonly counts: FleetCounts }) {
+  const needMe = counts.blocked + counts.finished
+
   return (
-    <p aria-label="Keyboard shortcuts" className="text-muted-foreground text-xs max-lg:hidden">
-      {keyHints.map((hint, index) => (
+    <p aria-label="Session counts">
+      <span
+        className={cn(
+          'whitespace-nowrap',
+          needMe > 0 ? 'text-attention font-semibold' : 'text-muted-foreground'
+        )}
+      >
+        {needMe} {needMe === 1 ? 'needs you' : 'need you'}
+      </span>
+      <Separator />
+      <span className={cn('whitespace-nowrap', counts.working === 0 && 'text-muted-foreground')}>
+        {counts.working} working
+      </span>
+      <Separator />
+      <span
+        className={cn(
+          'whitespace-nowrap',
+          counts.stuck > 0 ? 'text-destructive' : 'text-muted-foreground'
+        )}
+      >
+        {counts.stuck} stuck
+      </span>
+    </p>
+  )
+}
+
+type KeyHint = { readonly keys: string; readonly label: string }
+
+/** Each page's keys (`agents-board.tsx`, `projects-grid.tsx`), plus the shell's `1` / `2`. */
+export const keyHints: Readonly<Record<FleetPage, ReadonlyArray<KeyHint>>> = {
+  agents: [
+    { keys: 'j k', label: 'move' },
+    { keys: '← →', label: 'column' },
+    { keys: '↵', label: 'open' },
+    { keys: 'h', label: 'handled' },
+    { keys: 'u', label: 'undo' },
+    { keys: 'a d', label: 'allow/deny' },
+    { keys: '/', label: 'filter' },
+    { keys: '1 2', label: 'pages' }
+  ],
+  projects: [
+    { keys: '← → ↑ ↓', label: 'card' },
+    { keys: 'j k', label: 'session' },
+    { keys: '↵', label: 'open' },
+    { keys: '1 2', label: 'pages' }
+  ]
+}
+
+/** The page's keys, wide desktops only. */
+function KeyHintLine({ page }: { readonly page: FleetPage }) {
+  return (
+    <p aria-label="Keyboard shortcuts" className="text-muted-foreground text-xs max-xl:hidden">
+      {keyHints[page].map((hint, index) => (
         <span key={hint.keys} className="whitespace-nowrap">
           {index === 0 ? null : <span aria-hidden="true"> · </span>}
           <kbd className="text-foreground font-mono">{hint.keys}</kbd> {hint.label}
@@ -53,21 +106,73 @@ function KeyHint() {
   )
 }
 
-/** Title, the key hint, and the connection indicator. */
+const pages: ReadonlyArray<{ readonly page: FleetPage; readonly label: string }> = [
+  { page: 'agents', label: 'Agents' },
+  { page: 'projects', label: 'Projects' }
+]
+
+/** Agents | Projects: header tabs on desktop. */
+function HeaderTabs({ page }: { readonly page: FleetPage }) {
+  return (
+    <nav aria-label="Pages" className="flex self-stretch max-lg:hidden">
+      {pages.map(item => (
+        <NavLink
+          key={item.page}
+          page={item.page}
+          current={item.page === page}
+          className="text-muted-foreground hover:text-foreground aria-[current=page]:border-b-foreground aria-[current=page]:text-foreground focus-visible:ring-ring/50 flex items-center border-b-2 border-b-transparent px-3 outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
+        >
+          {item.label}
+        </NavLink>
+      ))}
+    </nav>
+  )
+}
+
+/** Agents | Projects: the phone's bottom tab bar. */
+export function BottomTabs({ page }: { readonly page: FleetPage }) {
+  return (
+    <nav
+      aria-label="Pages"
+      className="bg-background fixed inset-x-0 bottom-0 z-20 flex border-t pb-[env(safe-area-inset-bottom)] lg:hidden"
+    >
+      {pages.map(item => (
+        <NavLink
+          key={item.page}
+          page={item.page}
+          current={item.page === page}
+          className="text-muted-foreground aria-[current=page]:border-t-foreground aria-[current=page]:text-foreground focus-visible:ring-ring/50 -mt-px flex h-12 flex-1 items-center justify-center border-t-2 border-t-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
+        >
+          {item.label}
+        </NavLink>
+      ))}
+    </nav>
+  )
+}
+
+/** Title, the page tabs (desktop), the count line, the page's key hint, the connection. */
 export function FleetHeader({
+  page,
+  counts,
   stream,
   connection
 }: {
+  readonly page: FleetPage
+  readonly counts: FleetCounts
   readonly stream: StreamStatus
   readonly connection: FleetConnection
 }) {
   const link = linkStatus(stream, connection)
 
   return (
-    <header className="flex items-baseline justify-between gap-x-4 gap-y-1 border-b px-4 py-3 text-sm lg:h-12">
+    <header className="bg-background/95 supports-backdrop-filter:bg-background/80 sticky top-0 z-20 flex flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-2 backdrop-blur-sm lg:h-12 lg:flex-nowrap lg:py-0">
       <h1 className="text-base font-semibold">Fleet</h1>
-      <div className="flex items-baseline gap-x-5">
-        <KeyHint />
+      <HeaderTabs page={page} />
+      <div className="text-xs max-lg:order-last max-lg:w-full lg:flex-1 lg:text-sm">
+        <CountLine counts={counts} />
+      </div>
+      <div className="flex items-center gap-x-5 max-lg:ml-auto">
+        <KeyHintLine page={page} />
         <p role="status" title={link.detail} className="flex items-center gap-1.5 text-xs">
           <span
             aria-hidden="true"

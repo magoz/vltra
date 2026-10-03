@@ -1,16 +1,16 @@
-import { compareStates, countRows } from '@/lib/data/fleet/state'
+import { compareStates, isStuck } from '@/lib/data/fleet/state'
 import type {
   FleetChange,
   FleetConnection,
-  FleetCounts,
   FleetRow,
   FleetSnapshot,
+  FleetState,
   WorktreeKind
 } from '@/lib/data/fleet/types'
 
 // The dashboard's client-side view of the fleet: a flat row map kept live from `fleet.changed`
-// events, and the two areas derived from it (DESIGN.md "Clients"): the needs-me sidebar and
-// Projects. Pure, so it runs (and is tested) anywhere.
+// events, and the two pages derived from it (DESIGN.md "Clients"): the Agents board (columns by
+// state) and the Projects grid (one card per project). Pure, so it runs (and is tested) anywhere.
 
 export type ProjectInfo = { readonly name: string; readonly directory: string }
 
@@ -131,7 +131,7 @@ export const worktreeLabel = (
 }
 
 /** OpenCode's `global` project (sessions outside any repository) has `/` as its directory. */
-const isOtherProject = (live: LiveFleet, row: Pick<FleetRow, 'projectID'>): boolean =>
+export const isOtherProject = (live: LiveFleet, row: Pick<FleetRow, 'projectID'>): boolean =>
   live.projects.get(row.projectID)?.directory === '/'
 
 /**
@@ -146,43 +146,110 @@ export const boardRow = (live: LiveFleet, row: FleetRow): BoardRow => {
     : { row, project: project.name, worktree: worktreeLabel(live, row) }
 }
 
-export type ProjectWorktree = {
-  readonly directory: string
-  /** Undefined for the project's own checkout. */
-  readonly label: string | undefined
-  readonly rows: ReadonlyArray<BoardRow>
-}
+/** The "Other" project's id in the grid and in `?project=`: every session outside a repository. */
+export const otherProjectID = 'other'
 
-export type ProjectGroup = {
-  readonly id: string
-  readonly name: string
-  /** The "Other" group: every session outside a repository, each row showing its directory. */
-  readonly other: boolean
-  readonly worktrees: ReadonlyArray<ProjectWorktree>
-}
+/** The project a row is filed under: its own, or "Other" for sessions outside a repository. */
+export const projectKey = (live: LiveFleet, row: Pick<FleetRow, 'projectID'>): string =>
+  isOtherProject(live, row) ? otherProjectID : row.projectID
 
-export type Board = {
-  /** Root rows by state (`stuck` as of `now`). */
-  readonly counts: FleetCounts
-  /**
-   * The sidebar: blocked rows (longest wait first), then finished rows (oldest first). A blocked
-   * run stopped moving when it asked, so its `activeAt` is when the wait began.
-   */
-  readonly needsMe: ReadonlyArray<BoardRow>
-  /** Every root session, project → worktree by latest activity; "Other" last. */
-  readonly projects: ReadonlyArray<ProjectGroup>
-}
+/** A `projectKey`'s display name, also for a project with no sessions left. */
+export const projectName = (live: LiveFleet, id: string): string =>
+  id === otherProjectID ? 'Other' : (live.projects.get(id)?.name ?? id)
 
-const otherProjectID = 'other'
+const hour = 60 * 60 * 1000
+
+/** The Agents board's Handled column shows sessions active within this window. */
+export const handledWindow = 24 * hour
+
+/** The Agents board's columns, left to right; the first two need me. */
+export const boardColumns = ['blocked', 'finished', 'working', 'handled'] as const
+
+export type BoardColumn = (typeof boardColumns)[number]
+
+export type AgentsBoard = {
+  readonly columns: Readonly<Record<BoardColumn, ReadonlyArray<BoardRow>>>
+  /** Handled sessions older than `handledWindow` (not on the board): "N more → Projects". */
+  readonly olderHandled: number
+}
 
 const oldestFirst = (left: BoardRow, right: BoardRow) => left.row.activeAt - right.row.activeAt
 
+const newestFirst = (left: BoardRow, right: BoardRow) => right.row.activeAt - left.row.activeAt
+
+const allRows = (live: LiveFleet) => Array.from(live.rows.values(), row => boardRow(live, row))
+
 /**
- * In a worktree: needs-me and working sessions first (blocked, working, finished), then handled
- * ones; newest first within each.
+ * The Agents board as of `now`, narrowed to `project` (a `projectKey`) when given:
+ * - blocked: longest wait first (a blocked run stopped moving when it asked, so its `activeAt`
+ *   is when the wait began);
+ * - finished: oldest first;
+ * - working: stuck first, then the newest session first (`created`, which never moves, so live
+ *   activity does not reshuffle the column);
+ * - handled: active within `handledWindow`, newest first; the rest only counted.
  */
-const worktreeOrder = (left: BoardRow, right: BoardRow) =>
-  compareStates(left.row.state, right.row.state) || right.row.activeAt - left.row.activeAt
+export const buildAgentsBoard = (
+  live: LiveFleet,
+  now: number,
+  project: string | undefined
+): AgentsBoard => {
+  const rows = allRows(live).filter(
+    item => project === undefined || projectKey(live, item.row) === project
+  )
+
+  const inState = (state: FleetState) => rows.filter(item => item.row.state === state)
+  const handled = inState('handled')
+  const recent = handled.filter(item => now - item.row.activeAt <= handledWindow)
+
+  return {
+    columns: {
+      blocked: inState('blocked').toSorted(oldestFirst),
+      finished: inState('finished').toSorted(oldestFirst),
+      working: inState('working').toSorted(
+        (left, right) =>
+          Number(isStuck(right.row, now)) - Number(isStuck(left.row, now)) ||
+          right.row.created - left.row.created
+      ),
+      handled: recent.toSorted(newestFirst)
+    },
+    olderHandled: handled.length - recent.length
+  }
+}
+
+/** The phone shows one column: the first needs-me column with cards, else Working. */
+export const initialColumn = (board: AgentsBoard): BoardColumn => {
+  if (board.columns.blocked.length > 0) return 'blocked'
+
+  if (board.columns.finished.length > 0) return 'finished'
+
+  return 'working'
+}
+
+/** A worktree section of a project card: its needs-me and working sessions. */
+export type CardSection = {
+  readonly directory: string
+  /** The worktree's name: its label, or the checkout's folder name. */
+  readonly name: string
+  readonly rows: ReadonlyArray<BoardRow>
+}
+
+export type ProjectCard = {
+  /** The project's id, or `otherProjectID`; `?project=` takes it. */
+  readonly id: string
+  readonly name: string
+  /** The "Other" card: every session outside a repository, each row showing its directory. */
+  readonly other: boolean
+  readonly needMe: number
+  readonly working: number
+  /** Worktrees by latest activity; only those with needs-me or working sessions. */
+  readonly sections: ReadonlyArray<CardSection>
+  /** Handled sessions, newest first: the "N handled · last 2h" fold. */
+  readonly handled: ReadonlyArray<BoardRow>
+}
+
+/** In a section: blocked, working, then finished; newest first within each. */
+const sectionOrder = (left: BoardRow, right: BoardRow) =>
+  compareStates(left.row.state, right.row.state) || newestFirst(left, right)
 
 const latest = (rows: ReadonlyArray<BoardRow>) =>
   Math.max(0, ...rows.map(item => item.row.activeAt))
@@ -200,74 +267,56 @@ const groupBy = <A>(values: ReadonlyArray<A>, key: (value: A) => string) => {
   return groups
 }
 
-const byLatest = (left: ProjectWorktree, right: ProjectWorktree) =>
-  latest(right.rows) - latest(left.rows)
+const projectCard = (
+  live: LiveFleet,
+  id: string,
+  rows: ReadonlyArray<BoardRow>
+): ProjectCard & { readonly latest: number } => {
+  const other = id === otherProjectID
+  const open = rows.filter(item => item.row.state !== 'handled')
 
-const projectLatest = (group: ProjectGroup) =>
-  Math.max(0, ...group.worktrees.map(worktree => latest(worktree.rows)))
+  const count = (states: ReadonlyArray<FleetState>) =>
+    rows.filter(item => states.includes(item.row.state)).length
 
-const projectGroup = (live: LiveFleet, id: string, rows: ReadonlyArray<BoardRow>): ProjectGroup => {
-  const worktrees = Array.from(
-    groupBy(rows, item => item.row.directory),
-    ([directory, items]) => ({
-      directory,
-      label: items[0]?.worktree,
-      rows: items.toSorted(worktreeOrder)
-    })
-  ).toSorted(byLatest)
+  const sections = other
+    ? [{ directory: '/', name: 'Other', rows: open.toSorted(sectionOrder) }]
+    : Array.from(
+        groupBy(open, item => item.row.directory),
+        ([directory, items]) => ({
+          directory,
+          name: items[0]?.worktree ?? lastSegment(directory),
+          rows: items.toSorted(sectionOrder)
+        })
+      ).toSorted((left, right) => latest(right.rows) - latest(left.rows))
 
   return {
     id,
-    name: live.projects.get(id)?.name ?? rows[0]?.project ?? id,
-    other: false,
-    worktrees
+    name: other ? 'Other' : (live.projects.get(id)?.name ?? rows[0]?.project ?? id),
+    other,
+    needMe: count(['blocked', 'finished']),
+    working: count(['working']),
+    sections: sections.filter(section => section.rows.length > 0),
+    handled: rows.filter(item => item.row.state === 'handled').toSorted(newestFirst),
+    latest: latest(rows)
   }
 }
 
-const groupProjects = (
-  live: LiveFleet,
-  rows: ReadonlyArray<BoardRow>
-): ReadonlyArray<ProjectGroup> => {
-  const other = rows.filter(item => isOtherProject(live, item.row))
-
-  const named = Array.from(
-    groupBy(
-      rows.filter(item => !isOtherProject(live, item.row)),
-      item => item.row.projectID
-    ),
-    ([id, items]) => projectGroup(live, id, items)
-  ).toSorted(
-    (left, right) =>
-      projectLatest(right) - projectLatest(left) || left.name.localeCompare(right.name)
+/**
+ * The Projects grid: one card per project (every session, no time limit), by latest activity;
+ * "Other" last.
+ */
+export const buildProjectCards = (live: LiveFleet): ReadonlyArray<ProjectCard> => {
+  const cards = Array.from(
+    groupBy(allRows(live), item => projectKey(live, item.row)),
+    ([id, rows]) => projectCard(live, id, rows)
   )
 
-  if (other.length === 0) return named
-
-  return [
-    ...named,
-    {
-      id: otherProjectID,
-      name: 'Other',
-      other: true,
-      worktrees: [{ directory: '/', label: undefined, rows: other.toSorted(worktreeOrder) }]
-    }
-  ]
-}
-
-/** The sidebar (needs me) and Projects (every session), with counts as of `now`. */
-export const buildBoard = (live: LiveFleet, now: number): Board => {
-  const rows = Array.from(live.rows.values(), row => boardRow(live, row))
-  const inState = (state: FleetRow['state']) => rows.filter(item => item.row.state === state)
-
-  return {
-    counts: countRows(
-      rows.map(item => item.row),
-      now
-    ),
-    needsMe: [
-      ...inState('blocked').toSorted(oldestFirst),
-      ...inState('finished').toSorted(oldestFirst)
-    ],
-    projects: groupProjects(live, rows)
-  }
+  return cards
+    .toSorted(
+      (left, right) =>
+        Number(left.other) - Number(right.other) ||
+        right.latest - left.latest ||
+        left.name.localeCompare(right.name)
+    )
+    .map(({ latest: _latest, ...card }) => card)
 }
