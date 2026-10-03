@@ -3,13 +3,28 @@ import { cn } from '@/lib/utils'
 
 // A worktree's owner and PR state, as the launcher palette and the Projects cards show them.
 
-/** Pi/Herdr (and plain git) worktrees get a muted `pi`; Fleet/OpenCode ones nothing. */
-export function OwnerBadge({ owner }: { readonly owner: WorktreeOwner }) {
-  return owner === 'other' ? (
+/**
+ * Pi/Herdr worktrees (no dotfiles marker, on a branch) get a muted `pi`, detached checkouts
+ * (OpenCode's own git strategy) a muted `detached`; Fleet/OpenCode (dotfiles) ones nothing.
+ */
+export function OwnerBadge({
+  owner,
+  branch
+}: {
+  readonly owner: WorktreeOwner
+  readonly branch: string | undefined
+}) {
+  if (owner === 'dotfiles') return null
+
+  return branch === undefined ? (
+    <span className="text-muted-foreground" title="Detached checkout, not managed by Fleet">
+      detached
+    </span>
+  ) : (
     <span className="text-muted-foreground" title="Pi/Herdr worktree (retire it through Herdr)">
       pi
     </span>
-  ) : null
+  )
 }
 
 const prText = (pr: PullRequest): string | undefined => {

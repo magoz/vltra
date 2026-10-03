@@ -105,8 +105,8 @@ describe('launcher palette', () => {
       'repo anvil',
       'new +'
     ])
-    expect(rows()[1]).toContain('fleet · feat/x')
-    expect(rows()[1]).toContain('#7 open')
+    // Under their repository, worktrees go by branch alone.
+    expect(rows()[1]).toBe('worktree └ feat/x#7 open1 working3h')
     expect(rows()[3]).toContain('pi/thing')
     expect(rows()[3]).toContain('pi')
     expect(rows().at(-1)).toBe('new + New worktree in fleet…')

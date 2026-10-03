@@ -103,7 +103,7 @@ function SectionHeading({
       </h3>
       {worktree === undefined ? null : (
         <>
-          <OwnerBadge owner={worktree.owner} />
+          <OwnerBadge owner={worktree.owner} branch={worktree.branch} />
           <PrBadge pr={worktree.pr} link />
         </>
       )}

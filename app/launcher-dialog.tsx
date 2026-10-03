@@ -50,10 +50,13 @@ function Tally({ sessions }: { readonly sessions: SessionTally }) {
 function Row({
   item,
   now,
+  grouped,
   children
 }: {
   readonly item: PaletteItem
   readonly now: number
+  /** Worktrees right under their repository (no filter): no repository prefix. */
+  readonly grouped: boolean
   readonly children?: ReactNode
 }) {
   const at = item.kind === 'repo' ? item.entry.lastActivity : item.worktree.activeAt
@@ -61,20 +64,20 @@ function Row({
   return (
     <>
       {item.kind === 'repo' ? (
-        <span className="min-w-0 truncate font-semibold">{item.entry.name}</span>
+        <span className="min-w-0 font-semibold break-all">{item.entry.name}</span>
       ) : (
-        <span className="min-w-0 truncate pl-4">
+        <span className="min-w-0 pl-4 break-all">
           <span aria-hidden="true" className="text-muted-foreground">
             └{' '}
           </span>
-          <span className="text-muted-foreground">{item.entry.name} · </span>
+          {grouped ? null : <span className="text-muted-foreground">{item.entry.name} · </span>}
           {worktreeName(item.worktree)}
         </span>
       )}
-      <span className="text-muted-foreground flex shrink-0 items-baseline gap-x-2.5 text-xs">
+      <span className="text-muted-foreground ml-auto flex shrink-0 items-baseline gap-x-2.5 text-xs">
         {item.kind === 'worktree' ? (
           <>
-            <OwnerBadge owner={item.worktree.owner} />
+            <OwnerBadge owner={item.worktree.owner} branch={item.worktree.branch} />
             <PrBadge pr={item.worktree.pr} />
           </>
         ) : null}
@@ -219,9 +222,9 @@ function PickStep({
                 if (position !== index) move(position - index)
               }}
               onClick={() => open(item)}
-              className="aria-selected:bg-accent flex cursor-pointer items-baseline justify-between gap-3 px-3 py-1.5"
+              className="aria-selected:bg-accent flex cursor-pointer flex-wrap items-baseline gap-x-3 gap-y-0.5 px-3 py-1.5"
             >
-              <Row item={item} now={now}>
+              <Row item={item} now={now} grouped={query.trim() === ''}>
                 {opening === item.key ? <span>opening…</span> : null}
               </Row>
             </li>

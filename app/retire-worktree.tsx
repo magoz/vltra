@@ -87,7 +87,7 @@ export function RetireWorktree({
       <AlertDialogTrigger render={<Button variant="outline" size="sm" />}>
         Retire
       </AlertDialogTrigger>
-      <AlertDialogContent>
+      <AlertDialogContent className="font-mono">
         <AlertDialogHeader>
           <AlertDialogTitle>Retire {name}?</AlertDialogTitle>
           <AlertDialogDescription render={<div />}>
@@ -107,7 +107,7 @@ export function RetireWorktree({
               <li>
                 {sessions === 0
                   ? 'No sessions ran there.'
-                  : `${plural(sessions, 'session', 'sessions')} there become “folder deleted” (handled).`}
+                  : `${plural(sessions, 'session', 'sessions')} there ${sessions === 1 ? 'becomes' : 'become'} “folder deleted” (handled).`}
               </li>
             </ul>
           </AlertDialogDescription>

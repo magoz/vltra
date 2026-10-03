@@ -99,8 +99,9 @@ function LaunchItem({ launch }: { readonly launch: Launch }) {
         <span className="font-semibold">{launch.branch}</span>
         <span className="text-muted-foreground"> · {launch.repoName}</span>
       </span>
-      <span className="text-muted-foreground text-xs whitespace-nowrap tabular-nums">
+      <span className="text-muted-foreground flex items-center gap-1 self-start text-xs whitespace-nowrap tabular-nums">
         {elapsed}
+        {live ? null : <DismissButton launch={launch} />}
       </span>
       <span className="col-start-2 flex min-w-0 flex-col gap-0.5 text-xs">
         {launch.status === 'ready' && sessionID !== undefined ? (
@@ -121,11 +122,6 @@ function LaunchItem({ launch }: { readonly launch: Launch }) {
         ) : null}
         {failed ? null : <span className="text-muted-foreground line-clamp-2">{launch.task}</span>}
       </span>
-      {live ? null : (
-        <span className="col-start-3 row-span-2 row-start-1 self-start">
-          <DismissButton launch={launch} />
-        </span>
-      )}
     </li>
   )
 }
