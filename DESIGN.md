@@ -214,9 +214,13 @@ OpenCode.
   `merged · retire` / `closed · retire`. Automatic cleanup on merge/close is a later switch.
 
 **Terminal (CLI plugin in the dotfiles, runs inside `ocb` on the Mac):**
-- **Focus sidebar**: replaces OpenCode's session sidebar content (`sidebar.content` slot) with
-  the needs-me list: launches, then blocked (oldest wait first), then finished (oldest first);
-  the current session highlighted; empty → "Nothing needs you" with working/stuck counts.
+- **Focus sidebar**: a Fleet section prepended above OpenCode's own sections in the session
+  sidebar (`sidebar.content` slot, `prepend`; Context/MCP/LSP/todos stay below). One "Fleet"
+  title with working/stuck counts, then one line per entry: launches, then blocked (oldest wait
+  first, with the ask on a second line), then finished (oldest first). The current session is
+  marked with a blue `▌` and reads `this session`; at most 6 session rows, then `+N more`.
+  Empty → "Nothing needs you". Colours: needs-you is Fleet's green (markers and badge), failures
+  red, current session blue; never OpenCode's warning or accent. No key hints in the sidebar.
   OpenCode 2.0.20 puts the sidebar on the right only (`session.sidebar: "auto"` shows it above
   120 columns, `ctrl+x b` toggles it) and it cannot take keyboard focus, so rows (and the undo
   line) are clicked, never keyed. Permissions/questions are answered natively in the session.
@@ -228,7 +232,8 @@ OpenCode.
   from `GET /api/fleet/launcher`, open via `checkouts/open`, new worktree with task + suggested
   branch → `POST /api/fleet/launches`; navigate into the session when ready if you have not
   moved, else a toast).
-- Badge (`home.footer.status` / `prompt.footer.status`): `N need you · N working · N stuck`.
+- Badge (`home.footer.status` / `prompt.footer.status`): `N need you · N working · N stuck`,
+  `⚑ N need you` in green.
   Page `ctrl+x f`: needs me, then working (Projects stays on the web).
 - Mac notification via `attention.notify({ when: "blurred" })` on → blocked (gaps only by
   default, as before).
