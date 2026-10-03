@@ -1,4 +1,4 @@
-import { Data, Effect } from 'effect'
+import { Data, Effect, Match } from 'effect'
 import type { Schema } from 'effect'
 import type { CrossSiteRequestError } from '@/app/same-origin'
 import type {
@@ -88,6 +88,31 @@ const requestFailures = new Map([
 ])
 
 /**
+ * The user-safe message for an expected failure: the server actions' `Error` message and the
+ * JSON routes' `{ error }`.
+ */
+export const failureMessage = (error: FleetActionError): string =>
+  Match.value(error).pipe(
+    Match.tagsExhaustive({
+      CrossSiteRequestError: () => 'Request rejected',
+      SchemaError: () => 'Invalid input',
+      OpenCodeInvalidInputError: invalid => invalid.message,
+      SessionNotFoundError: () => 'Session not found',
+      SessionNotFinishedError: () => 'Only a finished session can be marked handled',
+      SessionFolderGoneError: () => "The session's folder no longer exists",
+      OpenCodeUnavailableError: () => 'OpenCode is not reachable',
+      // OpenCode's own words (sanitized), e.g. the worktree plugin's refusals.
+      OpenCodeRejectedError: rejected => rejected.message,
+      NotACheckoutError: () => 'Not a git checkout on Box',
+      RetireRefusedError: refused => refused.reason,
+      LaunchNotFoundError: () => 'That launch is gone',
+      LaunchInProgressError: () => 'The launch is still running',
+      OpenCodeRequestError: failed =>
+        requestFailures.get(failed.operation) ?? 'OpenCode request failed'
+    })
+  )
+
+/**
  * Shared tail of every Fleet server action: report unexpected failures, then map expected ones
  * to user-safe messages.
  */
@@ -99,40 +124,7 @@ export const toActionResult =
     effect.pipe(
       Effect.withSpan(operation),
       Effect.tapError(error => Effect.logWarning(`${operation} failed`, error._tag, error.message)),
-      Effect.catchTags({
-        CrossSiteRequestError: () =>
-          Effect.succeed(FleetActionResult.Error({ message: 'Request rejected' })),
-        SchemaError: () => Effect.succeed(FleetActionResult.Error({ message: 'Invalid input' })),
-        OpenCodeInvalidInputError: error =>
-          Effect.succeed(FleetActionResult.Error({ message: error.message })),
-        SessionNotFoundError: () =>
-          Effect.succeed(FleetActionResult.Error({ message: 'Session not found' })),
-        SessionNotFinishedError: () =>
-          Effect.succeed(
-            FleetActionResult.Error({ message: 'Only a finished session can be marked handled' })
-          ),
-        SessionFolderGoneError: () =>
-          Effect.succeed(
-            FleetActionResult.Error({ message: "The session's folder no longer exists" })
-          ),
-        OpenCodeUnavailableError: () =>
-          Effect.succeed(FleetActionResult.Error({ message: 'OpenCode is not reachable' })),
-        // OpenCode's own words (sanitized), e.g. the worktree plugin's refusals.
-        OpenCodeRejectedError: error =>
-          Effect.succeed(FleetActionResult.Error({ message: error.message })),
-        NotACheckoutError: () =>
-          Effect.succeed(FleetActionResult.Error({ message: 'Not a git checkout on Box' })),
-        RetireRefusedError: error =>
-          Effect.succeed(FleetActionResult.Error({ message: error.reason })),
-        LaunchNotFoundError: () =>
-          Effect.succeed(FleetActionResult.Error({ message: 'That launch is gone' })),
-        LaunchInProgressError: () =>
-          Effect.succeed(FleetActionResult.Error({ message: 'The launch is still running' })),
-        OpenCodeRequestError: error =>
-          Effect.succeed(
-            FleetActionResult.Error({
-              message: requestFailures.get(error.operation) ?? 'OpenCode request failed'
-            })
-          )
-      })
+      Effect.catch(error =>
+        Effect.succeed(FleetActionResult.Error({ message: failureMessage(error) }))
+      )
     )

@@ -1,6 +1,6 @@
 import { Effect, Schema } from 'effect'
 import type { NextRequest } from 'next/server'
-import { requireSameOrigin } from '@/app/same-origin'
+import { readJsonRequest } from '@/app/api/fleet/json-request'
 import { suggestBranch, SuggestBranchInput } from '@/lib/data/fleet/launcher'
 import { BranchSuggestion } from '@/lib/data/fleet/types'
 import { runFleet } from '@/lib/runtime/fleet-runtime'
@@ -21,14 +21,7 @@ const json = (body: Readonly<Record<string, string>>, status: number) =>
 export async function POST(request: NextRequest) {
   return await runFleet(
     Effect.gen(function* () {
-      yield* requireSameOrigin(request.headers)
-
-      if (!(request.headers.get('content-type') ?? '').startsWith('application/json')) {
-        return json({ error: 'JSON only' }, 415)
-      }
-
-      const body = yield* Effect.promise(() => request.text())
-      const input = yield* decodeBody(body)
+      const input = yield* Effect.flatMap(readJsonRequest(request), decodeBody)
       const suggestion = yield* Effect.flatMap(suggestBranch(input), encodeSuggestion)
 
       return Response.json(suggestion, { headers: { 'cache-control': 'no-store' } })
@@ -36,6 +29,7 @@ export async function POST(request: NextRequest) {
       Effect.withSpan('api.fleet.launcher.branch'),
       Effect.catchTags({
         CrossSiteRequestError: () => Effect.succeed(json({ error: 'Request rejected' }, 403)),
+        NotJsonError: () => Effect.succeed(json({ error: 'JSON only' }, 415)),
         SchemaError: () => Effect.succeed(json({ error: 'Invalid request: { task }' }, 400))
       })
     )
