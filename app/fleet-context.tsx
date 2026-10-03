@@ -3,7 +3,7 @@
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { fleetHref } from '@/app/fleet-href'
-import type { FleetPage } from '@/app/fleet-href'
+import type { AgentsView, FleetPage } from '@/app/fleet-href'
 import type { LiveFleet } from '@/lib/data/fleet/board'
 
 /** The open session (`?session=`, see `use-selected-session.ts`). */
@@ -13,17 +13,21 @@ export type SessionSelection = {
   readonly close: () => void
 }
 
-/** Where the dashboard is (page, project filter) and how to move (`use-fleet-nav.ts`). */
+/** Where the dashboard is (page, mode, project filter) and how to move (`use-fleet-nav.ts`). */
 export type FleetNav = {
   readonly page: FleetPage
-  /** The Agents board's filter (`?project=`, a `projectKey`). */
+  /** The Agents page's mode (`?view=board`, else focus); kept across page switches. */
+  readonly view: AgentsView
+  /** The Agents page's filter (`?project=`, a `projectKey`). */
   readonly project: string | undefined
-  /** A page's URL, keeping the open session. */
-  readonly href: (page: FleetPage, project?: string) => string
-  /** Navigates to a page (pushes a history entry), keeping the open session. */
-  readonly go: (page: FleetPage, project?: string) => void
-  /** Changes the Agents board's filter in place (replaces the history entry). */
+  /** A page's URL, keeping the open session and (unless given) the current mode. */
+  readonly href: (page: FleetPage, project?: string, view?: AgentsView) => string
+  /** Navigates to a page (pushes a history entry), keeping the open session and the mode. */
+  readonly go: (page: FleetPage, project?: string, view?: AgentsView) => void
+  /** Changes the Agents page's filter in place (replaces the history entry). */
   readonly setProject: (project: string | undefined) => void
+  /** Switches the Agents mode (pushes a history entry), keeping the filter and the session. */
+  readonly setView: (view: AgentsView) => void
 }
 
 /** What both pages read: the live fleet (optimistic overrides applied), the clock, the URL. */
@@ -54,6 +58,6 @@ export function useFleet(): Fleet {
   return fleet
 }
 
-/** A session's URL on the current page (the drawer open over it). */
+/** A session's URL on the current page (inline in focus mode, else the drawer over the page). */
 export const sessionHref = (nav: FleetNav, sessionID: string) =>
-  fleetHref(nav.page, { project: nav.project, session: sessionID })
+  fleetHref(nav.page, { project: nav.project, session: sessionID, view: nav.view })

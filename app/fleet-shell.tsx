@@ -6,7 +6,7 @@ import { useFleetActions } from '@/app/fleet-actions'
 import { FleetProvider } from '@/app/fleet-context'
 import type { FleetNav, SessionSelection } from '@/app/fleet-context'
 import { BottomTabs, FleetHeader } from '@/app/fleet-header'
-import { SessionPanel } from '@/app/session-panel'
+import { SessionDrawer } from '@/app/session-panel'
 import { useDrawerTab } from '@/app/use-drawer-tab'
 import type { StreamStatus } from '@/app/use-fleet-live'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
@@ -14,14 +14,15 @@ import { useKeys } from '@/app/use-keys'
 import { boardRow, withOverrides } from '@/lib/data/fleet/board'
 import type { LiveFleet } from '@/lib/data/fleet/board'
 import { countRows } from '@/lib/data/fleet/state'
-import { cn } from '@/lib/utils'
 
 /**
- * Around both pages (DESIGN.md "Clients" → Web): the header (tabs, count line, key hint,
- * connection), the phone's bottom tab bar, Handled / Undo / Reopen, and the session drawer
- * (`?session=`, right side on desktop, full screen on the phone) over either page, with its
- * Summary | Chat tabs (the last choice remembered per browser; wider on desktop for Chat). Keys:
- * `1` / `2` switch pages, `Escape` closes the drawer, `c` toggles Summary / Chat.
+ * Around both pages (DESIGN.md "Clients" → Web): the header (tabs, the Agents mode toggle, count
+ * line, key hint, connection), the phone's bottom tab bar, Handled / Undo / Reopen, and the
+ * session drawer (`?session=`, right side on desktop, full screen on the phone) over Projects and
+ * the Agents board, with its Summary | Chat tabs (the last choice remembered per browser; wider
+ * on desktop for Chat). Focus mode shows the session inline instead (`agents-focus.tsx`, which
+ * also owns its `c`). Keys: `1` / `2` switch pages, `b` the Agents mode, `Escape` closes the
+ * session, `c` toggles the drawer's Summary / Chat.
  */
 export function FleetShell({
   live,
@@ -47,13 +48,17 @@ export function FleetShell({
   const selectedRow = selected === undefined ? undefined : view.rows.get(selected)
   const selectedItem = selectedRow === undefined ? undefined : boardRow(view, selectedRow)
   const drawer = useDrawerTab()
+  const agents = nav.page === 'agents'
+  // Focus mode shows the open session inline, so there is no drawer.
+  const inline = agents && nav.view === 'focus'
 
   useKeys({
-    '1': nav.page === 'agents' ? undefined : () => nav.go('agents'),
+    '1': agents ? undefined : () => nav.go('agents'),
     '2': nav.page === 'projects' ? undefined : () => nav.go('projects'),
+    b: agents ? () => nav.setView(nav.view === 'board' ? 'focus' : 'board') : undefined,
     Escape: selected === undefined ? undefined : selection.close,
     c:
-      selected === undefined
+      selected === undefined || inline
         ? undefined
         : () => drawer.choose(drawer.tab === 'chat' ? 'summary' : 'chat')
   })
@@ -64,31 +69,23 @@ export function FleetShell({
         <div className="flex min-h-dvh flex-col font-mono text-sm lg:h-dvh">
           <FleetHeader
             page={nav.page}
+            view={nav.view}
             counts={counts}
             stream={stream}
             connection={live.connection}
           />
           <main className="flex min-h-0 flex-1 flex-col max-lg:pb-14">{children}</main>
           <BottomTabs page={nav.page} />
-          {selected === undefined ? null : (
-            <aside
-              aria-label="Session"
-              data-tab={drawer.tab}
-              className={cn(
-                'bg-background fixed z-30 flex flex-col overflow-hidden max-lg:inset-0 lg:top-12 lg:right-0 lg:bottom-0 lg:border-l',
-                drawer.tab === 'chat' ? 'lg:w-[min(64rem,70vw)]' : 'lg:w-[min(44rem,48vw)]'
-              )}
-            >
-              <SessionPanel
-                key={selected}
-                sessionID={selected}
-                item={selectedItem}
-                now={now}
-                tab={drawer.tab}
-                onTab={drawer.choose}
-                onClose={selection.close}
-              />
-            </aside>
+          {selected === undefined || inline ? null : (
+            <SessionDrawer
+              key={selected}
+              sessionID={selected}
+              item={selectedItem}
+              now={now}
+              tab={drawer.tab}
+              onTab={drawer.choose}
+              onClose={selection.close}
+            />
           )}
         </div>
       </HandledProvider>

@@ -16,6 +16,7 @@ const renderBoard = (
       live={options.live ?? fleetLive()}
       now={now}
       actions={actions.actions}
+      view="board"
       navigations={navigations}
       {...(options.project === undefined ? {} : { project: options.project })}
     />
@@ -131,11 +132,14 @@ describe('columns', () => {
     // ses_ancient (30 days) is left out.
     const more = within(column('Handled')).getByRole('link', { name: '1 more → Projects' })
 
-    expect(more.getAttribute('href')).toBe('/projects')
+    // The mode stays in the URL, so the Agents tab comes back to the board.
+    expect(more.getAttribute('href')).toBe('/projects?view=board')
 
     fireEvent.click(more)
 
-    expect(navigations).toEqual([{ kind: 'go', page: 'projects', project: undefined }])
+    expect(navigations).toEqual([
+      { kind: 'go', page: 'projects', project: undefined, view: 'board' }
+    ])
     expect(screen.getByRole('region', { name: 'fleet' })).toBeTruthy()
   })
 })
@@ -287,8 +291,8 @@ describe('keyboard', () => {
     press('1')
     expect(column('Blocked')).toBeTruthy()
     expect(navigations).toEqual([
-      { kind: 'go', page: 'projects', project: undefined },
-      { kind: 'go', page: 'agents', project: undefined }
+      { kind: 'go', page: 'projects', project: undefined, view: 'board' },
+      { kind: 'go', page: 'agents', project: undefined, view: 'board' }
     ])
   })
 })

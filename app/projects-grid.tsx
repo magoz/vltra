@@ -110,6 +110,7 @@ function Card({
       <NavLink
         page="agents"
         project={card.id}
+        view="board"
         className="hover:bg-accent/60 focus-visible:ring-ring/50 flex items-baseline justify-between gap-3 border-b px-3 py-2 outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
       >
         <span className="font-semibold">{card.name}</span>
@@ -155,9 +156,10 @@ const gridColumns = (grid: HTMLElement | null) => {
 
 /**
  * The Projects page (DESIGN.md "Clients" → Web): a grid of project cards by latest activity,
- * "Other" last. The header opens the board filtered to the project; worktree sections list
- * needs-me and working sessions; handled ones fold into "N handled · last 2h". Keys: arrows move
- * between cards, `j` / `k` within one, `Enter` opens the session or, on the card, its board.
+ * "Other" last. The header opens the Agents board (`?view=board`) filtered to the project;
+ * worktree sections list needs-me and working sessions; handled ones fold into "N handled · last
+ * 2h". Keys: arrows move between cards, `j` / `k` within one, `Enter` opens the session or, on
+ * the card, its board.
  */
 export function ProjectsGrid() {
   const { view, selection, nav } = useFleet()
@@ -208,7 +210,7 @@ export function ProjectsGrid() {
     k: () => toRow(-1),
     Enter: () => {
       if (rowCursor !== undefined) selection.select(rowCursor)
-      else if (current !== undefined) nav.go('agents', current.id)
+      else if (current !== undefined) nav.go('agents', current.id, 'board')
     }
   })
 

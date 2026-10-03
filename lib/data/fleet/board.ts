@@ -9,8 +9,9 @@ import type {
 } from '@/lib/data/fleet/types'
 
 // The dashboard's client-side view of the fleet: a flat row map kept live from `fleet.changed`
-// events, and the two pages derived from it (DESIGN.md "Clients"): the Agents board (columns by
-// state) and the Projects grid (one card per project). Pure, so it runs (and is tested) anywhere.
+// events, and the two pages derived from it (DESIGN.md "Clients"): the Agents page (its focus
+// mode's needs-me list, its board's columns by state) and the Projects grid (one card per
+// project). Pure, so it runs (and is tested) anywhere.
 
 export type ProjectInfo = { readonly name: string; readonly directory: string }
 
@@ -179,11 +180,50 @@ const newestFirst = (left: BoardRow, right: BoardRow) => right.row.activeAt - le
 
 const allRows = (live: LiveFleet) => Array.from(live.rows.values(), row => boardRow(live, row))
 
+const projectRows = (live: LiveFleet, project: string | undefined) =>
+  allRows(live).filter(item => project === undefined || projectKey(live, item.row) === project)
+
+/** The sessions that need me: the board's two left columns, and focus mode's list. */
+export type NeedsMe = {
+  readonly blocked: ReadonlyArray<BoardRow>
+  readonly finished: ReadonlyArray<BoardRow>
+}
+
+const needsMeOf = (rows: ReadonlyArray<BoardRow>): NeedsMe => ({
+  blocked: rows.filter(item => item.row.state === 'blocked').toSorted(oldestFirst),
+  finished: rows.filter(item => item.row.state === 'finished').toSorted(oldestFirst)
+})
+
+/**
+ * The needs-me sessions, narrowed to `project` (a `projectKey`) when given: blocked, longest wait
+ * first (a blocked run stopped moving when it asked, so its `activeAt` is when the wait began);
+ * finished, oldest first.
+ */
+export const buildNeedsMe = (live: LiveFleet, project: string | undefined): NeedsMe =>
+  needsMeOf(projectRows(live, project))
+
+/** Focus mode's list order: blocked, then finished. */
+export const needsMeOrder = (needsMe: NeedsMe): ReadonlyArray<BoardRow> => [
+  ...needsMe.blocked,
+  ...needsMe.finished
+]
+
+/**
+ * The session focus mode opens once `id` is handled, from `list` (the needs-me order as it was
+ * before handling): the one after it, else the one before it (it was last); the first when `id`
+ * was not listed (opened from elsewhere). Undefined when nothing else is left.
+ */
+export const nextNeedsMe = (list: ReadonlyArray<BoardRow>, id: string): BoardRow | undefined => {
+  const index = list.findIndex(item => item.row.id === id)
+
+  if (index < 0) return list[0]
+
+  return list[index + 1] ?? list[index - 1]
+}
+
 /**
  * The Agents board as of `now`, narrowed to `project` (a `projectKey`) when given:
- * - blocked: longest wait first (a blocked run stopped moving when it asked, so its `activeAt`
- *   is when the wait began);
- * - finished: oldest first;
+ * - blocked and finished: `buildNeedsMe`;
  * - working: stuck first, then the newest session first (`created`, which never moves, so live
  *   activity does not reshuffle the column);
  * - handled: active within `handledWindow`, newest first; the rest only counted.
@@ -193,18 +233,14 @@ export const buildAgentsBoard = (
   now: number,
   project: string | undefined
 ): AgentsBoard => {
-  const rows = allRows(live).filter(
-    item => project === undefined || projectKey(live, item.row) === project
-  )
-
+  const rows = projectRows(live, project)
   const inState = (state: FleetState) => rows.filter(item => item.row.state === state)
   const handled = inState('handled')
   const recent = handled.filter(item => now - item.row.activeAt <= handledWindow)
 
   return {
     columns: {
-      blocked: inState('blocked').toSorted(oldestFirst),
-      finished: inState('finished').toSorted(oldestFirst),
+      ...needsMeOf(rows),
       working: inState('working').toSorted(
         (left, right) =>
           Number(isStuck(right.row, now)) - Number(isStuck(left.row, now)) ||

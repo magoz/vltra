@@ -10,10 +10,10 @@ const counts: FleetCounts = { blocked: 2, finished: 4, working: 17, stuck: 2, ha
 
 afterEach(cleanup)
 
-const renderHeader = (page: 'agents' | 'projects') =>
+const renderHeader = (page: 'agents' | 'projects', view: 'focus' | 'board' = 'focus') =>
   render(
     <WithFleet actions={fakeActions().actions} now={0}>
-      <FleetHeader page={page} counts={counts} stream="live" connection={connected} />
+      <FleetHeader page={page} view={view} counts={counts} stream="live" connection={connected} />
     </WithFleet>
   )
 
@@ -39,11 +39,37 @@ describe('header', () => {
     expect(screen.getByRole('status').textContent).toContain('live')
   })
 
-  it("shows each page's keys", () => {
+  it('offers the Agents mode toggle on the Agents page only', () => {
+    renderHeader('agents', 'board')
+
+    const toggle = screen.getByRole('group', { name: 'Agents view' })
+
+    expect(within(toggle).getByRole('link', { name: 'Focus' }).getAttribute('href')).toBe('/')
+    expect(within(toggle).getByRole('link', { name: 'Board' }).getAttribute('href')).toBe(
+      '/?view=board'
+    )
+    expect(within(toggle).getByRole('link', { name: 'Board' }).getAttribute('aria-current')).toBe(
+      'true'
+    )
+
+    cleanup()
+    renderHeader('projects')
+
+    expect(screen.queryByRole('group', { name: 'Agents view' })).toBeNull()
+  })
+
+  it("shows each page's keys, per Agents mode", () => {
     renderHeader('agents')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ← → column · ↵ open · h handled · u undo · a d allow/deny · / filter · c chat · 1 2 pages'
+      'j k move · ↵ open · h handled · u undo · a d allow/deny · c chat · b board · / filter · 1 2 pages'
+    )
+
+    cleanup()
+    renderHeader('agents', 'board')
+
+    expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
+      'j k move · ← → column · ↵ open · h handled · u undo · a d allow/deny · b focus · / filter · c chat · 1 2 pages'
     )
 
     cleanup()

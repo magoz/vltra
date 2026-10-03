@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { AgentsBoard } from '@/app/agents-board'
+import { Agents } from '@/app/agents'
 import { FleetActionResult } from '@/app/fleet-action-result'
 import type { FleetActions } from '@/app/fleet-actions'
 import { FleetActionsProvider } from '@/app/fleet-actions'
 import { FleetProvider } from '@/app/fleet-context'
 import type { FleetNav, SessionSelection } from '@/app/fleet-context'
 import { fleetHref } from '@/app/fleet-href'
-import type { FleetPage } from '@/app/fleet-href'
+import type { AgentsView, FleetPage } from '@/app/fleet-href'
 import { FleetShell } from '@/app/fleet-shell'
 import { ProjectsGrid } from '@/app/projects-grid'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
@@ -162,10 +162,12 @@ export function WithActions({
 /** A page-and-session stand-in for card tests: the Agents page, nothing open. */
 const staticNav: FleetNav = {
   page: 'agents',
+  view: 'focus',
   project: undefined,
-  href: (page, project) => fleetHref(page, { project }),
+  href: (page, project, view) => fleetHref(page, { project, view }),
   go: () => undefined,
-  setProject: () => undefined
+  setProject: () => undefined,
+  setView: () => undefined
 }
 
 /**
@@ -206,46 +208,71 @@ export function WithFleet({
   )
 }
 
-/** A navigation the test dashboard made: a page switch (`go`) or a filter change in place. */
+/**
+ * A navigation the test dashboard made: a page switch (`go`), a filter change in place, or an
+ * Agents mode switch.
+ */
 export type NavCall =
-  | { readonly kind: 'go'; readonly page: FleetPage; readonly project: string | undefined }
+  | {
+      readonly kind: 'go'
+      readonly page: FleetPage
+      readonly project: string | undefined
+      readonly view: AgentsView
+    }
   | { readonly kind: 'filter'; readonly project: string | undefined }
+  | { readonly kind: 'view'; readonly view: AgentsView }
 
 /**
- * The whole dashboard as the layout renders it, with the URL kept in state: the page, the
- * project filter and the open session. `navigations` records page switches and filter changes.
+ * The whole dashboard as the layout renders it, with the URL kept in state: the page, the Agents
+ * mode, the project filter and the open session (`session` opens one at the start).
+ * `navigations` records page switches, filter changes and mode switches; `testLocation` reads the
+ * URL the state stands for.
  */
 export function TestDashboard({
   live,
   now,
   actions,
   page: initialPage = 'agents',
+  view: initialView = 'focus',
   project: initialProject,
+  session,
   navigations = []
 }: {
   readonly live: LiveFleet
   readonly now: number
   readonly actions: FleetActions
   readonly page?: FleetPage
+  readonly view?: AgentsView
   readonly project?: string
+  readonly session?: string
   readonly navigations?: Array<NavCall>
 }) {
   const [page, setPage] = useState<FleetPage>(initialPage)
+  const [view, setView] = useState<AgentsView>(initialView)
   const [project, setProject] = useState(initialProject)
-  const [selected, setSelected] = useState<string>()
+  const [selected, setSelected] = useState<string | undefined>(session)
 
   const nav: FleetNav = {
     page,
+    view,
     project,
-    href: (target, filter) => fleetHref(target, { project: filter, session: selected }),
-    go: (target, filter) => {
-      navigations.push({ kind: 'go', page: target, project: filter })
+    href: (target, filter, mode) =>
+      fleetHref(target, { project: filter, session: selected, view: mode ?? view }),
+    go: (target, filter, mode) => {
+      navigations.push({ kind: 'go', page: target, project: filter, view: mode ?? view })
       setPage(target)
       setProject(target === 'agents' ? filter : undefined)
+      setView(mode ?? view)
     },
     setProject: filter => {
       navigations.push({ kind: 'filter', project: filter })
       setProject(filter)
+    },
+    setView: mode => {
+      if (mode === view) return
+
+      navigations.push({ kind: 'view', view: mode })
+      setView(mode)
     }
   }
 
@@ -258,9 +285,14 @@ export function TestDashboard({
   return (
     <FleetActionsProvider actions={actions}>
       <FleetShell live={live} stream="live" now={now} selection={selection} nav={nav}>
-        {page === 'agents' ? <AgentsBoard /> : <ProjectsGrid />}
+        {page === 'agents' ? <Agents /> : <ProjectsGrid />}
       </FleetShell>
       <Toaster theme="light" />
+      <output hidden data-location={fleetHref(page, { project, session: selected, view })} />
     </FleetActionsProvider>
   )
 }
+
+/** The URL a rendered `TestDashboard` stands for. */
+export const testLocation = () =>
+  document.querySelector('output[data-location]')?.getAttribute('data-location')

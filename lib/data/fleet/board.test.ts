@@ -4,10 +4,13 @@ import {
   boardColumns,
   boardRow,
   buildAgentsBoard,
+  buildNeedsMe,
   buildProjectCards,
   fromSnapshot,
   handledWindow,
   initialColumn,
+  needsMeOrder,
+  nextNeedsMe,
   otherProjectID,
   projectName,
   withOverrides,
@@ -186,6 +189,57 @@ describe('agents board', () => {
     expect(initialColumn(board)).toBe('blocked')
     expect(initialColumn(buildAgentsBoard(live, now, 'prj_box'))).toBe('working')
     expect(initialColumn(buildAgentsBoard(live, now, otherProjectID))).toBe('finished')
+  })
+})
+
+describe('needs me (focus mode)', () => {
+  it('lists blocked (longest wait first), then finished (oldest first), nothing else', () => {
+    const needsMe = buildNeedsMe(live, undefined)
+
+    expect(ids(needsMe.blocked)).toEqual(['ses_wait_long', 'ses_wait_short'])
+    expect(ids(needsMe.finished)).toEqual(['ses_done_old', 'ses_done', 'ses_fail', 'ses_tmp'])
+    expect(ids(needsMeOrder(needsMe))).toEqual([
+      'ses_wait_long',
+      'ses_wait_short',
+      'ses_done_old',
+      'ses_done',
+      'ses_fail',
+      'ses_tmp'
+    ])
+    // The board's two left columns are the same list.
+    expect(board.columns.blocked).toEqual(needsMe.blocked)
+    expect(board.columns.finished).toEqual(needsMe.finished)
+  })
+
+  it('narrows to one project', () => {
+    expect(ids(needsMeOrder(buildNeedsMe(live, 'prj_fleet')))).toEqual([
+      'ses_wait_long',
+      'ses_wait_short',
+      'ses_done_old',
+      'ses_done',
+      'ses_fail'
+    ])
+    expect(ids(needsMeOrder(buildNeedsMe(live, otherProjectID)))).toEqual(['ses_tmp'])
+    expect(ids(needsMeOrder(buildNeedsMe(live, 'prj_box')))).toEqual([])
+  })
+
+  it('opens the next session after a handled one, else the one before, else nothing', () => {
+    const list = needsMeOrder(buildNeedsMe(live, undefined))
+    const next = (id: string, from = list) => nextNeedsMe(from, id)?.row.id
+
+    expect(next('ses_done_old')).toBe('ses_done')
+    expect(next('ses_done')).toBe('ses_fail')
+    // From the last blocked session on to the first finished one.
+    expect(next('ses_wait_short')).toBe('ses_done_old')
+    // The last one: the one before it.
+    expect(next('ses_tmp')).toBe('ses_fail')
+    // Not in the list (opened from elsewhere): the first.
+    expect(next('ses_run')).toBe('ses_wait_long')
+
+    const only = list.filter(item => item.row.id === 'ses_tmp')
+
+    expect(next('ses_tmp', only)).toBeUndefined()
+    expect(next('ses_run', [])).toBeUndefined()
   })
 })
 

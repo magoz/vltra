@@ -25,9 +25,18 @@ import { cn } from '@/lib/utils'
  * for. Blocked: inline answers (subagents' requests included). Finished: answer excerpt, change
  * totals, failed / stopped-by-OpenCode labels and Handled (swipe left on a phone does the same).
  * Working: live activity and stuck labels. Handled: Reopen, or "folder deleted". `cursor` is the
- * keyboard focus.
+ * keyboard focus. `compact` is focus mode's list row: no box of its own, a hairline under it,
+ * tighter spacing, and the open session tinted.
  */
-export function AgentCard({ item, cursor }: { readonly item: BoardRow; readonly cursor: boolean }) {
+export function AgentCard({
+  item,
+  cursor,
+  compact = false
+}: {
+  readonly item: BoardRow
+  readonly cursor: boolean
+  readonly compact?: boolean
+}) {
   const { row } = item
   const { now, selection } = useFleet()
   const { markHandled } = useHandled()
@@ -61,7 +70,10 @@ export function AgentCard({ item, cursor }: { readonly item: BoardRow; readonly 
         data-selected={row.id === selection.selected}
         data-cursor={cursor}
         className={cn(
-          'bg-background hover:border-foreground/40 data-[selected=true]:border-l-attention lg:data-[cursor=true]:outline-attention relative flex flex-col gap-1.5 border px-3 py-2.5 data-[selected=true]:border-l-2 data-[selected=true]:pl-[11px] lg:data-[cursor=true]:outline lg:data-[cursor=true]:-outline-offset-1',
+          'bg-background data-[selected=true]:border-l-attention lg:data-[cursor=true]:outline-attention relative flex flex-col lg:data-[cursor=true]:outline lg:data-[cursor=true]:-outline-offset-1',
+          compact
+            ? 'hover:bg-accent/40 data-[selected=true]:bg-accent/60 gap-1 border-b border-l-2 border-l-transparent py-2 pr-3 pl-2.5'
+            : 'hover:border-foreground/40 gap-1.5 border px-3 py-2.5 data-[selected=true]:border-l-2 data-[selected=true]:pl-[11px]',
           finished && 'touch-pan-y',
           swipe.offset === 0 && 'transition-transform'
         )}

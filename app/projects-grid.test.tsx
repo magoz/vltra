@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fakeActions, TestDashboard } from '@/app/testing/dashboard-fixtures'
+import { fakeActions, TestDashboard, testLocation } from '@/app/testing/dashboard-fixtures'
 import type { NavCall } from '@/app/testing/dashboard-fixtures'
 import { fleetLive, now, rowIDs } from '@/app/testing/fleet-scenario'
 
@@ -85,15 +85,18 @@ describe('project cards', () => {
     expect(within(projectCard('box')).getByRole('link', { name: 'box' })).toBeTruthy()
   })
 
-  it('opens the board filtered to the project from the card header', () => {
+  it('opens the board (board mode) filtered to the project from the card header', () => {
     const { navigations } = renderGrid()
     const header = within(projectCard('fleet')).getByRole('link', { name: /^fleet/ })
 
-    expect(header.getAttribute('href')).toBe('/?project=prj_fleet')
+    expect(header.getAttribute('href')).toBe('/?view=board&project=prj_fleet')
 
     fireEvent.click(header)
 
-    expect(navigations).toEqual([{ kind: 'go', page: 'agents', project: 'prj_fleet' }])
+    expect(navigations).toEqual([
+      { kind: 'go', page: 'agents', project: 'prj_fleet', view: 'board' }
+    ])
+    expect(testLocation()).toBe('/?view=board&project=prj_fleet')
     expect(screen.getByRole('button', { name: 'Clear the fleet filter' })).toBeTruthy()
     expect(rowIDs(screen.getByRole('region', { name: 'Handled' }))).toEqual(['ses_handled'])
   })
@@ -194,7 +197,7 @@ describe('keyboard', () => {
     press('ArrowRight')
     press('Enter')
 
-    expect(navigations).toEqual([{ kind: 'go', page: 'agents', project: 'prj_box' }])
+    expect(navigations).toEqual([{ kind: 'go', page: 'agents', project: 'prj_box', view: 'board' }])
     expect(screen.getByRole('button', { name: 'Clear the box filter' })).toBeTruthy()
   })
 })

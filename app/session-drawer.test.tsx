@@ -14,8 +14,9 @@ const webLink = (id: string) => {
   return row.links.web
 }
 
+// The drawer opens over the board (and Projects); focus mode shows sessions inline.
 const renderDashboard = () =>
-  render(<TestDashboard live={live} now={now} actions={fakeActions().actions} />)
+  render(<TestDashboard live={live} now={now} actions={fakeActions().actions} view="board" />)
 
 const drawer = () => {
   const found = screen.queryByRole('complementary', { name: 'Session' })

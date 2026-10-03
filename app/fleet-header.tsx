@@ -1,7 +1,9 @@
 'use client'
 
-import type { FleetPage } from '@/app/fleet-href'
+import { useFleet } from '@/app/fleet-context'
+import type { AgentsView, FleetPage } from '@/app/fleet-href'
 import { NavLink } from '@/app/nav-link'
+import { isPlainClick } from '@/app/session-row'
 import type { StreamStatus } from '@/app/use-fleet-live'
 import type { FleetConnection, FleetCounts } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
@@ -72,18 +74,37 @@ export function CountLine({ counts }: { readonly counts: FleetCounts }) {
 
 type KeyHint = { readonly keys: string; readonly label: string }
 
+/** Which keys the header lists: the Agents page's per mode, or Projects'. */
+export type KeyHintSet = AgentsView | 'projects'
+
+export const keyHintSet = (page: FleetPage, view: AgentsView): KeyHintSet =>
+  page === 'agents' ? view : 'projects'
+
 /**
- * Each page's keys (`agents-board.tsx`, `projects-grid.tsx`), plus the shell's `c` (the open
- * drawer's Summary / Chat) and `1` / `2`.
+ * Each page's keys (`agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`), plus the
+ * shell's: `c` (Summary / Chat), `b` (the other Agents mode), `1` / `2`. Most needed first: on
+ * narrower desktops the last ones drop.
  */
-export const keyHints: Readonly<Record<FleetPage, ReadonlyArray<KeyHint>>> = {
-  agents: [
+export const keyHints: Readonly<Record<KeyHintSet, ReadonlyArray<KeyHint>>> = {
+  focus: [
+    { keys: 'j k', label: 'move' },
+    { keys: '↵', label: 'open' },
+    { keys: 'h', label: 'handled' },
+    { keys: 'u', label: 'undo' },
+    { keys: 'a d', label: 'allow/deny' },
+    { keys: 'c', label: 'chat' },
+    { keys: 'b', label: 'board' },
+    { keys: '/', label: 'filter' },
+    { keys: '1 2', label: 'pages' }
+  ],
+  board: [
     { keys: 'j k', label: 'move' },
     { keys: '← →', label: 'column' },
     { keys: '↵', label: 'open' },
     { keys: 'h', label: 'handled' },
     { keys: 'u', label: 'undo' },
     { keys: 'a d', label: 'allow/deny' },
+    { keys: 'b', label: 'focus' },
     { keys: '/', label: 'filter' },
     { keys: 'c', label: 'chat' },
     { keys: '1 2', label: 'pages' }
@@ -97,17 +118,61 @@ export const keyHints: Readonly<Record<FleetPage, ReadonlyArray<KeyHint>>> = {
   ]
 }
 
-/** The page's keys, wide desktops only. */
-function KeyHintLine({ page }: { readonly page: FleetPage }) {
+/**
+ * The page's keys, wide desktops only. One line: hints that do not fit wrap onto a clipped second
+ * line, so the last (least needed) ones drop whole instead of squeezing the count line.
+ */
+function KeyHintLine({ set }: { readonly set: KeyHintSet }) {
   return (
-    <p aria-label="Keyboard shortcuts" className="text-muted-foreground text-xs max-xl:hidden">
-      {keyHints[page].map((hint, index) => (
+    <p
+      aria-label="Keyboard shortcuts"
+      className="text-muted-foreground flex h-4 min-w-0 flex-wrap justify-end overflow-hidden text-xs leading-4 max-xl:hidden"
+    >
+      {keyHints[set].map((hint, index) => (
         <span key={hint.keys} className="whitespace-nowrap">
-          {index === 0 ? null : <span aria-hidden="true"> · </span>}
+          {index === 0 ? null : (
+            <span aria-hidden="true" className="whitespace-pre">
+              {' · '}
+            </span>
+          )}
           <kbd className="text-foreground font-mono">{hint.keys}</kbd> {hint.label}
         </span>
       ))}
     </p>
+  )
+}
+
+const views: ReadonlyArray<{ readonly view: AgentsView; readonly label: string }> = [
+  { view: 'focus', label: 'Focus' },
+  { view: 'board', label: 'Board' }
+]
+
+/**
+ * The Agents page's mode, Focus | Board (`b` toggles), on desktop and phone. Links, so the mode
+ * is a URL; a plain click switches in place, keeping the filter and the open session.
+ */
+function ViewToggle({ view }: { readonly view: AgentsView }) {
+  const { nav } = useFleet()
+
+  return (
+    <div role="group" aria-label="Agents view" className="flex h-7 shrink-0 border text-xs">
+      {views.map(item => (
+        <a
+          key={item.view}
+          href={nav.href('agents', nav.project, item.view)}
+          aria-current={item.view === view ? 'true' : undefined}
+          onClick={event => {
+            if (!isPlainClick(event)) return
+
+            event.preventDefault()
+            nav.setView(item.view)
+          }}
+          className="text-muted-foreground hover:text-foreground aria-[current=true]:bg-foreground aria-[current=true]:text-background focus-visible:ring-ring/50 flex items-center border-l px-2.5 outline-none first:border-l-0 focus-visible:ring-[3px] focus-visible:ring-inset"
+        >
+          {item.label}
+        </a>
+      ))}
+    </div>
   )
 }
 
@@ -155,14 +220,19 @@ export function BottomTabs({ page }: { readonly page: FleetPage }) {
   )
 }
 
-/** Title, the page tabs (desktop), the count line, the page's key hint, the connection. */
+/**
+ * Title, the page tabs (desktop), the Agents mode toggle, the count line, the page's key hint,
+ * the connection.
+ */
 export function FleetHeader({
   page,
+  view,
   counts,
   stream,
   connection
 }: {
   readonly page: FleetPage
+  readonly view: AgentsView
   readonly counts: FleetCounts
   readonly stream: StreamStatus
   readonly connection: FleetConnection
@@ -173,12 +243,13 @@ export function FleetHeader({
     <header className="bg-background/95 supports-backdrop-filter:bg-background/80 sticky top-0 z-20 flex flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-2 backdrop-blur-sm lg:h-12 lg:flex-nowrap lg:py-0">
       <h1 className="text-base font-semibold">Fleet</h1>
       <HeaderTabs page={page} />
-      <div className="text-xs max-lg:order-last max-lg:w-full lg:flex-1 lg:text-sm">
+      {page === 'agents' ? <ViewToggle view={view} /> : null}
+      <div className="text-xs max-lg:order-last max-lg:w-full lg:flex-1 lg:text-sm lg:whitespace-nowrap">
         <CountLine counts={counts} />
       </div>
-      <div className="flex items-center gap-x-5 max-lg:ml-auto">
-        <KeyHintLine page={page} />
-        <p role="status" title={link.detail} className="flex items-center gap-1.5 text-xs">
+      <div className="flex min-w-0 items-center gap-x-5 max-lg:ml-auto">
+        <KeyHintLine set={keyHintSet(page, view)} />
+        <p role="status" title={link.detail} className="flex shrink-0 items-center gap-1.5 text-xs">
           <span
             aria-hidden="true"
             className={cn(

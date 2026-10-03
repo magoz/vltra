@@ -434,23 +434,7 @@ const drawerTabs: ReadonlyArray<{ readonly tab: DrawerTab; readonly label: strin
   { tab: 'chat', label: 'Chat' }
 ]
 
-/**
- * The session drawer: side panel on desktop, full screen on the phone, with one compact toolbar
- * (phone back button, the two tabs, Interrupt on the phone, open-in-new-tab on Chat, close). **Summary**: header facts, inline answers, recent messages and files, the
- * subagent tree, Handled (finished) / Reopen (handled; neither once the session's folder is
- * deleted), follow-up prompt, Interrupt (while running), and the ways out. **Chat**: OpenCode's
- * web UI in an iframe, mounted the first time Chat shows and kept while switching back to
- * Summary, so OpenCode does not reload (the shell keys the panel by session, so a new session or
- * closing drops it). Each tab scrolls on its own; the iframe fills the rest of the drawer.
- */
-export function SessionPanel({
-  sessionID,
-  item,
-  now,
-  tab,
-  onTab,
-  onClose
-}: {
+type SessionPanelProps = {
   readonly sessionID: string
   /** The row, when the session is on the board. */
   readonly item: BoardRow | undefined
@@ -458,7 +442,20 @@ export function SessionPanel({
   readonly tab: DrawerTab
   readonly onTab: (tab: DrawerTab) => void
   readonly onClose: () => void
-}) {
+}
+
+/**
+ * A session's panel, with one compact toolbar (phone back button, the two tabs, Interrupt on the
+ * phone, open-in-new-tab on Chat, close). It fills its container: the drawer (`SessionDrawer`)
+ * over the board and Projects, or focus mode's inline pane (full screen on the phone either way).
+ * **Summary**: header facts, inline answers, recent messages and files, the subagent tree,
+ * Handled (finished) / Reopen (handled; neither once the session's folder is deleted), follow-up
+ * prompt, Interrupt (while running), and the ways out. **Chat**: OpenCode's web UI in an iframe,
+ * mounted the first time Chat shows and kept while switching back to Summary, so OpenCode does
+ * not reload (callers key the panel by session, so a new session or closing drops it). Each tab
+ * scrolls on its own; the iframe fills the rest of the panel.
+ */
+export function SessionPanel({ sessionID, item, now, tab, onTab, onClose }: SessionPanelProps) {
   const id = useId()
   const [chatSeen, setChatSeen] = useState(tab === 'chat')
 
@@ -552,6 +549,25 @@ export function SessionPanel({
         </div>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * The session drawer over the board and Projects (`?session=`): right side from `lg`, wider while
+ * Chat shows; full screen below it.
+ */
+export function SessionDrawer(props: SessionPanelProps) {
+  return (
+    <aside
+      aria-label="Session"
+      data-tab={props.tab}
+      className={cn(
+        'bg-background fixed z-30 flex flex-col overflow-hidden max-lg:inset-0 lg:top-12 lg:right-0 lg:bottom-0 lg:border-l',
+        props.tab === 'chat' ? 'lg:w-[min(64rem,70vw)]' : 'lg:w-[min(44rem,48vw)]'
+      )}
+    >
+      <SessionPanel {...props} />
+    </aside>
   )
 }
 

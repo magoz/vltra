@@ -2,23 +2,16 @@
 
 import { Predicate } from 'effect'
 import { useMemo, useRef, useState } from 'react'
-import type { MouseEvent, RefObject } from 'react'
-import { toast } from 'sonner'
+import type { MouseEvent } from 'react'
 import { AgentCard } from '@/app/agent-card'
-import { settled, useFleetActions } from '@/app/fleet-actions'
 import { useFleet } from '@/app/fleet-context'
-import { permissionTarget } from '@/app/fleet-format'
 import { NavLink } from '@/app/nav-link'
 import { firstPermission } from '@/app/pending-asks'
+import { ProjectFilter } from '@/app/project-filter'
 import { useHandled } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
-import {
-  boardColumns,
-  buildAgentsBoard,
-  buildProjectCards,
-  initialColumn,
-  projectName
-} from '@/lib/data/fleet/board'
+import { usePermissionReply } from '@/app/use-permission-reply'
+import { boardColumns, buildAgentsBoard, initialColumn } from '@/lib/data/fleet/board'
 import type { AgentsBoard as Board, BoardColumn, BoardRow } from '@/lib/data/fleet/board'
 import { cn } from '@/lib/utils'
 
@@ -209,75 +202,14 @@ function Segments({
   )
 }
 
-/** The project filter: a select (`/` focuses it) and, while filtered, a chip with ×. */
-function ProjectFilter({ filterRef }: { readonly filterRef: RefObject<HTMLSelectElement | null> }) {
-  const { view, nav } = useFleet()
-
-  const projects = useMemo(
-    () => buildProjectCards(view).map(card => ({ id: card.id, name: card.name })),
-    [view]
-  )
-
-  const options =
-    nav.project === undefined || projects.some(project => project.id === nav.project)
-      ? projects
-      : [...projects, { id: nav.project, name: projectName(view, nav.project) }]
-
-  const current = options.find(project => project.id === nav.project)
-
-  return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 pt-3 lg:px-4 lg:pt-3">
-      <label className="text-muted-foreground flex items-center gap-2 text-xs">
-        <span>Project</span>
-        <select
-          ref={filterRef}
-          value={nav.project ?? ''}
-          onChange={event =>
-            nav.setProject(event.target.value === '' ? undefined : event.target.value)
-          }
-          onKeyDown={event => {
-            if (event.key !== 'Escape') return
-
-            event.preventDefault()
-            event.currentTarget.blur()
-          }}
-          className="border-input bg-background text-foreground focus-visible:ring-ring/50 h-7 border px-1.5 font-mono text-xs outline-none focus-visible:ring-[3px]"
-        >
-          <option value="">All projects</option>
-          {options.map(project => (
-            <option key={project.id} value={project.id}>
-              {project.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      {current === undefined ? null : (
-        <span className="border-foreground flex items-center gap-1 border py-0.5 pr-0.5 pl-2 text-xs">
-          {current.name}
-          <button
-            type="button"
-            aria-label={`Clear the ${current.name} filter`}
-            onClick={() => nav.setProject(undefined)}
-            className="hover:bg-accent focus-visible:ring-ring/50 flex size-5 items-center justify-center outline-none focus-visible:ring-[3px]"
-          >
-            ×
-          </button>
-        </span>
-      )}
-    </div>
-  )
-}
-
 function Board({ project }: { readonly project: string | undefined }) {
   const { view, now, selection } = useFleet()
-  const actions = useFleetActions()
   const flow = useHandled()
+  const replyPermission = usePermissionReply()
   const board = useMemo(() => buildAgentsBoard(view, now, project), [view, now, project])
   const [segment, setSegment] = useState<BoardColumn>(() => initialColumn(board))
   const [cursor, setCursor] = useState<Cursor>()
   const filterRef = useRef<HTMLSelectElement>(null)
-  // Permissions answered from the keyboard, so a repeated key does not send twice.
-  const answered = useRef(new Set<string>())
   const position = resolve(board, cursor)
 
   const focus = (target: Position | undefined) => {
@@ -303,32 +235,11 @@ function Board({ project }: { readonly project: string | undefined }) {
   const horizontal = (direction: 1 | -1) =>
     focus(position === undefined ? firstCard(board) : sideways(board, position, direction))
 
-  const reply = (decision: 'once' | 'reject') => {
-    const permission = position === undefined ? undefined : firstPermission(position.item.row)
-
-    if (permission === undefined || answered.current.has(permission.id)) return
-
-    answered.current.add(permission.id)
-
-    settled(
-      actions.replyPermission({
-        sessionID: permission.sessionID,
-        requestID: permission.id,
-        decision
-      })
-    ).then(result => {
-      if (Predicate.isTagged(result, 'Error')) {
-        answered.current.delete(permission.id)
-        toast.error(`Could not reply to the permission: ${result.message}`)
-
-        return
-      }
-
-      toast(decision === 'once' ? 'Allowed once' : 'Denied', {
-        description: `${permission.action} ${permissionTarget(permission)}`
-      })
-    })
-  }
+  const reply = (decision: 'once' | 'reject') =>
+    replyPermission(
+      position === undefined ? undefined : firstPermission(position.item.row),
+      decision
+    )
 
   const handled = () => {
     if (position === undefined || position.item.row.state !== 'finished') return
@@ -365,7 +276,7 @@ function Board({ project }: { readonly project: string | undefined }) {
 
   return (
     <>
-      <ProjectFilter filterRef={filterRef} />
+      <ProjectFilter filterRef={filterRef} className="px-3 pt-3 lg:px-4 lg:pt-3" />
       <Segments board={board} current={segment} onSelect={setSegment} />
       <div className="flex min-h-0 flex-1 flex-col gap-3 py-2 lg:grid lg:grid-cols-4 lg:p-4 lg:pt-3">
         {boardColumns.map(column => (
@@ -391,11 +302,11 @@ function Board({ project }: { readonly project: string | undefined }) {
 }
 
 /**
- * The Agents page (DESIGN.md "Clients" → Web): a kanban board by state across all projects, or
- * one project (`?project=`). Columns `Blocked | Finished | Working | Handled` on desktop, one at a
+ * The Agents page's board mode (`?view=board`, DESIGN.md "Clients" → Web): a kanban board by
+ * state across all projects, or one project (`?project=`), with the session drawer. Columns `Blocked | Finished | Working | Handled` on desktop, one at a
  * time on the phone. Keys: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns, `h`
  * handled (and next finished card), `u` undo, `a`/`d` allow once / deny, `Enter` opens the
- * drawer, `/` focuses the project filter.
+ * drawer, `/` focuses the project filter (`b`, focus mode, is the shell's).
  */
 export function AgentsBoard() {
   const { nav } = useFleet()
