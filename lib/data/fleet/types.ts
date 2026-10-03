@@ -305,12 +305,49 @@ export const FleetConnection = Schema.Struct({
 
 export type FleetConnection = typeof FleetConnection.Type
 
+/**
+ * A launch's progress (DESIGN.md "Launcher and worktrees"): OpenCode provisions the worktree,
+ * then Fleet creates the session and sends the task; `failed` at any step.
+ */
+export const LaunchStatus = Schema.Literals(['provisioning', 'creating-session', 'ready', 'failed'])
+
+export type LaunchStatus = typeof LaunchStatus.Type
+
+/**
+ * A new worktree + session the launcher started, tracked in Fleet's memory (lost on restart).
+ * Listed until dismissed, or for 10 minutes once ready.
+ */
+export const Launch = Schema.Struct({
+  id: Schema.String,
+  /** The repository's primary checkout. */
+  repo: Schema.String,
+  repoName: Schema.String,
+  branch: Schema.String,
+  task: Schema.String,
+  status: LaunchStatus,
+  /** The new worktree, once OpenCode returned it. */
+  directory: Schema.optional(Schema.String),
+  /** The new session, once created. */
+  sessionID: Schema.optional(Schema.String),
+  /** Why it failed (OpenCode's sanitized message). */
+  error: Schema.optional(Schema.String),
+  /** What a failure left behind (the worktree, the session), if anything. */
+  preserved: Schema.optional(Schema.String),
+  startedAt: Schema.Number,
+  /** Last status change. */
+  updatedAt: Schema.Number
+})
+
+export type Launch = typeof Launch.Type
+
 /** `GET /api/fleet` body. */
 export const FleetSnapshot = Schema.Struct({
   generatedAt: Schema.Number,
   connection: FleetConnection,
   counts: FleetCounts,
-  projects: Schema.Array(FleetProject)
+  projects: Schema.Array(FleetProject),
+  /** Launches in progress, failed, or recently ready, oldest first. */
+  launches: Schema.Array(Launch)
 })
 
 export type FleetSnapshot = typeof FleetSnapshot.Type
@@ -322,7 +359,9 @@ export const FleetChange = Schema.Struct({
   connection: FleetConnection,
   counts: FleetCounts,
   rows: Schema.Array(FleetRow),
-  removed: Schema.Array(Schema.String)
+  removed: Schema.Array(Schema.String),
+  /** Every launch, when any changed (and in the initial event); absent otherwise. */
+  launches: Schema.optional(Schema.Array(Launch))
 })
 
 export type FleetChange = typeof FleetChange.Type
@@ -383,3 +422,104 @@ export const SessionSummary = Schema.Struct({
 })
 
 export type SessionSummary = typeof SessionSummary.Type
+
+/**
+ * Who manages a linked worktree: `dotfiles` when it carries the dotfiles `worktrees` plugin's
+ * ownership marker for its current branch (created by OpenCode/Fleet, retirable from Fleet),
+ * `other` for Pi/Herdr and plain `git worktree add` checkouts.
+ */
+export const WorktreeOwner = Schema.Literals(['dotfiles', 'other'])
+
+export type WorktreeOwner = typeof WorktreeOwner.Type
+
+/** A linked worktree of a repository, as git lists it. */
+export const RepoWorktree = Schema.Struct({
+  directory: Schema.String,
+  /** Checked-out branch; absent when detached. */
+  branch: Schema.optional(Schema.String),
+  owner: WorktreeOwner
+})
+
+export type RepoWorktree = typeof RepoWorktree.Type
+
+/** A git repository's primary checkout on Box and its linked worktrees. */
+export const RepoCheckout = Schema.Struct({
+  name: Schema.String,
+  /** Canonical (real) path of the primary checkout. */
+  directory: Schema.String,
+  worktrees: Schema.Array(RepoWorktree)
+})
+
+export type RepoCheckout = typeof RepoCheckout.Type
+
+/**
+ * A worktree branch's pull request, from `gh` on Box: `unknown` when the lookup failed (or is
+ * still running), `none` when the branch has no PR.
+ */
+export const PullRequest = Schema.Struct({
+  state: Schema.Literals(['unknown', 'none', 'open', 'merged', 'closed']),
+  number: Schema.optional(Schema.Number),
+  url: Schema.optional(Schema.String)
+})
+
+export type PullRequest = typeof PullRequest.Type
+
+/** Root sessions in one checkout, by rolled-up state. */
+export const SessionTally = Schema.Struct({
+  blocked: Schema.Number,
+  working: Schema.Number,
+  finished: Schema.Number,
+  handled: Schema.Number
+})
+
+export type SessionTally = typeof SessionTally.Type
+
+const checkoutFields = {
+  directory: Schema.String,
+  sessions: SessionTally,
+  /** The newest root session there (by `activeAt`): what opening the checkout resumes. */
+  latestSession: Schema.optional(Schema.String),
+  /** Latest agent activity of its root sessions. */
+  activeAt: Schema.optional(Schema.Number)
+}
+
+export const LauncherWorktree = Schema.Struct({
+  ...checkoutFields,
+  branch: Schema.optional(Schema.String),
+  owner: WorktreeOwner,
+  pr: PullRequest
+})
+
+export type LauncherWorktree = typeof LauncherWorktree.Type
+
+/**
+ * One repository in the launcher: its primary checkout (`sessions`, `latestSession` and
+ * `activeAt` are the primary's own; sessions in subfolders count too) and its linked worktrees.
+ */
+export const LauncherEntry = Schema.Struct({
+  ...checkoutFields,
+  name: Schema.String,
+  /** OpenCode's project for the repository, when OpenCode has opened it. */
+  projectID: Schema.optional(Schema.String),
+  worktrees: Schema.Array(LauncherWorktree),
+  /** Latest agent activity across the primary and every worktree (the launcher's order). */
+  lastActivity: Schema.optional(Schema.Number)
+})
+
+export type LauncherEntry = typeof LauncherEntry.Type
+
+/** `GET /api/fleet/launcher`: repositories by most recent agent activity, then by name. */
+export const LauncherList = Schema.Struct({
+  generatedAt: Schema.Number,
+  entries: Schema.Array(LauncherEntry)
+})
+
+export type LauncherList = typeof LauncherList.Type
+
+/** A branch suggestion: from the model, or the deterministic fallback slug. */
+export const BranchSuggestion = Schema.Struct({
+  branch: Schema.String,
+  source: Schema.Literals(['model', 'fallback'])
+})
+
+export type BranchSuggestion = typeof BranchSuggestion.Type

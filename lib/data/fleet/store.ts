@@ -14,12 +14,16 @@ import { diffSnapshots, initialChange } from '@/lib/data/fleet/change'
 import { emptyModel } from '@/lib/data/fleet/model'
 import type { FleetModel } from '@/lib/data/fleet/model'
 import { buildSnapshot } from '@/lib/data/fleet/snapshot'
-import type { FleetChange, FleetConnection, FleetSnapshot } from '@/lib/data/fleet/types'
+import type { FleetChange, FleetConnection, FleetSnapshot, Launch } from '@/lib/data/fleet/types'
 
-/** The watcher's current view: connection status, model, and its projected snapshot. */
+/**
+ * The watcher's current view: connection status, model, the launcher's launches, and their
+ * projected snapshot.
+ */
 export type FleetView = {
   readonly connection: FleetConnection
   readonly model: FleetModel
+  readonly launches: ReadonlyArray<Launch>
   readonly snapshot: FleetSnapshot
 }
 
@@ -35,6 +39,10 @@ export type FleetStoreOperations = {
       readonly connection: FleetConnection
       readonly model: FleetModel
     }
+  ) => Effect.Effect<FleetView>
+  /** Replace the launches (same projection and publishing as `commit`). */
+  readonly updateLaunches: (
+    update: (launches: ReadonlyArray<Launch>) => ReadonlyArray<Launch>
   ) => Effect.Effect<FleetView>
   /**
    * `fleet.changed` stream for one client: subscribes first, then emits an initial change with
@@ -66,7 +74,8 @@ export const makeFleetStore = (
     const ref = yield* SubscriptionRef.make<FleetView>({
       connection,
       model: emptyModel,
-      snapshot: buildSnapshot(emptyModel, { connection, webUrl, now })
+      launches: [],
+      snapshot: buildSnapshot(emptyModel, { connection, webUrl, now, launches: [] })
     })
 
     const pubsub = yield* Effect.acquireRelease(
@@ -76,7 +85,9 @@ export const makeFleetStore = (
 
     const lock = yield* Semaphore.make(1)
 
-    const commit: FleetStoreOperations['commit'] = update =>
+    const project = (
+      update: (view: FleetView) => Omit<FleetView, 'snapshot'>
+    ): Effect.Effect<FleetView> =>
       lock.withPermits(1)(
         Effect.gen(function* () {
           const previous = yield* SubscriptionRef.get(ref)
@@ -85,7 +96,12 @@ export const makeFleetStore = (
 
           const view: FleetView = {
             ...next,
-            snapshot: buildSnapshot(next.model, { connection: next.connection, webUrl, now: at })
+            snapshot: buildSnapshot(next.model, {
+              connection: next.connection,
+              webUrl,
+              now: at,
+              launches: next.launches
+            })
           }
 
           yield* SubscriptionRef.set(ref, view)
@@ -97,6 +113,20 @@ export const makeFleetStore = (
           return view
         })
       )
+
+    const commit: FleetStoreOperations['commit'] = update =>
+      project(view => {
+        const next = update(view)
+
+        return { connection: next.connection, model: next.model, launches: view.launches }
+      })
+
+    const updateLaunches: FleetStoreOperations['updateLaunches'] = update =>
+      project(view => ({
+        connection: view.connection,
+        model: view.model,
+        launches: update(view.launches)
+      }))
 
     const changes = Stream.unwrap(
       Effect.gen(function* () {
@@ -114,6 +144,7 @@ export const makeFleetStore = (
       view: SubscriptionRef.get(ref),
       snapshot: Effect.map(SubscriptionRef.get(ref), view => view.snapshot),
       commit,
+      updateLaunches,
       changes
     }
   })

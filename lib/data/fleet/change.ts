@@ -18,9 +18,9 @@ const rowKey = (row: FleetRow) => {
 }
 
 /**
- * The `fleet.changed` payload between two snapshots: root rows that were added or changed, and
- * root rows that disappeared. Undefined when nothing a client renders changed (counts included:
- * `stuck` changes with time alone).
+ * The `fleet.changed` payload between two snapshots: root rows that were added or changed, root
+ * rows that disappeared, and every launch when any changed. Undefined when nothing a client
+ * renders changed (counts included: `stuck` changes with time alone).
  */
 export const diffSnapshots = (
   previous: FleetSnapshot | undefined,
@@ -42,18 +42,35 @@ export const diffSnapshots = (
   const countsChanged =
     previous === undefined || JSON.stringify(previous.counts) !== JSON.stringify(next.counts)
 
-  if (rows.length === 0 && removed.length === 0 && !connectionChanged && !countsChanged) {
+  const launchesChanged =
+    previous === undefined || JSON.stringify(previous.launches) !== JSON.stringify(next.launches)
+
+  if (
+    rows.length === 0 &&
+    removed.length === 0 &&
+    !connectionChanged &&
+    !countsChanged &&
+    !launchesChanged
+  ) {
     return undefined
   }
 
-  return { initial: false, connection: next.connection, counts: next.counts, rows, removed }
+  return {
+    initial: false,
+    connection: next.connection,
+    counts: next.counts,
+    rows,
+    removed,
+    launches: launchesChanged ? next.launches : undefined
+  }
 }
 
-/** The first event of every SSE stream: current counts and connection, no rows. */
+/** The first event of every SSE stream: current counts, connection and launches, no rows. */
 export const initialChange = (snapshot: FleetSnapshot): FleetChange => ({
   initial: true,
   connection: snapshot.connection,
   counts: snapshot.counts,
   rows: [],
-  removed: []
+  removed: [],
+  launches: snapshot.launches
 })

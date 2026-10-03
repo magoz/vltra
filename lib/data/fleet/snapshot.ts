@@ -17,6 +17,7 @@ import type {
   FleetSnapshot,
   FleetState,
   FleetWorktree,
+  Launch,
   PendingForm,
   PendingPermission,
   WorktreeKind
@@ -26,6 +27,8 @@ export type SnapshotOptions = {
   readonly connection: FleetConnection
   readonly webUrl: URL
   readonly now: number
+  /** The launch registry's entries (none in projections that do not track launches). */
+  readonly launches?: ReadonlyArray<Launch>
 }
 
 type Pending = {
@@ -265,7 +268,8 @@ export const buildSnapshot = (model: FleetModel, options: SnapshotOptions): Flee
     generatedAt: options.now,
     connection: options.connection,
     counts: countRows(rows, options.now),
-    projects: groupRows(model, rows)
+    projects: groupRows(model, rows),
+    launches: options.launches ?? []
   }
 }
 
