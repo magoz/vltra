@@ -106,8 +106,13 @@ const waitForExit = (child: ChildProcess) =>
     child.kill('SIGTERM')
   })
 
+export type OpenCodeServerOptions = {
+  /** `OPENCODE_CONFIG_CONTENT` (default `{}`), e.g. an unavailable default model. */
+  readonly config?: { readonly [key: string]: JsonValue }
+}
+
 /** Starts an isolated server for the current scope; stops it and deletes its state after. */
-export const startOpenCodeServer = (binary: string) =>
+export const startOpenCodeServer = (binary: string, options: OpenCodeServerOptions = {}) =>
   Effect.gen(function* () {
     const root = yield* Effect.acquireRelease(
       Effect.sync(() => mkdtempSync(path.join(tmpdir(), 'fleet-opencode-it-'))),
@@ -141,7 +146,7 @@ export const startOpenCodeServer = (binary: string) =>
       XDG_CONFIG_HOME: dirs.config ?? root,
       XDG_CACHE_HOME: dirs.cache ?? root,
       OPENCODE_CONFIG_DIR: path.join(dirs.config ?? root, 'opencode'),
-      OPENCODE_CONFIG_CONTENT: '{}',
+      OPENCODE_CONFIG_CONTENT: JSON.stringify(options.config ?? {}),
       OPENCODE_DISABLE_AUTOUPDATE: '1',
       OPENCODE_DISABLE_MODELS_FETCH: '1',
       OPENCODE_PASSWORD: password,
