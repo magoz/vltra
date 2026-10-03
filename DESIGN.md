@@ -1,6 +1,7 @@
 # Fleet: one view of every OpenCode session on Box
 
 Status: built (stages 1–4 live at https://fleet.oox.sh; terminal view in the dotfiles). Single user (magoz), private, Box only.
+Redesign in progress (2026-10-03): attention model (working / needs me / handled), see Session state.
 
 ## Problem
 
@@ -32,23 +33,48 @@ Mac ocb             → fleet CLI plugin in dotfiles cli.json (terminal view)
 
 ## Session state
 
-One row per root session (subagents nest under their parent and roll up into it).
+Fleet is about attention: with dozens of agents running, it shows what needs me and lets me
+clear it. One row per root session; subagents fold into their parent (their pending
+permissions/forms and their running state roll up; their finished runs do not).
 
-| State | Meaning | Enters on | Leaves on |
+A **run** is one OpenCode execution (`session.execution.started` → `succeeded` / `failed` /
+`interrupted`); on its end OpenCode stamps `time.idle`, which identifies the run. Permissions
+and forms pause a run, they do not end it.
+
+| State | Group | Meaning | Leaves on |
 |---|---|---|---|
-| `needs-you` | a permission or form (agent question) is pending | `permission.asked`, `form.created` | `permission.replied`, `form.replied`, `form.cancelled` |
-| `working` | executing | `session.execution.started`, `session.status` running | execution ended |
-| `failed` | last run failed/errored | `session.execution.failed`, `session.step.failed` | next start, or seen |
-| `done` | finished, not yet looked at | `session.execution.succeeded` / `interrupted` | seen |
-| `idle` | nothing new | seen | next start |
+| `blocked` | needs me | a permission or form is pending on the session or a descendant | answer / deny / cancel (never "handled") |
+| `working` | | a run is active | the run ends |
+| `finished` | needs me | the latest run ended (succeeded, failed, or interrupted by `inactivity`) and is not handled | I mark it handled |
+| `handled` | | I handled the latest run, or the session never ran | the next run starts |
 
-Priority when several apply: needs-you > failed > working > done > idle. A parent is
-`needs-you`/`working` if any descendant is.
+Priority: blocked > working > finished > handled.
 
-"Seen" is OpenCode's own: each session has `outcome` (`succeeded`/`failed`), `time.idle` and
-`time.viewed`; a finished session is unseen while `viewed < idle` (core
-`session/session.ts`). Any client viewing it (ocb, OpenCode web UI) advances `viewed`;
-fleet's "Mark seen" calls `POST /api/session/:id/view { idle }`. Fleet stores nothing.
+- **Handled is mine and per run**: `metadata.fleet.handled = <time.idle of the handled run>`
+  on the OpenCode session; the latest run is handled while `handled >= idle`. A new run that
+  ends puts the session back in `finished` without any un-handle step. Fleet owns only the
+  `fleet` key: read the session, replace `metadata.fleet`, write the whole object back
+  (`PATCH session { metadata }` replaces it, and other writers such as plugins may exist).
+  Writing metadata bumps `time.updated`, so Fleet orders by run times, never by `updated`.
+- **Interrupts** carry a `reason` on the event only (the session row stores `interrupted`):
+  `user` (any client's Stop: Fleet, ocb, web) → Fleet marks that run handled automatically;
+  `inactivity` (OpenCode stopping an evicted location's runs) → `finished`, labelled "stopped
+  by OpenCode"; `shutdown` → ignored (no `time.idle`, resumes after restart); `superseded` is
+  declared but unused. If Fleet missed the event, it recovers the reason from `session.log`.
+- **Failed** runs are `finished` with a red mark, not their own state.
+- **Stuck** is not a state: a working session shows `retrying (n×, reason)`
+  (`session.retry.scheduled`) or `quiet Nm` (no step/tool activity for 10+ minutes). Shown in
+  Projects and counted, never in the needs-me list.
+- **Undo / Reopen** removes the handled marker, so the session is `finished` again.
+- OpenCode's own "viewed" (`viewed < idle` = unread in OpenCode UIs) is independent: opening a
+  session's panel in Fleet still calls `POST /api/session/:id/view { idle }` to keep OpenCode's
+  unread dots right, but it never changes Fleet state.
+- **Rollout**: a one-off script (`pnpm fleet:import-handled`, run once at deploy, idempotent)
+  marks every root session whose latest run was already viewed (`viewed >= idle`) as handled.
+  It is never run automatically: after it, "viewed" means nothing to Fleet.
+
+Fleet stores nothing itself: OpenCode's session metadata is its database. (Exception, later:
+Web Push subscriptions.)
 
 ## OpenCode surface used (verified in v2.0.20 source)
 
@@ -74,16 +100,30 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
   model, updated, cost, pending permission/form summary, children).
 - `GET /api/fleet/events` → SSE: `fleet.changed` with changed rows (clients refetch on
   reconnect).
-- Actions for the web UI are server actions (typed inputs, per 10x conventions): mark seen,
-  reply to permission, answer form, send prompt, interrupt (proxied to OpenCode).
-- The CLI plugin uses the two GET routes; opening a session in ocb marks it seen natively.
+- Actions for the web UI are server actions (typed inputs, per 10x conventions): mark handled,
+  reopen, mark viewed, reply to permission, answer form, send prompt, interrupt (proxied to
+  OpenCode).
+- The CLI plugin uses the two GET routes for states (it never recomputes them) and writes
+  `metadata.fleet.handled` itself, with the same read-modify-write rule.
 
 ## Clients
 
-**Web (fleet.oox.sh, Mac + phone):** one page. "Needs you" first (inline approve/deny and
-form answers), then working, failed, done, grouped project → worktree. Tap a session for
-its panel (full screen on the phone): last messages, changed files, prompt box, Interrupt,
-Mark seen, and two ways out:
+**Web (fleet.oox.sh, Mac + phone):** one page, two areas.
+- **Sidebar = needs me only**, topped by a count line (`4 need you · 17 working · 2 stuck`).
+  Blocked rows first (oldest wait first) with inline approve/deny and form answers; then
+  finished rows (oldest first) with the answer excerpt, change totals, a red mark for failures,
+  and **Handled** (undo toast). Subagent requests show on the parent's row and are answered
+  in place. No "handle all".
+- **Projects = every session**, no time limit yet (maybe 30 days later): project → worktree
+  ordered by latest activity; in a worktree, needs-me and working sessions first, then handled
+  ones newest first. Sessions outside any repository (OpenCode's global project) go in one
+  "Other" group, last, each row showing its directory. Working rows show live activity and
+  stuck labels; handled rows offer Reopen.
+- Keyboard (Mac): `j`/`k` move through the sidebar, `Enter` opens, `h` handled (and next),
+  `u` undo, `a`/`d` approve/deny. Phone: swipe a finished row to mark it handled.
+
+Tap a session for its panel (full screen on the phone): last messages, changed files, prompt
+box, Interrupt, Handled / Reopen, subagent tree, and two ways out:
 - **Open in OpenCode** → OpenCode's own web UI on the same server, verified deep link
   `https://box.tail129a86.ts.net:9446/server/<base64url(origin)>/session/<id>`
   (`app/src/shell/routes/session.ts`; server key = page origin). Works on Mac and phone after a
@@ -94,11 +134,16 @@ Mark seen, and two ways out:
 - Copy `ocb -s <id>` as the always-works fallback. Live via SSE. Installable to the phone home screen.
 
 **Terminal (CLI plugin in the dotfiles, runs inside `ocb`):**
-- `home.footer.status` / `prompt.footer.status` badge: `2 need you · 3 working · 1 done`.
-- Full-page route (`ctrl+x f`): same grouping; Enter opens the session
-  (`router.navigate({ type: "session" })`), which also marks it seen.
-- Jump to next `needs-you` session (key TBD, must not collide with OpenCode defaults).
-- Mac notification via `attention.notify({ when: "blurred" })` on → needs-you and → done.
+- `home.footer.status` / `prompt.footer.status` badge: the same count line as the sidebar.
+- Full-page route (`ctrl+x f`): the needs-me list only (Projects stays on the web); Enter
+  opens the session (`router.navigate({ type: "session" })`).
+- `ctrl+x j`: jump to the next needs-me session, in sidebar order.
+- A key inside a session marks it handled (writes `metadata.fleet` directly).
+- Mac notification via `attention.notify({ when: "blurred" })` on → blocked.
+
+**Later (not part of the redesign):** Web Push for blocked agents only (debounced, one
+summary for bursts; subscriptions in a small file next to the app), mute for sessions to
+ignore forever, and a "handle this batch" action per worktree.
 
 ## Stack and repo
 
