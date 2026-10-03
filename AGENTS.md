@@ -35,7 +35,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | Watcher start               | `instrumentation.ts`                     | Node runtime only; skipped during `next build`       |
 | Page / API routes / actions | `app/`                                   | `api/fleet`, `api/fleet/events`, `*-action.ts`       |
 | Dashboard UI                | `app/fleet-dashboard.tsx` and siblings   | Client tree seeded by `fleet-live.tsx`; see below    |
-| Board (sections, handled)   | `lib/data/fleet/board.ts`                | Pure: live row map, `fleet.changed` apply, grouping  |
+| Board (sidebar, projects)   | `lib/data/fleet/board.ts`                | Pure: live rows, needs-me order, projects, overrides |
 | Session panel data          | `lib/data/fleet/session-detail.ts`       | Transcript tail + diff; summaries cached by `idle`   |
 | Test doubles                | `lib/**/testing/`                        | Fake OpenCode layer, throwaway `opencode serve`      |
 | Conventions                 | `patterns/`, then `../10x/patterns/`     | Fleet notes only where it differs from 10x           |
@@ -60,14 +60,30 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 ## DASHBOARD
 
 - One page (`app/page.tsx`): the prerendered shell is the Suspense fallback
-  (`fleet-dashboard-skeleton.tsx`, title + header frame); `fleet-live.tsx` reads the watcher's
-  snapshot per request and seeds the client `FleetDashboard`, which stays live from
+  (`fleet-dashboard-skeleton.tsx`, header, sidebar and Projects frames); `fleet-live.tsx` reads
+  the watcher's snapshot per request and seeds the client `FleetDashboard` (wiring: server
+  actions, clock, `?session=`) around `FleetView`, which stays live from
   `GET /api/fleet/events` (`use-fleet-live.ts`: reload the snapshot after every `initial` event,
   apply other changes in place, reconnect with backoff and on visibility).
-- Attention sections (blocked, finished: needs me; then working) then every handled session,
-  collapsed and grouped project → worktree, no time limit (`board.ts`). Rows order by `activeAt`
-  (run times), never OpenCode's `time.updated`, which handled-marker writes bump. Phase 2 of the
-  redesign (DESIGN.md "Clients": sidebar + projects) replaces this interim layout.
+- Layout (`fleet-view.tsx`, DESIGN.md "Clients"): a **needs-me sidebar** (`needs-me-list.tsx`:
+  count line `N need you · N working · N stuck`, then blocked rows, longest wait first, with
+  inline answers incl. `subagent <agent> asks:`, then finished rows, oldest first, with the
+  answer excerpt, change totals, failed / "stopped by OpenCode" labels and Handled) and
+  **Projects** (`projects-list.tsx`: every root session, no time window, project → worktree by
+  latest `activeAt`; in a worktree blocked, working, finished, then handled, newest first;
+  OpenCode's global project is one "Other" group, last, rows showing their directory; working
+  rows show activity and `retrying (n×, …)` / `quiet Nm`; handled rows offer Reopen). Rows
+  order by `activeAt` (run times), never OpenCode's `time.updated`, which handled-marker writes
+  bump. Orders and grouping are pure in `board.ts`; rows in `session-row.tsx`.
+- Below `lg` the two areas are tabs ("Needs me", "Projects"); from `xl` an open panel is a third
+  column (at `lg` it takes Projects' place).
+- Handled / Undo / Reopen (`use-handled.tsx`): applied at once as optimistic overrides (until the
+  server's next word on that row, `withOverrides`), Handled raises a sonner toast with Undo
+  (= reopen, after the handled write). No "handle all". Phone: swipe a finished row left
+  (`use-swipe.ts`); the Handled button stays.
+- Keys (`use-fleet-keys.ts`, hint in the header): `j`/`k` move the sidebar cursor, `Enter`
+  opens, `h` handled + next, `u` undo the last handled, `a`/`d` allow once / deny the focused
+  row's first permission, `Escape` closes the panel. Ignored while typing and in dialogs.
 - The open session lives in the URL (`?session=<id>`, `use-selected-session.ts`): side panel from
   `lg`, full screen below it, so the phone's back button closes it.
 - Mutations go through `FleetActions` (`app/fleet-actions.tsx`): the dashboard provides the server
@@ -75,7 +91,9 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 - Panel data: `GET /api/fleet/sessions/:id` (transcript tail + latest turn's files, uncached) and,
   for finished rows, `GET /api/fleet/sessions/:id/summary?idle=` (answer excerpt + change totals,
   cached in the runtime by `(id, idle)`; see `patterns/LONG_LIVED_WATCHER.md`). Opening the panel
-  marks the latest run viewed in OpenCode (its unread dots only; never Fleet state).
+  marks the latest run viewed in OpenCode when it is unread there (`viewed` missing or `< idle`;
+  its unread dots only, never Fleet state). The panel offers Handled (finished), Reopen
+  (handled), Interrupt (running) and the subagent tree with each child's state.
 - Look: the approved paper-and-ink mock (`app/globals.css` tokens, mono type, `attention` green
   and `destructive` red only); light/dark follow the system (`prefers-color-scheme`), no toggle.
 - PWA: `app/manifest.ts`, `app/icon.svg`, `app/apple-icon.png`, `public/icon-*.png` (no offline).
