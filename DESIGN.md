@@ -104,8 +104,12 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
 - Actions for the web UI are server actions (typed inputs, per 10x conventions): mark handled,
   reopen, mark viewed, reply to permission, answer form, send prompt, interrupt (proxied to
   OpenCode).
-- The CLI plugin uses the two GET routes for states (it never recomputes them) and writes
-  `metadata.fleet.handled` itself, with the same read-modify-write rule.
+- The terminal plugin (runs on the Mac, talks to Fleet over HTTPS) uses the GET routes for
+  states (it never recomputes them) and Fleet's JSON mutation routes for handled / reopen /
+  launch / dismiss (`POST /api/fleet/sessions/:id/handled`, `.../reopen`, `/api/fleet/launches`,
+  `/api/fleet/launches/:id/dismiss`), same rules and same-origin check as the web's server
+  actions (the plugin sends Fleet's own `Origin`). Fleet stays the only writer of
+  `metadata.fleet`.
 - Launcher: `GET /api/fleet/launcher` → `LauncherList` (repos with worktrees, owner, PR, session
   tallies and latest root session, most recent activity first); `POST /api/fleet/launcher/branch`
   `{ task }` → `{ branch, source: 'model' | 'fallback' }` (JSON only, same-origin: a non-browser
@@ -195,13 +199,19 @@ OpenCode.
 - **PR status**: Fleet looks up each worktree branch's PR with `gh` on Box (cached) and marks
   `merged · retire` / `closed · retire`. Automatic cleanup on merge/close is a later switch.
 
-**Terminal (CLI plugin in the dotfiles, runs inside `ocb`):**
-- `home.footer.status` / `prompt.footer.status` badge: the same count line as the web header.
-- Full-page route (`ctrl+x f`): the needs-me list only (Projects stays on the web); Enter
-  opens the session (`router.navigate({ type: "session" })`).
-- `ctrl+x j`: jump to the next needs-me session, in board order (blocked, then finished).
-- A key inside a session marks it handled (writes `metadata.fleet` directly).
-- Mac notification via `attention.notify({ when: "blurred" })` on → blocked.
+**Terminal (CLI plugin in the dotfiles, runs inside `ocb` on the Mac):**
+- **Focus sidebar**: replaces OpenCode's session sidebar content (`sidebar.content` slot; sidebar
+  shown on the left) with the needs-me list: blocked (oldest wait first), then finished (oldest
+  first), plus provisioning launches; the current session highlighted. `enter` opens a session
+  (`router.navigate({ type: "session" })`); permissions/questions are answered natively there.
+- `h` handled / `u` undo on finished sessions (Fleet routes); `ctrl+x j` next needs-me session.
+- **Launcher** `ctrl+x n`: the web launcher's flow in a dialog (fuzzy repos/worktrees from
+  `GET /api/fleet/launcher`, new worktree with task + suggested branch, provisioning progress,
+  navigate into the session when ready).
+- Badge (`home.footer.status` / `prompt.footer.status`): `N need you · N working · N stuck`.
+  Page `ctrl+x f`: needs me, then working (Projects stays on the web).
+- Mac notification via `attention.notify({ when: "blurred" })` on → blocked (gaps only by
+  default, as before).
 
 **Later (not part of the redesign):** Web Push for blocked agents only (debounced, one
 summary for bursts; subscriptions in a small file next to the app), mute for sessions to
