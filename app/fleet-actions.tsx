@@ -5,7 +5,9 @@ import type { ReactNode } from 'react'
 import type { FleetActionResult } from '@/app/fleet-action-result'
 import type {
   InterruptSessionInput,
-  MarkSeenInput,
+  MarkHandledInput,
+  MarkViewedInput,
+  ReopenInput,
   ReplyFormInput,
   ReplyPermissionInput,
   SendPromptInput
@@ -13,7 +15,9 @@ import type {
 
 /** The mutations the dashboard can run; the server actions in production, fakes in tests. */
 export type FleetActions = {
-  readonly markSeen: (input: MarkSeenInput) => Promise<FleetActionResult>
+  readonly markHandled: (input: MarkHandledInput) => Promise<FleetActionResult>
+  readonly reopen: (input: ReopenInput) => Promise<FleetActionResult>
+  readonly markViewed: (input: MarkViewedInput) => Promise<FleetActionResult>
   readonly replyPermission: (input: ReplyPermissionInput) => Promise<FleetActionResult>
   readonly replyForm: (input: ReplyFormInput) => Promise<FleetActionResult>
   readonly sendPrompt: (input: SendPromptInput) => Promise<FleetActionResult>

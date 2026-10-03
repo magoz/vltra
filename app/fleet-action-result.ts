@@ -1,6 +1,7 @@
 import { Data, Effect } from 'effect'
 import type { Schema } from 'effect'
 import type { CrossSiteRequestError } from '@/app/same-origin'
+import type { SessionNotFinishedError } from '@/lib/data/fleet/errors'
 import type {
   OpenCodeInvalidInputError,
   OpenCodeRequestError,
@@ -36,6 +37,7 @@ export type FleetActionError =
   | OpenCodeRequestError
   | OpenCodeUnavailableError
   | SessionNotFoundError
+  | SessionNotFinishedError
 
 /**
  * Shared tail of every Fleet server action: report unexpected failures, then map expected ones
@@ -57,6 +59,10 @@ export const toActionResult =
           Effect.succeed(FleetActionResult.Error({ message: error.message })),
         SessionNotFoundError: () =>
           Effect.succeed(FleetActionResult.Error({ message: 'Session not found' })),
+        SessionNotFinishedError: () =>
+          Effect.succeed(
+            FleetActionResult.Error({ message: 'Only a finished session can be marked handled' })
+          ),
         OpenCodeUnavailableError: () =>
           Effect.succeed(FleetActionResult.Error({ message: 'OpenCode is not reachable' })),
         OpenCodeRequestError: () =>

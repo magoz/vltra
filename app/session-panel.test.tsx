@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SessionPanel } from '@/app/session-panel'
 import { fakeActions, itemFor, rowFrom, WithActions } from '@/app/testing/dashboard-fixtures'
 import { baseTime, sessionRecord } from '@/lib/data/fleet/testing/fixtures'
-import type { FleetRow, SessionDetail } from '@/lib/data/fleet/types'
+import type { FleetRow, SessionDetail, SessionRecord } from '@/lib/data/fleet/types'
 
 const now = baseTime + 12 * 60 * 1000
 
@@ -58,14 +58,17 @@ const workingRow = () =>
     'ses_1'
   )
 
-const doneRow = () =>
+/** Already viewed in OpenCode, so opening the panel posts nothing. */
+const doneRow = (fields: Partial<SessionRecord> = {}) =>
   rowFrom(
     {
       sessions: [
         sessionRecord('ses_1', {
           title: 'Rewrite README',
           idle: baseTime + 1,
-          outcome: 'succeeded'
+          viewed: baseTime + 1,
+          outcome: 'succeeded',
+          ...fields
         })
       ]
     },
@@ -122,11 +125,37 @@ describe('session panel', () => {
     )
   })
 
-  it('offers Mark seen, not Interrupt, for a finished unseen run', () => {
-    renderPanel(doneRow())
+  it('offers Mark handled, not Interrupt, for a finished run', async () => {
+    const { calls } = renderPanel(doneRow())
 
     expect(screen.queryByRole('button', { name: 'Interrupt' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Mark seen' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark handled' }))
+
+    await vi.waitFor(() =>
+      expect(calls).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_1' } }])
+    )
+  })
+
+  it('offers Reopen for a handled run', async () => {
+    const { calls } = renderPanel(doneRow({ handled: baseTime + 1 }))
+
+    expect(screen.queryByRole('button', { name: 'Mark handled' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen' }))
+
+    await vi.waitFor(() =>
+      expect(calls).toEqual([{ action: 'reopen', input: { sessionID: 'ses_1' } }])
+    )
+  })
+
+  it('marks the latest run viewed in OpenCode when opened, if it is unread there', async () => {
+    const { calls } = renderPanel(doneRow({ viewed: undefined }))
+
+    await vi.waitFor(() =>
+      expect(calls).toEqual([{ action: 'markViewed', input: { sessionID: 'ses_1' } }])
+    )
   })
 
   it('sends a follow-up prompt and clears the box', async () => {

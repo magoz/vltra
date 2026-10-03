@@ -1,15 +1,23 @@
+import type { Session } from '@opencode/client/effect'
 import { Deferred, Effect, Layer, Option, Queue, Ref, Stream } from 'effect'
 import type { Cause } from 'effect'
-import { OpenCodeSignal } from '@/lib/data/fleet/events'
+import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
-import type { FileChange, SessionRecord, Transcript } from '@/lib/data/fleet/types'
-import { OpenCodeRequestError, OpenCodeUnavailableError } from '@/lib/services/opencode/errors'
+import type { FileChange, InterruptReason, SessionRecord, Transcript } from '@/lib/data/fleet/types'
+import {
+  OpenCodeRequestError,
+  OpenCodeUnavailableError,
+  SessionNotFoundError
+} from '@/lib/services/opencode/errors'
+import { fleetHandled, withFleetHandled } from '@/lib/services/opencode/mapping'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type { OpenCodeConnection } from '@/lib/services/opencode/service'
 
 /** A call Fleet made against the fake, for assertions. */
 export type FakeCall =
   | { readonly op: 'view'; readonly sessionID: string; readonly idle: number }
+  | { readonly op: 'setHandled'; readonly sessionID: string; readonly handled: number | undefined }
+  | { readonly op: 'interruptReason'; readonly sessionID: string }
   | { readonly op: 'replyPermission'; readonly sessionID: string; readonly requestID: string }
   | { readonly op: 'replyForm'; readonly sessionID: string; readonly formID: string }
   | { readonly op: 'prompt'; readonly sessionID: string; readonly text: string }
@@ -38,6 +46,14 @@ export type FakeOpenCode = {
     sessionID: string,
     files: ReadonlyArray<FileChange> | 'fail'
   ) => Effect.Effect<void>
+  /**
+   * Replace a session's raw metadata (as OpenCode stores it); its record's `handled` follows. By
+   * default a session's metadata is just its record's handled marker.
+   */
+  readonly setMetadata: (sessionID: string, metadata: Session.Metadata) => Effect.Effect<void>
+  readonly metadata: (sessionID: string) => Effect.Effect<Session.Metadata | undefined>
+  /** What the session log says about the latest run's interruption (default: nothing). */
+  readonly setInterruptReason: (sessionID: string, reason: InterruptReason) => Effect.Effect<void>
 }
 
 export const emptySnapshot: OpenCodeSnapshot = {
@@ -64,6 +80,9 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
       new Map()
     )
 
+    const metadata = yield* Ref.make<ReadonlyMap<string, Session.Metadata>>(new Map())
+    const interrupts = yield* Ref.make<ReadonlyMap<string, InterruptReason>>(new Map())
+
     const current = yield* Ref.make<Option.Option<Queue.Queue<OpenCodeSignal, Cause.Done>>>(
       Option.none()
     )
@@ -74,6 +93,56 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
       Effect.map(Ref.get(snapshot), value =>
         Option.fromNullishOr(value.sessions.find(session => session.id === sessionID))
       )
+
+    const withQueue = (
+      use: (queue: Queue.Queue<OpenCodeSignal, Cause.Done>) => Effect.Effect<void>
+    ) =>
+      Effect.flatMap(Ref.get(current), queue =>
+        Option.match(queue, { onNone: () => Effect.void, onSome: use })
+      )
+
+    const emit = (signal: OpenCodeSignal) =>
+      withQueue(queue => Effect.asVoid(Queue.offer(queue, signal)))
+
+    const patchSession = (sessionID: string, patch: Partial<SessionRecord>) =>
+      Ref.update(snapshot, value => ({
+        ...value,
+        sessions: value.sessions.map((session): SessionRecord =>
+          session.id === sessionID ? { ...session, ...patch } : session
+        )
+      }))
+
+    const storeMetadata = (sessionID: string, next: Session.Metadata) =>
+      Effect.andThen(
+        Ref.update(metadata, map => new Map(map).set(sessionID, next)),
+        patchSession(sessionID, { handled: fleetHandled(next) })
+      )
+
+    const metadataOf = (session: SessionRecord) =>
+      Effect.map(
+        Ref.get(metadata),
+        map => map.get(session.id) ?? withFleetHandled(undefined, session.handled)
+      )
+
+    /** Like OpenCode: replace the whole object, then emit `session.metadata.updated`. */
+    const setHandled = (sessionID: string, handled: number | undefined) =>
+      Effect.gen(function* () {
+        yield* record({ op: 'setHandled', sessionID, handled })
+
+        const found = yield* readSession(sessionID)
+
+        if (Option.isNone(found)) return yield* new SessionNotFoundError({ sessionID })
+
+        const next = withFleetHandled(yield* metadataOf(found.value), handled)
+
+        yield* storeMetadata(sessionID, next)
+
+        yield* emit(
+          OpenCodeSignal.Apply({
+            event: FleetEvent.HandledChanged({ sessionID, handled: fleetHandled(next) })
+          })
+        )
+      })
 
     const loadSnapshot = Effect.gen(function* () {
       const held = yield* Ref.getAndSet(gate, Option.none())
@@ -95,6 +164,12 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
         Effect.map(
           Ref.get(snapshot),
           value => value.worktrees.find(entry => entry.projectID === projectID)?.directories ?? []
+        ),
+      setHandled: ({ sessionID, handled }) => setHandled(sessionID, handled),
+      interruptReason: sessionID =>
+        Effect.andThen(
+          record({ op: 'interruptReason', sessionID }),
+          Effect.map(Ref.get(interrupts), map => Option.fromNullishOr(map.get(sessionID)))
         ),
       view: ({ sessionID, idle }) =>
         Effect.andThen(
@@ -154,13 +229,6 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
       })
     })
 
-    const withQueue = (
-      use: (queue: Queue.Queue<OpenCodeSignal, Cause.Done>) => Effect.Effect<void>
-    ) =>
-      Effect.flatMap(Ref.get(current), queue =>
-        Option.match(queue, { onNone: () => Effect.void, onSome: use })
-      )
-
     const fake: FakeOpenCode = {
       layer,
       setSnapshot: value => Ref.set(snapshot, value),
@@ -172,14 +240,24 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
 
         return { release: Effect.asVoid(Deferred.succeed(deferred, undefined)) }
       }),
-      emit: signal => withQueue(queue => Effect.asVoid(Queue.offer(queue, signal))),
+      emit,
       disconnect: withQueue(queue => Effect.asVoid(Queue.end(queue))),
       connectAttempts: Ref.get(attempts),
       snapshotLoads: Ref.get(loads),
       calls: Ref.get(calls),
       setTranscript: (sessionID, transcript) =>
         Ref.update(transcripts, map => new Map(map).set(sessionID, transcript)),
-      setDiff: (sessionID, files) => Ref.update(diffs, map => new Map(map).set(sessionID, files))
+      setDiff: (sessionID, files) => Ref.update(diffs, map => new Map(map).set(sessionID, files)),
+      setMetadata: storeMetadata,
+      metadata: sessionID =>
+        Effect.flatMap(readSession(sessionID), found =>
+          Option.match(found, {
+            onNone: () => Effect.succeed(undefined),
+            onSome: metadataOf
+          })
+        ),
+      setInterruptReason: (sessionID, reason) =>
+        Ref.update(interrupts, map => new Map(map).set(sessionID, reason))
     }
 
     return fake

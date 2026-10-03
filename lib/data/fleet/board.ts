@@ -1,4 +1,4 @@
-import { compareStates } from '@/lib/data/fleet/state'
+import { countRows } from '@/lib/data/fleet/state'
 import type {
   FleetChange,
   FleetConnection,
@@ -10,7 +10,7 @@ import type {
 } from '@/lib/data/fleet/types'
 
 // The dashboard's client-side view of the fleet: a flat row map kept live from `fleet.changed`
-// events, and the state-first board derived from it. Pure, so it runs (and is tested) anywhere.
+// events, and the attention board derived from it. Pure, so it runs (and is tested) anywhere.
 
 export type ProjectInfo = { readonly name: string; readonly directory: string }
 
@@ -60,12 +60,6 @@ export const applyChange = (live: LiveFleet, change: FleetChange): AppliedChange
   }
 }
 
-/** Idle (seen) sessions stay listed this long after their last activity. */
-export const idleWindow = 24 * 60 * 60 * 1000
-
-/** A row's last activity: its last update or the end of its last run. */
-export const lastActivity = (row: FleetRow) => Math.max(row.updated, row.idle ?? 0)
-
 const lastSegment = (directory: string) =>
   directory.split('/').findLast(segment => segment !== '') ?? directory
 
@@ -77,34 +71,34 @@ export type BoardRow = {
   readonly worktree: string | undefined
 }
 
-export type ActiveState = Exclude<FleetState, 'idle'>
+export type ActiveState = Exclude<FleetState, 'handled'>
 
-export const activeStates: ReadonlyArray<ActiveState> = ['needs-you', 'failed', 'working', 'done']
+/** Needs me (blocked, then finished), then working. */
+export const activeStates: ReadonlyArray<ActiveState> = ['blocked', 'finished', 'working']
 
 export type BoardSection = {
   readonly state: ActiveState
   readonly rows: ReadonlyArray<BoardRow>
 }
 
-export type IdleWorktree = {
+export type HandledWorktree = {
   readonly label: string | undefined
   readonly rows: ReadonlyArray<BoardRow>
 }
 
-export type IdleProject = {
+export type HandledProject = {
   readonly id: string
   readonly name: string
-  readonly worktrees: ReadonlyArray<IdleWorktree>
+  readonly worktrees: ReadonlyArray<HandledWorktree>
 }
 
 export type Board = {
-  /** Counts of what the board lists (idle: within the window, or all with `showOlder`). */
+  /** Root rows by state (`stuck` as of `now`). */
   readonly counts: FleetCounts
-  /** Active sections in priority order, empty ones omitted. */
+  /** Active sections in order, empty ones omitted. */
   readonly sections: ReadonlyArray<BoardSection>
-  readonly idle: ReadonlyArray<IdleProject>
-  /** Idle sessions hidden because their last activity is older than the window. */
-  readonly olderIdle: number
+  /** Every handled session (no time limit), grouped project → worktree, newest first. */
+  readonly handled: ReadonlyArray<HandledProject>
 }
 
 export const worktreeLabel = (
@@ -143,10 +137,14 @@ export const boardRow = (live: LiveFleet, row: FleetRow): BoardRow => {
     : { row, project: project.name, worktree: worktreeLabel(live, row) }
 }
 
-const byRecency = (left: BoardRow, right: BoardRow) =>
-  lastActivity(right.row) - lastActivity(left.row)
+const newestFirst = (left: BoardRow, right: BoardRow) => right.row.activeAt - left.row.activeAt
 
-const groupIdle = (rows: ReadonlyArray<BoardRow>): ReadonlyArray<IdleProject> => {
+const oldestFirst = (left: BoardRow, right: BoardRow) => left.row.activeAt - right.row.activeAt
+
+/** Needs-me rows wait oldest first; working rows show newest first. */
+const sectionOrder = (state: ActiveState) => (state === 'working' ? newestFirst : oldestFirst)
+
+const groupHandled = (rows: ReadonlyArray<BoardRow>): ReadonlyArray<HandledProject> => {
   const projects = new Map<string, { name: string; worktrees: Map<string, Array<BoardRow>> }>()
 
   for (const item of rows) {
@@ -175,38 +173,24 @@ const groupIdle = (rows: ReadonlyArray<BoardRow>): ReadonlyArray<IdleProject> =>
 }
 
 /**
- * The state-first board: needs you, failed, working, done (each newest first), then idle
- * sessions grouped project → worktree. Idle sessions older than `idleWindow` are hidden unless
- * `showOlder`.
+ * The attention board: blocked and finished (needs me, oldest first), working (newest first),
+ * then every handled session grouped project → worktree.
  */
-export const buildBoard = (live: LiveFleet, now: number, showOlder: boolean): Board => {
-  const rows = Array.from(live.rows.values(), row => boardRow(live, row)).toSorted(
-    (left, right) => compareStates(left.row.state, right.row.state) || byRecency(left, right)
-  )
-
-  const idle = rows.filter(item => item.row.state === 'idle')
-  const recentIdle = idle.filter(item => lastActivity(item.row) >= now - idleWindow)
-  const listedIdle = showOlder ? idle : recentIdle
+export const buildBoard = (live: LiveFleet, now: number): Board => {
+  const rows = Array.from(live.rows.values(), row => boardRow(live, row))
 
   const sections = activeStates.flatMap((state): ReadonlyArray<BoardSection> => {
-    const sectionRows = rows.filter(item => item.row.state === state)
+    const sectionRows = rows.filter(item => item.row.state === state).toSorted(sectionOrder(state))
 
     return sectionRows.length === 0 ? [] : [{ state, rows: sectionRows }]
   })
 
-  const count = (state: ActiveState) =>
-    sections.find(section => section.state === state)?.rows.length ?? 0
-
   return {
-    counts: {
-      'needs-you': count('needs-you'),
-      failed: count('failed'),
-      working: count('working'),
-      done: count('done'),
-      idle: listedIdle.length
-    },
+    counts: countRows(
+      rows.map(item => item.row),
+      now
+    ),
     sections,
-    idle: groupIdle(listedIdle),
-    olderIdle: idle.length - recentIdle.length
+    handled: groupHandled(rows.filter(item => item.row.state === 'handled').toSorted(newestFirst))
   }
 }

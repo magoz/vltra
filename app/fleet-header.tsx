@@ -31,28 +31,22 @@ export const linkStatus = (stream: StreamStatus, connection: FleetConnection): L
   }
 }
 
+/** The count line: `4 need you · 17 working · 2 stuck` (needs me = blocked + finished). */
 function Counts({ counts }: { readonly counts: FleetCounts }) {
-  const active = counts['needs-you'] + counts.failed + counts.working + counts.done
+  const needMe = counts.blocked + counts.finished
 
   return (
     <p className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1" aria-label="Session counts">
-      {counts['needs-you'] > 0 ? (
-        <span className="text-attention font-semibold whitespace-nowrap">
-          {counts['needs-you']} need you
-        </span>
-      ) : null}
+      {needMe > 0 ? (
+        <span className="text-attention font-semibold whitespace-nowrap">{needMe} need you</span>
+      ) : (
+        <span className="text-muted-foreground">nothing needs you</span>
+      )}
       {counts.working > 0 ? (
         <span className="whitespace-nowrap">{counts.working} working</span>
       ) : null}
-      {counts.failed > 0 ? (
-        <span className="text-destructive whitespace-nowrap">{counts.failed} failed</span>
-      ) : null}
-      {counts.done > 0 ? <span className="whitespace-nowrap">{counts.done} done</span> : null}
-      {active === 0 ? <span className="text-muted-foreground">nothing needs you</span> : null}
-      {counts.idle > 0 ? (
-        <span className="text-muted-foreground whitespace-nowrap max-md:hidden">
-          {counts.idle} idle
-        </span>
+      {counts.stuck > 0 ? (
+        <span className="text-destructive whitespace-nowrap">{counts.stuck} stuck</span>
       ) : null}
     </p>
   )

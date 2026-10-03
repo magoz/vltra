@@ -8,12 +8,11 @@ import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 
 const connection: FleetConnection = { status: 'connected', since: baseTime, failures: 0 }
 
+const modelOf = (snapshot: Partial<OpenCodeSnapshot>) =>
+  fromSnapshot({ ...emptySnapshot, ...snapshot }, baseTime)
+
 const build = (snapshot: Partial<OpenCodeSnapshot>) =>
-  buildSnapshot(fromSnapshot({ ...emptySnapshot, ...snapshot }), {
-    connection,
-    webUrl,
-    now: baseTime
-  })
+  buildSnapshot(modelOf(snapshot), { connection, webUrl, now: baseTime })
 
 const finished = { idle: baseTime + 1, outcome: 'succeeded' as const }
 
@@ -23,10 +22,7 @@ describe('roll-up', () => {
   const grandchild = sessionRecord('ses_grand', { parentID: 'ses_child' })
 
   it('nests descendants under one root row, depth-first', () => {
-    const rows = buildRows(
-      fromSnapshot({ ...emptySnapshot, sessions: [root, child, grandchild] }),
-      webUrl
-    )
+    const rows = buildRows(modelOf({ sessions: [root, child, grandchild] }), webUrl)
 
     expect(rows.map(row => row.id)).toEqual(['ses_root'])
     expect(rows[0]?.children.map(row => [row.id, row.depth])).toEqual([
@@ -35,7 +31,7 @@ describe('roll-up', () => {
     ])
   })
 
-  it('a grandchild permission makes the root and its parent needs-you', () => {
+  it('a grandchild permission makes the root and its parent blocked', () => {
     const snapshot = build({
       sessions: [root, child, grandchild],
       permissions: [{ id: 'per_1', sessionID: 'ses_grand', action: 'edit', resources: ['a.ts'] }]
@@ -43,14 +39,14 @@ describe('roll-up', () => {
 
     const [row] = snapshotRows(snapshot)
 
-    expect(row?.ownState).toBe('done')
-    expect(row?.state).toBe('needs-you')
+    expect(row?.ownState).toBe('finished')
+    expect(row?.state).toBe('blocked')
     expect(row?.pending).toEqual({ permissions: 1, forms: 0 })
-    expect(row?.children.map(item => item.state)).toEqual(['needs-you', 'needs-you'])
+    expect(row?.children.map(item => item.state)).toEqual(['blocked', 'blocked'])
     expect(row?.children[1]?.permissions.map(item => item.id)).toEqual(['per_1'])
   })
 
-  it('a working child makes an otherwise idle root working', () => {
+  it('a working child makes an otherwise handled root working', () => {
     const snapshot = build({
       sessions: [sessionRecord('ses_root'), child],
       running: ['ses_child']
@@ -59,7 +55,7 @@ describe('roll-up', () => {
     expect(snapshotRows(snapshot)[0]?.state).toBe('working')
   })
 
-  it('failed and done children do not roll up', () => {
+  it("a subagent's finished run does not roll up; the child keeps its own state", () => {
     const snapshot = build({
       sessions: [
         sessionRecord('ses_root'),
@@ -69,8 +65,9 @@ describe('roll-up', () => {
 
     const [row] = snapshotRows(snapshot)
 
-    expect(row?.state).toBe('idle')
-    expect(row?.children[0]?.state).toBe('failed')
+    expect(row?.state).toBe('handled')
+    expect(row?.children[0]?.state).toBe('finished')
+    expect(row?.children[0]?.outcome).toBe('failed')
   })
 
   it('children of unknown parents become roots', () => {
@@ -87,19 +84,19 @@ describe('grouping and ordering', () => {
   ]
 
   const sessions = [
-    sessionRecord('ses_a', { projectID: 'prj_fleet', directory: '/repos/fleet', updated: 1 }),
+    sessionRecord('ses_a', { projectID: 'prj_fleet', directory: '/repos/fleet', created: 1 }),
     sessionRecord('ses_b', {
       projectID: 'prj_fleet',
       directory: '/repos/fleet-wt/feature',
-      updated: 3
+      created: 3
     }),
     sessionRecord('ses_c', {
       projectID: 'prj_fleet',
       directory: '/repos/fleet',
-      updated: 2,
+      created: 2,
       ...finished
     }),
-    sessionRecord('ses_d', { projectID: 'prj_box', directory: '/repos/box/sub', updated: 4 })
+    sessionRecord('ses_d', { projectID: 'prj_box', directory: '/repos/box/sub', created: 4 })
   ]
 
   const snapshot = build({
@@ -127,18 +124,37 @@ describe('grouping and ordering', () => {
       {
         name: 'fleet',
         worktrees: [
-          { directory: '/repos/fleet', kind: 'root', rows: ['ses_c:done', 'ses_a:idle'] },
-          { directory: '/repos/fleet-wt/feature', kind: 'worktree', rows: ['ses_b:idle'] }
+          { directory: '/repos/fleet', kind: 'root', rows: ['ses_c:finished', 'ses_a:handled'] },
+          { directory: '/repos/fleet-wt/feature', kind: 'worktree', rows: ['ses_b:handled'] }
         ]
       }
     ])
   })
 
   it('counts root rows by rolled-up state', () => {
-    expect(snapshot.counts).toEqual({ 'needs-you': 0, failed: 0, working: 1, done: 1, idle: 2 })
+    expect(snapshot.counts).toEqual({ blocked: 0, finished: 1, working: 1, stuck: 0, handled: 2 })
   })
 
-  it('hides archived sessions unless they need attention or run', () => {
+  it('orders by run times, never by time.updated', () => {
+    const rows = buildRows(
+      modelOf({
+        sessions: [
+          sessionRecord('ses_old_run', { created: 1, idle: 10, handled: 10 }),
+          sessionRecord('ses_new_run', { created: 2, idle: 20, handled: 20 }),
+          sessionRecord('ses_never', { created: 15 })
+        ]
+      }),
+      webUrl
+    )
+
+    expect(rows.map(row => [row.id, row.activeAt])).toEqual([
+      ['ses_new_run', 20],
+      ['ses_never', 15],
+      ['ses_old_run', 10]
+    ])
+  })
+
+  it('hides archived sessions unless they are blocked or run', () => {
     const archived = build({
       sessions: [
         sessionRecord('ses_old', { archived: 5 }),
@@ -161,10 +177,42 @@ describe('grouping and ordering', () => {
   })
 })
 
-describe('live activity on rows', () => {
+describe('handled marker, interrupt reason and live facts on rows', () => {
+  it('exposes the handled marker, outcome and interrupt reason', () => {
+    const model = modelOf({
+      sessions: [sessionRecord('ses_1', { idle: 10, outcome: 'interrupted', handled: 5 })]
+    })
+
+    const session = model.sessions.get('ses_1')
+
+    const withReason =
+      session === undefined
+        ? model
+        : {
+            ...model,
+            sessions: new Map(model.sessions).set('ses_1', { ...session, interrupt: 'inactivity' })
+          }
+
+    expect(buildRows(withReason, webUrl)[0]).toMatchObject({
+      state: 'finished',
+      idle: 10,
+      handled: 5,
+      outcome: 'interrupted',
+      interrupt: 'inactivity'
+    })
+  })
+
+  it('running rows are active since the connection after a snapshot', () => {
+    const rows = buildRows(
+      modelOf({ sessions: [sessionRecord('ses_run')], running: ['ses_run'] }),
+      webUrl
+    )
+
+    expect(rows[0]).toMatchObject({ running: true, activityAt: baseTime, activeAt: baseTime })
+  })
+
   it('shows activity only while the session runs', () => {
-    const model = fromSnapshot({
-      ...emptySnapshot,
+    const model = modelOf({
       sessions: [sessionRecord('ses_run'), sessionRecord('ses_stopped')],
       running: ['ses_run']
     })

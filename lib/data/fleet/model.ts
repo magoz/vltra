@@ -1,5 +1,6 @@
 import { FleetEvent } from '@/lib/data/fleet/events'
 import type {
+  InterruptReason,
   PendingForm,
   PendingPermission,
   ProjectRecord,
@@ -12,13 +13,21 @@ import type {
 export type TrackedSession = {
   readonly info: SessionRecord
   readonly running: boolean
-  /** A step failed during the current or last run; cleared on the next start or when seen. */
-  readonly stepFailed: boolean
+  /** Latest scheduled retry of the current run; cleared by the next step or the run's end. */
   readonly retry: RetryInfo | undefined
   /** Live activity while running; only known from events seen since the last (re)connect. */
   readonly activity: SessionActivity | undefined
   /** The tool call `activity` describes, to attach its input summary once it is complete. */
   readonly activityCall: string | undefined
+  /** Start of the current run, when seen on the stream. */
+  readonly startedAt: number | undefined
+  /** Last start/step/tool/text event of the current run; the connect time after a snapshot. */
+  readonly activityAt: number | undefined
+  /**
+   * Why the latest run (ending at `info.idle`) was interrupted, when known: from the live event,
+   * or recovered from the session log after Fleet missed it.
+   */
+  readonly interrupt: InterruptReason | undefined
 }
 
 /** Everything Fleet knows about OpenCode. Rebuilt from a snapshot on every (re)connect. */
@@ -53,22 +62,29 @@ export const emptyModel: FleetModel = {
   worktrees: new Map()
 }
 
-const track = (info: SessionRecord, running: boolean): TrackedSession => ({
+const track = (info: SessionRecord): TrackedSession => ({
   info,
-  running,
-  stepFailed: false,
+  running: false,
   retry: undefined,
   activity: undefined,
-  activityCall: undefined
+  activityCall: undefined,
+  startedAt: undefined,
+  activityAt: undefined,
+  interrupt: undefined
 })
 
-export const fromSnapshot = (snapshot: OpenCodeSnapshot): FleetModel => {
+/**
+ * The model for a fresh snapshot loaded at `now`. Running sessions count as active at `now`: their
+ * start and last activity predate the connection and are unknown.
+ */
+export const fromSnapshot = (snapshot: OpenCodeSnapshot, now: number): FleetModel => {
   const running = new Set(snapshot.running)
 
+  const tracked = (info: SessionRecord): TrackedSession =>
+    running.has(info.id) ? { ...track(info), running: true, activityAt: now } : track(info)
+
   return {
-    sessions: new Map(
-      snapshot.sessions.map(info => [info.id, track(info, running.has(info.id))] as const)
-    ),
+    sessions: new Map(snapshot.sessions.map(info => [info.id, tracked(info)] as const)),
     permissions: new Map(snapshot.permissions.map(item => [item.id, item] as const)),
     forms: new Map(snapshot.forms.map(item => [item.id, item] as const)),
     projects: new Map(snapshot.projects.map(item => [item.id, item] as const)),
@@ -118,14 +134,27 @@ const idleSession = (session: TrackedSession): TrackedSession => ({
   running: false,
   retry: undefined,
   activity: undefined,
-  activityCall: undefined
+  activityCall: undefined,
+  startedAt: undefined,
+  activityAt: undefined
 })
 
+/** Running; a session that was not running starts its activity clock at `at`. */
+const busySession = (session: TrackedSession, at: number): TrackedSession =>
+  session.running ? session : { ...session, running: true, activityAt: at }
+
+const touch = (session: TrackedSession, at: number): TrackedSession => ({
+  ...session,
+  activityAt: Math.max(session.activityAt ?? at, at)
+})
+
+/** A new step (or text, or tool call) means a scheduled retry went through. */
 const setActivity = (
   session: TrackedSession,
   activity: SessionActivity,
-  callID: string | undefined
-): TrackedSession => ({ ...session, activity, activityCall: callID })
+  callID: string | undefined,
+  at: number
+): TrackedSession => ({ ...touch(session, at), activity, activityCall: callID, retry: undefined })
 
 /** Attach a finished tool input summary to the matching current tool call, if it still is. */
 const describeCall = (
@@ -141,28 +170,45 @@ const endExecution = (
   session: TrackedSession,
   event: Extract<FleetEvent, { readonly _tag: 'ExecutionEnded' }>
 ): TrackedSession => {
-  const stopped = { ...idleSession(session), stepFailed: false }
+  const stopped = idleSession(session)
 
-  if (event.shutdown) return stopped
+  // OpenCode does not stamp `time.idle` for shutdown interruptions: the run resumes later.
+  if (event.reason === 'shutdown') return stopped
 
+  const interrupt = event.outcome === 'interrupted' ? event.reason : undefined
   const idle = session.info.idle
 
   // OpenCode records `time.idle = max(created, previousIdle + 1)`. A terminal event at or before
-  // the known idle watermark is already reflected (for example replayed after a snapshot).
-  if (idle !== undefined && event.at <= idle) return stopped
+  // the known idle watermark is already reflected (for example replayed after a snapshot); it
+  // still names the interrupt reason when it matches the stored outcome.
+  if (idle !== undefined && event.at <= idle) {
+    return session.info.outcome === event.outcome ? { ...stopped, interrupt } : stopped
+  }
 
-  return patchInfo(stopped, {
-    idle: event.at,
-    outcome: event.outcome,
-    updated: Math.max(session.info.updated, event.at)
-  })
+  return patchInfo({ ...stopped, interrupt }, { idle: event.at, outcome: event.outcome })
 }
 
 const markViewed = (session: TrackedSession, idle: number): TrackedSession =>
-  patchInfo(
-    { ...session, stepFailed: false },
-    { viewed: Math.max(session.info.viewed ?? idle, idle) }
-  )
+  patchInfo(session, { viewed: Math.max(session.info.viewed ?? idle, idle) })
+
+/** A re-read session keeps its live facts, and its interrupt reason while it is the same run. */
+const refresh = (existing: TrackedSession, info: SessionRecord): TrackedSession => ({
+  ...existing,
+  info,
+  interrupt:
+    info.outcome === 'interrupted' && info.idle === existing.info.idle
+      ? existing.interrupt
+      : undefined
+})
+
+const recoverInterrupt = (
+  session: TrackedSession,
+  idle: number,
+  reason: InterruptReason
+): TrackedSession =>
+  session.info.idle === idle && session.info.outcome === 'interrupted'
+    ? { ...session, interrupt: reason }
+    : session
 
 /**
  * The Fleet state machine: applies one OpenCode event to the model. Pure and idempotent for
@@ -178,7 +224,7 @@ export const applyEvent = (model: FleetModel, event: FleetEvent): FleetModel =>
         sessions: withEntry(
           model.sessions,
           session.id,
-          existing === undefined ? track(session, false) : { ...existing, info: session }
+          existing === undefined ? track(session) : refresh(existing, session)
         )
       }
     },
@@ -197,35 +243,30 @@ export const applyEvent = (model: FleetModel, event: FleetEvent): FleetModel =>
     UsageUpdated: ({ sessionID, cost }) =>
       updateSession(model, sessionID, session => patchInfo(session, { cost })),
     ExecutionStarted: ({ sessionID, at }) =>
-      updateSession(model, sessionID, session =>
-        patchInfo(
-          {
-            ...session,
-            running: true,
-            stepFailed: false,
-            retry: undefined,
-            activity: undefined,
-            activityCall: undefined
-          },
-          { updated: Math.max(session.info.updated, at) }
-        )
-      ),
+      updateSession(model, sessionID, session => ({
+        ...idleSession(session),
+        running: true,
+        startedAt: at,
+        activityAt: at
+      })),
     ExecutionEnded: ended =>
       updateSession(model, ended.sessionID, session => endExecution(session, ended)),
-    StepFailed: ({ sessionID }) =>
-      updateSession(model, sessionID, session => ({ ...session, stepFailed: true })),
-    RetryScheduled: ({ sessionID, retry }) =>
-      updateSession(model, sessionID, session => ({ ...session, running: true, retry })),
-    StatusChanged: ({ sessionID, status }) =>
+    RetryScheduled: ({ sessionID, retry, at }) =>
+      updateSession(model, sessionID, session => ({ ...busySession(session, at), retry })),
+    StatusChanged: ({ sessionID, status, at }) =>
       updateSession(model, sessionID, session =>
-        status === 'idle' ? idleSession(session) : { ...session, running: true }
+        status === 'idle' ? idleSession(session) : busySession(session, at)
       ),
-    ActivityChanged: ({ sessionID, activity, callID }) =>
-      updateSession(model, sessionID, session => setActivity(session, activity, callID)),
-    ToolCalled: ({ sessionID, callID, detail }) =>
-      updateSession(model, sessionID, session => describeCall(session, callID, detail)),
+    ActivityChanged: ({ sessionID, activity, callID, at }) =>
+      updateSession(model, sessionID, session => setActivity(session, activity, callID, at)),
+    ToolCalled: ({ sessionID, callID, detail, at }) =>
+      updateSession(model, sessionID, session => describeCall(touch(session, at), callID, detail)),
     Viewed: ({ sessionID, idle }) =>
       updateSession(model, sessionID, session => markViewed(session, idle)),
+    HandledChanged: ({ sessionID, handled }) =>
+      updateSession(model, sessionID, session => patchInfo(session, { handled })),
+    InterruptRecovered: ({ sessionID, idle, reason }) =>
+      updateSession(model, sessionID, session => recoverInterrupt(session, idle, reason)),
     PermissionAsked: ({ permission }) => ({
       ...model,
       permissions: withEntry(model.permissions, permission.id, permission)

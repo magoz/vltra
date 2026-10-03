@@ -1,11 +1,26 @@
 import { snapshotRows } from '@/lib/data/fleet/snapshot'
 import type { FleetChange, FleetRow, FleetSnapshot } from '@/lib/data/fleet/types'
 
-const rowKey = (row: FleetRow) => JSON.stringify(row)
+// Rows are immutable once projected, and each snapshot is diffed twice (as `next`, then as
+// `previous`): serialise every row once. With every session loaded this halves the diff.
+const rowKeys = new WeakMap<FleetRow, string>()
+
+const rowKey = (row: FleetRow) => {
+  const known = rowKeys.get(row)
+
+  if (known !== undefined) return known
+
+  const key = JSON.stringify(row)
+
+  rowKeys.set(row, key)
+
+  return key
+}
 
 /**
  * The `fleet.changed` payload between two snapshots: root rows that were added or changed, and
- * root rows that disappeared. Undefined when nothing a client renders changed.
+ * root rows that disappeared. Undefined when nothing a client renders changed (counts included:
+ * `stuck` changes with time alone).
  */
 export const diffSnapshots = (
   previous: FleetSnapshot | undefined,
@@ -24,7 +39,12 @@ export const diffSnapshots = (
     previous === undefined ||
     JSON.stringify(previous.connection) !== JSON.stringify(next.connection)
 
-  if (rows.length === 0 && removed.length === 0 && !connectionChanged) return undefined
+  const countsChanged =
+    previous === undefined || JSON.stringify(previous.counts) !== JSON.stringify(next.counts)
+
+  if (rows.length === 0 && removed.length === 0 && !connectionChanged && !countsChanged) {
+    return undefined
+  }
 
   return { initial: false, connection: next.connection, counts: next.counts, rows, removed }
 }

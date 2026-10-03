@@ -5,17 +5,15 @@ import type { FleetConnection, FleetCounts } from '@/lib/data/fleet/types'
 
 const connected: FleetConnection = { status: 'connected', since: 0, failures: 0, version: '2.0.20' }
 
-const counts: FleetCounts = { 'needs-you': 2, failed: 1, working: 3, done: 4, idle: 12 }
+const counts: FleetCounts = { blocked: 2, finished: 4, working: 3, stuck: 1, handled: 12 }
 
 afterEach(cleanup)
 
 describe('header', () => {
-  it('shows live counts in triage order', () => {
+  it('shows the count line: need you (blocked + finished), working, stuck', () => {
     render(<FleetHeader counts={counts} stream="live" connection={connected} />)
 
-    expect(screen.getByLabelText('Session counts').textContent).toBe(
-      '2 need you3 working1 failed4 done12 idle'
-    )
+    expect(screen.getByLabelText('Session counts').textContent).toBe('6 need you3 working1 stuck')
 
     expect(screen.getByRole('status').textContent).toContain('live')
   })
@@ -23,13 +21,13 @@ describe('header', () => {
   it('omits zero counts and says when nothing needs you', () => {
     render(
       <FleetHeader
-        counts={{ 'needs-you': 0, failed: 0, working: 0, done: 0, idle: 3 }}
+        counts={{ blocked: 0, finished: 0, working: 0, stuck: 0, handled: 3 }}
         stream="live"
         connection={connected}
       />
     )
 
-    expect(screen.getByLabelText('Session counts').textContent).toBe('nothing needs you3 idle')
+    expect(screen.getByLabelText('Session counts').textContent).toBe('nothing needs you')
   })
 })
 

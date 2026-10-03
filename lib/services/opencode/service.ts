@@ -2,7 +2,7 @@ import { Context } from 'effect'
 import type { Effect, Option, Stream } from 'effect'
 import type { OpenCodeSignal } from '@/lib/data/fleet/events'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
-import type { FileChange, SessionRecord, Transcript } from '@/lib/data/fleet/types'
+import type { FileChange, InterruptReason, SessionRecord, Transcript } from '@/lib/data/fleet/types'
 import type {
   OpenCodeInvalidInputError,
   OpenCodeRequestError,
@@ -34,6 +34,22 @@ export type OpenCodeConnection = {
   readonly worktrees: (
     projectID: string
   ) => Effect.Effect<ReadonlyArray<string>, OpenCodeRequestError>
+  /**
+   * Set (a number) or remove (`undefined`) Fleet's handled marker, `metadata.fleet.handled`.
+   * OpenCode replaces the whole metadata object on write, so this reads the session, changes only
+   * that key, and writes everything else back as it was.
+   */
+  readonly setHandled: (input: {
+    readonly sessionID: string
+    readonly handled: number | undefined
+  }) => Effect.Effect<void, ActionError>
+  /**
+   * Why the session's latest run was interrupted, from its durable log
+   * (`GET /api/experimental/session/:id/log`); none when it did not end interrupted.
+   */
+  readonly interruptReason: (
+    sessionID: string
+  ) => Effect.Effect<Option.Option<InterruptReason>, ActionError>
   /** `POST /api/session/:id/view { idle }`. */
   readonly view: (input: {
     readonly sessionID: string

@@ -1,6 +1,12 @@
 import { describe, expect, it } from '@effect/vitest'
-import { ConfigProvider, Effect, Layer, Schedule } from 'effect'
-import { markSeen, replyForm, replyPermission } from '@/lib/data/fleet/actions'
+import { ConfigProvider, Effect, Layer, Option, Schedule } from 'effect'
+import {
+  markHandled,
+  markViewed,
+  reopen,
+  replyForm,
+  replyPermission
+} from '@/lib/data/fleet/actions'
 import { loadSessionDetail, loadSessionSummary } from '@/lib/data/fleet/session-detail'
 import { snapshotRows } from '@/lib/data/fleet/snapshot'
 import { FleetStore, FleetStoreLive } from '@/lib/data/fleet/store'
@@ -10,7 +16,7 @@ import type { WatcherOptions } from '@/lib/data/fleet/watcher'
 import { OpenCode } from '@/lib/services/opencode/service'
 import { OpenCodeLive } from '@/lib/services/opencode/live-layer'
 import { findOpenCode, startOpenCodeServer } from '@/lib/services/opencode/testing/opencode-server'
-import type { OpenCodeServer } from '@/lib/services/opencode/testing/opencode-server'
+import type { JsonValue, OpenCodeServer } from '@/lib/services/opencode/testing/opencode-server'
 
 // Runs Fleet against a real, isolated, throwaway `opencode serve` (v2.0.20). No model is ever
 // called: sessions use an unavailable model so prompts fail fast, and outbound HTTP is blocked.
@@ -29,7 +35,8 @@ if (!binary.available) {
 const options: WatcherOptions = {
   reconnect: Schedule.min([Schedule.exponential('100 millis'), Schedule.spaced('1 second')]),
   dropDelay: '6 seconds',
-  connectTimeout: '10 seconds'
+  connectTimeout: '10 seconds',
+  recount: '1 minute'
 }
 
 const testConfig = (server: OpenCodeServer) =>
@@ -107,12 +114,24 @@ const importSession = (
     messages: []
   })
 
+type StoredSession = {
+  readonly data: { readonly metadata?: JsonValue; readonly time: { readonly idle?: number } }
+}
+
+/** The session as OpenCode stores it (raw wire JSON, including the whole metadata object). */
+const storedSession = (server: OpenCodeServer, sessionID: string) =>
+  Effect.map(server.json<StoredSession>('GET', `/api/session/${sessionID}`), body => body.data)
+
+/** Another writer (a plugin, ocb) replacing the whole metadata object. */
+const writeMetadata = (server: OpenCodeServer, sessionID: string, metadata: JsonValue) =>
+  server.request('PATCH', `/api/session/${sessionID}`, { metadata })
+
 const locationQuery = (server: OpenCodeServer) =>
   `location%5Bdirectory%5D=${encodeURIComponent(server.workDirectory)}`
 
 describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => {
   it.live(
-    'tracks sessions, pending requests and seen state, and resyncs after a restart',
+    'tracks sessions, pending requests and handled markers, and resyncs after a restart',
     () =>
       Effect.gen(function* () {
         const server = yield* startOpenCodeServer(binary.available ? binary.path : 'opencode')
@@ -132,18 +151,21 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
 
           expect(actionConnection.url).toBe(server.url)
 
-          // A new session appears as idle.
+          // A session that never ran has nothing to handle.
           const sessionID = yield* createSession(server, 'fleet integration')
 
-          yield* eventually(rowIn(sessionID, 'idle'), 'new idle session')
+          yield* eventually(rowIn(sessionID, 'handled'), 'new session')
 
-          // Prompting with an unavailable model: execution starts and fails → failed (unseen).
+          // Prompting with an unavailable model: execution starts and fails → finished.
           yield* server.request('POST', `/api/session/${sessionID}/prompt`, { text: 'hello' })
 
-          const failed = yield* eventually(rowIn(sessionID, 'failed'), 'failed run')
+          const failed = yield* eventually(rowIn(sessionID, 'finished'), 'failed run')
 
           expect(failed.outcome).toBe('failed')
-          expect(failed.unseen).toBe(true)
+          expect(failed.handled).toBeUndefined()
+
+          // The durable session log (`session.log`) is readable; a failed run has no interrupt.
+          expect(yield* actionConnection.interruptReason(sessionID)).toEqual(Option.none())
 
           // Session panel data: the transcript tail (prompt, then the failure) and the summary.
           const detail = yield* loadSessionDetail({ sessionID })
@@ -155,41 +177,87 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
 
           expect(summary.sessionID).toBe(sessionID)
 
-          // Mark seen through Fleet → OpenCode `session.viewed` → idle.
-          expect(yield* markSeen({ sessionID })).toBe('marked')
-          yield* eventually(rowIn(sessionID, 'idle'), 'seen failed run')
-          expect(yield* markSeen({ sessionID })).toBe('already-seen')
+          // Mark viewed (panel open) only moves OpenCode's unread marker, never Fleet state.
+          expect(yield* markViewed({ sessionID })).toBe('marked')
 
-          // Permission: asked → needs-you; Fleet replies → idle again.
+          const viewed = yield* eventually(value => {
+            const row = findRow(value, sessionID)
+
+            return row?.viewed !== undefined && row.viewed >= (row.idle ?? 0) ? row : undefined
+          }, 'viewed marker')
+
+          expect(viewed.state).toBe('finished')
+          expect(yield* markViewed({ sessionID })).toBe('already-viewed')
+
+          // Another writer's metadata: Fleet must keep it on every write.
+          const foreign = { plugin: { pinned: true }, tags: ['a', 'b'] }
+
+          yield* writeMetadata(server, sessionID, { ...foreign, fleet: { note: 'kept' } })
+
+          // Mark handled: metadata.fleet.handled = stored idle → session.metadata.updated → handled.
+          expect(yield* markHandled({ sessionID })).toBe('handled')
+
+          const handled = yield* eventually(
+            rowIn(sessionID, 'handled'),
+            'handled via metadata event'
+          )
+
+          const stored = yield* storedSession(server, sessionID)
+
+          expect(handled.handled).toBe(stored.time.idle)
+          expect(stored.metadata).toEqual({
+            ...foreign,
+            fleet: { note: 'kept', handled: stored.time.idle }
+          })
+          expect(yield* markHandled({ sessionID })).toBe('already-handled')
+
+          // Reopen removes only the marker.
+          expect(yield* reopen({ sessionID })).toBe('reopened')
+          yield* eventually(rowIn(sessionID, 'finished'), 'reopened')
+          expect((yield* storedSession(server, sessionID)).metadata).toEqual({
+            ...foreign,
+            fleet: { note: 'kept' }
+          })
+          expect(yield* reopen({ sessionID })).toBe('not-handled')
+
+          yield* markHandled({ sessionID })
+          yield* eventually(rowIn(sessionID, 'handled'), 'handled again')
+
+          // Permission: asked → blocked; Fleet replies → handled again.
           const asked = yield* server.json<{ readonly data: { readonly id: string } }>(
             'POST',
             `/api/session/${sessionID}/permission?${locationQuery(server)}`,
             { action: 'fleet.test', resources: ['x'] }
           )
 
-          const needsYou = yield* eventually(rowIn(sessionID, 'needs-you'), 'permission')
+          const blocked = yield* eventually(rowIn(sessionID, 'blocked'), 'permission')
 
-          expect(needsYou.permissions.map(item => item.id)).toEqual([asked.data.id])
+          expect(blocked.permissions.map(item => item.id)).toEqual([asked.data.id])
+
+          // Blocked is never handled away.
+          const rejected = yield* markHandled({ sessionID }).pipe(Effect.flip)
+
+          expect(rejected._tag).toBe('SessionNotFinishedError')
 
           yield* replyPermission({ sessionID, requestID: asked.data.id, decision: 'once' })
-          yield* eventually(rowIn(sessionID, 'idle'), 'permission replied')
+          yield* eventually(rowIn(sessionID, 'handled'), 'permission replied')
 
-          // Form (V2 agent question): created → needs-you; Fleet answers → idle.
+          // Form (V2 agent question): created → blocked; Fleet answers → handled.
           const form = yield* server.json<{ readonly data: { readonly id: string } }>(
             'POST',
             `/api/session/${sessionID}/form`,
             { title: 'Pick one', fields: [{ key: 'choice', type: 'string', title: 'Choice?' }] }
           )
 
-          const asking = yield* eventually(rowIn(sessionID, 'needs-you'), 'form')
+          const asking = yield* eventually(rowIn(sessionID, 'blocked'), 'form')
 
           expect(asking.forms[0]?.fields).toMatchObject([
             { key: 'choice', type: 'string', title: 'Choice?' }
           ])
           yield* replyForm({ sessionID, formID: form.data.id, answer: { choice: 'a' } })
-          yield* eventually(rowIn(sessionID, 'idle'), 'form answered')
+          yield* eventually(rowIn(sessionID, 'handled'), 'form answered')
 
-          // A finished, unseen session with a subagent child: done, child nested under it.
+          // A finished session with a subagent child: finished, child nested under it.
           const now = Date.now()
           const rootID = 'ses_fleetitroot0000000000001'
           const childID = 'ses_fleetitchild000000000001'
@@ -197,13 +265,15 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
           yield* importSession(server, { id: rootID, idle: now })
           yield* importSession(server, { id: childID, parentID: rootID, idle: now })
 
-          const done = yield* eventually(value => {
-            const row = rowIn(rootID, 'done')(value)
+          const finished = yield* eventually(value => {
+            const row = rowIn(rootID, 'finished')(value)
 
             return row?.children.some(child => child.id === childID) === true ? row : undefined
-          }, 'imported done session with child')
+          }, 'imported finished session with child')
 
-          expect(done.children.map(child => child.id)).toEqual([childID])
+          expect(finished.children.map(child => [child.id, child.state])).toEqual([
+            [childID, 'finished']
+          ])
 
           // Resync: stop OpenCode, change it while Fleet is not listening, start it again.
           yield* server.stop
@@ -219,19 +289,21 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
 
           yield* importSession(server, { id: missedID, idle: Date.now() })
 
-          yield* server.request('POST', `/api/session/${rootID}/view`, { idle: now })
+          // Another client (the ocb plugin) handles the root while Fleet is away.
+          yield* writeMetadata(server, rootID, { fleet: { handled: now } })
 
           const resynced = yield* eventually(
             value =>
               value.connection.status === 'connected' &&
-              findRow(value, missedID)?.state === 'done' &&
-              findRow(value, rootID)?.state === 'idle'
+              findRow(value, missedID)?.state === 'finished' &&
+              findRow(value, rootID)?.state === 'handled'
                 ? value
                 : undefined,
             'resync after restart'
           )
 
-          expect(findRow(resynced, sessionID)?.state).toBe('idle')
+          expect(findRow(resynced, sessionID)?.state).toBe('handled')
+          expect(findRow(resynced, rootID)?.handled).toBe(now)
         }).pipe(Effect.provide(fleetLayer(server)))
       }).pipe(Effect.scoped),
     120_000

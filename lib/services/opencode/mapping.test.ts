@@ -4,12 +4,16 @@ import { Session, SessionMessage } from '@opencode/client/effect'
 import { Effect, Schema } from 'effect'
 import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
 import {
+  fleetHandled,
+  latestRunEnd,
   toFormField,
   toolDetail,
   toSessionRecord,
   toSignals,
-  toTranscript
+  toTranscript,
+  withFleetHandled
 } from '@/lib/services/opencode/mapping'
+import type { RunEnd } from '@/lib/services/opencode/mapping'
 import type { JsonValue } from '@/lib/services/opencode/testing/opencode-server'
 
 // Wire JSON as served by a real `opencode serve` v2.0.20 (captured, ids shortened), decoded with
@@ -63,6 +67,34 @@ const wire = {
     type: 'session.execution.interrupted',
     durable: durable(6),
     data: { sessionID, reason: 'shutdown' }
+  },
+  interruptedByUser: {
+    id: 'evt_19',
+    created: 1790806673310,
+    type: 'session.execution.interrupted',
+    durable: durable(12),
+    data: { sessionID, reason: 'user' }
+  },
+  interruptedByInactivity: {
+    id: 'evt_20',
+    created: 1790806673320,
+    type: 'session.execution.interrupted',
+    durable: durable(13),
+    data: { sessionID, reason: 'inactivity' }
+  },
+  metadataUpdated: {
+    id: 'evt_21',
+    created: 1790806673330,
+    type: 'session.metadata.updated',
+    durable: durable(14),
+    data: { sessionID, metadata: { plugin: { x: 1 }, fleet: { handled: 1790806673204 } } }
+  },
+  metadataCleared: {
+    id: 'evt_22',
+    created: 1790806673340,
+    type: 'session.metadata.updated',
+    durable: durable(15),
+    data: { sessionID, metadata: { plugin: { x: 1 } } }
   },
   viewed: {
     id: 'evt_6',
@@ -215,7 +247,7 @@ describe('OpenCode event mapping', () => {
             sessionID,
             at: 1790806673204,
             outcome: 'failed',
-            shutdown: false
+            reason: undefined
           })
         })
       ])
@@ -226,8 +258,50 @@ describe('OpenCode event mapping', () => {
             sessionID,
             at: 1790806673300,
             outcome: 'interrupted',
-            shutdown: true
+            reason: 'shutdown'
           })
+        })
+      ])
+    })
+  )
+
+  it.effect('interruptions carry their reason', () =>
+    Effect.gen(function* () {
+      expect(yield* signalsFor(wire.interruptedByUser)).toEqual([
+        OpenCodeSignal.Apply({
+          event: FleetEvent.ExecutionEnded({
+            sessionID,
+            at: 1790806673310,
+            outcome: 'interrupted',
+            reason: 'user'
+          })
+        })
+      ])
+
+      expect(yield* signalsFor(wire.interruptedByInactivity)).toEqual([
+        OpenCodeSignal.Apply({
+          event: FleetEvent.ExecutionEnded({
+            sessionID,
+            at: 1790806673320,
+            outcome: 'interrupted',
+            reason: 'inactivity'
+          })
+        })
+      ])
+    })
+  )
+
+  it.effect('session.metadata.updated carries the (whole, replaced) handled marker', () =>
+    Effect.gen(function* () {
+      expect(yield* signalsFor(wire.metadataUpdated)).toEqual([
+        OpenCodeSignal.Apply({
+          event: FleetEvent.HandledChanged({ sessionID, handled: 1790806673204 })
+        })
+      ])
+
+      expect(yield* signalsFor(wire.metadataCleared)).toEqual([
+        OpenCodeSignal.Apply({
+          event: FleetEvent.HandledChanged({ sessionID, handled: undefined })
         })
       ])
     })
@@ -312,7 +386,8 @@ describe('OpenCode event mapping', () => {
           event: FleetEvent.ActivityChanged({
             sessionID,
             activity: { kind: 'thinking' },
-            callID: undefined
+            callID: undefined,
+            at: 1790806577000
           })
         })
       ])
@@ -322,7 +397,8 @@ describe('OpenCode event mapping', () => {
           event: FleetEvent.ActivityChanged({
             sessionID,
             activity: { kind: 'writing' },
-            callID: undefined
+            callID: undefined,
+            at: 1790806577010
           })
         })
       ])
@@ -332,14 +408,20 @@ describe('OpenCode event mapping', () => {
           event: FleetEvent.ActivityChanged({
             sessionID,
             activity: { kind: 'tool', tool: 'bash' },
-            callID: 'call_1'
+            callID: 'call_1',
+            at: 1790806577020
           })
         })
       ])
 
       expect(yield* signalsFor(wire.toolCalled)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.ToolCalled({ sessionID, callID: 'call_1', detail: 'pnpm build' })
+          event: FleetEvent.ToolCalled({
+            sessionID,
+            callID: 'call_1',
+            detail: 'pnpm build',
+            at: 1790806577030
+          })
         })
       ])
     })
@@ -416,12 +498,98 @@ describe('session row mapping', () => {
         model: 'fleet-none/none',
         cost: 0,
         created: 1790806672952,
-        updated: 1790806673183,
         idle: 1790806673204,
         viewed: undefined,
         archived: undefined,
-        outcome: 'failed'
+        outcome: 'failed',
+        handled: undefined
       })
+    })
+  )
+
+  it.effect("reads Fleet's handled marker from metadata.fleet.handled", () =>
+    Effect.gen(function* () {
+      const info = yield* Schema.decodeUnknownEffect(Session.Info)({
+        id: sessionID,
+        projectID: 'global',
+        cost: 0,
+        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        time: { created: 1790806672952, updated: 1790806673183, idle: 1790806673204 },
+        metadata: { other: true, fleet: { handled: 1790806673204 } },
+        location
+      })
+
+      expect(toSessionRecord(info).handled).toBe(1790806673204)
+    })
+  )
+})
+
+describe('handled marker in session metadata', () => {
+  it('reads metadata.fleet.handled; absent or malformed reads as unhandled', () => {
+    expect(fleetHandled({ fleet: { handled: 42 } })).toBe(42)
+    expect(fleetHandled({ fleet: { handled: 42, note: 'x' }, other: [1] })).toBe(42)
+    expect(fleetHandled(undefined)).toBeUndefined()
+    expect(fleetHandled({})).toBeUndefined()
+    expect(fleetHandled({ fleet: null })).toBeUndefined()
+    expect(fleetHandled({ fleet: 'handled' })).toBeUndefined()
+    expect(fleetHandled({ fleet: { handled: '42' } })).toBeUndefined()
+    expect(fleetHandled({ fleet: [42] })).toBeUndefined()
+  })
+
+  it('sets only fleet.handled and keeps every other key', () => {
+    expect(withFleetHandled(undefined, 42)).toEqual({ fleet: { handled: 42 } })
+
+    expect(
+      withFleetHandled({ plugin: { a: 1 }, tags: ['x'], fleet: { handled: 1, note: 'n' } }, 42)
+    ).toEqual({ plugin: { a: 1 }, tags: ['x'], fleet: { handled: 42, note: 'n' } })
+  })
+
+  it('replaces a malformed fleet value', () => {
+    expect(withFleetHandled({ fleet: 'oops', other: 1 }, 42)).toEqual({
+      other: 1,
+      fleet: { handled: 42 }
+    })
+
+    expect(withFleetHandled({ fleet: [1, 2] }, 42)).toEqual({ fleet: { handled: 42 } })
+  })
+
+  it('clearing deletes the key, and fleet once it is empty', () => {
+    expect(withFleetHandled({ fleet: { handled: 1, note: 'n' }, other: 1 }, undefined)).toEqual({
+      fleet: { note: 'n' },
+      other: 1
+    })
+
+    expect(withFleetHandled({ fleet: { handled: 1 }, other: 1 }, undefined)).toEqual({ other: 1 })
+    expect(withFleetHandled(undefined, undefined)).toEqual({})
+  })
+})
+
+describe('session log → latest run end', () => {
+  const logItem = (json: JsonValue) => Effect.map(decodeEvent(json), event => event)
+
+  const fold = (items: ReadonlyArray<JsonValue>) =>
+    Effect.map(Effect.forEach(items, logItem), events =>
+      events.reduce<RunEnd | undefined>(latestRunEnd, undefined)
+    )
+
+  it.effect('names the last terminal event, skipping shutdown interruptions', () =>
+    Effect.gen(function* () {
+      expect(yield* fold([wire.started, wire.failed])).toEqual({
+        outcome: 'failed',
+        reason: undefined
+      })
+
+      expect(yield* fold([wire.failed, wire.interruptedByUser, wire.interrupted])).toEqual({
+        outcome: 'interrupted',
+        reason: 'user'
+      })
+
+      expect(yield* fold([wire.interruptedByInactivity, wire.viewed])).toEqual({
+        outcome: 'interrupted',
+        reason: 'inactivity'
+      })
+
+      expect(yield* fold([wire.created, wire.interrupted])).toBeUndefined()
     })
   )
 })

@@ -1,13 +1,13 @@
 'use client'
 
 import { Predicate } from 'effect'
-import { useId, useState, useTransition } from 'react'
+import { useEffect, useId, useState, useTransition } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import { formatCost, modelName, plural, relativeTime } from '@/app/fleet-format'
 import { useFleetActions } from '@/app/fleet-actions'
 import { FormAsk } from '@/app/form-ask'
-import { MarkSeenButton } from '@/app/mark-seen-button'
+import { HandledButton, ReopenButton } from '@/app/handled-button'
 import { PermissionAsk } from '@/app/permission-ask'
 import { sessionTitle } from '@/app/session-row'
 import { StateMarker } from '@/app/state-marker'
@@ -26,7 +26,6 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import type { BoardRow } from '@/lib/data/fleet/board'
-import { lastActivity } from '@/lib/data/fleet/board'
 import type { FileChange, SessionDetail, TranscriptEntry } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
@@ -341,8 +340,27 @@ function Subagents({ row }: { readonly row: BoardRow['row'] }) {
 }
 
 /**
+ * Opening a session's panel marks its latest run viewed in OpenCode (its own unread dots). Fleet
+ * state never depends on it.
+ */
+function useMarkViewed(sessionID: string, row: BoardRow['row'] | undefined) {
+  const actions = useFleetActions()
+  const idle = row?.idle
+  const unread = idle !== undefined && (row?.viewed === undefined || row.viewed < idle)
+
+  useEffect(() => {
+    if (!unread) return
+
+    actions.markViewed({ sessionID }).catch(() => {
+      // Only OpenCode's unread dots depend on it; the next open tries again.
+    })
+  }, [actions, sessionID, idle, unread])
+}
+
+/**
  * The session panel: side panel on desktop, full screen on the phone. Header facts, inline
- * answers, recent messages and files, follow-up prompt, Interrupt, Mark seen, and the ways out.
+ * answers, recent messages and files, follow-up prompt, Interrupt, Mark handled / Reopen, and
+ * the ways out.
  */
 export function SessionPanel({
   sessionID,
@@ -361,18 +379,20 @@ export function SessionPanel({
   const cost = row === undefined ? undefined : formatCost(row.cost)
   const model = modelName(row?.model)
 
+  useMarkViewed(sessionID, row)
+
   const facts = [
     item?.project,
     item?.worktree,
     model,
-    row === undefined ? undefined : relativeTime(lastActivity(row), now),
+    row === undefined ? undefined : relativeTime(row.activeAt, now),
     cost
   ].filter(Predicate.isNotUndefined)
 
   const version =
     row === undefined
       ? 'unknown'
-      : `${row.state}:${row.updated}:${row.idle ?? 0}:${JSON.stringify(row.activity ?? null)}`
+      : `${row.state}:${row.activeAt}:${row.idle ?? 0}:${JSON.stringify(row.activity ?? null)}`
 
   const interrupt =
     row?.running === true ? <InterruptButton sessionID={sessionID} title={title} /> : null
@@ -389,7 +409,11 @@ export function SessionPanel({
         <div className="flex items-start justify-between gap-3">
           <h2 id="session-panel-title" className="flex min-w-0 items-baseline gap-2 font-semibold">
             {row === undefined ? null : (
-              <StateMarker state={row.state} className="shrink-0 translate-y-px" />
+              <StateMarker
+                state={row.state}
+                failed={row.outcome === 'failed'}
+                className="shrink-0 translate-y-px"
+              />
             )}
             <span className="min-w-0 break-words">{title}</span>
           </h2>
@@ -405,10 +429,10 @@ export function SessionPanel({
         )}
         {row === undefined ? (
           <p className="text-muted-foreground mt-3">
-            This session is not on the board (it may be archived or older than Fleet loads).
+            This session is not on the board (it may be archived or a subagent).
           </p>
         ) : null}
-        {row !== undefined && row.state === 'needs-you' ? (
+        {row !== undefined && row.state === 'blocked' ? (
           <PanelSection title="Needs you">
             <div className="space-y-4">
               {[row, ...row.children].flatMap(session => [
@@ -432,9 +456,14 @@ export function SessionPanel({
         ) : null}
         <DetailBody sessionID={sessionID} version={version} />
         {row !== undefined && row.children.length > 0 ? <Subagents row={row} /> : null}
-        {row !== undefined && row.unseen && (row.state === 'done' || row.state === 'failed') ? (
+        {row !== undefined && row.state === 'finished' ? (
           <div className="mt-5">
-            <MarkSeenButton sessionID={sessionID} variant="default" />
+            <HandledButton sessionID={sessionID} variant="default" />
+          </div>
+        ) : null}
+        {row !== undefined && row.state === 'handled' && row.handled !== undefined ? (
+          <div className="mt-5">
+            <ReopenButton sessionID={sessionID} />
           </div>
         ) : null}
         <PromptBox sessionID={sessionID} />

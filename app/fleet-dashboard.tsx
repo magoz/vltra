@@ -1,14 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import type { FleetActions } from '@/app/fleet-actions'
 import { FleetActionsProvider } from '@/app/fleet-actions'
 import { FleetBoard } from '@/app/fleet-board'
 import { FleetHeader } from '@/app/fleet-header'
 import { interruptSessionAction } from '@/app/interrupt-session-action'
-import { markSeenAction } from '@/app/mark-seen-action'
+import { markHandledAction } from '@/app/mark-handled-action'
+import { markViewedAction } from '@/app/mark-viewed-action'
 import { replyFormAction } from '@/app/reply-form-action'
 import { replyPermissionAction } from '@/app/reply-permission-action'
+import { reopenAction } from '@/app/reopen-action'
 import { sendPromptAction } from '@/app/send-prompt-action'
 import { SessionPanel } from '@/app/session-panel'
 import { useFleetLive } from '@/app/use-fleet-live'
@@ -19,7 +21,9 @@ import { boardRow, buildBoard } from '@/lib/data/fleet/board'
 import type { FleetSnapshot } from '@/lib/data/fleet/types'
 
 const serverActions: FleetActions = {
-  markSeen: markSeenAction,
+  markHandled: markHandledAction,
+  reopen: reopenAction,
+  markViewed: markViewedAction,
   replyPermission: replyPermissionAction,
   replyForm: replyFormAction,
   sendPrompt: sendPromptAction,
@@ -27,16 +31,15 @@ const serverActions: FleetActions = {
 }
 
 /**
- * The live dashboard: header counts and connection, the state-first board, and the session
+ * The live dashboard: header counts and connection, the attention board, and the session
  * panel (side panel from `lg`, full screen below it). Seeded with the server's snapshot, then kept
  * live from the event stream.
  */
 export function FleetDashboard({ initial }: { readonly initial: FleetSnapshot }) {
   const { live, stream } = useFleetLive(initial)
   const now = useNow(initial.generatedAt)
-  const [showOlder, setShowOlder] = useState(false)
   const { selected, select, close } = useSelectedSession()
-  const board = useMemo(() => buildBoard(live, now, showOlder), [live, now, showOlder])
+  const board = useMemo(() => buildBoard(live, now), [live, now])
   const selectedRow = selected === undefined ? undefined : live.rows.get(selected)
   const selectedItem = selectedRow === undefined ? undefined : boardRow(live, selectedRow)
 
@@ -58,13 +61,7 @@ export function FleetDashboard({ initial }: { readonly initial: FleetSnapshot })
         <FleetHeader counts={board.counts} stream={stream} connection={live.connection} />
         <div className="flex-1 lg:grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
           <section aria-label="Sessions" className="min-w-0">
-            <FleetBoard
-              board={board}
-              now={now}
-              showOlder={showOlder}
-              onShowOlder={setShowOlder}
-              selection={{ selected, onSelect: select }}
-            />
+            <FleetBoard board={board} now={now} selection={{ selected, onSelect: select }} />
           </section>
           {selected === undefined ? (
             <aside

@@ -1,5 +1,6 @@
 import type { ActiveState } from '@/lib/data/fleet/board'
-import type { PendingPermission, SessionActivity } from '@/lib/data/fleet/types'
+import { isQuiet, lastActivityAt, pendingRetry } from '@/lib/data/fleet/state'
+import type { FleetRow, PendingPermission, SessionActivity } from '@/lib/data/fleet/types'
 
 // Display formatting for the dashboard. Pure; times are epoch milliseconds.
 
@@ -51,14 +52,38 @@ export const activityText = (activity: SessionActivity): string => {
 
 export const sectionTitle = (state: ActiveState): string => {
   switch (state) {
-    case 'needs-you':
-      return 'Needs you'
-    case 'failed':
-      return 'Failed'
+    case 'blocked':
+      return 'Needs you · blocked'
+    case 'finished':
+      return 'Needs you · finished'
     case 'working':
       return 'Working'
-    case 'done':
-      return 'Done · unseen'
+  }
+}
+
+/** Why a working row looks stuck: `retrying (2×, rate limited)` or `quiet 14m`; else nothing. */
+export const stuckText = (row: FleetRow, now: number): string | undefined => {
+  const retry = pendingRetry(row)
+
+  if (retry !== undefined) return `retrying (${retry.attempt}×, ${retry.message})`
+
+  const last = lastActivityAt(row)
+
+  if (last !== undefined && isQuiet(row, now)) return `quiet ${relativeTime(last, now)}`
+
+  return undefined
+}
+
+/** How the latest run ended, for finished rows without an answer excerpt. */
+export const endText = (row: Pick<FleetRow, 'outcome' | 'interrupt'>): string => {
+  switch (row.outcome) {
+    case 'failed':
+      return 'run failed'
+    case 'interrupted':
+      return row.interrupt === 'inactivity' ? 'stopped by OpenCode' : 'interrupted'
+    case 'succeeded':
+    case undefined:
+      return 'finished'
   }
 }
 

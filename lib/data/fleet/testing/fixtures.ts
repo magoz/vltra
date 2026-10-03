@@ -15,7 +15,6 @@ export const sessionRecord = (
   title: `Session ${id}`,
   cost: 0,
   created: baseTime,
-  updated: baseTime,
   ...overrides
 })
 
@@ -25,10 +24,12 @@ export const trackedSession = (
 ): TrackedSession => ({
   info,
   running: false,
-  stepFailed: false,
   retry: undefined,
   activity: undefined,
   activityCall: undefined,
+  startedAt: undefined,
+  activityAt: undefined,
+  interrupt: undefined,
   ...overrides
 })
 

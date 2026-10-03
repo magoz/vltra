@@ -1,16 +1,16 @@
 import { sessionLinks } from '@/lib/data/fleet/links'
 import type { FleetModel, TrackedSession } from '@/lib/data/fleet/model'
 import {
+  activeAt,
   compareStates,
+  countRows,
   highestPriority,
-  isUnseen,
   ownState,
   rollUpState
 } from '@/lib/data/fleet/state'
 import type {
   FleetChildRow,
   FleetConnection,
-  FleetCounts,
   FleetProject,
   FleetRow,
   FleetSnapshot,
@@ -59,8 +59,8 @@ const groupBySession = <V extends { readonly sessionID: string }>(
   return groups
 }
 
-const byUpdatedDesc = (left: TrackedSession, right: TrackedSession) =>
-  right.info.updated - left.info.updated
+const byActiveDesc = (left: TrackedSession, right: TrackedSession) =>
+  activeAt(right) - activeAt(left)
 
 const childrenByParent = (model: FleetModel) => {
   const children = new Map<string, Array<TrackedSession>>()
@@ -76,7 +76,7 @@ const childrenByParent = (model: FleetModel) => {
     else siblings.push(session)
   }
 
-  for (const siblings of children.values()) siblings.sort(byUpdatedDesc)
+  for (const siblings of children.values()) siblings.sort(byActiveDesc)
 
   return children
 }
@@ -111,19 +111,22 @@ const buildNode = (
     agent: info.agent,
     model: info.model,
     cost: info.cost,
-    updated: info.updated,
-    outcome: info.outcome,
+    created: info.created,
     idle: info.idle,
+    outcome: info.outcome,
+    interrupt: info.outcome === 'interrupted' ? session.interrupt : undefined,
+    handled: info.handled,
     viewed: info.viewed,
     ownState: own,
     state: rollUpState(
       own,
       descendants.map(child => child.ownState)
     ),
-    unseen: isUnseen(info),
     running: session.running,
-    retry: session.retry,
+    retry: session.running ? session.retry : undefined,
     activity: session.running ? session.activity : undefined,
+    activityAt: session.running ? session.activityAt : undefined,
+    activeAt: activeAt(session),
     permissions,
     forms,
     links: sessionLinks(tree.webUrl, info.id)
@@ -145,14 +148,15 @@ const sum = <A>(values: ReadonlyArray<A>, count: (value: A) => number) =>
   values.reduce((total, value) => total + count(value), 0)
 
 const compareRows = (left: FleetRow, right: FleetRow) =>
-  compareStates(left.state, right.state) || right.updated - left.updated
+  compareStates(left.state, right.state) || right.activeAt - left.activeAt
 
-const isRoot = (model: FleetModel, session: TrackedSession) =>
+/** A root row: no parent, or a parent Fleet does not know (deleted). */
+export const isRoot = (model: FleetModel, session: TrackedSession) =>
   session.info.parentID === undefined || !model.sessions.has(session.info.parentID)
 
-/** Archived sessions only show while they need attention or are running. */
+/** Archived sessions only show while they are blocked or running. */
 const isVisible = (session: TrackedSession, row: FleetRow) =>
-  session.info.archived === undefined || row.state === 'needs-you' || row.state === 'working'
+  session.info.archived === undefined || row.state === 'blocked' || row.state === 'working'
 
 /** Root rows for every visible root session, sorted by state priority then recency. */
 export const buildRows = (model: FleetModel, webUrl: URL): ReadonlyArray<FleetRow> => {
@@ -176,14 +180,6 @@ export const buildRows = (model: FleetModel, webUrl: URL): ReadonlyArray<FleetRo
     .toSorted(compareRows)
 }
 
-export const countStates = (rows: ReadonlyArray<FleetRow>): FleetCounts => {
-  const counts = { 'needs-you': 0, failed: 0, working: 0, done: 0, idle: 0 }
-
-  for (const row of rows) counts[row.state] += 1
-
-  return counts
-}
-
 const lastSegment = (directory: string) =>
   directory.split('/').findLast(segment => segment !== '') ?? directory
 
@@ -203,7 +199,7 @@ const worktreeKind = (
 const bestState = (rows: ReadonlyArray<FleetRow>): FleetState =>
   highestPriority(rows.map(row => row.state))
 
-const latest = (rows: ReadonlyArray<FleetRow>) => Math.max(0, ...rows.map(row => row.updated))
+const latest = (rows: ReadonlyArray<FleetRow>) => Math.max(0, ...rows.map(row => row.activeAt))
 
 const groupBy = <A>(values: ReadonlyArray<A>, key: (value: A) => string) => {
   const groups = new Map<string, Array<A>>()
@@ -265,7 +261,7 @@ export const buildSnapshot = (model: FleetModel, options: SnapshotOptions): Flee
   return {
     generatedAt: options.now,
     connection: options.connection,
-    counts: countStates(rows),
+    counts: countRows(rows, options.now),
     projects: groupRows(model, rows)
   }
 }

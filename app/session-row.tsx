@@ -2,14 +2,21 @@
 
 import type { MouseEvent, ReactNode } from 'react'
 import { FormAsk } from '@/app/form-ask'
-import { activityText, formatCost, modelName, plural, relativeTime } from '@/app/fleet-format'
-import { MarkSeenButton } from '@/app/mark-seen-button'
+import {
+  activityText,
+  endText,
+  formatCost,
+  modelName,
+  plural,
+  relativeTime,
+  stuckText
+} from '@/app/fleet-format'
+import { HandledButton } from '@/app/handled-button'
 import { PermissionAsk } from '@/app/permission-ask'
 import { StateMarker } from '@/app/state-marker'
 import { useSessionSummary } from '@/app/use-session-summary'
 import { sessionHref } from '@/app/use-selected-session'
 import type { BoardRow } from '@/lib/data/fleet/board'
-import { lastActivity } from '@/lib/data/fleet/board'
 import type { FleetRow } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
@@ -41,42 +48,31 @@ function Extras({ row }: { readonly row: FleetRow }) {
   )
 }
 
-function WorkingFacts({ row }: { readonly row: FleetRow }) {
+function WorkingFacts({ row, now }: { readonly row: FleetRow; readonly now: number }) {
+  const stuck = stuckText(row, now)
+
   return (
     <FactLine>
       <span className="text-foreground min-w-0 break-all">
         {row.activity === undefined ? 'working…' : activityText(row.activity)}
       </span>
+      {stuck === undefined ? null : <span className="text-destructive">{stuck}</span>}
       <Extras row={row} />
     </FactLine>
   )
 }
 
-function FailedFacts({ row }: { readonly row: FleetRow }) {
-  const reason =
-    row.retry === undefined
-      ? row.running
-        ? 'a step failed, still running'
-        : 'last run failed'
-      : `${row.retry.message} (retry ${row.retry.attempt})`
-
-  return (
-    <FactLine>
-      <span className="text-destructive min-w-0">{reason}</span>
-      <Extras row={row} />
-    </FactLine>
-  )
-}
-
-function DoneFacts({ row }: { readonly row: FleetRow }) {
+function FinishedFacts({ row }: { readonly row: FleetRow }) {
   const summary = useSessionSummary(row.id, row.idle)
   const changes = summary?.changes
+  const failed = row.outcome === 'failed'
 
   return (
     <FactLine>
-      {summary?.answer === undefined ? (
-        <span>{row.outcome === 'interrupted' ? 'interrupted' : 'finished'}</span>
-      ) : (
+      {failed || summary?.answer === undefined ? (
+        <span className={failed ? 'text-destructive' : undefined}>{endText(row)}</span>
+      ) : null}
+      {summary?.answer === undefined ? null : (
         <span className="text-foreground line-clamp-2 min-w-0 break-words">“{summary.answer}”</span>
       )}
       {changes === undefined || changes.files === 0 ? null : (
@@ -118,8 +114,9 @@ function RowActions({ children }: { readonly children: ReactNode }) {
 
 /**
  * One session row: marker, project · worktree · title, age and model, then what the state calls
- * for: inline answers (needs you), the failure, live activity (working), or the answer excerpt
- * (done). The whole row opens the session panel; inline controls sit above that link.
+ * for: inline answers (blocked), live activity and stuck labels (working), or the answer excerpt
+ * and Mark handled (finished). The whole row opens the session panel; inline controls sit above
+ * that link.
  */
 export function SessionRow({
   item,
@@ -141,7 +138,7 @@ export function SessionRow({
       data-state={row.state}
       className="border-hairline hover:bg-accent/40 data-[selected=true]:border-l-foreground data-[selected=true]:bg-accent/40 relative grid grid-cols-[0.75rem_minmax(0,1fr)_auto] gap-x-2.5 gap-y-1 border-t border-l-2 border-l-transparent py-3 pr-4 pl-3.5 md:py-2.5"
     >
-      <StateMarker state={row.state} className="mt-1" />
+      <StateMarker state={row.state} failed={row.outcome === 'failed'} className="mt-1" />
       <a
         href={sessionHref(row.id)}
         aria-current={selected ? 'true' : undefined}
@@ -164,26 +161,25 @@ export function SessionRow({
         <span className="font-semibold max-md:block">{sessionTitle(row)}</span>
       </a>
       <span className="text-muted-foreground pt-0.5 text-xs whitespace-nowrap">
-        <time dateTime={new Date(lastActivity(row)).toISOString()}>
-          {relativeTime(lastActivity(row), now)}
+        <time dateTime={new Date(row.activeAt).toISOString()}>
+          {relativeTime(row.activeAt, now)}
         </time>
         {model === undefined ? null : <span className="max-md:hidden"> · {model}</span>}
       </span>
-      {row.state === 'needs-you' ? <NeedsYou row={row} /> : null}
-      {row.state === 'failed' ? <FailedFacts row={row} /> : null}
-      {row.state === 'working' ? <WorkingFacts row={row} /> : null}
-      {row.state === 'done' ? <DoneFacts row={row} /> : null}
-      {(row.state === 'done' || row.state === 'failed') && row.unseen ? (
+      {row.state === 'blocked' ? <NeedsYou row={row} /> : null}
+      {row.state === 'working' ? <WorkingFacts row={row} now={now} /> : null}
+      {row.state === 'finished' ? <FinishedFacts row={row} /> : null}
+      {row.state === 'finished' ? (
         <RowActions>
-          <MarkSeenButton sessionID={row.id} />
+          <HandledButton sessionID={row.id} />
         </RowActions>
       ) : null}
     </li>
   )
 }
 
-/** A compact idle row: title and age only. */
-export function IdleRow({
+/** A compact handled row: title and age only. */
+export function HandledRow({
   item,
   now,
   selected,
@@ -218,10 +214,10 @@ export function IdleRow({
         {sessionTitle(row)}
       </a>
       <time
-        dateTime={new Date(lastActivity(row)).toISOString()}
+        dateTime={new Date(row.activeAt).toISOString()}
         className="text-muted-foreground shrink-0 text-xs"
       >
-        {relativeTime(lastActivity(row), now)}
+        {relativeTime(row.activeAt, now)}
       </time>
     </li>
   )

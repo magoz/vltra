@@ -6,7 +6,7 @@ import { makeFleetStore } from '@/lib/data/fleet/store'
 import { baseTime, sessionRecord, webUrl } from '@/lib/data/fleet/testing/fixtures'
 import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 
-const model = fromSnapshot({ ...emptySnapshot, sessions: [sessionRecord('ses_a')] })
+const model = fromSnapshot({ ...emptySnapshot, sessions: [sessionRecord('ses_a')] }, baseTime)
 
 describe('fleet store', () => {
   it.effect('streams an initial change, then only client-visible changes', () =>
@@ -36,7 +36,7 @@ describe('fleet store', () => {
 
       expect(changes.map(change => change.initial)).toEqual([true, false, false])
       expect(changes[0]?.connection.status).toBe('connecting')
-      expect(changes[1]?.rows.map(row => [row.id, row.state])).toEqual([['ses_a', 'idle']])
+      expect(changes[1]?.rows.map(row => [row.id, row.state])).toEqual([['ses_a', 'handled']])
       expect(changes[2]?.rows.map(row => [row.id, row.state])).toEqual([['ses_a', 'working']])
       expect(changes[2]?.counts.working).toBe(1)
     })
@@ -50,7 +50,7 @@ describe('fleet store', () => {
 
       const snapshot = yield* store.snapshot
 
-      expect(snapshot.counts.idle).toBe(1)
+      expect(snapshot.counts.handled).toBe(1)
       expect(snapshot.projects[0]?.worktrees[0]?.rows[0]?.id).toBe('ses_a')
     })
   )

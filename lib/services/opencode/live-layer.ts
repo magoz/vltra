@@ -21,14 +21,17 @@ import {
   SessionNotFoundError
 } from '@/lib/services/opencode/errors'
 import {
+  latestRunEnd,
   toPendingForm,
   toPendingPermission,
   toProjectRecord,
   toFileChange,
   toSessionRecord,
   toSignals,
-  toTranscript
+  toTranscript,
+  withFleetHandled
 } from '@/lib/services/opencode/mapping'
+import type { RunEnd } from '@/lib/services/opencode/mapping'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type { OpenCodeConnection } from '@/lib/services/opencode/service'
 
@@ -40,6 +43,9 @@ const concurrency = 4
 
 /** Most transcript entries (messages, tool calls, ...) returned for one session. */
 const transcriptEntries = 60
+
+/** A long session's whole durable log can take a while to replay. */
+const logTimeout = Duration.seconds(60)
 
 const errorMessage = (cause: unknown) => (Predicate.isError(cause) ? cause.message : String(cause))
 
@@ -140,7 +146,7 @@ const makeSessionReader = (client: OpenCodeClient) => (sessionID: string) =>
 
 const makeSnapshot = (
   client: OpenCodeClient,
-  limit: number,
+  limit: Option.Option<number>,
   readSession: (
     sessionID: string
   ) => Effect.Effect<Option.Option<SessionRecord>, OpenCodeRequestError>
@@ -148,14 +154,20 @@ const makeSnapshot = (
   Effect.gen(function* () {
     const sessions = new Map<string, SessionRecord>()
 
-    let next = yield* client.session
-      .list({ limit: Math.min(pageSize, limit) })
-      .pipe(request('session.list'))
+    // No cap by default: page through every session.
+    const firstPage = Option.match(limit, {
+      onNone: () => pageSize,
+      onSome: max => Math.min(pageSize, max)
+    })
+
+    const full = (count: number) => Option.exists(limit, max => count >= max)
+
+    let next = yield* client.session.list({ limit: firstPage }).pipe(request('session.list'))
 
     for (;;) {
       for (const info of next.data) sessions.set(info.id, toSessionRecord(info))
 
-      if (next.data.length < Math.min(pageSize, limit) || sessions.size >= limit) break
+      if (next.data.length < firstPage || full(sessions.size)) break
 
       const nextCursor = next.cursor.next
 
@@ -272,7 +284,11 @@ const makeSnapshot = (
     } satisfies OpenCodeSnapshot
   })
 
-const makeConnection = (endpoint: Endpoint, limit: number, http: HttpClient.HttpClient) =>
+const makeConnection = (
+  endpoint: Endpoint,
+  limit: Option.Option<number>,
+  http: HttpClient.HttpClient
+) =>
   Effect.gen(function* () {
     const headers = Service.headers(endpoint)
 
@@ -310,6 +326,41 @@ const makeConnection = (endpoint: Endpoint, limit: number, http: HttpClient.Http
           Effect.map(list => list.map(entry => entry.directory)),
           request('worktree.list')
         ),
+      setHandled: ({ sessionID, handled }) =>
+        Effect.gen(function* () {
+          const id = yield* decodeSessionId(sessionID)
+
+          // Read-modify-write: `session.update` replaces the whole metadata object.
+          const info = yield* client.session
+            .get({ sessionID: id })
+            .pipe(action('session.get', sessionID))
+
+          yield* client.session
+            .update({ sessionID: id, metadata: withFleetHandled(info.metadata, handled) })
+            .pipe(action('session.update', sessionID))
+        }),
+      interruptReason: sessionID =>
+        Effect.gen(function* () {
+          const id = yield* decodeSessionId(sessionID)
+
+          // `follow: false` replays the durable log and ends after its `log.synced` marker.
+          const end = yield* client.session.log({ sessionID: id, follow: false }).pipe(
+            Stream.takeUntil(item => item.type === 'log.synced'),
+            Stream.runFold((): RunEnd | undefined => undefined, latestRunEnd),
+            Effect.timeout(logTimeout),
+            Effect.mapError(cause =>
+              Predicate.isTagged(cause, 'SessionNotFoundError')
+                ? new SessionNotFoundError({ sessionID })
+                : new OpenCodeRequestError({
+                    operation: 'session.log',
+                    message: errorMessage(cause),
+                    cause
+                  })
+            )
+          )
+
+          return end?.outcome === 'interrupted' ? Option.fromNullishOr(end.reason) : Option.none()
+        }),
       view: ({ sessionID, idle }) =>
         Effect.gen(function* () {
           const id = yield* decodeSessionId(sessionID)

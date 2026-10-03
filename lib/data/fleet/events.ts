@@ -1,5 +1,6 @@
 import { Data } from 'effect'
 import type {
+  InterruptReason,
   Outcome,
   PendingForm,
   PendingPermission,
@@ -25,25 +26,41 @@ export type FleetEvent = Data.TaggedEnum<{
     readonly sessionID: string
     readonly at: number
     readonly outcome: Outcome
-    /** Interrupted by server shutdown: OpenCode does not advance `time.idle` for these. */
-    readonly shutdown: boolean
+    /**
+     * For `interrupted`: why. `shutdown` does not advance `time.idle` (the run resumes after the
+     * restart), so it only stops the session.
+     */
+    readonly reason: InterruptReason | undefined
   }
-  StepFailed: { readonly sessionID: string }
-  RetryScheduled: { readonly sessionID: string; readonly retry: RetryInfo }
-  StatusChanged: { readonly sessionID: string; readonly status: 'idle' | 'busy' | 'retry' }
+  RetryScheduled: { readonly sessionID: string; readonly retry: RetryInfo; readonly at: number }
+  StatusChanged: {
+    readonly sessionID: string
+    readonly status: 'idle' | 'busy' | 'retry'
+    readonly at: number
+  }
   /** A step, reasoning, text, or tool call started. `callID` identifies a tool call. */
   ActivityChanged: {
     readonly sessionID: string
     readonly activity: SessionActivity
     readonly callID: string | undefined
+    readonly at: number
   }
   /** A tool call's input is complete; `detail` summarises it for display. */
   ToolCalled: {
     readonly sessionID: string
     readonly callID: string
     readonly detail: string | undefined
+    readonly at: number
   }
   Viewed: { readonly sessionID: string; readonly idle: number }
+  /** Fleet's handled marker changed (`session.metadata.updated`); undefined when removed. */
+  HandledChanged: { readonly sessionID: string; readonly handled: number | undefined }
+  /** The interrupt reason of the run ending at `idle`, recovered from the session log. */
+  InterruptRecovered: {
+    readonly sessionID: string
+    readonly idle: number
+    readonly reason: InterruptReason
+  }
   PermissionAsked: { readonly permission: PendingPermission }
   PermissionReplied: { readonly requestID: string }
   FormCreated: { readonly form: PendingForm }
@@ -80,13 +97,15 @@ export const eventSessionID = (event: FleetEvent): string | undefined =>
     UsageUpdated: ({ sessionID }) => sessionID,
     ExecutionStarted: ({ sessionID }) => sessionID,
     ExecutionEnded: ({ sessionID }) => sessionID,
-    StepFailed: ({ sessionID }) => sessionID,
     RetryScheduled: ({ sessionID }) => sessionID,
     StatusChanged: ({ sessionID }) => sessionID,
     // Live activity is cosmetic and frequent: never worth a session read on its own.
     ActivityChanged: () => undefined,
     ToolCalled: () => undefined,
     Viewed: ({ sessionID }) => sessionID,
+    HandledChanged: ({ sessionID }) => sessionID,
+    // Recovered for a session already in the model; nothing to apply otherwise.
+    InterruptRecovered: () => undefined,
     PermissionAsked: ({ permission }) => permission.sessionID,
     PermissionReplied: () => undefined,
     FormCreated: ({ form }) => form.sessionID,

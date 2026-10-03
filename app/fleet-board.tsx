@@ -1,8 +1,7 @@
 'use client'
 
 import { sectionTitle } from '@/app/fleet-format'
-import { IdleRow, SessionRow } from '@/app/session-row'
-import { Button } from '@/components/ui/button'
+import { HandledRow, SessionRow } from '@/app/session-row'
 import type { Board, BoardSection } from '@/lib/data/fleet/board'
 import { cn } from '@/lib/utils'
 
@@ -20,7 +19,7 @@ function SectionHeading({
   readonly id: string
   readonly title: string
   readonly count: number
-  readonly tone: 'attention' | 'destructive' | 'muted'
+  readonly tone: 'attention' | 'muted'
 }) {
   return (
     <h2
@@ -28,7 +27,6 @@ function SectionHeading({
       className={cn(
         'flex justify-between px-4 pt-4 pb-1.5 text-xs tracking-widest uppercase',
         tone === 'attention' && 'text-attention',
-        tone === 'destructive' && 'text-destructive',
         tone === 'muted' && 'text-muted-foreground'
       )}
     >
@@ -40,31 +38,25 @@ function SectionHeading({
 
 const sectionTone = (section: BoardSection) => {
   switch (section.state) {
-    case 'needs-you':
+    case 'blocked':
+    case 'finished':
       return 'attention'
-    case 'failed':
-      return 'destructive'
     case 'working':
-    case 'done':
       return 'muted'
   }
 }
 
-function IdleGroup({
+function HandledGroup({
   board,
   now,
-  showOlder,
-  onShowOlder,
   selection
 }: {
   readonly board: Board
   readonly now: number
-  readonly showOlder: boolean
-  readonly onShowOlder: (show: boolean) => void
   readonly selection: Selection
 }) {
   return (
-    <details className="group border-hairline border-t" aria-label="Idle sessions">
+    <details className="group border-hairline border-t" aria-label="Handled sessions">
       <summary className="text-muted-foreground hover:text-foreground flex cursor-pointer list-none justify-between px-4 py-3 text-xs tracking-widest uppercase md:py-2.5 [&::-webkit-details-marker]:hidden">
         <span>
           <span aria-hidden="true" className="group-open:hidden">
@@ -73,12 +65,12 @@ function IdleGroup({
           <span aria-hidden="true" className="hidden group-open:inline">
             −{' '}
           </span>
-          Idle · last {showOlder ? 'sessions' : '24h'}
+          Handled
         </span>
-        <span className="tabular-nums">{board.counts.idle}</span>
+        <span className="tabular-nums">{board.counts.handled}</span>
       </summary>
       <div className="pb-3">
-        {board.idle.map(project => (
+        {board.handled.map(project => (
           <section key={project.id} aria-label={project.name} className="mt-1">
             <p className="px-4 pt-1 pl-8">
               <span className="font-medium">{project.name}</span>
@@ -96,7 +88,7 @@ function IdleGroup({
                 )}
                 <ul>
                   {worktree.rows.map(item => (
-                    <IdleRow
+                    <HandledRow
                       key={item.row.id}
                       item={item}
                       now={now}
@@ -109,33 +101,22 @@ function IdleGroup({
             ))}
           </section>
         ))}
-        {board.olderIdle > 0 || showOlder ? (
-          <div className="px-4 pt-2 pl-8">
-            <Button variant="ghost" size="sm" onClick={() => onShowOlder(!showOlder)}>
-              {showOlder ? 'Hide older than 24h' : `Show ${board.olderIdle} older`}
-            </Button>
-          </div>
-        ) : null}
       </div>
     </details>
   )
 }
 
-/** The state-first list: needs you, failed, working, done, then idle (collapsed). */
+/** The attention list: blocked, finished, working, then handled (collapsed). */
 export function FleetBoard({
   board,
   now,
-  showOlder,
-  onShowOlder,
   selection
 }: {
   readonly board: Board
   readonly now: number
-  readonly showOlder: boolean
-  readonly onShowOlder: (show: boolean) => void
   readonly selection: Selection
 }) {
-  const empty = board.sections.length === 0 && board.idle.length === 0
+  const empty = board.sections.length === 0 && board.handled.length === 0
 
   return (
     <div className="pb-8">
@@ -162,17 +143,11 @@ export function FleetBoard({
       ))}
       {empty ? (
         <p className="text-muted-foreground px-4 py-10 text-center">
-          No OpenCode sessions in the last 24 hours. Start one in ocb; it shows up here live.
+          No OpenCode sessions yet. Start one in ocb; it shows up here live.
         </p>
       ) : null}
-      {board.idle.length > 0 || board.olderIdle > 0 ? (
-        <IdleGroup
-          board={board}
-          now={now}
-          showOlder={showOlder}
-          onShowOlder={onShowOlder}
-          selection={selection}
-        />
+      {board.handled.length > 0 ? (
+        <HandledGroup board={board} now={now} selection={selection} />
       ) : null}
     </div>
   )

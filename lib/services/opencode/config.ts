@@ -24,5 +24,8 @@ export const endpointOverride = Config.all({
 /** Registration file for discovery; defaults to `$XDG_STATE_HOME/opencode/service.json`. */
 export const serviceFile = Config.option(Config.string('OPENCODE_SERVICE_FILE'))
 
-/** Most recently updated sessions loaded per snapshot (older ones load on demand). */
-export const sessionLimit = Config.int('FLEET_SESSION_LIMIT').pipe(Config.withDefault(300))
+/**
+ * Optional cap on the most recently updated sessions loaded per snapshot (older ones load on
+ * demand). Unset: every session.
+ */
+export const sessionLimit = Config.option(Config.int('FLEET_SESSION_LIMIT'))

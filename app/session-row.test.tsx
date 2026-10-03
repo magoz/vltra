@@ -97,7 +97,7 @@ describe('row header', () => {
   })
 })
 
-describe('needs you', () => {
+describe('blocked (needs you)', () => {
   it('answers a permission inline: Allow once, Always, Deny', async () => {
     const row = rowFrom({ sessions: [sessionRecord('ses_1')], permissions: [permission] }, 'ses_1')
     const { calls } = renderRow(row)
@@ -165,7 +165,7 @@ describe('needs you', () => {
 
     renderRow(row)
 
-    expect(row.state).toBe('needs-you')
+    expect(row.state).toBe('blocked')
     expect(screen.getByText(/write state tests ·/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Allow once' })).toBeTruthy()
   })
@@ -205,20 +205,41 @@ describe('working', () => {
   })
 })
 
-describe('failed and done', () => {
-  it('shows the retry reason of a failing run', () => {
+describe('stuck working rows', () => {
+  it('shows the retry of a working run', () => {
     const row = rowFrom({ sessions: [sessionRecord('ses_1')], running: ['ses_1'] }, 'ses_1', {
-      stepFailed: true,
       retry: { attempt: 3, at: baseTime, message: 'rate limited' }
     })
 
     renderRow(row)
 
-    expect(row.state).toBe('failed')
-    expect(screen.getByText('rate limited (retry 3)')).toBeTruthy()
+    expect(row.state).toBe('working')
+    expect(screen.getByText('retrying (3×, rate limited)')).toBeTruthy()
   })
 
-  it('offers Mark seen on an unseen failed run', async () => {
+  it('shows quiet Nm after 10 minutes without activity', () => {
+    const quiet = rowFrom({ sessions: [sessionRecord('ses_1')], running: ['ses_1'] }, 'ses_1', {
+      activityAt: now - 14 * 60 * 1000
+    })
+
+    renderRow(quiet)
+
+    expect(screen.getByText('quiet 14m')).toBeTruthy()
+  })
+
+  it('says nothing while the run is active', () => {
+    const active = rowFrom({ sessions: [sessionRecord('ses_1')], running: ['ses_1'] }, 'ses_1', {
+      activityAt: now - 60 * 1000
+    })
+
+    renderRow(active)
+
+    expect(screen.queryByText(/quiet|retrying/)).toBeNull()
+  })
+})
+
+describe('finished (needs you)', () => {
+  it('offers Mark handled on a failed run, marked red', async () => {
     const row = rowFrom(
       {
         sessions: [sessionRecord('ses_1', { idle: baseTime + 1, outcome: 'failed' })]
@@ -228,15 +249,29 @@ describe('failed and done', () => {
 
     const { calls } = renderRow(row)
 
-    expect(screen.getByText('last run failed')).toBeTruthy()
+    expect(row.state).toBe('finished')
+    expect(screen.getByText('run failed')).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Finished · failed' })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mark seen' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mark handled' }))
 
-    expect(await screen.findByRole('button', { name: 'Seen' })).toHaveProperty('disabled', true)
-    expect(calls).toEqual([{ action: 'markSeen', input: { sessionID: 'ses_1' } }])
+    expect(await screen.findByRole('button', { name: 'Handled' })).toHaveProperty('disabled', true)
+    expect(calls).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_1' } }])
   })
 
-  it("shows a done run's answer excerpt and change totals", async () => {
+  it('labels a run OpenCode stopped for inactivity', () => {
+    const row = rowFrom(
+      { sessions: [sessionRecord('ses_1', { idle: baseTime + 1, outcome: 'interrupted' })] },
+      'ses_1',
+      { interrupt: 'inactivity' }
+    )
+
+    renderRow(row)
+
+    expect(screen.getByText('stopped by OpenCode')).toBeTruthy()
+  })
+
+  it("shows a finished run's answer excerpt and change totals", async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
@@ -266,6 +301,6 @@ describe('failed and done', () => {
 
     expect(within(facts).getByText('−40')).toBeTruthy()
     expect(facts.textContent).toContain('4 files')
-    expect(screen.getByRole('button', { name: 'Mark seen' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Mark handled' })).toBeTruthy()
   })
 })

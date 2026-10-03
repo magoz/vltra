@@ -2,35 +2,38 @@ import type { FleetState } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
 const stateNames: Readonly<Record<FleetState, string>> = {
-  'needs-you': 'Needs you',
-  failed: 'Failed',
+  blocked: 'Blocked',
   working: 'Working',
-  done: 'Done',
-  idle: 'Idle'
+  finished: 'Finished',
+  handled: 'Handled'
 }
 
 /**
- * The state marker from the mock: shape and fill, no icons. Filled green square: needs you;
- * filled red: failed; half-filled: working; small filled: done; empty: idle.
+ * The state marker from the mock: shape and fill, no icons. Filled green square: blocked;
+ * half-filled: working; small filled: finished (red when the run failed); empty: handled.
  */
 export function StateMarker({
   state,
+  failed = false,
   className
 }: {
   readonly state: FleetState
+  /** The latest run failed (finished rows get a red mark). */
+  readonly failed?: boolean
   readonly className?: string
 }) {
   return (
     <span
       role="img"
-      aria-label={stateNames[state]}
+      aria-label={failed && state === 'finished' ? 'Finished · failed' : stateNames[state]}
       data-state={state}
+      data-failed={failed}
       className={cn(
         'border-muted-foreground relative inline-block size-2.5 shrink-0 border',
-        'data-[state=needs-you]:border-attention data-[state=needs-you]:bg-attention',
-        'data-[state=failed]:border-destructive data-[state=failed]:bg-destructive',
+        'data-[state=blocked]:border-attention data-[state=blocked]:bg-attention',
         'data-[state=working]:border-foreground data-[state=working]:bg-[linear-gradient(to_right,var(--foreground)_50%,transparent_50%)]',
-        'data-[state=done]:border-foreground data-[state=done]:bg-foreground data-[state=done]:m-0.5 data-[state=done]:size-1.5',
+        'data-[state=finished]:border-foreground data-[state=finished]:bg-foreground data-[state=finished]:m-0.5 data-[state=finished]:size-1.5',
+        'data-[state=finished]:data-[failed=true]:border-destructive data-[state=finished]:data-[failed=true]:bg-destructive',
         className
       )}
     />

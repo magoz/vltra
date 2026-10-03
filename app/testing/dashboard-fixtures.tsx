@@ -6,7 +6,7 @@ import type { BoardRow } from '@/lib/data/fleet/board'
 import { fromSnapshot } from '@/lib/data/fleet/model'
 import type { OpenCodeSnapshot, TrackedSession } from '@/lib/data/fleet/model'
 import { buildRows } from '@/lib/data/fleet/snapshot'
-import { webUrl } from '@/lib/data/fleet/testing/fixtures'
+import { baseTime, webUrl } from '@/lib/data/fleet/testing/fixtures'
 import type { FleetRow } from '@/lib/data/fleet/types'
 import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 
@@ -15,9 +15,9 @@ import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 export const rowFrom = (
   snapshot: Partial<OpenCodeSnapshot>,
   id: string,
-  live: Partial<Pick<TrackedSession, 'activity' | 'retry' | 'stepFailed'>> = {}
+  live: Partial<Pick<TrackedSession, 'activity' | 'retry' | 'activityAt' | 'interrupt'>> = {}
 ): FleetRow => {
-  const model = fromSnapshot({ ...emptySnapshot, ...snapshot })
+  const model = fromSnapshot({ ...emptySnapshot, ...snapshot }, baseTime)
   const session = model.sessions.get(id)
 
   const patched =
@@ -41,7 +41,9 @@ export const itemFor = (row: FleetRow, worktree?: string): BoardRow => ({
 type Input<K extends keyof FleetActions> = Parameters<FleetActions[K]>[0]
 
 export type ActionCall =
-  | { readonly action: 'markSeen'; readonly input: Input<'markSeen'> }
+  | { readonly action: 'markHandled'; readonly input: Input<'markHandled'> }
+  | { readonly action: 'reopen'; readonly input: Input<'reopen'> }
+  | { readonly action: 'markViewed'; readonly input: Input<'markViewed'> }
   | { readonly action: 'replyPermission'; readonly input: Input<'replyPermission'> }
   | { readonly action: 'replyForm'; readonly input: Input<'replyForm'> }
   | { readonly action: 'sendPrompt'; readonly input: Input<'sendPrompt'> }
@@ -65,7 +67,9 @@ export const fakeActions = (failWith?: string) => {
   }
 
   const actions: FleetActions = {
-    markSeen: input => record({ action: 'markSeen', input }),
+    markHandled: input => record({ action: 'markHandled', input }),
+    reopen: input => record({ action: 'reopen', input }),
+    markViewed: input => record({ action: 'markViewed', input }),
     replyPermission: input => record({ action: 'replyPermission', input }),
     replyForm: input => record({ action: 'replyForm', input }),
     sendPrompt: input => record({ action: 'sendPrompt', input }),

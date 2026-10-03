@@ -3,23 +3,38 @@ import { Schema } from 'effect'
 // Wire and domain schemas for Fleet. These are the shapes served by `GET /api/fleet` and the
 // `fleet.changed` SSE event, so non-browser clients (the ocb plugin) can decode them too.
 
-/** Row state, in priority order: the first applicable state wins. */
-export const FleetState = Schema.Literals(['needs-you', 'failed', 'working', 'done', 'idle'])
+/**
+ * Row state, in priority order: the first applicable state wins (DESIGN.md "Session state").
+ *
+ * - blocked: a permission or form is pending (needs me).
+ * - working: a run is active.
+ * - finished: the latest run ended and I have not handled it (needs me).
+ * - handled: I handled the latest run, or the session never ran.
+ */
+export const FleetState = Schema.Literals(['blocked', 'working', 'finished', 'handled'])
 
 export type FleetState = typeof FleetState.Type
 
 export const fleetStatePriority: ReadonlyArray<FleetState> = [
-  'needs-you',
-  'failed',
+  'blocked',
   'working',
-  'done',
-  'idle'
+  'finished',
+  'handled'
 ]
 
 /** Outcome of the last completed execution, as recorded by OpenCode at `time.idle`. */
 export const Outcome = Schema.Literals(['succeeded', 'failed', 'interrupted'])
 
 export type Outcome = typeof Outcome.Type
+
+/**
+ * Why a run was interrupted (OpenCode puts it on the event only): `user` is any client's Stop,
+ * `inactivity` is OpenCode stopping an evicted location's runs, `shutdown` is a server restart
+ * (the run resumes), `superseded` is declared but unused in 2.0.20.
+ */
+export const InterruptReason = Schema.Literals(['user', 'inactivity', 'shutdown', 'superseded'])
+
+export type InterruptReason = typeof InterruptReason.Type
 
 /** The OpenCode session fields Fleet reads. Times are epoch milliseconds. */
 export const SessionRecord = Schema.Struct({
@@ -32,11 +47,14 @@ export const SessionRecord = Schema.Struct({
   model: Schema.optional(Schema.String),
   cost: Schema.Number,
   created: Schema.Number,
-  updated: Schema.Number,
+  /** End of the latest run; identifies the run. */
   idle: Schema.optional(Schema.Number),
+  /** OpenCode's own read marker (`viewed < idle` = unread in OpenCode UIs). */
   viewed: Schema.optional(Schema.Number),
   archived: Schema.optional(Schema.Number),
-  outcome: Schema.optional(Outcome)
+  outcome: Schema.optional(Outcome),
+  /** Fleet's marker (`metadata.fleet.handled`): the `idle` of the last run I handled. */
+  handled: Schema.optional(Schema.Number)
 })
 
 export type SessionRecord = typeof SessionRecord.Type
@@ -178,19 +196,35 @@ const rowFields = {
   agent: Schema.optional(Schema.String),
   model: Schema.optional(Schema.String),
   cost: Schema.Number,
-  updated: Schema.Number,
-  outcome: Schema.optional(Outcome),
+  created: Schema.Number,
+  /** End of the latest run (OpenCode `time.idle`); identifies the run. */
   idle: Schema.optional(Schema.Number),
+  outcome: Schema.optional(Outcome),
+  /** Why the latest run was interrupted, when known (`inactivity`: "stopped by OpenCode"). */
+  interrupt: Schema.optional(InterruptReason),
+  /** Fleet's handled marker: the `idle` of the last run I handled (handled while `>= idle`). */
+  handled: Schema.optional(Schema.Number),
+  /** OpenCode's read marker; Fleet never derives state from it (only for mark viewed). */
   viewed: Schema.optional(Schema.Number),
   /** State from this session alone. */
   ownState: FleetState,
-  /** State after rolling up descendants (needs-you/working propagate to ancestors). */
+  /** State after rolling up descendants (blocked/working propagate to ancestors). */
   state: FleetState,
-  unseen: Schema.Boolean,
   running: Schema.Boolean,
+  /** Latest scheduled retry of the current run (cleared by the next step). */
   retry: Schema.optional(RetryInfo),
   /** Live activity while running (see `SessionActivity`). */
   activity: Schema.optional(SessionActivity),
+  /**
+   * While running: the last step/tool/text activity (epoch ms), or when Fleet (re)connected if
+   * nothing happened since. A working session quiet for `quietAfter` is stuck.
+   */
+  activityAt: Schema.optional(Schema.Number),
+  /**
+   * Recency for ordering: the latest start or activity while running, else `idle ?? created`.
+   * Never OpenCode's `time.updated`, which metadata writes (handled markers) bump.
+   */
+  activeAt: Schema.Number,
   permissions: Schema.Array(PendingPermission),
   forms: Schema.Array(PendingForm),
   links: SessionLinks
@@ -235,12 +269,16 @@ export const FleetProject = Schema.Struct({
 
 export type FleetProject = typeof FleetProject.Type
 
+/**
+ * Root rows by rolled-up state (needs me = blocked + finished). `stuck` counts working rows that
+ * are retrying or quiet; it overlaps `working`.
+ */
 export const FleetCounts = Schema.Struct({
-  'needs-you': Schema.Number,
-  failed: Schema.Number,
+  blocked: Schema.Number,
+  finished: Schema.Number,
   working: Schema.Number,
-  done: Schema.Number,
-  idle: Schema.Number
+  stuck: Schema.Number,
+  handled: Schema.Number
 })
 
 export type FleetCounts = typeof FleetCounts.Type

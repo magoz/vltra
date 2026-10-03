@@ -1,60 +1,77 @@
 import { describe, expect, it } from '@effect/vitest'
-import { highestPriority, isUnseen, ownState, rollUpState } from '@/lib/data/fleet/state'
-import { baseTime, sessionRecord, trackedSession } from '@/lib/data/fleet/testing/fixtures'
+import { fromSnapshot } from '@/lib/data/fleet/model'
+import type { FleetModel, TrackedSession } from '@/lib/data/fleet/model'
+import { buildRows } from '@/lib/data/fleet/snapshot'
+import {
+  activeAt,
+  countRows,
+  highestPriority,
+  isHandled,
+  isQuiet,
+  isStuck,
+  ownState,
+  quietAfter,
+  rollUpState
+} from '@/lib/data/fleet/state'
+import { baseTime, sessionRecord, trackedSession, webUrl } from '@/lib/data/fleet/testing/fixtures'
 import { fleetStatePriority } from '@/lib/data/fleet/types'
-import type { FleetState, Outcome, SessionRecord } from '@/lib/data/fleet/types'
+import type { FleetRow, FleetState, Outcome, SessionRecord } from '@/lib/data/fleet/types'
+import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 
-type Seen = 'never-finished' | 'unseen' | 'seen'
+/** Where Fleet's handled marker stands relative to the latest run (`idle = baseTime + 10`). */
+type Marker = 'never-ran' | 'none' | 'older-run' | 'this-run' | 'newer'
 
-const seenFields = (seen: Seen): Partial<SessionRecord> => {
-  if (seen === 'never-finished') return {}
-
-  if (seen === 'unseen') return { idle: baseTime + 10, viewed: baseTime + 5 }
-
-  return { idle: baseTime + 10, viewed: baseTime + 10 }
+const markerFields = (marker: Marker): Partial<SessionRecord> => {
+  switch (marker) {
+    case 'never-ran':
+      return {}
+    case 'none':
+      return { idle: baseTime + 10 }
+    case 'older-run':
+      return { idle: baseTime + 10, handled: baseTime + 5 }
+    case 'this-run':
+      return { idle: baseTime + 10, handled: baseTime + 10 }
+    case 'newer':
+      return { idle: baseTime + 10, handled: baseTime + 11 }
+  }
 }
 
 // The DESIGN.md table, written independently of the implementation's branch order.
 const expected = (input: {
   readonly pending: number
   readonly running: boolean
-  readonly stepFailed: boolean
-  readonly outcome: Outcome | undefined
-  readonly seen: Seen
+  readonly marker: Marker
 }): FleetState => {
-  const candidates: Array<FleetState> = ['idle']
+  const candidates: Array<FleetState> = ['handled']
 
-  if (input.pending > 0) candidates.push('needs-you')
-
-  if (input.stepFailed) candidates.push('failed')
-
-  if (!input.running && input.seen === 'unseen' && input.outcome === 'failed') {
-    candidates.push('failed')
-  }
+  if (input.pending > 0) candidates.push('blocked')
 
   if (input.running) candidates.push('working')
 
-  if (!input.running && input.seen === 'unseen' && input.outcome !== 'failed') {
-    candidates.push('done')
-  }
+  if (input.marker === 'none' || input.marker === 'older-run') candidates.push('finished')
 
   return (
     candidates.toSorted(
       (left, right) => fleetStatePriority.indexOf(left) - fleetStatePriority.indexOf(right)
-    )[0] ?? 'idle'
+    )[0] ?? 'handled'
   )
 }
 
-describe('isUnseen', () => {
-  it('is false until a run has finished', () => {
-    expect(isUnseen(sessionRecord('ses_1'))).toBe(false)
+describe('isHandled', () => {
+  it('a session that never ran has nothing to handle', () => {
+    expect(isHandled(sessionRecord('ses_1'))).toBe(true)
+    expect(isHandled(sessionRecord('ses_1', { handled: 5 }))).toBe(true)
   })
 
-  it('follows OpenCode viewed < idle', () => {
-    expect(isUnseen(sessionRecord('ses_1', { idle: 10 }))).toBe(true)
-    expect(isUnseen(sessionRecord('ses_1', { idle: 10, viewed: 9 }))).toBe(true)
-    expect(isUnseen(sessionRecord('ses_1', { idle: 10, viewed: 10 }))).toBe(false)
-    expect(isUnseen(sessionRecord('ses_1', { idle: 10, viewed: 11 }))).toBe(false)
+  it('is run-scoped: handled while handled >= idle', () => {
+    expect(isHandled(sessionRecord('ses_1', { idle: 10 }))).toBe(false)
+    expect(isHandled(sessionRecord('ses_1', { idle: 10, handled: 9 }))).toBe(false)
+    expect(isHandled(sessionRecord('ses_1', { idle: 10, handled: 10 }))).toBe(true)
+    expect(isHandled(sessionRecord('ses_1', { idle: 10, handled: 11 }))).toBe(true)
+  })
+
+  it('ignores OpenCode viewed entirely', () => {
+    expect(isHandled(sessionRecord('ses_1', { idle: 10, viewed: 10 }))).toBe(false)
   })
 })
 
@@ -66,76 +83,175 @@ describe('ownState', () => {
     'interrupted'
   ]
 
+  const markers: ReadonlyArray<Marker> = ['never-ran', 'none', 'older-run', 'this-run', 'newer']
+
   const cases = [0, 2].flatMap(pending =>
     [false, true].flatMap(running =>
-      [false, true].flatMap(stepFailed =>
-        outcomes.flatMap(outcome =>
-          (['never-finished', 'unseen', 'seen'] as const).map(seen => ({
-            pending,
-            running,
-            stepFailed,
-            outcome,
-            seen
-          }))
+      outcomes.flatMap(outcome =>
+        markers.flatMap(marker =>
+          [undefined, baseTime + 10].map(viewed => ({ pending, running, outcome, marker, viewed }))
         )
       )
     )
   )
 
-  it('covers every combination of pending, running, step failure, outcome and seen', () => {
-    expect(cases).toHaveLength(96)
+  it('covers every combination of pending, running, outcome, handled marker and viewed', () => {
+    expect(cases).toHaveLength(160)
   })
 
   it.each(cases)(
-    'pending=$pending running=$running stepFailed=$stepFailed $outcome $seen',
+    'pending=$pending running=$running $outcome marker=$marker viewed=$viewed',
     input => {
-      const info = sessionRecord('ses_1', { outcome: input.outcome, ...seenFields(input.seen) })
-
-      const session = trackedSession(info, {
-        running: input.running,
-        stepFailed: input.stepFailed
+      const info = sessionRecord('ses_1', {
+        outcome: input.outcome,
+        viewed: input.viewed,
+        ...markerFields(input.marker)
       })
 
-      expect(ownState(session, input.pending)).toBe(expected(input))
+      expect(ownState(trackedSession(info, { running: input.running }), input.pending)).toBe(
+        expected(input)
+      )
     }
   )
 
   it('names the headline transitions', () => {
-    const finished = sessionRecord('ses_1', { idle: 10, outcome: 'succeeded' })
-    const failed = sessionRecord('ses_1', { idle: 10, outcome: 'failed' })
+    const ended = sessionRecord('ses_1', { idle: 10, outcome: 'succeeded' })
 
-    expect(ownState(trackedSession(finished), 1)).toBe('needs-you')
-    expect(ownState(trackedSession(failed), 0)).toBe('failed')
-    expect(ownState(trackedSession(failed, { running: true }), 0)).toBe('working')
-    expect(ownState(trackedSession(finished), 0)).toBe('done')
-    expect(ownState(trackedSession({ ...finished, viewed: 10 }), 0)).toBe('idle')
+    expect(ownState(trackedSession(ended), 1)).toBe('blocked')
+    expect(ownState(trackedSession(ended, { running: true }), 0)).toBe('working')
+    expect(ownState(trackedSession(ended), 0)).toBe('finished')
+    expect(ownState(trackedSession({ ...ended, outcome: 'failed' }), 0)).toBe('finished')
+    expect(ownState(trackedSession({ ...ended, handled: 10 }), 0)).toBe('handled')
+    expect(ownState(trackedSession(sessionRecord('ses_1')), 0)).toBe('handled')
+  })
 
-    expect(ownState(trackedSession(finished, { running: true, stepFailed: true }), 0)).toBe(
-      'failed'
+  it('a pending request is never handled away', () => {
+    expect(ownState(trackedSession(sessionRecord('ses_1', { idle: 10, handled: 10 })), 1)).toBe(
+      'blocked'
     )
   })
 })
 
 describe('priority and roll-up', () => {
-  it('orders needs-you > failed > working > done > idle', () => {
-    expect(highestPriority(['idle', 'done', 'working', 'failed', 'needs-you'])).toBe('needs-you')
-    expect(highestPriority(['idle', 'done', 'working', 'failed'])).toBe('failed')
-    expect(highestPriority(['idle', 'done', 'working'])).toBe('working')
-    expect(highestPriority(['idle', 'done'])).toBe('done')
-    expect(highestPriority([])).toBe('idle')
+  it('orders blocked > working > finished > handled', () => {
+    expect(highestPriority(['handled', 'finished', 'working', 'blocked'])).toBe('blocked')
+    expect(highestPriority(['handled', 'finished', 'working'])).toBe('working')
+    expect(highestPriority(['handled', 'finished'])).toBe('finished')
+    expect(highestPriority([])).toBe('handled')
   })
 
   const own: ReadonlyArray<FleetState> = fleetStatePriority
 
-  it.each(own)('a %s parent becomes needs-you when any descendant needs you', state => {
-    expect(rollUpState(state, ['idle', 'needs-you'])).toBe('needs-you')
+  it.each(own)('a %s parent becomes blocked when any descendant is blocked', state => {
+    expect(rollUpState(state, ['handled', 'blocked'])).toBe('blocked')
   })
 
   it.each(own)('a %s parent is at least working when any descendant works', state => {
     expect(rollUpState(state, ['working'])).toBe(highestPriority([state, 'working']))
   })
 
-  it.each(own)('descendant failed/done/idle do not change a %s parent', state => {
-    expect(rollUpState(state, ['failed', 'done', 'idle'])).toBe(state)
+  it.each(own)('descendant finished/handled runs do not change a %s parent', state => {
+    expect(rollUpState(state, ['finished', 'handled'])).toBe(state)
+  })
+})
+
+describe('activeAt (ordering, never time.updated)', () => {
+  const info = sessionRecord('ses_1', { created: baseTime, idle: baseTime + 50 })
+
+  it('is the end of the latest run, else creation, while not running', () => {
+    expect(activeAt(trackedSession(info))).toBe(baseTime + 50)
+    expect(activeAt(trackedSession(sessionRecord('ses_1')))).toBe(baseTime)
+  })
+
+  it('is the latest start or activity while running', () => {
+    expect(
+      activeAt(
+        trackedSession(info, { running: true, startedAt: baseTime + 60, activityAt: baseTime + 90 })
+      )
+    ).toBe(baseTime + 90)
+
+    expect(activeAt(trackedSession(info, { running: true, startedAt: baseTime + 60 }))).toBe(
+      baseTime + 60
+    )
+
+    expect(activeAt(trackedSession(info, { running: true }))).toBe(baseTime + 50)
+  })
+})
+
+describe('stuck (retrying or quiet working rows)', () => {
+  const now = baseTime + 60 * 60 * 1000
+
+  const model = (sessions: ReadonlyArray<TrackedSession>): FleetModel => ({
+    ...fromSnapshot(emptySnapshot, baseTime),
+    sessions: new Map(sessions.map(session => [session.info.id, session] as const))
+  })
+
+  const rowOf = (sessions: ReadonlyArray<TrackedSession>, id = 'ses_root'): FleetRow => {
+    const row = buildRows(model(sessions), webUrl).find(item => item.id === id)
+
+    if (row === undefined) throw new Error(`no row ${id}`)
+
+    return row
+  }
+
+  const root = sessionRecord('ses_root')
+  const child = sessionRecord('ses_child', { parentID: 'ses_root' })
+
+  it('a working row active within the threshold is not stuck', () => {
+    const row = rowOf([trackedSession(root, { running: true, activityAt: now - quietAfter + 1 })])
+
+    expect(isQuiet(row, now)).toBe(false)
+    expect(isStuck(row, now)).toBe(false)
+  })
+
+  it('a working row quiet for the threshold is stuck', () => {
+    const row = rowOf([trackedSession(root, { running: true, activityAt: now - quietAfter })])
+
+    expect(isQuiet(row, now)).toBe(true)
+    expect(isStuck(row, now)).toBe(true)
+  })
+
+  it('a waiting parent is not quiet while a running subagent is active', () => {
+    const row = rowOf([
+      trackedSession(root, { running: true, activityAt: now - 2 * quietAfter }),
+      trackedSession(child, { running: true, activityAt: now - 1000 })
+    ])
+
+    expect(isStuck(row, now)).toBe(false)
+  })
+
+  it('a scheduled retry anywhere in the running subtree is stuck', () => {
+    const retry = { attempt: 3, at: now + 1000, message: 'rate limited' }
+
+    const row = rowOf([
+      trackedSession(root, { running: true, activityAt: now }),
+      trackedSession(child, { running: true, activityAt: now, retry })
+    ])
+
+    expect(isStuck(row, now)).toBe(true)
+  })
+
+  it('blocked, finished and handled rows are never stuck', () => {
+    const finished = rowOf([trackedSession(sessionRecord('ses_root', { idle: baseTime }))])
+
+    expect(finished.state).toBe('finished')
+    expect(isStuck(finished, now)).toBe(false)
+  })
+
+  it('counts root rows by state; stuck overlaps working', () => {
+    const rows = [
+      rowOf([trackedSession(root, { running: true, activityAt: now - quietAfter })]),
+      rowOf([trackedSession(sessionRecord('ses_a'), { running: true, activityAt: now })], 'ses_a'),
+      rowOf([trackedSession(sessionRecord('ses_b', { idle: baseTime }))], 'ses_b'),
+      rowOf([trackedSession(sessionRecord('ses_c'))], 'ses_c')
+    ]
+
+    expect(countRows(rows, now)).toEqual({
+      blocked: 0,
+      finished: 1,
+      working: 2,
+      stuck: 1,
+      handled: 1
+    })
   })
 })

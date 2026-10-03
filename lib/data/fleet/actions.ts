@@ -1,4 +1,8 @@
 import { Effect, Option, Schema } from 'effect'
+import { SessionNotFinishedError } from '@/lib/data/fleet/errors'
+import { snapshotRows } from '@/lib/data/fleet/snapshot'
+import { isHandled } from '@/lib/data/fleet/state'
+import { FleetStore } from '@/lib/data/fleet/store'
 import { SessionNotFoundError } from '@/lib/services/opencode/errors'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type { OpenCodeConnection } from '@/lib/services/opencode/service'
@@ -7,9 +11,17 @@ import type { OpenCodeConnection } from '@/lib/services/opencode/service'
 
 const Id = Schema.String.check(Schema.isNonEmpty(), Schema.isMaxLength(200))
 
-export const MarkSeenInput = Schema.Struct({ sessionID: Id })
+export const MarkHandledInput = Schema.Struct({ sessionID: Id })
 
-export type MarkSeenInput = typeof MarkSeenInput.Type
+export type MarkHandledInput = typeof MarkHandledInput.Type
+
+export const ReopenInput = Schema.Struct({ sessionID: Id })
+
+export type ReopenInput = typeof ReopenInput.Type
+
+export const MarkViewedInput = Schema.Struct({ sessionID: Id })
+
+export type MarkViewedInput = typeof MarkViewedInput.Type
 
 export const ReplyPermissionInput = Schema.Struct({
   sessionID: Id,
@@ -46,7 +58,11 @@ export const InterruptSessionInput = Schema.Struct({ sessionID: Id })
 
 export type InterruptSessionInput = typeof InterruptSessionInput.Type
 
-export type MarkSeenOutcome = 'marked' | 'already-seen'
+export type MarkHandledOutcome = 'handled' | 'already-handled'
+
+export type ReopenOutcome = 'reopened' | 'not-handled'
+
+export type MarkViewedOutcome = 'marked' | 'already-viewed'
 
 /** Runs `run` against a fresh OpenCode connection (discovered per call). */
 export const withConnection = <A, E>(
@@ -59,30 +75,92 @@ export const withConnection = <A, E>(
     return yield* run(connection)
   })
 
+const readSession = (connection: OpenCodeConnection, sessionID: string) =>
+  Effect.flatMap(connection.session(sessionID), found =>
+    Option.match(found, {
+      onNone: () => Effect.fail(new SessionNotFoundError({ sessionID })),
+      onSome: Effect.succeed
+    })
+  )
+
 /**
- * "Mark seen" is OpenCode's own: read the session's current `time.idle` and post it to
- * `POST /api/session/:id/view`. OpenCode only advances `viewed` up to the idle it was shown.
+ * Mark the latest run of a finished root session handled: `metadata.fleet.handled = idle`, with
+ * `idle` read fresh from OpenCode. Rejected unless the watcher sees the root row finished (not
+ * running, nothing pending in its subtree); already handled runs are left alone.
  */
-export const markSeen = (input: MarkSeenInput) =>
+export const markHandled = (input: MarkHandledInput) =>
+  Effect.gen(function* () {
+    const view = yield* Effect.flatMap(FleetStore, store => store.view)
+    const row = snapshotRows(view.snapshot).find(item => item.id === input.sessionID)
+
+    if (row === undefined) {
+      // Not a root row: a subagent (or archived), or a session Fleet does not know.
+      return yield* view.model.sessions.has(input.sessionID)
+        ? new SessionNotFinishedError({ sessionID: input.sessionID })
+        : new SessionNotFoundError({ sessionID: input.sessionID })
+    }
+
+    if (row.state !== 'finished' && row.state !== 'handled') {
+      return yield* new SessionNotFinishedError({ sessionID: input.sessionID, state: row.state })
+    }
+
+    return yield* withConnection(connection =>
+      Effect.gen(function* () {
+        const info = yield* readSession(connection, input.sessionID)
+
+        if (info.idle === undefined || isHandled(info)) {
+          const outcome: MarkHandledOutcome = 'already-handled'
+
+          return outcome
+        }
+
+        yield* connection.setHandled({ sessionID: input.sessionID, handled: info.idle })
+
+        const outcome: MarkHandledOutcome = 'handled'
+
+        return outcome
+      })
+    )
+  })
+
+/** Undo / Reopen: remove the handled marker, so the latest run is finished again. */
+export const reopen = (input: ReopenInput) =>
   withConnection(connection =>
     Effect.gen(function* () {
-      const found = yield* connection.session(input.sessionID)
+      const info = yield* readSession(connection, input.sessionID)
 
-      if (Option.isNone(found)) {
-        return yield* new SessionNotFoundError({ sessionID: input.sessionID })
+      if (info.handled === undefined) {
+        const outcome: ReopenOutcome = 'not-handled'
+
+        return outcome
       }
 
-      const { idle, viewed } = found.value
+      yield* connection.setHandled({ sessionID: input.sessionID, handled: undefined })
+
+      const outcome: ReopenOutcome = 'reopened'
+
+      return outcome
+    })
+  )
+
+/**
+ * OpenCode's own read marker, for its unread dots (opening a session's panel): post the session's
+ * current `time.idle` to `POST /api/session/:id/view`. Never changes Fleet state.
+ */
+export const markViewed = (input: MarkViewedInput) =>
+  withConnection(connection =>
+    Effect.gen(function* () {
+      const { idle, viewed } = yield* readSession(connection, input.sessionID)
 
       if (idle === undefined || (viewed !== undefined && viewed >= idle)) {
-        const outcome: MarkSeenOutcome = 'already-seen'
+        const outcome: MarkViewedOutcome = 'already-viewed'
 
         return outcome
       }
 
       yield* connection.view({ sessionID: input.sessionID, idle })
 
-      const outcome: MarkSeenOutcome = 'marked'
+      const outcome: MarkViewedOutcome = 'marked'
 
       return outcome
     })

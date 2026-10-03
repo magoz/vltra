@@ -3,8 +3,10 @@ import { Duration, Effect, Layer } from 'effect'
 import * as TestClock from 'effect/testing/TestClock'
 import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
 import { snapshotRows } from '@/lib/data/fleet/snapshot'
+import { quietAfter } from '@/lib/data/fleet/state'
 import { FleetStore, makeFleetStore } from '@/lib/data/fleet/store'
 import { baseTime, sessionRecord, webUrl } from '@/lib/data/fleet/testing/fixtures'
+import type { InterruptReason } from '@/lib/data/fleet/types'
 import { defaultWatcherOptions, FleetWatcherLive } from '@/lib/data/fleet/watcher'
 import { emptySnapshot, makeFakeOpenCode } from '@/lib/services/opencode/testing/fake-opencode'
 import type { FakeOpenCode } from '@/lib/services/opencode/testing/fake-opencode'
@@ -43,7 +45,7 @@ describe('watcher', () => {
         yield* settle
 
         expect((yield* connection).status).toBe('connected')
-        expect(yield* rowStates).toEqual({ ses_a: 'idle', ses_b: 'failed' })
+        expect(yield* rowStates).toEqual({ ses_a: 'handled', ses_b: 'finished' })
 
         yield* fake.emit(
           OpenCodeSignal.Apply({
@@ -61,7 +63,7 @@ describe('watcher', () => {
 
         yield* settle
 
-        expect(yield* rowStates).toEqual({ ses_a: 'working', ses_b: 'needs-you' })
+        expect(yield* rowStates).toEqual({ ses_a: 'working', ses_b: 'blocked' })
       }).pipe(Effect.provide(withWatcher(fake)))
     })
   )
@@ -87,7 +89,7 @@ describe('watcher', () => {
         yield* settle
 
         expect((yield* connection).status).toBe('connected')
-        expect(yield* rowStates).toEqual({ ses_a: 'working', ses_b: 'failed' })
+        expect(yield* rowStates).toEqual({ ses_a: 'working', ses_b: 'finished' })
       }).pipe(Effect.provide(withWatcher(fake)))
     })
   )
@@ -197,14 +199,18 @@ describe('watcher', () => {
 
         expect(yield* fake.snapshotLoads).toBe(1)
 
-        // While the stream is down, OpenCode moves on: a new session and ses_b gets seen.
+        // While the stream is down, OpenCode moves on: a new session and ses_b gets handled.
         yield* fake.disconnect
 
         yield* fake.setSnapshot({
           ...initial,
           sessions: [
             sessionRecord('ses_a'),
-            sessionRecord('ses_b', { idle: baseTime + 1, viewed: baseTime + 1, outcome: 'failed' }),
+            sessionRecord('ses_b', {
+              idle: baseTime + 1,
+              handled: baseTime + 1,
+              outcome: 'failed'
+            }),
             sessionRecord('ses_new', { idle: baseTime + 2, outcome: 'succeeded' })
           ]
         })
@@ -213,7 +219,7 @@ describe('watcher', () => {
 
         expect((yield* connection).status).toBe('disconnected')
         // Stale rows stay visible while disconnected.
-        expect((yield* rowStates).ses_b).toBe('failed')
+        expect((yield* rowStates).ses_b).toBe('finished')
 
         yield* TestClock.adjust(defaultWatcherOptions.dropDelay)
         yield* settle
@@ -221,7 +227,193 @@ describe('watcher', () => {
         expect(yield* fake.connectAttempts).toBe(2)
         expect(yield* fake.snapshotLoads).toBe(2)
         expect((yield* connection).status).toBe('connected')
-        expect(yield* rowStates).toEqual({ ses_a: 'idle', ses_b: 'idle', ses_new: 'done' })
+        expect(yield* rowStates).toEqual({
+          ses_a: 'handled',
+          ses_b: 'handled',
+          ses_new: 'finished'
+        })
+      }).pipe(Effect.provide(withWatcher(fake)))
+    })
+  )
+
+  it.effect('applies handled markers from session.metadata.updated', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode(initial)
+
+      yield* Effect.gen(function* () {
+        yield* settle
+
+        yield* fake.emit(
+          OpenCodeSignal.Apply({
+            event: FleetEvent.HandledChanged({ sessionID: 'ses_b', handled: baseTime + 1 })
+          })
+        )
+
+        yield* settle
+
+        expect((yield* rowStates).ses_b).toBe('handled')
+
+        yield* fake.emit(
+          OpenCodeSignal.Apply({
+            event: FleetEvent.HandledChanged({ sessionID: 'ses_b', handled: undefined })
+          })
+        )
+
+        yield* settle
+
+        expect((yield* rowStates).ses_b).toBe('finished')
+      }).pipe(Effect.provide(withWatcher(fake)))
+    })
+  )
+
+  it.effect('keeps stuck counts current without events', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode({ ...initial, running: ['ses_a'] })
+
+      yield* Effect.gen(function* () {
+        yield* settle
+
+        expect((yield* snapshot).counts).toMatchObject({ working: 1, stuck: 0 })
+
+        yield* TestClock.adjust(Duration.millis(quietAfter))
+        yield* settle
+
+        expect((yield* snapshot).counts).toMatchObject({ working: 1, stuck: 1 })
+      }).pipe(Effect.provide(withWatcher(fake)))
+    })
+  )
+})
+
+describe('interrupt reasons', () => {
+  const ended = (sessionID: string, reason: InterruptReason, at = baseTime + 5) =>
+    OpenCodeSignal.Apply({
+      event: FleetEvent.ExecutionEnded({ sessionID, at, outcome: 'interrupted', reason })
+    })
+
+  const rowOf = (id: string) =>
+    Effect.map(snapshot, value => snapshotRows(value).find(row => row.id === id))
+
+  const running = {
+    ...emptySnapshot,
+    sessions: [sessionRecord('ses_root'), sessionRecord('ses_child', { parentID: 'ses_root' })],
+    running: ['ses_root', 'ses_child']
+  }
+
+  /** What OpenCode stores once the interruption is projected (idle can be event time + 1). */
+  const storedInterrupt = (idle: number) => ({
+    ...running,
+    sessions: running.sessions.map(session => ({
+      ...session,
+      idle,
+      outcome: 'interrupted' as const
+    })),
+    running: []
+  })
+
+  it.effect('a root session stopped by the user is marked handled at the stored idle', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode(running)
+
+      yield* Effect.gen(function* () {
+        yield* settle
+        yield* fake.setSnapshot(storedInterrupt(baseTime + 6))
+        yield* fake.emit(ended('ses_root', 'user'))
+        yield* settle
+
+        expect(yield* fake.calls).toEqual([
+          { op: 'setHandled', sessionID: 'ses_root', handled: baseTime + 6 }
+        ])
+        expect(yield* rowOf('ses_root')).toMatchObject({
+          state: 'working',
+          handled: baseTime + 6,
+          interrupt: 'user'
+        })
+
+        // The subagent stopped too: its run is not auto-handled (only roots are).
+        yield* fake.emit(ended('ses_child', 'user'))
+        yield* settle
+
+        expect((yield* fake.calls).length).toBe(1)
+        expect((yield* rowOf('ses_root'))?.state).toBe('handled')
+      }).pipe(Effect.provide(withWatcher(fake)))
+    })
+  )
+
+  it.effect('an inactivity stop stays finished, labelled with its reason', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode({ ...running, sessions: [sessionRecord('ses_root')] })
+
+      yield* Effect.gen(function* () {
+        yield* settle
+        yield* fake.emit(ended('ses_root', 'inactivity'))
+        yield* settle
+
+        expect(yield* fake.calls).toEqual([])
+        expect(yield* rowOf('ses_root')).toMatchObject({
+          state: 'finished',
+          outcome: 'interrupted',
+          interrupt: 'inactivity'
+        })
+      }).pipe(Effect.provide(withWatcher(fake)))
+    })
+  )
+
+  const missed = {
+    ...emptySnapshot,
+    sessions: [
+      sessionRecord('ses_user', { idle: baseTime + 1, outcome: 'interrupted' }),
+      sessionRecord('ses_evicted', { idle: baseTime + 2, outcome: 'interrupted' }),
+      sessionRecord('ses_unknown', { idle: baseTime + 3, outcome: 'interrupted' }),
+      sessionRecord('ses_done', {
+        idle: baseTime + 4,
+        handled: baseTime + 4,
+        outcome: 'interrupted'
+      }),
+      sessionRecord('ses_sub', {
+        parentID: 'ses_done',
+        idle: baseTime + 5,
+        outcome: 'interrupted'
+      }),
+      sessionRecord('ses_ok', { idle: baseTime + 6, outcome: 'succeeded' })
+    ]
+  }
+
+  it.effect('recovers missed reasons from the session log once per run, and auto-handles', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode(missed)
+
+      yield* fake.setInterruptReason('ses_user', 'user')
+      yield* fake.setInterruptReason('ses_evicted', 'inactivity')
+
+      yield* Effect.gen(function* () {
+        yield* settle
+
+        // Only finished, unhandled root sessions that ended interrupted are looked up.
+        const reads = (yield* fake.calls).filter(call => call.op === 'interruptReason')
+
+        expect(reads.map(call => call.sessionID).toSorted()).toEqual([
+          'ses_evicted',
+          'ses_unknown',
+          'ses_user'
+        ])
+        expect((yield* fake.calls).filter(call => call.op === 'setHandled')).toEqual([
+          { op: 'setHandled', sessionID: 'ses_user', handled: baseTime + 1 }
+        ])
+        expect(yield* rowOf('ses_user')).toMatchObject({ state: 'handled', interrupt: 'user' })
+        expect(yield* rowOf('ses_evicted')).toMatchObject({
+          state: 'finished',
+          interrupt: 'inactivity'
+        })
+        expect((yield* rowOf('ses_unknown'))?.interrupt).toBeUndefined()
+
+        // A reconnect reloads the snapshot (reasons are not in it) but reads no log again.
+        yield* fake.disconnect
+        yield* TestClock.adjust(defaultWatcherOptions.dropDelay)
+        yield* settle
+
+        expect(yield* fake.snapshotLoads).toBe(2)
+        expect((yield* fake.calls).filter(call => call.op === 'interruptReason')).toHaveLength(3)
+        expect((yield* rowOf('ses_evicted'))?.interrupt).toBe('inactivity')
       }).pipe(Effect.provide(withWatcher(fake)))
     })
   )

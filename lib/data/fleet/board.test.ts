@@ -4,11 +4,11 @@ import {
   boardRow,
   buildBoard,
   fromSnapshot,
-  idleWindow,
   worktreeLabel
 } from '@/lib/data/fleet/board'
 import { fromSnapshot as modelFromSnapshot } from '@/lib/data/fleet/model'
 import { buildSnapshot } from '@/lib/data/fleet/snapshot'
+import { quietAfter } from '@/lib/data/fleet/state'
 import { baseTime, sessionRecord, webUrl } from '@/lib/data/fleet/testing/fixtures'
 import type { FleetConnection, FleetRow, SessionRecord } from '@/lib/data/fleet/types'
 import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
@@ -23,106 +23,112 @@ const fleet = '/home/magoz/dev/repos/fleet'
 
 const worktree = '/home/magoz/.local/share/opencode/worktree/fleet/feat-panel'
 
-const snapshotOf = (sessions: ReadonlyArray<SessionRecord>, running: ReadonlyArray<string> = []) =>
+const snapshotOf = (
+  sessions: ReadonlyArray<SessionRecord>,
+  running: ReadonlyArray<string> = [],
+  connectedAt = now - 60_000
+) =>
   buildSnapshot(
-    modelFromSnapshot({
-      ...emptySnapshot,
-      sessions,
-      running,
-      projects: [{ id: 'prj_fleet', name: 'fleet', directory: fleet }],
-      worktrees: [{ projectID: 'prj_fleet', directories: [worktree] }],
-      permissions: [
-        { id: 'per_1', sessionID: 'ses_need', action: 'bash', resources: ['pnpm test'] }
-      ]
-    }),
+    modelFromSnapshot(
+      {
+        ...emptySnapshot,
+        sessions,
+        running,
+        projects: [{ id: 'prj_fleet', name: 'fleet', directory: fleet }],
+        worktrees: [{ projectID: 'prj_fleet', directories: [worktree] }],
+        permissions: [
+          { id: 'per_1', sessionID: 'ses_need', action: 'bash', resources: ['pnpm test'] }
+        ]
+      },
+      connectedAt
+    ),
     { connection, webUrl, now }
   )
 
-const finished = (at: number) => ({ idle: at, updated: at, outcome: 'succeeded' as const })
+const finished = (at: number) => ({ idle: at, outcome: 'succeeded' as const })
 
-const seen = (at: number) => ({ ...finished(at), viewed: at })
+const handled = (at: number) => ({ ...finished(at), handled: at })
 
 const sessions = [
-  sessionRecord('ses_need', { updated: now - hour }),
-  sessionRecord('ses_run', { updated: now - 2 * hour, directory: worktree }),
+  sessionRecord('ses_need', { created: now - hour }),
+  sessionRecord('ses_run', { created: now - 2 * hour, directory: worktree }),
   sessionRecord('ses_fail', { ...finished(now - 3 * hour), outcome: 'failed' }),
   sessionRecord('ses_done_old', finished(now - 50 * hour)),
   sessionRecord('ses_done', finished(now - 4 * hour)),
-  sessionRecord('ses_idle_recent', seen(now - 5 * hour)),
-  sessionRecord('ses_idle_wt', { ...seen(now - 6 * hour), directory: worktree }),
-  sessionRecord('ses_idle_old', seen(now - 25 * hour))
+  sessionRecord('ses_handled_recent', handled(now - 5 * hour)),
+  sessionRecord('ses_handled_wt', { ...handled(now - 6 * hour), directory: worktree }),
+  sessionRecord('ses_handled_old', handled(now - 25 * 24 * hour))
 ]
 
 const live = fromSnapshot(snapshotOf(sessions, ['ses_run']))
 
 const ids = (rows: ReadonlyArray<{ readonly row: FleetRow }>) => rows.map(item => item.row.id)
 
-describe('state-first board', () => {
-  const board = buildBoard(live, now, false)
+describe('attention board', () => {
+  const board = buildBoard(live, now)
 
-  it('orders sections needs you, failed, working, done; newest first within', () => {
+  it('orders sections blocked, finished (oldest first), then working', () => {
     expect(board.sections.map(section => [section.state, ids(section.rows)])).toEqual([
-      ['needs-you', ['ses_need']],
-      ['failed', ['ses_fail']],
-      ['working', ['ses_run']],
-      ['done', ['ses_done', 'ses_done_old']]
+      ['blocked', ['ses_need']],
+      ['finished', ['ses_done_old', 'ses_done', 'ses_fail']],
+      ['working', ['ses_run']]
     ])
   })
 
-  it('lists idle sessions for 24h after their last activity, grouped project → worktree', () => {
-    expect(board.idle).toEqual([
+  it('lists every handled session, with no time limit, grouped project → worktree', () => {
+    expect(board.handled).toEqual([
       {
         id: 'prj_fleet',
         name: 'fleet',
         worktrees: [
-          { label: undefined, rows: [expect.objectContaining({ worktree: undefined })] },
+          {
+            label: undefined,
+            rows: [
+              expect.objectContaining({ worktree: undefined }),
+              expect.objectContaining({ worktree: undefined })
+            ]
+          },
           { label: 'feat-panel', rows: [expect.objectContaining({ worktree: 'feat-panel' })] }
         ]
       }
     ])
 
-    expect(board.olderIdle).toBe(1)
-    expect(board.counts).toEqual({ 'needs-you': 1, failed: 1, working: 1, done: 2, idle: 2 })
+    expect(board.handled[0]?.worktrees[0]?.rows.map(item => item.row.id)).toEqual([
+      'ses_handled_recent',
+      'ses_handled_old'
+    ])
+
+    expect(board.counts).toEqual({ blocked: 1, finished: 3, working: 1, stuck: 0, handled: 3 })
+  })
+
+  it('counts a working session quiet for the threshold as stuck', () => {
+    const quiet = fromSnapshot(snapshotOf(sessions, ['ses_run'], now - quietAfter))
+
+    expect(buildBoard(quiet, now).counts.stuck).toBe(1)
+    expect(buildBoard(quiet, now - 1).counts.stuck).toBe(0)
   })
 
   it("lists the project's own checkout before its worktrees", () => {
     const newerWorktree = fromSnapshot(
       snapshotOf([
-        sessionRecord('ses_root', seen(now - 5 * hour)),
-        sessionRecord('ses_wt', { ...seen(now - hour), directory: worktree })
+        sessionRecord('ses_root', handled(now - 5 * hour)),
+        sessionRecord('ses_wt', { ...handled(now - hour), directory: worktree })
       ])
     )
 
-    expect(
-      buildBoard(newerWorktree, now, false).idle[0]?.worktrees.map(item => item.label)
-    ).toEqual([undefined, 'feat-panel'])
-  })
-
-  it('shows older idle sessions on request', () => {
-    const all = buildBoard(live, now, true)
-
-    expect(all.idle[0]?.worktrees[0]?.rows.map(item => item.row.id)).toEqual([
-      'ses_idle_recent',
-      'ses_idle_old'
+    expect(buildBoard(newerWorktree, now).handled[0]?.worktrees.map(item => item.label)).toEqual([
+      undefined,
+      'feat-panel'
     ])
-
-    expect(all.counts.idle).toBe(3)
-  })
-
-  it('an idle session drops out once the window passes', () => {
-    const later = buildBoard(live, now - 6 * hour + idleWindow + 1, false)
-
-    expect(later.counts.idle).toBe(1)
   })
 
   it('omits empty sections', () => {
-    const quiet = buildBoard(
-      fromSnapshot(snapshotOf([sessionRecord('ses_quiet', seen(now - hour))])),
-      now,
-      false
+    const calm = buildBoard(
+      fromSnapshot(snapshotOf([sessionRecord('ses_calm', handled(now - hour))])),
+      now
     )
 
-    expect(quiet.sections).toEqual([])
+    expect(calm.sections).toEqual([])
   })
 })
 
@@ -145,11 +151,16 @@ describe('row names', () => {
   it("names sessions of OpenCode's global project by their directory", () => {
     const global = fromSnapshot(
       buildSnapshot(
-        modelFromSnapshot({
-          ...emptySnapshot,
-          sessions: [sessionRecord('ses_tmp', { projectID: 'global', directory: '/tmp/scratch' })],
-          projects: [{ id: 'global', directory: '/' }]
-        }),
+        modelFromSnapshot(
+          {
+            ...emptySnapshot,
+            sessions: [
+              sessionRecord('ses_tmp', { projectID: 'global', directory: '/tmp/scratch' })
+            ],
+            projects: [{ id: 'global', directory: '/' }]
+          },
+          now
+        ),
         { connection, webUrl, now }
       )
     )
@@ -174,13 +185,13 @@ describe('live changes', () => {
       initial: false,
       connection: { ...connection, status: 'disconnected' },
       counts: snapshot.counts,
-      rows: [{ ...running, state: 'done', running: false }],
+      rows: [{ ...running, state: 'finished', running: false }],
       removed: ['ses_done_old']
     })
 
     expect(stale).toBe(false)
     expect(next.connection.status).toBe('disconnected')
-    expect(next.rows.get('ses_run')?.state).toBe('done')
+    expect(next.rows.get('ses_run')?.state).toBe('finished')
     expect(next.rows.has('ses_done_old')).toBe(false)
   })
 
@@ -193,7 +204,7 @@ describe('live changes', () => {
     const { stale } = applyChange(base, {
       initial: false,
       connection,
-      counts: buildBoard(base, now, false).counts,
+      counts: buildBoard(base, now).counts,
       rows: [{ ...row, id: 'ses_new', projectID: 'prj_new' }],
       removed: []
     })
