@@ -13,6 +13,7 @@ import type {
   LauncherEntry,
   LauncherList,
   LauncherWorktree,
+  OpenedCheckout,
   ProjectRecord,
   PullRequest,
   RepoCheckout,
@@ -221,8 +222,6 @@ export const suggestBranch = (input: SuggestBranchInput) =>
     ),
     Effect.withSpan('launcher.suggest-branch')
   )
-
-export type OpenedCheckout = { readonly sessionID: string; readonly created: boolean }
 
 /**
  * Opening a repository or worktree from the launcher: its latest root session, or a new empty

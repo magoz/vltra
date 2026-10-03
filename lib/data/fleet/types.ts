@@ -523,3 +523,57 @@ export const BranchSuggestion = Schema.Struct({
 })
 
 export type BranchSuggestion = typeof BranchSuggestion.Type
+
+// Fleet's JSON mutation routes (DESIGN.md "Fleet API"), for the terminal plugin: the same Effects
+// and validation as the web's server actions. Request bodies are `EmptyRequest` (ids travel in the
+// path), `LaunchInput` and `OpenCheckoutInput` (`launcher.ts`); every route answers `200` with its
+// result below, or `ApiFailure` with a 4xx/5xx status.
+
+/** Body of the mutation routes that take no input: `{}`. */
+export const EmptyRequest = Schema.Struct({})
+
+export type EmptyRequest = typeof EmptyRequest.Type
+
+/** Error body of the JSON routes: the server actions' user-safe message. */
+export const ApiFailure = Schema.Struct({ error: Schema.String })
+
+export type ApiFailure = typeof ApiFailure.Type
+
+export const MarkHandledOutcome = Schema.Literals(['handled', 'already-handled'])
+
+export type MarkHandledOutcome = typeof MarkHandledOutcome.Type
+
+export const ReopenOutcome = Schema.Literals(['reopened', 'not-handled'])
+
+export type ReopenOutcome = typeof ReopenOutcome.Type
+
+/** `POST /api/fleet/sessions/:id/handled`: `already-handled` when there was nothing to write. */
+export const HandledResult = Schema.Struct({
+  sessionID: Schema.String,
+  outcome: MarkHandledOutcome
+})
+
+export type HandledResult = typeof HandledResult.Type
+
+/** `POST /api/fleet/sessions/:id/reopen`: `not-handled` when there was no marker to remove. */
+export const ReopenResult = Schema.Struct({ sessionID: Schema.String, outcome: ReopenOutcome })
+
+export type ReopenResult = typeof ReopenResult.Type
+
+/** `POST /api/fleet/launches`: the launch's id; its progress arrives in `launches`. */
+export const LaunchStarted = Schema.Struct({ launchID: Schema.String })
+
+export type LaunchStarted = typeof LaunchStarted.Type
+
+/** `POST /api/fleet/launches/:id/dismiss`. */
+export const LaunchDismissed = Schema.Struct({ launchID: Schema.String })
+
+export type LaunchDismissed = typeof LaunchDismissed.Type
+
+/**
+ * `POST /api/fleet/checkouts/open` (and the `openCheckout` action): the checkout's latest root
+ * session, or a new empty one (`created`).
+ */
+export const OpenedCheckout = Schema.Struct({ sessionID: Schema.String, created: Schema.Boolean })
+
+export type OpenedCheckout = typeof OpenedCheckout.Type

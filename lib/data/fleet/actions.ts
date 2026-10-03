@@ -4,6 +4,7 @@ import { folderGone } from '@/lib/data/fleet/folders'
 import { snapshotRows } from '@/lib/data/fleet/snapshot'
 import { isHandled } from '@/lib/data/fleet/state'
 import { FleetStore } from '@/lib/data/fleet/store'
+import type { MarkHandledOutcome, ReopenOutcome } from '@/lib/data/fleet/types'
 import { SessionNotFoundError } from '@/lib/services/opencode/errors'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type { OpenCodeConnection } from '@/lib/services/opencode/service'
@@ -58,10 +59,6 @@ export type SendPromptInput = typeof SendPromptInput.Type
 export const InterruptSessionInput = Schema.Struct({ sessionID: Id })
 
 export type InterruptSessionInput = typeof InterruptSessionInput.Type
-
-export type MarkHandledOutcome = 'handled' | 'already-handled'
-
-export type ReopenOutcome = 'reopened' | 'not-handled'
 
 export type MarkViewedOutcome = 'marked' | 'already-viewed'
 

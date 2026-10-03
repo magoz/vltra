@@ -17,11 +17,10 @@ import type {
   DismissLaunchInput,
   LaunchInput,
   OpenCheckoutInput,
-  OpenedCheckout,
   RetireWorktreeInput,
   SuggestBranchInput
 } from '@/lib/data/fleet/launcher'
-import type { BranchSuggestion } from '@/lib/data/fleet/types'
+import type { BranchSuggestion, OpenedCheckout } from '@/lib/data/fleet/types'
 
 /** The mutations the dashboard can run; the server actions in production, fakes in tests. */
 export type FleetActions = {

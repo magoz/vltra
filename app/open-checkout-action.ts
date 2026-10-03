@@ -5,7 +5,7 @@ import { headers } from 'next/headers'
 import { FleetActionValue, toActionResult } from '@/app/fleet-action-result'
 import { requireSameOrigin } from '@/app/same-origin'
 import { openCheckout, OpenCheckoutInput } from '@/lib/data/fleet/launcher'
-import type { OpenedCheckout } from '@/lib/data/fleet/launcher'
+import type { OpenedCheckout } from '@/lib/data/fleet/types'
 import { runFleet } from '@/lib/runtime/fleet-runtime'
 
 /**
