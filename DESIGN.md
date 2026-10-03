@@ -240,7 +240,10 @@ OpenCode.
 
 **Later (not part of the redesign):** Web Push for blocked agents only (debounced, one
 summary for bursts; subscriptions in a small file next to the app), mute for sessions to
-ignore forever, and a "handle this batch" action per worktree.
+ignore forever, and a "handle this batch" action per worktree. Video attachments: OpenCode drops anything but images/PDF/text (`to-llm-message.ts`),
+so a terminal-plugin "Attach video" command would upload to Fleet, which stores the file in the
+session's worktree (`.fleet/media/`, git-excluded) and extracts key frames with `ffmpeg` on Box
+for the agent to `read`.
 
 ## Stack and repo
 
