@@ -3,6 +3,7 @@ import * as NodeHttpClient from '@effect/platform-node/NodeHttpClient'
 import {
   AbsolutePath,
   Form,
+  Model,
   OpenCode as OpenCodeApi,
   Permission,
   Project,
@@ -15,7 +16,12 @@ import { Data, DateTime, Duration, Effect, Layer, Option, Predicate, Schema, Str
 import { FetchHttpClient, HttpClient, HttpClientRequest } from 'effect/unstable/http'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
 import type { PendingForm, PendingPermission, SessionRecord } from '@/lib/data/fleet/types'
-import { endpointOverride, serviceFile, sessionLimit } from '@/lib/services/opencode/config'
+import {
+  branchModel,
+  endpointOverride,
+  serviceFile,
+  sessionLimit
+} from '@/lib/services/opencode/config'
 import {
   OpenCodeInvalidInputError,
   OpenCodeRejectedError,
@@ -314,11 +320,24 @@ const makeSnapshot = (
     } satisfies OpenCodeSnapshot
   })
 
+/** `provider/model` (the model id may itself contain `/`) as OpenCode's model ref, if valid. */
+const decodeModelRef = (value: string) => {
+  const slash = value.indexOf('/')
+
+  if (slash <= 0 || slash === value.length - 1) return Option.none()
+
+  return Schema.decodeUnknownOption(Model.Ref)({
+    providerID: value.slice(0, slash),
+    id: value.slice(slash + 1)
+  })
+}
+
 const makeConnection = (
   endpoint: Endpoint,
   limit: Option.Option<number>,
   http: HttpClient.HttpClient,
-  longHttp: HttpClient.HttpClient
+  longHttp: HttpClient.HttpClient,
+  suggestionModel: string
 ) =>
   Effect.gen(function* () {
     const headers = Service.headers(endpoint)
@@ -516,10 +535,12 @@ const makeConnection = (
           return toSessionRecord(info)
         }),
       generateText: prompt =>
-        client.generate.text({ prompt }).pipe(
-          refusable('generate.text'),
-          Effect.map(output => output.text)
-        )
+        client.generate
+          .text({ prompt, model: Option.getOrUndefined(decodeModelRef(suggestionModel)) })
+          .pipe(
+            refusable('generate.text'),
+            Effect.map(output => output.text)
+          )
     } satisfies OpenCodeConnection
   })
 
@@ -536,10 +557,11 @@ export const OpenCodeLive = Layer.effect(
 
     const source = yield* endpointSource
     const limit = yield* sessionLimit
+    const suggestionModel = yield* branchModel
 
     return {
       connect: Effect.flatMap(resolveEndpoint(source), endpoint =>
-        makeConnection(endpoint, limit, http, longHttp)
+        makeConnection(endpoint, limit, http, longHttp, suggestionModel)
       )
     }
   }).pipe(

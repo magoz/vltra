@@ -29,3 +29,12 @@ export const serviceFile = Config.option(Config.string('OPENCODE_SERVICE_FILE'))
  * demand). Unset: every session.
  */
 export const sessionLimit = Config.option(Config.int('FLEET_SESSION_LIMIT'))
+
+/**
+ * Model for launcher branch suggestions (`generate.text`), as `provider/model`. Default: a fast
+ * model whose provider OpenCode can reach directly (`generate.text` does not pass through
+ * request-shaping provider plugins, so the session default may refuse it).
+ */
+export const branchModel = Config.string('FLEET_BRANCH_MODEL').pipe(
+  Config.withDefault('subs-codex/gpt-5.6-sol')
+)

@@ -221,3 +221,4 @@ pnpm fleet:import-handled [--dry-run]  # one-off rollout: viewed root runs → h
 | `FLEET_OPENCODE_WEB_URL`            | `https://box.tail129a86.ts.net:9446`            | OpenCode web UI base for deep links                                  |
 | `FLEET_SESSION_LIMIT`               | unset → every session                           | Optional cap on sessions loaded                                      |
 | `FLEET_LAUNCHER_ROOTS`              | `~/dev/repos:~/.dotfiles:~/aha:~/collie:~/subs` | Launcher roots (`:` list, `~` ok): each a repo, or a folder of repos |
+| `FLEET_BRANCH_MODEL`                | `subs-codex/gpt-5.6-sol`                        | Launcher branch suggestions (`generate.text` model)                  |
