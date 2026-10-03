@@ -258,6 +258,7 @@ export function FormAsk({
   subagent
 }: {
   readonly form: PendingForm
+  /** Set when the form comes from a subagent of this row (its agent, else its title). */
   readonly subagent?: string | undefined
 }) {
   const actions = useFleetActions()
@@ -317,7 +318,7 @@ export function FormAsk({
           Question
         </span>
         {subagent === undefined ? null : (
-          <span className="text-muted-foreground">{subagent} · </span>
+          <span className="text-muted-foreground">subagent {subagent} asks: </span>
         )}
         {question}
       </p>

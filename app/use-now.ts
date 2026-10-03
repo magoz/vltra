@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 
 /**
- * The current time, refreshed every `interval` ms for relative times and the idle window. Starts
+ * The current time, refreshed every `interval` ms for relative times and stuck labels. Starts
  * from `initial` (the server's snapshot time) so server and client render the same text.
  */
 export function useNow(initial: number, interval = 30_000) {

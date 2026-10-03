@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
-import type { FleetActionResult } from '@/app/fleet-action-result'
+import { FleetActionResult } from '@/app/fleet-action-result'
 import type {
   InterruptSessionInput,
   MarkHandledInput,
@@ -23,6 +23,10 @@ export type FleetActions = {
   readonly sendPrompt: (input: SendPromptInput) => Promise<FleetActionResult>
   readonly interrupt: (input: InterruptSessionInput) => Promise<FleetActionResult>
 }
+
+/** The action's result; a rejected call (Fleet unreachable) becomes an Error result. */
+export const settled = (call: Promise<FleetActionResult>): Promise<FleetActionResult> =>
+  call.catch(() => FleetActionResult.Error({ message: 'Fleet is not reachable' }))
 
 const FleetActionsContext = createContext<FleetActions | undefined>(undefined)
 

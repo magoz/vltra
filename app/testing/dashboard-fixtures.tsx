@@ -2,35 +2,63 @@ import type { ReactNode } from 'react'
 import { FleetActionResult } from '@/app/fleet-action-result'
 import type { FleetActions } from '@/app/fleet-actions'
 import { FleetActionsProvider } from '@/app/fleet-actions'
-import type { BoardRow } from '@/lib/data/fleet/board'
+import { HandledProvider, useHandledFlow } from '@/app/use-handled'
+import { fromSnapshot as liveFromSnapshot } from '@/lib/data/fleet/board'
+import type { BoardRow, LiveFleet } from '@/lib/data/fleet/board'
 import { fromSnapshot } from '@/lib/data/fleet/model'
-import type { OpenCodeSnapshot, TrackedSession } from '@/lib/data/fleet/model'
-import { buildRows } from '@/lib/data/fleet/snapshot'
+import type { FleetModel, OpenCodeSnapshot, TrackedSession } from '@/lib/data/fleet/model'
+import { buildRows, buildSnapshot } from '@/lib/data/fleet/snapshot'
 import { baseTime, webUrl } from '@/lib/data/fleet/testing/fixtures'
 import type { FleetRow } from '@/lib/data/fleet/types'
 import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 
-// Rows for component tests, built through the real model and snapshot projection.
+// Rows and live fleets for component tests, built through the real model and snapshot projection.
+
+type LiveFacts = Partial<Pick<TrackedSession, 'activity' | 'retry' | 'activityAt' | 'interrupt'>>
+
+const modelFrom = (
+  snapshot: Partial<OpenCodeSnapshot>,
+  live: ReadonlyMap<string, LiveFacts>,
+  at: number
+): FleetModel => {
+  const model = fromSnapshot({ ...emptySnapshot, ...snapshot }, at)
+  const sessions = new Map(model.sessions)
+
+  for (const [id, facts] of live) {
+    const session = sessions.get(id)
+
+    if (session !== undefined) sessions.set(id, { ...session, ...facts })
+  }
+
+  return { ...model, sessions }
+}
 
 export const rowFrom = (
   snapshot: Partial<OpenCodeSnapshot>,
   id: string,
-  live: Partial<Pick<TrackedSession, 'activity' | 'retry' | 'activityAt' | 'interrupt'>> = {}
+  live: LiveFacts = {}
 ): FleetRow => {
-  const model = fromSnapshot({ ...emptySnapshot, ...snapshot }, baseTime)
-  const session = model.sessions.get(id)
-
-  const patched =
-    session === undefined
-      ? model
-      : { ...model, sessions: new Map(model.sessions).set(id, { ...session, ...live }) }
-
-  const row = buildRows(patched, webUrl).find(candidate => candidate.id === id)
+  const model = modelFrom(snapshot, new Map([[id, live]]), baseTime)
+  const row = buildRows(model, webUrl).find(candidate => candidate.id === id)
 
   if (row === undefined) throw new Error(`no root row ${id}`)
 
   return row
 }
+
+/** A live fleet as the dashboard sees it after loading `GET /api/fleet` at `now`. */
+export const liveFrom = (
+  snapshot: Partial<OpenCodeSnapshot>,
+  now: number,
+  live: ReadonlyMap<string, LiveFacts> = new Map()
+): LiveFleet =>
+  liveFromSnapshot(
+    buildSnapshot(modelFrom(snapshot, live, now), {
+      connection: { status: 'connected', since: now, failures: 0, version: '2.0.20' },
+      webUrl,
+      now
+    })
+  )
 
 export const itemFor = (row: FleetRow, worktree?: string): BoardRow => ({
   row,
@@ -79,12 +107,37 @@ export const fakeActions = (failWith?: string) => {
   return { actions, calls }
 }
 
-export function WithActions({
+const noRows: ReadonlyMap<string, FleetRow> = new Map()
+
+function WithHandled({
   actions,
+  rows,
   children
 }: {
   readonly actions: FleetActions
+  readonly rows: ReadonlyMap<string, FleetRow>
   readonly children: ReactNode
 }) {
-  return <FleetActionsProvider actions={actions}>{children}</FleetActionsProvider>
+  const flow = useHandledFlow(actions, rows)
+
+  return <HandledProvider flow={flow}>{children}</HandledProvider>
+}
+
+/** The dashboard's providers: `actions`, and Handled / Undo / Reopen over `rows`. */
+export function WithActions({
+  actions,
+  rows = noRows,
+  children
+}: {
+  readonly actions: FleetActions
+  readonly rows?: ReadonlyMap<string, FleetRow> | undefined
+  readonly children: ReactNode
+}) {
+  return (
+    <FleetActionsProvider actions={actions}>
+      <WithHandled actions={actions} rows={rows}>
+        {children}
+      </WithHandled>
+    </FleetActionsProvider>
+  )
 }

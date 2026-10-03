@@ -4,12 +4,17 @@ import { Predicate } from 'effect'
 import { useEffect, useId, useState, useTransition } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
-import { formatCost, modelName, plural, relativeTime } from '@/app/fleet-format'
+import {
+  activityText,
+  formatCost,
+  modelName,
+  plural,
+  relativeTime,
+  sessionTitle
+} from '@/app/fleet-format'
 import { useFleetActions } from '@/app/fleet-actions'
-import { FormAsk } from '@/app/form-ask'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
-import { PermissionAsk } from '@/app/permission-ask'
-import { sessionTitle } from '@/app/session-row'
+import { PendingAsks } from '@/app/pending-asks'
 import { StateMarker } from '@/app/state-marker'
 import { useSessionDetail } from '@/app/use-session-detail'
 import {
@@ -26,7 +31,12 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import type { BoardRow } from '@/lib/data/fleet/board'
-import type { FileChange, SessionDetail, TranscriptEntry } from '@/lib/data/fleet/types'
+import type {
+  FileChange,
+  FleetChildRow,
+  SessionDetail,
+  TranscriptEntry
+} from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
 function PanelSection({
@@ -315,22 +325,52 @@ function WaysOut({ row }: { readonly row: BoardRow['row'] }) {
   )
 }
 
+/** A subagent's own state, in words: blocked, its live activity, done, failed, not started. */
+const childStatus = (child: FleetChildRow): string => {
+  switch (child.ownState) {
+    case 'blocked':
+      return 'blocked'
+    case 'working':
+      return child.activity === undefined ? 'working' : activityText(child.activity)
+    case 'finished':
+    case 'handled':
+      if (child.idle === undefined) return 'not started'
+
+      return child.outcome === 'failed' ? 'failed' : 'done'
+  }
+}
+
+/** The subagent tree, depth-first, each child with its own state. */
 function Subagents({ row }: { readonly row: BoardRow['row'] }) {
   return (
     <PanelSection title={plural(row.children.length, 'subagent', 'subagents')}>
-      <ul className="space-y-1">
+      <ul className="space-y-1" aria-label="Subagents">
         {row.children.map(child => (
           <li
             key={child.id}
+            data-state={child.ownState}
             className="flex items-baseline gap-2"
             style={{ paddingLeft: `${(child.depth - 1) * 0.75}rem` }}
           >
-            <StateMarker state={child.ownState} className="translate-y-px" />
+            <StateMarker
+              state={child.ownState}
+              failed={child.outcome === 'failed'}
+              className="translate-y-px"
+            />
             <span className="min-w-0 break-words">
               {child.agent === undefined ? null : (
                 <span className="text-muted-foreground">{child.agent} · </span>
               )}
               {sessionTitle(child)}
+              <span
+                className={cn(
+                  'text-muted-foreground',
+                  child.outcome === 'failed' && child.ownState !== 'working' && 'text-destructive'
+                )}
+              >
+                {' '}
+                · {childStatus(child)}
+              </span>
             </span>
           </li>
         ))}
@@ -359,8 +399,8 @@ function useMarkViewed(sessionID: string, row: BoardRow['row'] | undefined) {
 
 /**
  * The session panel: side panel on desktop, full screen on the phone. Header facts, inline
- * answers, recent messages and files, follow-up prompt, Interrupt, Mark handled / Reopen, and
- * the ways out.
+ * answers, recent messages and files, the subagent tree, Handled (finished) / Reopen (handled),
+ * follow-up prompt, Interrupt (while running), and the ways out.
  */
 export function SessionPanel({
   sessionID,
@@ -434,24 +474,7 @@ export function SessionPanel({
         ) : null}
         {row !== undefined && row.state === 'blocked' ? (
           <PanelSection title="Needs you">
-            <div className="space-y-4">
-              {[row, ...row.children].flatMap(session => [
-                ...session.permissions.map(permission => (
-                  <PermissionAsk
-                    key={permission.id}
-                    permission={permission}
-                    subagent={session.id === row.id ? undefined : sessionTitle(session)}
-                  />
-                )),
-                ...session.forms.map(form => (
-                  <FormAsk
-                    key={form.id}
-                    form={form}
-                    subagent={session.id === row.id ? undefined : sessionTitle(session)}
-                  />
-                ))
-              ])}
-            </div>
+            <PendingAsks row={row} />
           </PanelSection>
         ) : null}
         <DetailBody sessionID={sessionID} version={version} />

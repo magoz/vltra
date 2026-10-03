@@ -33,7 +33,10 @@ const renderPanel = (row: FleetRow | undefined, actions = fakeActions()) => {
   const onClose = vi.fn<() => void>()
 
   render(
-    <WithActions actions={actions.actions}>
+    <WithActions
+      actions={actions.actions}
+      rows={row === undefined ? undefined : new Map([[row.id, row]])}
+    >
       <SessionPanel
         sessionID="ses_1"
         item={row === undefined ? undefined : itemFor(row)}
@@ -51,9 +54,20 @@ const workingRow = () =>
     {
       sessions: [
         sessionRecord('ses_1', { title: 'Fleet watcher', cost: 0.84, model: 'anthropic/opus' }),
-        sessionRecord('ses_sub', { parentID: 'ses_1', title: 'find event types', agent: 'explore' })
+        sessionRecord('ses_sub', {
+          parentID: 'ses_1',
+          title: 'find event types',
+          agent: 'explore'
+        }),
+        sessionRecord('ses_sub_done', {
+          parentID: 'ses_1',
+          title: 'check docs',
+          agent: 'general',
+          idle: baseTime + 1,
+          outcome: 'failed'
+        })
       ],
-      running: ['ses_1']
+      running: ['ses_1', 'ses_sub']
     },
     'ses_1'
   )
@@ -88,7 +102,7 @@ afterEach(() => {
 })
 
 describe('session panel', () => {
-  it('shows facts, last messages, changed files and subagents', async () => {
+  it('shows facts, last messages, changed files and the subagent tree with states', async () => {
     renderPanel(workingRow())
 
     expect(screen.getByRole('heading', { name: /Fleet watcher/ })).toBeTruthy()
@@ -97,7 +111,14 @@ describe('session panel', () => {
     expect(screen.getByText('bash · pnpm build')).toBeTruthy()
     expect(screen.getByText('src/watcher.ts')).toBeTruthy()
     expect(screen.getByText(/Files changed · 2/)).toBeTruthy()
-    expect(screen.getByText('find event types')).toBeTruthy()
+
+    const tree = screen.getByRole('list', { name: 'Subagents' })
+
+    expect(
+      within(tree)
+        .getAllByRole('listitem')
+        .map(item => item.textContent)
+    ).toEqual(['general · check docs · failed', 'explore · find event types · working'])
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
       '/api/fleet/sessions/ses_1',
       expect.objectContaining({ cache: 'no-store' })
@@ -125,13 +146,14 @@ describe('session panel', () => {
     )
   })
 
-  it('offers Mark handled, not Interrupt, for a finished run', async () => {
+  it('offers Handled, not Interrupt or Reopen, for a finished run', async () => {
     const { calls } = renderPanel(doneRow())
 
     expect(screen.queryByRole('button', { name: 'Interrupt' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /seen/i })).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mark handled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Handled' }))
 
     await vi.waitFor(() =>
       expect(calls).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_1' } }])
@@ -141,7 +163,7 @@ describe('session panel', () => {
   it('offers Reopen for a handled run', async () => {
     const { calls } = renderPanel(doneRow({ handled: baseTime + 1 }))
 
-    expect(screen.queryByRole('button', { name: 'Mark handled' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Handled' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Reopen' }))
 
@@ -156,6 +178,29 @@ describe('session panel', () => {
     await vi.waitFor(() =>
       expect(calls).toEqual([{ action: 'markViewed', input: { sessionID: 'ses_1' } }])
     )
+
+    cleanup()
+
+    const older = renderPanel(doneRow({ viewed: baseTime }))
+
+    await vi.waitFor(() =>
+      expect(older.calls).toEqual([{ action: 'markViewed', input: { sessionID: 'ses_1' } }])
+    )
+  })
+
+  it('does not mark viewed a run already viewed, or a session that never ran', async () => {
+    const viewed = renderPanel(doneRow({ handled: baseTime + 1 }))
+
+    // Let the panel's effects and detail load settle before checking nothing was sent.
+    expect(await screen.findByText('Watch the OpenCode event stream.')).toBeTruthy()
+    expect(viewed.calls).toEqual([])
+
+    cleanup()
+
+    const fresh = renderPanel(rowFrom({ sessions: [sessionRecord('ses_1')] }, 'ses_1'))
+
+    expect(await screen.findByText('Watch the OpenCode event stream.')).toBeTruthy()
+    expect(fresh.calls).toEqual([])
   })
 
   it('sends a follow-up prompt and clears the box', async () => {

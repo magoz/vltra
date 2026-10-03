@@ -22,7 +22,7 @@ export function PermissionAsk({
   subagent
 }: {
   readonly permission: PendingPermission
-  /** Set when the request comes from a subagent of this row (its title or id). */
+  /** Set when the request comes from a subagent of this row (its agent, else its title). */
   readonly subagent?: string | undefined
 }) {
   const actions = useFleetActions()
@@ -54,7 +54,7 @@ export function PermissionAsk({
           Permission
         </span>
         {subagent === undefined ? null : (
-          <span className="text-muted-foreground">{subagent} · </span>
+          <span className="text-muted-foreground">subagent {subagent} asks: </span>
         )}
         {permission.action} wants{' '}
         <code className="text-foreground">{permissionTarget(permission)}</code>

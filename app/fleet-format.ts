@@ -1,6 +1,10 @@
-import type { ActiveState } from '@/lib/data/fleet/board'
 import { isQuiet, lastActivityAt, pendingRetry } from '@/lib/data/fleet/state'
-import type { FleetRow, PendingPermission, SessionActivity } from '@/lib/data/fleet/types'
+import type {
+  FleetChildRow,
+  FleetRow,
+  PendingPermission,
+  SessionActivity
+} from '@/lib/data/fleet/types'
 
 // Display formatting for the dashboard. Pure; times are epoch milliseconds.
 
@@ -50,16 +54,22 @@ export const activityText = (activity: SessionActivity): string => {
   }
 }
 
-export const sectionTitle = (state: ActiveState): string => {
-  switch (state) {
-    case 'blocked':
-      return 'Needs you · blocked'
-    case 'finished':
-      return 'Needs you · finished'
-    case 'working':
-      return 'Working'
-  }
-}
+export const sessionTitle = (row: Pick<FleetRow, 'title' | 'id'>) => row.title ?? row.id
+
+/** How a subagent's requests are attributed on its parent's row: its agent, else its title. */
+export const subagentName = (child: Pick<FleetChildRow, 'agent' | 'title' | 'id'>) =>
+  child.agent ?? sessionTitle(child)
+
+/** What a blocked row waits on: `1 permission · 2 questions` (whole subtree). */
+export const pendingText = (row: Pick<FleetRow, 'pending'>): string =>
+  [
+    row.pending.permissions === 0
+      ? undefined
+      : plural(row.pending.permissions, 'permission', 'permissions'),
+    row.pending.forms === 0 ? undefined : plural(row.pending.forms, 'question', 'questions')
+  ]
+    .filter(part => part !== undefined)
+    .join(' · ')
 
 /** Why a working row looks stuck: `retrying (2×, rate limited)` or `quiet 14m`; else nothing. */
 export const stuckText = (row: FleetRow, now: number): string | undefined => {

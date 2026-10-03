@@ -1,16 +1,16 @@
-import { countRows } from '@/lib/data/fleet/state'
+import { compareStates, countRows } from '@/lib/data/fleet/state'
 import type {
   FleetChange,
   FleetConnection,
   FleetCounts,
   FleetRow,
   FleetSnapshot,
-  FleetState,
   WorktreeKind
 } from '@/lib/data/fleet/types'
 
 // The dashboard's client-side view of the fleet: a flat row map kept live from `fleet.changed`
-// events, and the attention board derived from it. Pure, so it runs (and is tested) anywhere.
+// events, and the two areas derived from it (DESIGN.md "Clients"): the needs-me sidebar and
+// Projects. Pure, so it runs (and is tested) anywhere.
 
 export type ProjectInfo = { readonly name: string; readonly directory: string }
 
@@ -60,6 +60,47 @@ export const applyChange = (live: LiveFleet, change: FleetChange): AppliedChange
   }
 }
 
+/**
+ * An optimistic Handled / Undo / Reopen: show `row` as `target` until the server sends anything
+ * new for it (a different row object), then trust the server again.
+ */
+export type RowOverride = {
+  readonly base: FleetRow
+  readonly target: 'handled' | 'finished'
+}
+
+const overridden = (row: FleetRow, target: RowOverride['target']): FleetRow => {
+  if (target === 'handled') {
+    return row.state === 'finished'
+      ? { ...row, state: 'handled', ownState: 'handled', handled: row.idle }
+      : row
+  }
+
+  if (row.state !== 'handled' || row.idle === undefined) return row
+
+  const { handled: _handled, ...rest } = row
+
+  return { ...rest, state: 'finished', ownState: 'finished' }
+}
+
+/** The live fleet with pending optimistic overrides applied (only to unchanged rows). */
+export const withOverrides = (
+  live: LiveFleet,
+  overrides: ReadonlyMap<string, RowOverride>
+): LiveFleet => {
+  const active = Array.from(overrides).filter(
+    ([id, override]) => live.rows.get(id) === override.base
+  )
+
+  if (active.length === 0) return live
+
+  const rows = new Map(live.rows)
+
+  for (const [id, override] of active) rows.set(id, overridden(override.base, override.target))
+
+  return { ...live, rows }
+}
+
 const lastSegment = (directory: string) =>
   directory.split('/').findLast(segment => segment !== '') ?? directory
 
@@ -69,36 +110,6 @@ export type BoardRow = {
   readonly project: string
   /** Worktree or subdirectory label; undefined for the project's own checkout. */
   readonly worktree: string | undefined
-}
-
-export type ActiveState = Exclude<FleetState, 'handled'>
-
-/** Needs me (blocked, then finished), then working. */
-export const activeStates: ReadonlyArray<ActiveState> = ['blocked', 'finished', 'working']
-
-export type BoardSection = {
-  readonly state: ActiveState
-  readonly rows: ReadonlyArray<BoardRow>
-}
-
-export type HandledWorktree = {
-  readonly label: string | undefined
-  readonly rows: ReadonlyArray<BoardRow>
-}
-
-export type HandledProject = {
-  readonly id: string
-  readonly name: string
-  readonly worktrees: ReadonlyArray<HandledWorktree>
-}
-
-export type Board = {
-  /** Root rows by state (`stuck` as of `now`). */
-  readonly counts: FleetCounts
-  /** Active sections in order, empty ones omitted. */
-  readonly sections: ReadonlyArray<BoardSection>
-  /** Every handled session (no time limit), grouped project → worktree, newest first. */
-  readonly handled: ReadonlyArray<HandledProject>
 }
 
 export const worktreeLabel = (
@@ -119,78 +130,144 @@ export const worktreeLabel = (
   return lastSegment(row.directory)
 }
 
+/** OpenCode's `global` project (sessions outside any repository) has `/` as its directory. */
+const isOtherProject = (live: LiveFleet, row: Pick<FleetRow, 'projectID'>): boolean =>
+  live.projects.get(row.projectID)?.directory === '/'
+
 /**
- * OpenCode's `global` project (sessions outside any repository) has `/` as its directory; its
- * sessions, and those of projects the client does not know yet, are named by their directory.
+ * Sessions of the global project, and of projects the client does not know yet, are named by
+ * their directory.
  */
-const namedProject = (live: LiveFleet, row: FleetRow): ProjectInfo | undefined => {
+export const boardRow = (live: LiveFleet, row: FleetRow): BoardRow => {
   const project = live.projects.get(row.projectID)
 
-  return project === undefined || project.directory === '/' ? undefined : project
-}
-
-export const boardRow = (live: LiveFleet, row: FleetRow): BoardRow => {
-  const project = namedProject(live, row)
-
-  return project === undefined
+  return project === undefined || isOtherProject(live, row)
     ? { row, project: lastSegment(row.directory), worktree: undefined }
     : { row, project: project.name, worktree: worktreeLabel(live, row) }
 }
 
-const newestFirst = (left: BoardRow, right: BoardRow) => right.row.activeAt - left.row.activeAt
+export type ProjectWorktree = {
+  readonly directory: string
+  /** Undefined for the project's own checkout. */
+  readonly label: string | undefined
+  readonly rows: ReadonlyArray<BoardRow>
+}
+
+export type ProjectGroup = {
+  readonly id: string
+  readonly name: string
+  /** The "Other" group: every session outside a repository, each row showing its directory. */
+  readonly other: boolean
+  readonly worktrees: ReadonlyArray<ProjectWorktree>
+}
+
+export type Board = {
+  /** Root rows by state (`stuck` as of `now`). */
+  readonly counts: FleetCounts
+  /**
+   * The sidebar: blocked rows (longest wait first), then finished rows (oldest first). A blocked
+   * run stopped moving when it asked, so its `activeAt` is when the wait began.
+   */
+  readonly needsMe: ReadonlyArray<BoardRow>
+  /** Every root session, project → worktree by latest activity; "Other" last. */
+  readonly projects: ReadonlyArray<ProjectGroup>
+}
+
+const otherProjectID = 'other'
 
 const oldestFirst = (left: BoardRow, right: BoardRow) => left.row.activeAt - right.row.activeAt
 
-/** Needs-me rows wait oldest first; working rows show newest first. */
-const sectionOrder = (state: ActiveState) => (state === 'working' ? newestFirst : oldestFirst)
+/**
+ * In a worktree: needs-me and working sessions first (blocked, working, finished), then handled
+ * ones; newest first within each.
+ */
+const worktreeOrder = (left: BoardRow, right: BoardRow) =>
+  compareStates(left.row.state, right.row.state) || right.row.activeAt - left.row.activeAt
 
-const groupHandled = (rows: ReadonlyArray<BoardRow>): ReadonlyArray<HandledProject> => {
-  const projects = new Map<string, { name: string; worktrees: Map<string, Array<BoardRow>> }>()
+const latest = (rows: ReadonlyArray<BoardRow>) =>
+  Math.max(0, ...rows.map(item => item.row.activeAt))
 
-  for (const item of rows) {
-    const project = projects.get(item.row.projectID) ?? { name: item.project, worktrees: new Map() }
-    const key = item.worktree ?? ''
-    const worktree = project.worktrees.get(key)
+const groupBy = <A>(values: ReadonlyArray<A>, key: (value: A) => string) => {
+  const groups = new Map<string, Array<A>>()
 
-    if (worktree === undefined) project.worktrees.set(key, [item])
-    else worktree.push(item)
+  for (const value of values) {
+    const group = groups.get(key(value))
 
-    projects.set(item.row.projectID, project)
+    if (group === undefined) groups.set(key(value), [value])
+    else group.push(value)
   }
 
-  // Rows arrive newest first, so insertion order is recency order for projects and worktrees;
-  // the project's own checkout comes first, then its worktrees.
-  return Array.from(projects, ([id, project]) => ({
-    id,
-    name: project.name,
-    worktrees: Array.from(project.worktrees, ([key, worktreeRows]) => ({
-      label: key === '' ? undefined : key,
-      rows: worktreeRows
-    })).toSorted(
-      (left, right) => Number(left.label !== undefined) - Number(right.label !== undefined)
-    )
-  }))
+  return groups
 }
 
-/**
- * The attention board: blocked and finished (needs me, oldest first), working (newest first),
- * then every handled session grouped project → worktree.
- */
+const byLatest = (left: ProjectWorktree, right: ProjectWorktree) =>
+  latest(right.rows) - latest(left.rows)
+
+const projectLatest = (group: ProjectGroup) =>
+  Math.max(0, ...group.worktrees.map(worktree => latest(worktree.rows)))
+
+const projectGroup = (live: LiveFleet, id: string, rows: ReadonlyArray<BoardRow>): ProjectGroup => {
+  const worktrees = Array.from(
+    groupBy(rows, item => item.row.directory),
+    ([directory, items]) => ({
+      directory,
+      label: items[0]?.worktree,
+      rows: items.toSorted(worktreeOrder)
+    })
+  ).toSorted(byLatest)
+
+  return {
+    id,
+    name: live.projects.get(id)?.name ?? rows[0]?.project ?? id,
+    other: false,
+    worktrees
+  }
+}
+
+const groupProjects = (
+  live: LiveFleet,
+  rows: ReadonlyArray<BoardRow>
+): ReadonlyArray<ProjectGroup> => {
+  const other = rows.filter(item => isOtherProject(live, item.row))
+
+  const named = Array.from(
+    groupBy(
+      rows.filter(item => !isOtherProject(live, item.row)),
+      item => item.row.projectID
+    ),
+    ([id, items]) => projectGroup(live, id, items)
+  ).toSorted(
+    (left, right) =>
+      projectLatest(right) - projectLatest(left) || left.name.localeCompare(right.name)
+  )
+
+  if (other.length === 0) return named
+
+  return [
+    ...named,
+    {
+      id: otherProjectID,
+      name: 'Other',
+      other: true,
+      worktrees: [{ directory: '/', label: undefined, rows: other.toSorted(worktreeOrder) }]
+    }
+  ]
+}
+
+/** The sidebar (needs me) and Projects (every session), with counts as of `now`. */
 export const buildBoard = (live: LiveFleet, now: number): Board => {
   const rows = Array.from(live.rows.values(), row => boardRow(live, row))
-
-  const sections = activeStates.flatMap((state): ReadonlyArray<BoardSection> => {
-    const sectionRows = rows.filter(item => item.row.state === state).toSorted(sectionOrder(state))
-
-    return sectionRows.length === 0 ? [] : [{ state, rows: sectionRows }]
-  })
+  const inState = (state: FleetRow['state']) => rows.filter(item => item.row.state === state)
 
   return {
     counts: countRows(
       rows.map(item => item.row),
       now
     ),
-    sections,
-    handled: groupHandled(rows.filter(item => item.row.state === 'handled').toSorted(newestFirst))
+    needsMe: [
+      ...inState('blocked').toSorted(oldestFirst),
+      ...inState('finished').toSorted(oldestFirst)
+    ],
+    projects: groupProjects(live, rows)
   }
 }

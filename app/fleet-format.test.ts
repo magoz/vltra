@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { activityText, formatCost, modelName, relativeTime } from '@/app/fleet-format'
+import {
+  activityText,
+  endText,
+  formatCost,
+  modelName,
+  pendingText,
+  relativeTime
+} from '@/app/fleet-format'
 
 describe('formatting', () => {
   it('ages compactly', () => {
@@ -25,5 +32,16 @@ describe('formatting', () => {
     expect(activityText({ kind: 'tool', tool: 'bash', detail: 'pnpm build' })).toBe(
       'bash: pnpm build'
     )
+  })
+
+  it('says what a blocked row waits on and how a run ended', () => {
+    expect(pendingText({ pending: { permissions: 1, forms: 0 } })).toBe('1 permission')
+    expect(pendingText({ pending: { permissions: 2, forms: 1 } })).toBe(
+      '2 permissions · 1 question'
+    )
+
+    expect(endText({ outcome: 'failed' })).toBe('run failed')
+    expect(endText({ outcome: 'interrupted', interrupt: 'inactivity' })).toBe('stopped by OpenCode')
+    expect(endText({ outcome: 'succeeded' })).toBe('finished')
   })
 })
