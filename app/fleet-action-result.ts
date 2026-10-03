@@ -1,9 +1,17 @@
 import { Data, Effect } from 'effect'
 import type { Schema } from 'effect'
 import type { CrossSiteRequestError } from '@/app/same-origin'
-import type { SessionFolderGoneError, SessionNotFinishedError } from '@/lib/data/fleet/errors'
+import type {
+  LaunchInProgressError,
+  LaunchNotFoundError,
+  NotACheckoutError,
+  RetireRefusedError,
+  SessionFolderGoneError,
+  SessionNotFinishedError
+} from '@/lib/data/fleet/errors'
 import type {
   OpenCodeInvalidInputError,
+  OpenCodeRejectedError,
   OpenCodeRequestError,
   OpenCodeUnavailableError,
   SessionNotFoundError
@@ -30,6 +38,28 @@ export const FleetActionResult = {
   }
 }
 
+/** The failure case of every action result. */
+export type FleetActionFailure = Extract<FleetActionResult, { readonly _tag: 'Error' }>
+
+/** An action result that carries a value on success (launch id, session id, suggestion). */
+export type FleetActionValue<A> =
+  | FleetActionFailure
+  | { readonly _tag: 'Success'; readonly value: A }
+
+interface FleetActionValueDefinition extends Data.TaggedEnum.WithGenerics<1> {
+  readonly taggedEnum: FleetActionValue<this['A']>
+}
+
+const FleetActionValueCases = Data.taggedEnum<FleetActionValueDefinition>()
+
+export const FleetActionValue = {
+  Success: <A>(value: A): FleetActionValue<A> => {
+    const { _tag } = FleetActionValueCases.Success({ value })
+
+    return { _tag, value }
+  }
+}
+
 export type FleetActionError =
   | CrossSiteRequestError
   | Schema.SchemaError
@@ -39,6 +69,11 @@ export type FleetActionError =
   | SessionNotFoundError
   | SessionNotFinishedError
   | SessionFolderGoneError
+  | OpenCodeRejectedError
+  | NotACheckoutError
+  | RetireRefusedError
+  | LaunchNotFoundError
+  | LaunchInProgressError
 
 /** User-facing words for the OpenCode calls that write; reads keep the generic message. */
 const requestFailures = new Map([
@@ -46,7 +81,10 @@ const requestFailures = new Map([
   ['session.prompt', 'OpenCode could not send the prompt'],
   ['session.interrupt', 'OpenCode could not interrupt the session'],
   ['permission.reply', 'OpenCode could not record the reply'],
-  ['session.form.reply', 'OpenCode could not record the answer']
+  ['session.form.reply', 'OpenCode could not record the answer'],
+  ['location.get', 'OpenCode could not open the repository'],
+  ['session.create', 'OpenCode could not create the session'],
+  ['worktree.remove', 'OpenCode could not remove the worktree']
 ])
 
 /**
@@ -55,9 +93,9 @@ const requestFailures = new Map([
  */
 export const toActionResult =
   (operation: string) =>
-  <R>(
-    effect: Effect.Effect<FleetActionResult, FleetActionError, R>
-  ): Effect.Effect<FleetActionResult, never, R> =>
+  <A, R>(
+    effect: Effect.Effect<A, FleetActionError, R>
+  ): Effect.Effect<A | FleetActionFailure, never, R> =>
     effect.pipe(
       Effect.withSpan(operation),
       Effect.tapError(error => Effect.logWarning(`${operation} failed`, error._tag, error.message)),
@@ -79,6 +117,17 @@ export const toActionResult =
           ),
         OpenCodeUnavailableError: () =>
           Effect.succeed(FleetActionResult.Error({ message: 'OpenCode is not reachable' })),
+        // OpenCode's own words (sanitized), e.g. the worktree plugin's refusals.
+        OpenCodeRejectedError: error =>
+          Effect.succeed(FleetActionResult.Error({ message: error.message })),
+        NotACheckoutError: () =>
+          Effect.succeed(FleetActionResult.Error({ message: 'Not a git checkout on Box' })),
+        RetireRefusedError: error =>
+          Effect.succeed(FleetActionResult.Error({ message: error.reason })),
+        LaunchNotFoundError: () =>
+          Effect.succeed(FleetActionResult.Error({ message: 'That launch is gone' })),
+        LaunchInProgressError: () =>
+          Effect.succeed(FleetActionResult.Error({ message: 'The launch is still running' })),
         OpenCodeRequestError: error =>
           Effect.succeed(
             FleetActionResult.Error({
