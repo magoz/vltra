@@ -22,7 +22,8 @@
     "test:integration": "vitest run --project integration",
     "test:lint": "vitest run --project unit tools/oxlint/anti-slop.test.js eslint-local-rules/rules.test.js",
     "verify": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test --run && pnpm build",
-    "ship": "pnpm build && systemctl --user restart fleet"
+    "ship": "pnpm build && systemctl --user restart fleet",
+    "fleet:import-handled": "tsx scripts/import-handled.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -57,6 +58,7 @@
     "oxlint": "1.78.0",
     "portless": "^0.15.5",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "4.1.11"
   }
