@@ -43,14 +43,14 @@ describe('header', () => {
     renderHeader('agents')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ← → column · ↵ open · h handled · u undo · a d allow/deny · / filter · 1 2 pages'
+      'j k move · ← → column · ↵ open · h handled · u undo · a d allow/deny · / filter · c chat · 1 2 pages'
     )
 
     cleanup()
     renderHeader('projects')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      '← → ↑ ↓ card · j k session · ↵ open · 1 2 pages'
+      '← → ↑ ↓ card · j k session · ↵ open · c chat · 1 2 pages'
     )
   })
 })

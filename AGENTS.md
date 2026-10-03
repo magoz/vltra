@@ -105,6 +105,9 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 - The open session lives in the URL (`?session=<id>`, kept across page switches): a right-side
   drawer over either page from `lg`, full screen below it, so the phone's back button closes it
   (closing goes back only when Fleet pushed the entry on this page).
+- Drawer tabs Summary | Chat (`c` toggles; last choice in `localStorage`, `use-drawer-tab.ts`):
+  Chat is an iframe of OpenCode's web UI (`row.links.web`), signed in by its same-site pairing
+  cookie (`opencode pair`), with full app chrome since upstream has no embed mode.
 - Mutations go through `FleetActions` (`app/fleet-actions.tsx`): the dashboard provides the server
   actions, component tests provide recording fakes (`app/testing/dashboard-fixtures.tsx`:
   `WithFleet` for one card, `TestDashboard` for the whole dashboard with the URL in state;

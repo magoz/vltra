@@ -7,18 +7,21 @@ import { FleetProvider } from '@/app/fleet-context'
 import type { FleetNav, SessionSelection } from '@/app/fleet-context'
 import { BottomTabs, FleetHeader } from '@/app/fleet-header'
 import { SessionPanel } from '@/app/session-panel'
+import { useDrawerTab } from '@/app/use-drawer-tab'
 import type { StreamStatus } from '@/app/use-fleet-live'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
 import { boardRow, withOverrides } from '@/lib/data/fleet/board'
 import type { LiveFleet } from '@/lib/data/fleet/board'
 import { countRows } from '@/lib/data/fleet/state'
+import { cn } from '@/lib/utils'
 
 /**
  * Around both pages (DESIGN.md "Clients" → Web): the header (tabs, count line, key hint,
  * connection), the phone's bottom tab bar, Handled / Undo / Reopen, and the session drawer
- * (`?session=`, right side on desktop, full screen on the phone) over either page. Keys: `1` / `2`
- * switch pages, `Escape` closes the drawer.
+ * (`?session=`, right side on desktop, full screen on the phone) over either page, with its
+ * Summary | Chat tabs (the last choice remembered per browser; wider on desktop for Chat). Keys:
+ * `1` / `2` switch pages, `Escape` closes the drawer, `c` toggles Summary / Chat.
  */
 export function FleetShell({
   live,
@@ -43,11 +46,16 @@ export function FleetShell({
   const { selected } = selection
   const selectedRow = selected === undefined ? undefined : view.rows.get(selected)
   const selectedItem = selectedRow === undefined ? undefined : boardRow(view, selectedRow)
+  const drawer = useDrawerTab()
 
   useKeys({
     '1': nav.page === 'agents' ? undefined : () => nav.go('agents'),
     '2': nav.page === 'projects' ? undefined : () => nav.go('projects'),
-    Escape: selected === undefined ? undefined : selection.close
+    Escape: selected === undefined ? undefined : selection.close,
+    c:
+      selected === undefined
+        ? undefined
+        : () => drawer.choose(drawer.tab === 'chat' ? 'summary' : 'chat')
   })
 
   return (
@@ -65,13 +73,19 @@ export function FleetShell({
           {selected === undefined ? null : (
             <aside
               aria-label="Session"
-              className="bg-background fixed z-30 overflow-y-auto overscroll-contain max-lg:inset-0 lg:top-12 lg:right-0 lg:bottom-0 lg:w-[min(44rem,48vw)] lg:border-l"
+              data-tab={drawer.tab}
+              className={cn(
+                'bg-background fixed z-30 flex flex-col overflow-hidden max-lg:inset-0 lg:top-12 lg:right-0 lg:bottom-0 lg:border-l',
+                drawer.tab === 'chat' ? 'lg:w-[min(64rem,70vw)]' : 'lg:w-[min(44rem,48vw)]'
+              )}
             >
               <SessionPanel
                 key={selected}
                 sessionID={selected}
                 item={selectedItem}
                 now={now}
+                tab={drawer.tab}
+                onTab={drawer.choose}
                 onClose={selection.close}
               />
             </aside>

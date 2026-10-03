@@ -16,6 +16,7 @@ import { useFleetActions } from '@/app/fleet-actions'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
 import { PendingAsks } from '@/app/pending-asks'
 import { StateMarker } from '@/app/state-marker'
+import type { DrawerTab } from '@/app/use-drawer-tab'
 import { useSessionDetail } from '@/app/use-session-detail'
 import {
   AlertDialog,
@@ -398,22 +399,170 @@ function useMarkViewed(sessionID: string, row: BoardRow['row'] | undefined) {
 }
 
 /**
- * The session panel: side panel on desktop, full screen on the phone. Header facts, inline
- * answers, recent messages and files, the subagent tree, Handled (finished) / Reopen (handled;
- * neither once the session's folder is deleted), follow-up prompt, Interrupt (while running), and
- * the ways out.
+ * OpenCode's own web UI for the session (`row.links.web`), framed. Same-site with Fleet, so a
+ * browser paired once (`opencode pair`) stays signed in here; OpenCode has no embed mode, so its
+ * full app chrome shows.
+ */
+function OpenCodeChat({ url, title }: { readonly url: string; readonly title: string }) {
+  const [loaded, setLoaded] = useState(false)
+
+  return (
+    <>
+      <div className="text-muted-foreground flex shrink-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b px-4 py-1.5 text-xs">
+        <p className="min-w-0 break-words">
+          Not signed in? Pair this browser once:{' '}
+          <code className="text-foreground select-all">
+            opencode pair --url {new URL(url).origin}
+          </code>
+        </p>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="hover:text-foreground shrink-0 underline underline-offset-2"
+        >
+          Open in new tab
+        </a>
+      </div>
+      <div className="relative min-h-0 flex-1">
+        {loaded ? null : (
+          <p
+            className="text-muted-foreground pointer-events-none absolute inset-x-0 top-0 z-10 p-4"
+            aria-busy="true"
+          >
+            Loading OpenCode…
+          </p>
+        )}
+        <iframe
+          src={url}
+          title={title}
+          allow="clipboard-read; clipboard-write"
+          referrerPolicy="no-referrer"
+          onLoad={() => setLoaded(true)}
+          className="absolute inset-0 block size-full border-0"
+        />
+      </div>
+    </>
+  )
+}
+
+const drawerTabs: ReadonlyArray<{ readonly tab: DrawerTab; readonly label: string }> = [
+  { tab: 'summary', label: 'Summary' },
+  { tab: 'chat', label: 'Chat' }
+]
+
+/**
+ * The session drawer: side panel on desktop, full screen on the phone (with its `‹ Fleet` back
+ * bar), with two tabs. **Summary**: header facts, inline answers, recent messages and files, the
+ * subagent tree, Handled (finished) / Reopen (handled; neither once the session's folder is
+ * deleted), follow-up prompt, Interrupt (while running), and the ways out. **Chat**: OpenCode's
+ * web UI in an iframe, mounted the first time Chat shows and kept while switching back to
+ * Summary, so OpenCode does not reload (the shell keys the panel by session, so a new session or
+ * closing drops it). Each tab scrolls on its own; the iframe fills the rest of the drawer.
  */
 export function SessionPanel({
   sessionID,
   item,
   now,
+  tab,
+  onTab,
   onClose
 }: {
   readonly sessionID: string
   /** The row, when the session is on the board. */
   readonly item: BoardRow | undefined
   readonly now: number
+  readonly tab: DrawerTab
+  readonly onTab: (tab: DrawerTab) => void
   readonly onClose: () => void
+}) {
+  const id = useId()
+  const [chatSeen, setChatSeen] = useState(tab === 'chat')
+
+  if (tab === 'chat' && !chatSeen) setChatSeen(true)
+
+  const row = item?.row
+  const title = row === undefined ? sessionID : sessionTitle(row)
+
+  const interrupt =
+    row?.running === true ? <InterruptButton sessionID={sessionID} title={title} /> : null
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="bg-background flex shrink-0 items-center justify-between gap-2 border-b px-2 py-2 lg:hidden">
+        <Button variant="ghost" onClick={onClose}>
+          ‹ Fleet
+        </Button>
+        {interrupt}
+      </div>
+      <div className="flex h-10 shrink-0 items-stretch justify-between border-b pr-2">
+        <div role="tablist" aria-label="Session views" className="flex">
+          {drawerTabs.map(entry => (
+            <button
+              key={entry.tab}
+              id={`${id}-${entry.tab}-tab`}
+              type="button"
+              role="tab"
+              aria-selected={entry.tab === tab}
+              aria-controls={`${id}-${entry.tab}`}
+              onClick={() => onTab(entry.tab)}
+              className="text-muted-foreground hover:text-foreground aria-selected:border-b-attention aria-selected:text-foreground focus-visible:ring-ring/50 -mb-px flex items-center border-b-2 border-b-transparent px-4 outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Close panel"
+          className="self-center max-lg:hidden"
+          onClick={onClose}
+        >
+          ×
+        </Button>
+      </div>
+      <div
+        id={`${id}-summary`}
+        role="tabpanel"
+        aria-labelledby={`${id}-summary-tab`}
+        hidden={tab !== 'summary'}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      >
+        <SummaryView sessionID={sessionID} item={item} now={now} interrupt={interrupt} />
+      </div>
+      {chatSeen ? (
+        <div
+          id={`${id}-chat`}
+          role="tabpanel"
+          aria-labelledby={`${id}-chat-tab`}
+          hidden={tab !== 'chat'}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          {row === undefined ? (
+            <p className="text-muted-foreground p-4">
+              This session is not on the board, so Fleet has no OpenCode link for it.
+            </p>
+          ) : (
+            <OpenCodeChat url={row.links.web} title={title} />
+          )}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** The Summary tab: today's panel content. */
+function SummaryView({
+  sessionID,
+  item,
+  now,
+  interrupt
+}: {
+  readonly sessionID: string
+  readonly item: BoardRow | undefined
+  readonly now: number
+  readonly interrupt: ReactNode
 }) {
   const row = item?.row
   const title = row === undefined ? sessionID : sessionTitle(row)
@@ -435,17 +584,8 @@ export function SessionPanel({
       ? 'unknown'
       : `${row.state}:${row.activeAt}:${row.idle ?? 0}:${JSON.stringify(row.activity ?? null)}`
 
-  const interrupt =
-    row?.running === true ? <InterruptButton sessionID={sessionID} title={title} /> : null
-
   return (
-    <div className="flex min-h-full flex-col" aria-labelledby="session-panel-title">
-      <div className="bg-background/95 sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-2 py-2 lg:hidden">
-        <Button variant="ghost" onClick={onClose}>
-          ‹ Fleet
-        </Button>
-        {interrupt}
-      </div>
+    <div aria-labelledby="session-panel-title">
       <div className="px-4 pt-4 pb-10">
         <div className="flex items-start justify-between gap-3">
           <h2 id="session-panel-title" className="flex min-w-0 items-baseline gap-2 font-semibold">
@@ -458,12 +598,9 @@ export function SessionPanel({
             )}
             <span className="min-w-0 break-words">{title}</span>
           </h2>
-          <div className="flex shrink-0 items-center gap-2 max-lg:hidden">
-            {interrupt}
-            <Button variant="ghost" size="icon-sm" aria-label="Close panel" onClick={onClose}>
-              ×
-            </Button>
-          </div>
+          {interrupt === null ? null : (
+            <div className="flex shrink-0 items-center gap-2 max-lg:hidden">{interrupt}</div>
+          )}
         </div>
         {facts.length === 0 ? null : (
           <p className="text-muted-foreground mt-1 text-xs">{facts.join(' · ')}</p>

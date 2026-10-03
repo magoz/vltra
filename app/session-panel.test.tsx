@@ -41,6 +41,8 @@ const renderPanel = (row: FleetRow | undefined, actions = fakeActions()) => {
         sessionID="ses_1"
         item={row === undefined ? undefined : itemFor(row)}
         now={now}
+        tab="summary"
+        onTab={() => undefined}
         onClose={onClose}
       />
     </WithActions>
@@ -285,6 +287,26 @@ describe('session panel', () => {
     fireEvent.click(screen.getByRole('button', { name: '‹ Fleet' }))
 
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('has no Chat for a session that is not on the board', () => {
+    render(
+      <WithActions actions={fakeActions().actions}>
+        <SessionPanel
+          sessionID="ses_1"
+          item={undefined}
+          now={now}
+          tab="chat"
+          onTab={() => undefined}
+          onClose={() => undefined}
+        />
+      </WithActions>
+    )
+
+    expect(screen.getByRole('tabpanel', { name: 'Chat' }).textContent).toBe(
+      'This session is not on the board, so Fleet has no OpenCode link for it.'
+    )
+    expect(document.querySelector('iframe')).toBeNull()
   })
 
   it('says when OpenCode cannot provide the messages', async () => {

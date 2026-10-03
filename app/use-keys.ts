@@ -2,7 +2,10 @@
 
 import { useEffect, useRef } from 'react'
 
-/** The dashboard's keys (desktop). Each page binds its own; the shell binds `1`, `2`, `Escape`. */
+/**
+ * The dashboard's keys (desktop). Each page binds its own; the shell binds `1`, `2`, `Escape`,
+ * `c`. Keys typed inside the drawer's OpenCode iframe stay in the iframe.
+ */
 export type FleetKey =
   | 'j'
   | 'k'
@@ -10,6 +13,7 @@ export type FleetKey =
   | 'u'
   | 'a'
   | 'd'
+  | 'c'
   | '1'
   | '2'
   | '/'
@@ -30,6 +34,7 @@ const fleetKeys: ReadonlyArray<string> = [
   'u',
   'a',
   'd',
+  'c',
   '1',
   '2',
   '/',

@@ -72,7 +72,10 @@ export function CountLine({ counts }: { readonly counts: FleetCounts }) {
 
 type KeyHint = { readonly keys: string; readonly label: string }
 
-/** Each page's keys (`agents-board.tsx`, `projects-grid.tsx`), plus the shell's `1` / `2`. */
+/**
+ * Each page's keys (`agents-board.tsx`, `projects-grid.tsx`), plus the shell's `c` (the open
+ * drawer's Summary / Chat) and `1` / `2`.
+ */
 export const keyHints: Readonly<Record<FleetPage, ReadonlyArray<KeyHint>>> = {
   agents: [
     { keys: 'j k', label: 'move' },
@@ -82,12 +85,14 @@ export const keyHints: Readonly<Record<FleetPage, ReadonlyArray<KeyHint>>> = {
     { keys: 'u', label: 'undo' },
     { keys: 'a d', label: 'allow/deny' },
     { keys: '/', label: 'filter' },
+    { keys: 'c', label: 'chat' },
     { keys: '1 2', label: 'pages' }
   ],
   projects: [
     { keys: '← → ↑ ↓', label: 'card' },
     { keys: 'j k', label: 'session' },
     { keys: '↵', label: 'open' },
+    { keys: 'c', label: 'chat' },
     { keys: '1 2', label: 'pages' }
   ]
 }
