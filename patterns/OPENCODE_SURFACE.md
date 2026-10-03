@@ -101,8 +101,10 @@ step. Verified in 2.0.20 (`core/src/session/projector.ts`):
   (so Fleet never orders by `updated`; rows carry `activeAt` from run times instead). It emits
   `session.metadata.updated` with the full new metadata.
 - Writes are read-modify-write (`setHandled` in `live-layer.ts`, merge in `mapping.ts`
-  `withFleetHandled`): read the session, keep every other key (other writers: plugins, the ocb
-  Fleet plugin), replace only `fleet.handled`; clearing deletes it, and `fleet` once empty.
+  `withFleetHandled`): read the session, keep every other key (other writers: plugins), replace
+  only `fleet.handled`; clearing deletes it, and `fleet` once empty. Fleet is the only writer of
+  `metadata.fleet`: the terminal plugin marks handled / reopens through Fleet's
+  `POST /api/fleet/sessions/:id/handled` / `.../reopen` (same Effects as the server actions).
 - Reading: `fleetHandled` decodes `metadata.fleet.handled` as a finite number; absent or malformed
   metadata reads as unhandled.
 - Children and forks inherit the parent's metadata at creation (so a subagent may start with the

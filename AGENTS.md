@@ -34,6 +34,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | Runtime (one per process)        | `lib/runtime/fleet-runtime.ts`                                  | `ManagedRuntime` on `globalThis`; `runFleet`             |
 | Watcher start                    | `instrumentation.ts`                                            | Node runtime only; skipped during `next build`           |
 | Pages / API routes / actions     | `app/`                                                          | `(fleet)/` pages, `api/fleet`, `*-action.ts`             |
+| Plugin mutation routes (JSON)    | `app/api/fleet/mutations.ts`, `json-request.ts`                 | handled, reopen, launches, dismiss, checkouts/open       |
 | Dashboard UI                     | `app/fleet-shell.tsx` and siblings                              | Layout's live tree (`fleet-live.tsx`); see below         |
 | Launcher UI                      | `app/launcher-dialog.tsx`, `pending-launches.tsx`               | Palette, launches, `retire-worktree.tsx`                 |
 | Agents (focus, board) / Projects | `app/agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx` | Cards: `agent-card.tsx`, rows: `session-row.tsx`         |
@@ -57,6 +58,14 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   only its own domain types.
 - Browser mutations are server actions (`app/*-action.ts`) with typed inputs, a same-origin
   check (`app/same-origin.ts`), and `FleetActionResult` tagged results. No API routes for them.
+- The terminal plugin's mutations are JSON `POST` routes (DESIGN.md "Fleet API"):
+  `sessions/:id/handled`, `sessions/:id/reopen`, `launches`, `launches/:id/dismiss`,
+  `checkouts/open` under `/api/fleet`. Handlers live in `app/api/fleet/mutations.ts` (route files
+  only run them, so tests drive them with fake layers): `readJsonRequest` (same-origin, then JSON
+  only, else 415; shared with `launcher/branch`), the actions' Effects and input Schemas, and
+  `toMutationResponse` (`200` + result, else `{ error }` with `failureMessage` from
+  `fleet-action-result.ts` and `failureStatus`: 400 / 403 / 404 / 409 / 502 / 503). Result
+  schemas are in `lib/data/fleet/types.ts`.
 - Cache Components: prerendered shell, request-time data behind the smallest `<Suspense>` with
   `await connection()`. Never export `dynamic`/`revalidate`/`fetchCache`/`dynamicParams`.
 - Never call `Service.ensure` (it can spawn a server); systemd owns `opencode.service`.

@@ -15,4 +15,6 @@ Differences from 10x at a glance:
   rc.112 and Vitest 4 (its peer range), not Vitest 5.
 - No `NextEffect` helpers: nothing redirects. Boundaries call `runFleet` on the shared runtime.
 - Server actions return `FleetActionResult` through the shared `toActionResult` tail
-  (`app/fleet-action-result.ts`) instead of per-action catch chains.
+  (`app/fleet-action-result.ts`) instead of per-action catch chains; the terminal plugin's JSON
+  mutation routes reuse its messages (`failureMessage`) through `toMutationResponse`
+  (`app/api/fleet/mutations.ts`), which adds HTTP statuses.

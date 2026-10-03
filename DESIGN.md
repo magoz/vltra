@@ -110,6 +110,20 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
   `/api/fleet/launches/:id/dismiss`), same rules and same-origin check as the web's server
   actions (the plugin sends Fleet's own `Origin`). Fleet stays the only writer of
   `metadata.fleet`.
+- Mutation routes (`app/api/fleet/mutations.ts`; schemas in `lib/data/fleet/types.ts`, bodies
+  `LaunchInput` / `OpenCheckoutInput` in `launcher.ts`): `POST`, `Content-Type: application/json`
+  and same-origin, `cache-control: no-store`.
+  - `/api/fleet/sessions/:id/handled` `{}` → `{ sessionID, outcome: 'handled' | 'already-handled' }`
+  - `/api/fleet/sessions/:id/reopen` `{}` → `{ sessionID, outcome: 'reopened' | 'not-handled' }`
+  - `/api/fleet/launches` `{ repoDir, branch, task }` → `{ launchID }` at once (progress in the
+    snapshot's and `fleet.changed`'s `launches`)
+  - `/api/fleet/launches/:id/dismiss` `{}` → `{ launchID }`
+  - `/api/fleet/checkouts/open` `{ directory }` → `{ sessionID, created }` (latest root session
+    there, else a new empty one)
+  - Failures are `{ error }` with the server action's message: 400 invalid input / not a
+    checkout, 403 cross-site (or no `Origin`), 404 unknown session / launch, 409 not finished /
+    folder gone / launch still running / OpenCode refused, 415 not JSON, 502 an OpenCode call
+    failed, 503 OpenCode unreachable.
 - Launcher: `GET /api/fleet/launcher` → `LauncherList` (repos with worktrees, owner, PR, session
   tallies and latest root session, most recent activity first); `POST /api/fleet/launcher/branch`
   `{ task }` → `{ branch, source: 'model' | 'fallback' }` (JSON only, same-origin: a non-browser
