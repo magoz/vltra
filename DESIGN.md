@@ -161,6 +161,34 @@ box, Interrupt, Handled / Reopen, subagent tree, and two ways out:
   The OpenCode desktop app registers no URL scheme, so it cannot be targeted.
 - Copy `ocb -s <id>` as the always-works fallback. Live via SSE. Installable to the phone home screen.
 
+**Launcher and worktrees (web; the terminal plugin uses the same Fleet routes):** a
+sessionizer for agents. Everything that touches disk runs on Box; clients only call Fleet and
+OpenCode.
+- **Open it**: header **New** + `n` / `⌘K` (palette), phone **+** in the tab bar, **+** on each
+  Projects card (repo preselected). Type to fuzzy-match repos and their worktrees, most recent
+  agent activity first; the last row is `+ New worktree in <repo>…`.
+- **Pick an existing repo or worktree** → open its latest root session (focus mode, Chat), or a
+  new empty session there if it has none.
+- **New worktree** → describe the task; Fleet suggests a conventional branch (`feat/` `fix/`
+  `chore/` `docs/` + short kebab, via OpenCode `generate.text`, falling back to a slug; always
+  editable) → OpenCode `worktree.create({ projectID, name })` with `name =
+  branch.replaceAll('/', '--')` → `session.create` in the returned directory →
+  `session.prompt(task)` → land in that session. The dotfiles `worktrees` server plugin turns the
+  create into the provisioned sibling checkout `<repo>-<branch-slug>` on a named branch from
+  origin's fresh default tip (env/db/setup); it can take minutes, so the launch shows as a
+  "provisioning…" entry until the session exists (or an error with what was preserved).
+  Repos OpenCode has never opened are registered first (`location.get` with the directory).
+- **List source**: `GET /api/fleet/launcher` — the sessionizer roots (`~/dev/repos/*`,
+  `~/.dotfiles`, `~/aha`, `~/collie`, `~/subs`; configurable) that are git repos, merged with
+  OpenCode's projects; each repo with its linked worktrees (branch, directory, owner: `dotfiles`
+  marker = Fleet/OpenCode-managed, else Pi/Herdr), sessions and states.
+- **Retire**: on worktree sections (Projects), only for marker-owned worktrees, disabled while
+  any session there is working or blocked; confirms, then OpenCode `worktree.remove({ force:
+  false })` → `worktree-manage` retirement (database leases released, never forced, branch
+  kept). Sessions there become "folder deleted" (handled).
+- **PR status**: Fleet looks up each worktree branch's PR with `gh` on Box (cached) and marks
+  `merged · retire` / `closed · retire`. Automatic cleanup on merge/close is a later switch.
+
 **Terminal (CLI plugin in the dotfiles, runs inside `ocb`):**
 - `home.footer.status` / `prompt.footer.status` badge: the same count line as the web header.
 - Full-page route (`ctrl+x f`): the needs-me list only (Projects stays on the web); Enter
