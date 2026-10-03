@@ -205,13 +205,21 @@ export function NeedsMeRow({
   )
 }
 
+/** The session's folder was deleted: it counts as handled and cannot be reopened. */
+function GoneLabel() {
+  return <span className="text-muted-foreground">folder deleted</span>
+}
+
 /** The facts a Projects row shows for its state. */
 function ProjectFacts({ row, now }: { readonly row: FleetRow; readonly now: number }) {
+  const gone = row.gone ? <GoneLabel /> : null
+
   switch (row.state) {
     case 'blocked':
       return (
         <FactLine>
           <span className="text-attention">needs you · {pendingText(row)}</span>
+          {gone}
         </FactLine>
       )
     case 'working': {
@@ -223,6 +231,7 @@ function ProjectFacts({ row, now }: { readonly row: FleetRow; readonly now: numb
             {row.activity === undefined ? 'working…' : activityText(row.activity)}
           </span>
           {stuck === undefined ? null : <span className="text-destructive">{stuck}</span>}
+          {gone}
           <Extras row={row} />
         </FactLine>
       )
@@ -235,14 +244,15 @@ function ProjectFacts({ row, now }: { readonly row: FleetRow; readonly now: numb
         </FactLine>
       )
     case 'handled':
-      return null
+      return gone === null ? null : <FactLine>{gone}</FactLine>
   }
 }
 
 /**
  * A Projects row: marker, title and age, the session's directory in the Other group, then live
  * activity and stuck labels (working), what it waits on (blocked) or how it ended (finished).
- * Handled rows offer Reopen (on hover with a mouse, always on touch).
+ * Handled rows offer Reopen (on hover with a mouse, always on touch), unless the session's folder
+ * was deleted ("folder deleted").
  */
 export function ProjectRow({
   item,
@@ -259,7 +269,7 @@ export function ProjectRow({
 }) {
   const { row } = item
   const model = modelName(row.model)
-  const reopenable = row.state === 'handled' && row.handled !== undefined
+  const reopenable = row.state === 'handled' && row.handled !== undefined && !row.gone
 
   return (
     <li

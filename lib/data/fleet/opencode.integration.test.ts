@@ -1,3 +1,5 @@
+import { mkdirSync, rmSync } from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from '@effect/vitest'
 import { ConfigProvider, Effect, Layer, Option, Schedule } from 'effect'
 import {
@@ -13,6 +15,7 @@ import { FleetStore, FleetStoreLive } from '@/lib/data/fleet/store'
 import type { FleetRow, FleetSnapshot } from '@/lib/data/fleet/types'
 import { FleetWatcherLive } from '@/lib/data/fleet/watcher'
 import type { WatcherOptions } from '@/lib/data/fleet/watcher'
+import { DirectoriesLive } from '@/lib/services/directories/live-layer'
 import { OpenCode } from '@/lib/services/opencode/service'
 import { OpenCodeLive } from '@/lib/services/opencode/live-layer'
 import { findOpenCode, startOpenCodeServer } from '@/lib/services/opencode/testing/opencode-server'
@@ -46,10 +49,11 @@ const testConfig = (server: OpenCodeServer) =>
     })
   )
 
-const fleetLayer = (server: OpenCodeServer) =>
-  FleetWatcherLive(options).pipe(
+const fleetLayer = (server: OpenCodeServer, watcher: WatcherOptions = options) =>
+  FleetWatcherLive(watcher).pipe(
     Layer.provideMerge(FleetStoreLive),
     Layer.provideMerge(OpenCodeLive),
+    Layer.provideMerge(DirectoriesLive),
     Layer.provideMerge(testConfig(server))
   )
 
@@ -79,13 +83,17 @@ type Created = { readonly data: { readonly id: string } }
 
 const unavailableModel = { providerID: 'fleet-none', id: 'none' }
 
-const createSession = (server: OpenCodeServer, title: string) =>
+const createSession = (
+  server: OpenCodeServer,
+  title: string,
+  directory: string = server.workDirectory
+) =>
   Effect.map(
     server.json<Created>('POST', '/api/session', {
       title,
       model: unavailableModel,
       permissions: [{ action: 'fleet.test', resource: '*', effect: 'ask' }],
-      location: { directory: server.workDirectory }
+      location: { directory }
     }),
     created => created.data.id
   )
@@ -305,6 +313,82 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
           expect(findRow(resynced, sessionID)?.state).toBe('handled')
           expect(findRow(resynced, rootID)?.handled).toBe(now)
         }).pipe(Effect.provide(fleetLayer(server)))
+      }).pipe(Effect.scoped),
+    120_000
+  )
+
+  it.live(
+    'a session whose folder was deleted counts as handled and is never written to',
+    () =>
+      Effect.gen(function* () {
+        const server = yield* startOpenCodeServer(binary.available ? binary.path : 'opencode')
+
+        // Like a `/tmp/tmp.*` scratch folder or a worktree removed after merge.
+        const folder = path.join(server.workDirectory, 'tmp.scratch')
+
+        mkdirSync(folder)
+
+        // Quick recounts, so the deletion is noticed without waiting a minute.
+        const watcher: WatcherOptions = { ...options, dropDelay: '250 millis', recount: '1 second' }
+
+        yield* Effect.gen(function* () {
+          yield* eventually(
+            value => (value.connection.status === 'connected' ? true : undefined),
+            'connection'
+          )
+
+          const sessionID = yield* createSession(server, 'scratch work', folder)
+
+          yield* server.request('POST', `/api/session/${sessionID}/prompt`, { text: 'hello' })
+
+          const finished = yield* eventually(rowIn(sessionID, 'finished'), 'failed run')
+
+          expect(finished.gone).toBe(false)
+
+          rmSync(folder, { recursive: true, force: true })
+
+          const gone = yield* eventually(value => {
+            const row = rowIn(sessionID, 'handled')(value)
+
+            return row?.gone === true ? row : undefined
+          }, 'deleted folder noticed on a recount')
+
+          expect(gone.handled).toBeUndefined()
+
+          // No marker write: Handled is a no-op, Reopen is refused, metadata stays untouched.
+          expect(yield* markHandled({ sessionID })).toBe('already-handled')
+
+          const refused = yield* reopen({ sessionID }).pipe(Effect.flip)
+
+          expect(refused._tag).toBe('SessionFolderGoneError')
+          expect((yield* storedSession(server, sessionID)).metadata).toBeUndefined()
+
+          // The transcript (messages) still loads; the diff is skipped.
+          const detail = yield* loadSessionDetail({ sessionID })
+
+          expect(detail.transcript.entries[0]).toMatchObject({ role: 'user', text: 'hello' })
+          expect(detail.files).toBeUndefined()
+
+          // Why: once OpenCode has to resolve the location again (here after a restart), every
+          // location-scoped write fails on the missing folder (500 on 2.0.20, 404 on 2.0.22).
+          yield* server.stop
+          yield* server.start
+
+          const write = yield* writeMetadata(server, sessionID, { fleet: { handled: 1 } })
+
+          expect(write.ok).toBe(false)
+
+          yield* eventually(
+            value =>
+              value.connection.status === 'connected' && findRow(value, sessionID)?.gone === true
+                ? true
+                : undefined,
+            'resync after restart'
+          )
+
+          expect(yield* markHandled({ sessionID })).toBe('already-handled')
+          expect((yield* storedSession(server, sessionID)).metadata).toBeUndefined()
+        }).pipe(Effect.provide(fleetLayer(server, watcher)))
       }).pipe(Effect.scoped),
     120_000
   )

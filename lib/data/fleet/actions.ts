@@ -1,5 +1,6 @@
 import { Effect, Option, Schema } from 'effect'
-import { SessionNotFinishedError } from '@/lib/data/fleet/errors'
+import { SessionFolderGoneError, SessionNotFinishedError } from '@/lib/data/fleet/errors'
+import { folderGone } from '@/lib/data/fleet/folders'
 import { snapshotRows } from '@/lib/data/fleet/snapshot'
 import { isHandled } from '@/lib/data/fleet/state'
 import { FleetStore } from '@/lib/data/fleet/store'
@@ -65,8 +66,8 @@ export type ReopenOutcome = 'reopened' | 'not-handled'
 export type MarkViewedOutcome = 'marked' | 'already-viewed'
 
 /** Runs `run` against a fresh OpenCode connection (discovered per call). */
-export const withConnection = <A, E>(
-  run: (connection: OpenCodeConnection) => Effect.Effect<A, E>
+export const withConnection = <A, E, R>(
+  run: (connection: OpenCodeConnection) => Effect.Effect<A, E, R>
 ) =>
   Effect.gen(function* () {
     const opencode = yield* OpenCode
@@ -86,7 +87,8 @@ const readSession = (connection: OpenCodeConnection, sessionID: string) =>
 /**
  * Mark the latest run of a finished root session handled: `metadata.fleet.handled = idle`, with
  * `idle` read fresh from OpenCode. Rejected unless the watcher sees the root row finished (not
- * running, nothing pending in its subtree); already handled runs are left alone.
+ * running, nothing pending in its subtree); already handled runs are left alone, and so are
+ * sessions whose folder is gone (handled by definition; OpenCode cannot write to them).
  */
 export const markHandled = (input: MarkHandledInput) =>
   Effect.gen(function* () {
@@ -102,6 +104,12 @@ export const markHandled = (input: MarkHandledInput) =>
 
     if (row.state !== 'finished' && row.state !== 'handled') {
       return yield* new SessionNotFinishedError({ sessionID: input.sessionID, state: row.state })
+    }
+
+    if (yield* folderGone(row.directory)) {
+      const outcome: MarkHandledOutcome = 'already-handled'
+
+      return outcome
     }
 
     return yield* withConnection(connection =>
@@ -123,11 +131,21 @@ export const markHandled = (input: MarkHandledInput) =>
     )
   })
 
-/** Undo / Reopen: remove the handled marker, so the latest run is finished again. */
+/**
+ * Undo / Reopen: remove the handled marker, so the latest run is finished again. A session whose
+ * folder is gone stays handled (OpenCode cannot write to it): `SessionFolderGoneError`.
+ */
 export const reopen = (input: ReopenInput) =>
   withConnection(connection =>
     Effect.gen(function* () {
       const info = yield* readSession(connection, input.sessionID)
+
+      if (yield* folderGone(info.directory)) {
+        return yield* new SessionFolderGoneError({
+          sessionID: input.sessionID,
+          directory: info.directory
+        })
+      }
 
       if (info.handled === undefined) {
         const outcome: ReopenOutcome = 'not-handled'

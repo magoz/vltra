@@ -38,6 +38,11 @@ export type FleetModel = {
   readonly projects: ReadonlyMap<string, ProjectRecord>
   /** Saved worktree directories per project. */
   readonly worktrees: ReadonlyMap<string, ReadonlyArray<string>>
+  /**
+   * Whether each session directory is gone from disk (checked by Fleet, not reported by
+   * OpenCode); absent until checked. A session whose folder is gone counts as handled.
+   */
+  readonly directoryGone: ReadonlyMap<string, boolean>
 }
 
 /** What OpenCode reports at snapshot time (after the event subscription is live). */
@@ -59,7 +64,8 @@ export const emptyModel: FleetModel = {
   permissions: new Map(),
   forms: new Map(),
   projects: new Map(),
-  worktrees: new Map()
+  worktrees: new Map(),
+  directoryGone: new Map()
 }
 
 const track = (info: SessionRecord): TrackedSession => ({
@@ -74,10 +80,15 @@ const track = (info: SessionRecord): TrackedSession => ({
 })
 
 /**
- * The model for a fresh snapshot loaded at `now`. Running sessions count as active at `now`: their
- * start and last activity predate the connection and are unknown.
+ * The model for a fresh snapshot loaded at `now`, with the checked session directories. Running
+ * sessions count as active at `now`: their start and last activity predate the connection and are
+ * unknown.
  */
-export const fromSnapshot = (snapshot: OpenCodeSnapshot, now: number): FleetModel => {
+export const fromSnapshot = (
+  snapshot: OpenCodeSnapshot,
+  now: number,
+  directoryGone: ReadonlyMap<string, boolean> = new Map()
+): FleetModel => {
   const running = new Set(snapshot.running)
 
   const tracked = (info: SessionRecord): TrackedSession =>
@@ -88,9 +99,26 @@ export const fromSnapshot = (snapshot: OpenCodeSnapshot, now: number): FleetMode
     permissions: new Map(snapshot.permissions.map(item => [item.id, item] as const)),
     forms: new Map(snapshot.forms.map(item => [item.id, item] as const)),
     projects: new Map(snapshot.projects.map(item => [item.id, item] as const)),
-    worktrees: new Map(snapshot.worktrees.map(item => [item.projectID, item.directories] as const))
+    worktrees: new Map(snapshot.worktrees.map(item => [item.projectID, item.directories] as const)),
+    directoryGone
   }
 }
+
+/** The distinct directories of the snapshot's sessions (what to check before `fromSnapshot`). */
+export const snapshotDirectories = (snapshot: OpenCodeSnapshot): ReadonlySet<string> =>
+  new Set(snapshot.sessions.map(info => info.directory))
+
+/** The distinct directories of every session in the model. */
+export const sessionDirectories = (model: FleetModel): ReadonlySet<string> =>
+  new Set(Array.from(model.sessions.values(), session => session.info.directory))
+
+/** Session directories never checked yet (new or moved sessions). */
+export const uncheckedDirectories = (model: FleetModel): ReadonlyArray<string> =>
+  Array.from(sessionDirectories(model)).filter(directory => !model.directoryGone.has(directory))
+
+/** Whether the session's folder is known to be gone from disk. */
+export const isFolderGone = (model: FleetModel, session: TrackedSession): boolean =>
+  model.directoryGone.get(session.info.directory) === true
 
 const withEntry = <V>(map: ReadonlyMap<string, V>, key: string, value: V) =>
   new Map(map).set(key, value)
@@ -284,6 +312,10 @@ export const applyEvent = (model: FleetModel, event: FleetEvent): FleetModel =>
     WorktreesLoaded: ({ projectID, directories }) => ({
       ...model,
       worktrees: withEntry(model.worktrees, projectID, directories)
+    }),
+    DirectoriesChecked: ({ directories }) => ({
+      ...model,
+      directoryGone: new Map([...model.directoryGone, ...directories])
     })
   })
 

@@ -67,6 +67,11 @@ export type FleetEvent = Data.TaggedEnum<{
   FormSettled: { readonly formID: string }
   ProjectUpserted: { readonly project: ProjectRecord }
   WorktreesLoaded: { readonly projectID: string; readonly directories: ReadonlyArray<string> }
+  /**
+   * Fleet checked session directories on disk (not an OpenCode event): `true` when gone. Merged
+   * into what the model already knows.
+   */
+  DirectoriesChecked: { readonly directories: ReadonlyMap<string, boolean> }
 }>
 
 export const FleetEvent = Data.taggedEnum<FleetEvent>()
@@ -111,5 +116,6 @@ export const eventSessionID = (event: FleetEvent): string | undefined =>
     FormCreated: ({ form }) => form.sessionID,
     FormSettled: () => undefined,
     ProjectUpserted: () => undefined,
-    WorktreesLoaded: () => undefined
+    WorktreesLoaded: () => undefined,
+    DirectoriesChecked: () => undefined
   })

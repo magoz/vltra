@@ -19,17 +19,23 @@ export const isHandled = (info: Pick<SessionRecord, 'idle' | 'handled'>): boolea
   info.idle === undefined || (info.handled !== undefined && info.handled >= info.idle)
 
 /**
- * A session's own state, before roll-up. Priority: blocked > working > finished > handled.
+ * A session's own state, before roll-up. Priority: blocked > working > (folder gone → handled) >
+ * finished > handled.
  *
  * - blocked: a permission or form is pending on this session.
  * - working: an execution is active.
+ * - handled when its folder is gone: OpenCode cannot write the handled marker any more (it
+ *   resolves the folder for every write), so nothing is left to do. What OpenCode still reports
+ *   (pending requests, a running execution) wins.
  * - finished: the latest run ended (any outcome) and is not handled.
  * - handled: the latest run is handled, or the session never ran.
  */
-export const ownState = (session: TrackedSession, pending: number): FleetState => {
+export const ownState = (session: TrackedSession, pending: number, gone: boolean): FleetState => {
   if (pending > 0) return 'blocked'
 
   if (session.running) return 'working'
+
+  if (gone) return 'handled'
 
   if (!isHandled(session.info)) return 'finished'
 

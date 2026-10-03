@@ -384,6 +384,52 @@ describe('project rows', () => {
     )
   })
 
+  it('labels a handled row whose folder is gone, muted, with no Reopen', () => {
+    const row = rowFrom(
+      {
+        sessions: [
+          sessionRecord('ses_1', {
+            directory: '/tmp/tmp.gone',
+            idle: baseTime + 1,
+            handled: baseTime + 1,
+            outcome: 'succeeded'
+          })
+        ]
+      },
+      'ses_1',
+      {},
+      ['/tmp/tmp.gone']
+    )
+
+    renderProject(row)
+
+    expect(screen.getByText('folder deleted').className).toContain('text-muted-foreground')
+    expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull()
+  })
+
+  it('a finished run whose folder is gone shows as handled, labelled, with no Reopen', () => {
+    const row = rowFrom(
+      {
+        sessions: [
+          sessionRecord('ses_1', {
+            directory: '/tmp/tmp.gone',
+            idle: baseTime + 1,
+            outcome: 'failed'
+          })
+        ]
+      },
+      'ses_1',
+      {},
+      ['/tmp/tmp.gone']
+    )
+
+    renderProject(row)
+
+    expect(screen.getByRole('listitem').dataset.state).toBe('handled')
+    expect(screen.getByText('folder deleted')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull()
+  })
+
   it('has no Reopen for a session that never ran', () => {
     renderProject(rowFrom({ sessions: [sessionRecord('ses_1')] }, 'ses_1'))
 

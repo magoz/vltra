@@ -1,7 +1,7 @@
 import { Data, Effect } from 'effect'
 import type { Schema } from 'effect'
 import type { CrossSiteRequestError } from '@/app/same-origin'
-import type { SessionNotFinishedError } from '@/lib/data/fleet/errors'
+import type { SessionFolderGoneError, SessionNotFinishedError } from '@/lib/data/fleet/errors'
 import type {
   OpenCodeInvalidInputError,
   OpenCodeRequestError,
@@ -38,6 +38,16 @@ export type FleetActionError =
   | OpenCodeUnavailableError
   | SessionNotFoundError
   | SessionNotFinishedError
+  | SessionFolderGoneError
+
+/** User-facing words for the OpenCode calls that write; reads keep the generic message. */
+const requestFailures = new Map([
+  ['session.update', 'OpenCode could not save the handled marker'],
+  ['session.prompt', 'OpenCode could not send the prompt'],
+  ['session.interrupt', 'OpenCode could not interrupt the session'],
+  ['permission.reply', 'OpenCode could not record the reply'],
+  ['session.form.reply', 'OpenCode could not record the answer']
+])
 
 /**
  * Shared tail of every Fleet server action: report unexpected failures, then map expected ones
@@ -63,9 +73,17 @@ export const toActionResult =
           Effect.succeed(
             FleetActionResult.Error({ message: 'Only a finished session can be marked handled' })
           ),
+        SessionFolderGoneError: () =>
+          Effect.succeed(
+            FleetActionResult.Error({ message: "The session's folder no longer exists" })
+          ),
         OpenCodeUnavailableError: () =>
           Effect.succeed(FleetActionResult.Error({ message: 'OpenCode is not reachable' })),
-        OpenCodeRequestError: () =>
-          Effect.succeed(FleetActionResult.Error({ message: 'OpenCode request failed' }))
+        OpenCodeRequestError: error =>
+          Effect.succeed(
+            FleetActionResult.Error({
+              message: requestFailures.get(error.operation) ?? 'OpenCode request failed'
+            })
+          )
       })
     )

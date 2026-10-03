@@ -1,4 +1,5 @@
 import { sessionLinks } from '@/lib/data/fleet/links'
+import { isFolderGone } from '@/lib/data/fleet/model'
 import type { FleetModel, TrackedSession } from '@/lib/data/fleet/model'
 import {
   activeAt,
@@ -90,7 +91,8 @@ const buildNode = (
   const info = session.info
   const permissions = tree.pending.permissions.get(info.id) ?? []
   const forms = tree.pending.forms.get(info.id) ?? []
-  const own = ownState(session, permissions.length + forms.length)
+  const gone = isFolderGone(tree.model, session)
+  const own = ownState(session, permissions.length + forms.length, gone)
   const path = new Set(visited).add(info.id)
 
   const childNodes = (tree.children.get(info.id) ?? [])
@@ -117,6 +119,7 @@ const buildNode = (
     interrupt: info.outcome === 'interrupted' ? session.interrupt : undefined,
     handled: info.handled,
     viewed: info.viewed,
+    gone,
     ownState: own,
     state: rollUpState(
       own,

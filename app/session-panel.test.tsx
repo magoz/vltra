@@ -172,6 +172,39 @@ describe('session panel', () => {
     )
   })
 
+  it.each([
+    ['finished', {}],
+    ['handled', { handled: baseTime + 1 }]
+  ] as const)(
+    'says "folder deleted" and offers neither Handled nor Reopen for a %s run whose folder is gone',
+    (_state, fields) => {
+      const row = rowFrom(
+        {
+          sessions: [
+            sessionRecord('ses_1', {
+              title: 'Scratch',
+              directory: '/tmp/tmp.gone',
+              idle: baseTime + 1,
+              viewed: baseTime + 1,
+              outcome: 'succeeded',
+              ...fields
+            })
+          ]
+        },
+        'ses_1',
+        {},
+        ['/tmp/tmp.gone']
+      )
+
+      renderPanel(row)
+
+      expect(row.state).toBe('handled')
+      expect(screen.getByText('folder deleted')).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Handled' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull()
+    }
+  )
+
   it('marks the latest run viewed in OpenCode when opened, if it is unread there', async () => {
     const { calls } = renderPanel(doneRow({ viewed: undefined }))
 

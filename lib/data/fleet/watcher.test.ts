@@ -8,13 +8,22 @@ import { FleetStore, makeFleetStore } from '@/lib/data/fleet/store'
 import { baseTime, sessionRecord, webUrl } from '@/lib/data/fleet/testing/fixtures'
 import type { InterruptReason } from '@/lib/data/fleet/types'
 import { defaultWatcherOptions, FleetWatcherLive } from '@/lib/data/fleet/watcher'
+import {
+  makeFakeDirectories,
+  presentDirectories
+} from '@/lib/services/directories/testing/fake-directories'
+import type { Directories } from '@/lib/services/directories/service'
 import { emptySnapshot, makeFakeOpenCode } from '@/lib/services/opencode/testing/fake-opencode'
 import type { FakeOpenCode } from '@/lib/services/opencode/testing/fake-opencode'
 
-const withWatcher = (fake: FakeOpenCode) =>
+const withWatcher = (
+  fake: FakeOpenCode,
+  directories: Layer.Layer<Directories> = presentDirectories
+) =>
   FleetWatcherLive(defaultWatcherOptions).pipe(
     Layer.provideMerge(Layer.effect(FleetStore, makeFleetStore(webUrl))),
-    Layer.provide(fake.layer)
+    Layer.provide(fake.layer),
+    Layer.provide(directories)
   )
 
 /** Lets forked fibers (watcher, stream) run without advancing the test clock. */
@@ -280,6 +289,157 @@ describe('watcher', () => {
 
         expect((yield* snapshot).counts).toMatchObject({ working: 1, stuck: 1 })
       }).pipe(Effect.provide(withWatcher(fake)))
+    })
+  )
+})
+
+describe('session folders', () => {
+  const gone = '/tmp/tmp.gone'
+  const worktree = '/home/magoz/dev/repos/fleet-merged'
+
+  const rowOf = (id: string) =>
+    Effect.map(snapshot, value => snapshotRows(value).find(row => row.id === id))
+
+  const folders = {
+    ...emptySnapshot,
+    sessions: [
+      sessionRecord('ses_here', { idle: baseTime + 1, outcome: 'succeeded' }),
+      sessionRecord('ses_gone', { directory: gone, idle: baseTime + 2, outcome: 'failed' }),
+      sessionRecord('ses_gone_too', { directory: gone, idle: baseTime + 3, outcome: 'succeeded' }),
+      sessionRecord('ses_worktree', {
+        directory: worktree,
+        idle: baseTime + 4,
+        outcome: 'succeeded'
+      })
+    ]
+  }
+
+  it.effect('a snapshot checks each distinct folder once; a gone folder is handled', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode(folders)
+      const directories = yield* makeFakeDirectories([gone])
+
+      yield* Effect.gen(function* () {
+        yield* settle
+
+        expect(yield* rowStates).toEqual({
+          ses_here: 'finished',
+          ses_gone: 'handled',
+          ses_gone_too: 'handled',
+          ses_worktree: 'finished'
+        })
+        expect(yield* rowOf('ses_gone')).toMatchObject({ gone: true, handled: undefined })
+        expect((yield* rowOf('ses_here'))?.gone).toBe(false)
+        expect((yield* snapshot).counts).toMatchObject({ finished: 2, handled: 2 })
+
+        const snapshotCheck = (yield* directories.checks).find(list => list.length > 0)
+
+        expect(snapshotCheck?.toSorted()).toEqual(
+          ['/home/magoz/dev/repos/fleet', gone, worktree].toSorted()
+        )
+      }).pipe(Effect.provide(withWatcher(fake, directories.layer)))
+    })
+  )
+
+  it.effect('a folder deleted later flips its session to handled on the recount tick', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode(folders)
+      const directories = yield* makeFakeDirectories()
+
+      yield* Effect.gen(function* () {
+        yield* settle
+
+        expect((yield* rowStates).ses_worktree).toBe('finished')
+
+        // The worktree is removed after merge; nothing in OpenCode changes.
+        yield* directories.remove(worktree)
+        yield* TestClock.adjust(
+          Duration.millis(Duration.toMillis(defaultWatcherOptions.recount) - 1)
+        )
+        yield* settle
+
+        expect((yield* rowStates).ses_worktree).toBe('finished')
+
+        yield* TestClock.adjust(Duration.millis(1))
+        yield* settle
+
+        expect(yield* rowOf('ses_worktree')).toMatchObject({ state: 'handled', gone: true })
+        expect(yield* fake.calls).toEqual([])
+      }).pipe(Effect.provide(withWatcher(fake, directories.layer)))
+    })
+  )
+
+  it.effect('a new session in an unchecked folder is checked when it is read', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode(folders)
+      const directories = yield* makeFakeDirectories(['/tmp/tmp.new'])
+
+      yield* Effect.gen(function* () {
+        yield* settle
+
+        yield* fake.setSnapshot({
+          ...folders,
+          sessions: [
+            ...folders.sessions,
+            sessionRecord('ses_new', {
+              directory: '/tmp/tmp.new',
+              idle: baseTime + 5,
+              outcome: 'succeeded'
+            })
+          ]
+        })
+
+        const before = (yield* directories.checks).length
+
+        yield* fake.emit(OpenCodeSignal.RefreshSession({ sessionID: 'ses_new' }))
+        yield* settle
+
+        expect(yield* rowOf('ses_new')).toMatchObject({ state: 'handled', gone: true })
+        expect((yield* directories.checks).slice(before)).toEqual([['/tmp/tmp.new']])
+      }).pipe(Effect.provide(withWatcher(fake, directories.layer)))
+    })
+  )
+
+  it.effect('a gone session never gets an OpenCode write: no recovery, no auto-handle', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode({
+        ...emptySnapshot,
+        sessions: [
+          sessionRecord('ses_missed', {
+            directory: gone,
+            idle: baseTime + 1,
+            outcome: 'interrupted'
+          }),
+          sessionRecord('ses_live', { directory: gone })
+        ],
+        running: ['ses_live']
+      })
+
+      const directories = yield* makeFakeDirectories([gone])
+
+      yield* fake.setInterruptReason('ses_missed', 'user')
+
+      yield* Effect.gen(function* () {
+        yield* settle
+
+        // Running wins over a gone folder: OpenCode says it works.
+        expect(yield* rowStates).toEqual({ ses_missed: 'handled', ses_live: 'working' })
+
+        yield* fake.emit(
+          OpenCodeSignal.Apply({
+            event: FleetEvent.ExecutionEnded({
+              sessionID: 'ses_live',
+              at: baseTime + 5,
+              outcome: 'interrupted',
+              reason: 'user'
+            })
+          })
+        )
+        yield* settle
+
+        expect(yield* rowStates).toEqual({ ses_missed: 'handled', ses_live: 'handled' })
+        expect(yield* fake.calls).toEqual([])
+      }).pipe(Effect.provide(withWatcher(fake, directories.layer)))
     })
   )
 })

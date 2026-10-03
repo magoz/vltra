@@ -9,7 +9,7 @@ import { Schema } from 'effect'
  * - blocked: a permission or form is pending (needs me).
  * - working: a run is active.
  * - finished: the latest run ended and I have not handled it (needs me).
- * - handled: I handled the latest run, or the session never ran.
+ * - handled: I handled the latest run, the session never ran, or its folder is gone.
  */
 export const FleetState = Schema.Literals(['blocked', 'working', 'finished', 'handled'])
 
@@ -206,6 +206,11 @@ const rowFields = {
   handled: Schema.optional(Schema.Number),
   /** OpenCode's read marker; Fleet never derives state from it (only for mark viewed). */
   viewed: Schema.optional(Schema.Number),
+  /**
+   * The session's folder no longer exists on disk (e.g. a deleted worktree or scratch folder).
+   * OpenCode cannot write its metadata any more, so it counts as handled and cannot be reopened.
+   */
+  gone: Schema.Boolean,
   /** State from this session alone. */
   ownState: FleetState,
   /** State after rolling up descendants (blocked/working propagate to ancestors). */

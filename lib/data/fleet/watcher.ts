@@ -1,12 +1,20 @@
 import { Clock, Duration, Effect, Layer, Option, Queue, Ref, Schedule, Stream } from 'effect'
 import { eventSessionID, FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
-import { applyEvent, fromSnapshot } from '@/lib/data/fleet/model'
-import type { FleetModel, TrackedSession } from '@/lib/data/fleet/model'
+import {
+  applyEvent,
+  fromSnapshot,
+  isFolderGone,
+  sessionDirectories,
+  snapshotDirectories,
+  uncheckedDirectories
+} from '@/lib/data/fleet/model'
+import type { FleetModel, OpenCodeSnapshot, TrackedSession } from '@/lib/data/fleet/model'
 import { isRoot } from '@/lib/data/fleet/snapshot'
 import { isHandled } from '@/lib/data/fleet/state'
 import { FleetStore } from '@/lib/data/fleet/store'
 import type { FleetView } from '@/lib/data/fleet/store'
 import type { FleetConnection, InterruptReason, SessionRecord } from '@/lib/data/fleet/types'
+import { Directories } from '@/lib/services/directories/service'
 import { OpenCodeRequestError } from '@/lib/services/opencode/errors'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type { OpenCodeConnection } from '@/lib/services/opencode/service'
@@ -18,7 +26,10 @@ export type WatcherOptions = {
   readonly dropDelay: Duration.Input
   /** How long to wait for the stream's `server.connected` marker. */
   readonly connectTimeout: Duration.Input
-  /** How often to re-project the snapshot so time-based counts (`stuck`) stay current. */
+  /**
+   * How often to re-project the snapshot so time-based counts (`stuck`) stay current, and to
+   * re-check session folders (worktrees are deleted after merge, even under live sessions).
+   */
   readonly recount: Duration.Input
 }
 
@@ -59,6 +70,30 @@ const applyToModel = (event: FleetEvent) =>
 
 const currentModel = Effect.flatMap(FleetStore, store => Effect.map(store.view, view => view.model))
 
+/** Which of `directories` are gone from disk. */
+const checkDirectories = (directories: Iterable<string>) =>
+  Effect.flatMap(Directories, service => service.check(directories))
+
+/** A fresh model for a snapshot, with its sessions' folders checked first. */
+const modelFromSnapshot = (snapshot: OpenCodeSnapshot) =>
+  Effect.gen(function* () {
+    const directoryGone = yield* checkDirectories(snapshotDirectories(snapshot))
+    const now = yield* Clock.currentTimeMillis
+
+    return { model: fromSnapshot(snapshot, now, directoryGone), now }
+  })
+
+/** Checks the folders of sessions the model has not checked yet (new or moved sessions). */
+const checkNewDirectories = Effect.gen(function* () {
+  const unchecked = uncheckedDirectories(yield* currentModel)
+
+  if (unchecked.length === 0) return
+
+  const directories = yield* checkDirectories(unchecked)
+
+  yield* applyToModel(FleetEvent.DirectoriesChecked({ directories }))
+})
+
 /** Upsert a session (and any missing ancestors) read from OpenCode. */
 const refreshSession = (connection: OpenCodeConnection, sessionID: string) =>
   Effect.gen(function* () {
@@ -77,6 +112,8 @@ const refreshSession = (connection: OpenCodeConnection, sessionID: string) =>
 
       next = parentID !== undefined && !view.model.sessions.has(parentID) ? parentID : undefined
     }
+
+    yield* checkNewDirectories
   })
 
 /**
@@ -101,10 +138,13 @@ const handleUserInterrupt = (connection: OpenCodeConnection, sessionID: string) 
     )
   )
 
-const rootSession = (model: FleetModel, sessionID: string): TrackedSession | undefined => {
+/** A root session whose folder still exists (OpenCode cannot write to one whose folder is gone). */
+const writableRoot = (model: FleetModel, sessionID: string): TrackedSession | undefined => {
   const session = model.sessions.get(sessionID)
 
-  return session !== undefined && isRoot(model, session) ? session : undefined
+  return session !== undefined && isRoot(model, session) && !isFolderGone(model, session)
+    ? session
+    : undefined
 }
 
 /** After an interruption event: remember its reason for the run, auto-handle a user's Stop. */
@@ -125,7 +165,7 @@ const afterInterrupt = (
       new Map(map).set(runKey(sessionID, idle), Option.some(reason))
     )
 
-    if (reason === 'user' && rootSession(model, sessionID) !== undefined) {
+    if (reason === 'user' && writableRoot(model, sessionID) !== undefined) {
       yield* handleUserInterrupt(connection, sessionID)
     }
   })
@@ -138,9 +178,13 @@ const afterEvent = (connection: OpenCodeConnection, reasons: RunReasons, event: 
     ? afterInterrupt(connection, reasons, event.sessionID, event.reason)
     : Effect.void
 
-/** Finished root sessions interrupted for a reason Fleet never saw (it was down). */
+/**
+ * Finished root sessions interrupted for a reason Fleet never saw (it was down). Sessions whose
+ * folder is gone are handled already.
+ */
 const missingReason = (model: FleetModel, session: TrackedSession) =>
   isRoot(model, session) &&
+  !isFolderGone(model, session) &&
   !session.running &&
   session.info.outcome === 'interrupted' &&
   !isHandled(session.info) &&
@@ -235,9 +279,9 @@ const applySignal = (
     Resync: () =>
       Effect.gen(function* () {
         const snapshot = yield* connection.snapshot
-        const now = yield* Clock.currentTimeMillis
+        const { model } = yield* modelFromSnapshot(snapshot)
 
-        yield* setModel(fromSnapshot(snapshot, now))
+        yield* setModel(model)
         yield* Queue.offer(recheck, undefined)
       })
   })
@@ -286,10 +330,10 @@ export const connectOnce = (options: WatcherOptions, reasons: RunReasons) =>
 
       const snapshot = yield* connection.snapshot
       const store = yield* FleetStore
-      const connectedAt = yield* Clock.currentTimeMillis
+      const { model, now: connectedAt } = yield* modelFromSnapshot(snapshot)
 
       yield* store.commit(() => ({
-        model: fromSnapshot(snapshot, connectedAt),
+        model,
         connection: {
           status: 'connected',
           since: connectedAt,
@@ -359,12 +403,22 @@ export const watchOpenCode = (options: WatcherOptions = defaultWatcherOptions) =
     )
   })
 
-/** Re-projects the snapshot now and then: `stuck` (quiet for too long) changes with time alone. */
+/**
+ * One recount tick: re-check every session folder, then re-project the snapshot (`stuck`, quiet
+ * for too long, changes with time alone; a deleted folder makes its session handled).
+ */
+const recount = Effect.gen(function* () {
+  const store = yield* FleetStore
+  const directories = yield* checkDirectories(sessionDirectories((yield* store.view).model))
+
+  yield* store.commit(view => ({
+    ...view,
+    model: applyEvent(view.model, FleetEvent.DirectoriesChecked({ directories }))
+  }))
+})
+
 const recountForever = (every: Duration.Input) =>
-  Effect.flatMap(FleetStore, store => store.commit(view => view)).pipe(
-    Effect.repeat(Schedule.spaced(every)),
-    Effect.asVoid
-  )
+  recount.pipe(Effect.repeat(Schedule.spaced(every)), Effect.asVoid)
 
 /** Forks the watcher for the lifetime of the layer (the app's `ManagedRuntime`). */
 export const FleetWatcherLive = (options: WatcherOptions = defaultWatcherOptions) =>

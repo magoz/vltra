@@ -37,10 +37,12 @@ const markerFields = (marker: Marker): Partial<SessionRecord> => {
 }
 
 // The DESIGN.md table, written independently of the implementation's branch order.
+// A gone folder makes the session handled, but never hides what OpenCode reports.
 const expected = (input: {
   readonly pending: number
   readonly running: boolean
   readonly marker: Marker
+  readonly gone: boolean
 }): FleetState => {
   const candidates: Array<FleetState> = ['handled']
 
@@ -48,7 +50,9 @@ const expected = (input: {
 
   if (input.running) candidates.push('working')
 
-  if (input.marker === 'none' || input.marker === 'older-run') candidates.push('finished')
+  if (!input.gone && (input.marker === 'none' || input.marker === 'older-run')) {
+    candidates.push('finished')
+  }
 
   return (
     candidates.toSorted(
@@ -89,18 +93,20 @@ describe('ownState', () => {
     [false, true].flatMap(running =>
       outcomes.flatMap(outcome =>
         markers.flatMap(marker =>
-          [undefined, baseTime + 10].map(viewed => ({ pending, running, outcome, marker, viewed }))
+          [undefined, baseTime + 10].flatMap(viewed =>
+            [false, true].map(gone => ({ pending, running, outcome, marker, viewed, gone }))
+          )
         )
       )
     )
   )
 
-  it('covers every combination of pending, running, outcome, handled marker and viewed', () => {
-    expect(cases).toHaveLength(160)
+  it('covers every combination of pending, running, outcome, marker, viewed and gone', () => {
+    expect(cases).toHaveLength(320)
   })
 
   it.each(cases)(
-    'pending=$pending running=$running $outcome marker=$marker viewed=$viewed',
+    'pending=$pending running=$running $outcome marker=$marker viewed=$viewed gone=$gone',
     input => {
       const info = sessionRecord('ses_1', {
         outcome: input.outcome,
@@ -108,27 +114,96 @@ describe('ownState', () => {
         ...markerFields(input.marker)
       })
 
-      expect(ownState(trackedSession(info, { running: input.running }), input.pending)).toBe(
-        expected(input)
-      )
+      expect(
+        ownState(trackedSession(info, { running: input.running }), input.pending, input.gone)
+      ).toBe(expected(input))
     }
   )
 
   it('names the headline transitions', () => {
     const ended = sessionRecord('ses_1', { idle: 10, outcome: 'succeeded' })
 
-    expect(ownState(trackedSession(ended), 1)).toBe('blocked')
-    expect(ownState(trackedSession(ended, { running: true }), 0)).toBe('working')
-    expect(ownState(trackedSession(ended), 0)).toBe('finished')
-    expect(ownState(trackedSession({ ...ended, outcome: 'failed' }), 0)).toBe('finished')
-    expect(ownState(trackedSession({ ...ended, handled: 10 }), 0)).toBe('handled')
-    expect(ownState(trackedSession(sessionRecord('ses_1')), 0)).toBe('handled')
+    expect(ownState(trackedSession(ended), 1, false)).toBe('blocked')
+    expect(ownState(trackedSession(ended, { running: true }), 0, false)).toBe('working')
+    expect(ownState(trackedSession(ended), 0, false)).toBe('finished')
+    expect(ownState(trackedSession({ ...ended, outcome: 'failed' }), 0, false)).toBe('finished')
+    expect(ownState(trackedSession({ ...ended, handled: 10 }), 0, false)).toBe('handled')
+    expect(ownState(trackedSession(sessionRecord('ses_1')), 0, false)).toBe('handled')
   })
 
   it('a pending request is never handled away', () => {
-    expect(ownState(trackedSession(sessionRecord('ses_1', { idle: 10, handled: 10 })), 1)).toBe(
-      'blocked'
+    const handled = trackedSession(sessionRecord('ses_1', { idle: 10, handled: 10 }))
+
+    expect(ownState(handled, 1, false)).toBe('blocked')
+    expect(ownState(handled, 1, true)).toBe('blocked')
+  })
+
+  it('a session whose folder is gone is handled unless OpenCode reports it blocked or working', () => {
+    const ended = sessionRecord('ses_1', { idle: 10, outcome: 'failed' })
+
+    expect(ownState(trackedSession(ended), 0, true)).toBe('handled')
+    expect(ownState(trackedSession(ended), 2, true)).toBe('blocked')
+    expect(ownState(trackedSession(ended, { running: true }), 0, true)).toBe('working')
+  })
+})
+
+describe('folder gone in rows', () => {
+  const gone = '/tmp/tmp.gone'
+
+  const rowsOf = (sessions: ReadonlyArray<SessionRecord>, running: ReadonlyArray<string> = []) =>
+    buildRows(
+      fromSnapshot(
+        { ...emptySnapshot, sessions, running },
+        baseTime,
+        new Map([
+          [gone, true],
+          ['/home/magoz/dev/repos/fleet', false]
+        ])
+      ),
+      webUrl
     )
+
+  it('flags the row and its children, and counts it as handled', () => {
+    const rows = rowsOf([
+      sessionRecord('ses_root', { directory: gone, idle: baseTime, outcome: 'succeeded' }),
+      sessionRecord('ses_child', {
+        parentID: 'ses_root',
+        directory: gone,
+        idle: baseTime,
+        outcome: 'succeeded'
+      }),
+      sessionRecord('ses_here', { idle: baseTime, outcome: 'succeeded' })
+    ])
+
+    expect(rows.map(row => [row.id, row.state, row.gone])).toEqual([
+      ['ses_here', 'finished', false],
+      ['ses_root', 'handled', true]
+    ])
+    expect(rows[1]?.children.map(child => [child.id, child.ownState, child.gone])).toEqual([
+      ['ses_child', 'handled', true]
+    ])
+    expect(countRows(rows, baseTime)).toMatchObject({ finished: 1, handled: 1 })
+  })
+
+  it('does not propagate: a parent keeps its own state above a gone subagent', () => {
+    const [row] = rowsOf([
+      sessionRecord('ses_root', { idle: baseTime, outcome: 'succeeded' }),
+      sessionRecord('ses_child', { parentID: 'ses_root', directory: gone, idle: baseTime })
+    ])
+
+    expect(row).toMatchObject({ id: 'ses_root', state: 'finished', gone: false })
+  })
+
+  it('a running subagent in a gone folder still makes its parent working', () => {
+    const [row] = rowsOf(
+      [
+        sessionRecord('ses_root', { directory: gone, idle: baseTime }),
+        sessionRecord('ses_child', { parentID: 'ses_root', directory: gone })
+      ],
+      ['ses_child']
+    )
+
+    expect(row).toMatchObject({ ownState: 'handled', state: 'working', gone: true })
   })
 })
 

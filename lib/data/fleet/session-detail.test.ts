@@ -6,9 +6,17 @@ import {
   SessionSummariesLive,
   totals
 } from '@/lib/data/fleet/session-detail'
-import { baseTime } from '@/lib/data/fleet/testing/fixtures'
+import { fromSnapshot } from '@/lib/data/fleet/model'
+import { FleetStore, makeFleetStore } from '@/lib/data/fleet/store'
+import { baseTime, sessionRecord, webUrl } from '@/lib/data/fleet/testing/fixtures'
 import type { FileChange, Transcript } from '@/lib/data/fleet/types'
-import { makeFakeOpenCode } from '@/lib/services/opencode/testing/fake-opencode'
+import {
+  makeFakeDirectories,
+  presentDirectories
+} from '@/lib/services/directories/testing/fake-directories'
+import type { Directories } from '@/lib/services/directories/service'
+import { emptySnapshot, makeFakeOpenCode } from '@/lib/services/opencode/testing/fake-opencode'
+import type { FakeOpenCode } from '@/lib/services/opencode/testing/fake-opencode'
 
 const transcript: Transcript = {
   entries: [
@@ -23,6 +31,33 @@ const files: ReadonlyArray<FileChange> = [
   { file: 'docs/faq.md', additions: 8, deletions: 0, status: 'added' }
 ]
 
+const gone = '/tmp/tmp.gone'
+
+const sessions = {
+  ...emptySnapshot,
+  sessions: [
+    sessionRecord('ses_1', { idle: baseTime, outcome: 'succeeded' }),
+    sessionRecord('ses_gone', { directory: gone, idle: baseTime, outcome: 'succeeded' })
+  ]
+}
+
+/** OpenCode, the session folders, and a store holding the watcher's view of `sessions`. */
+const services = (fake: FakeOpenCode, directories: Layer.Layer<Directories> = presentDirectories) =>
+  Layer.mergeAll(
+    fake.layer,
+    directories,
+    Layer.effect(
+      FleetStore,
+      Effect.gen(function* () {
+        const store = yield* makeFleetStore(webUrl)
+
+        yield* store.commit(view => ({ ...view, model: fromSnapshot(sessions, baseTime) }))
+
+        return store
+      })
+    )
+  )
+
 describe('session detail', () => {
   it.effect('reads the transcript tail and the latest turn files', () =>
     Effect.gen(function* () {
@@ -32,7 +67,7 @@ describe('session detail', () => {
       yield* fake.setDiff('ses_1', files)
 
       const detail = yield* loadSessionDetail({ sessionID: 'ses_1' }).pipe(
-        Effect.provide(fake.layer)
+        Effect.provide(services(fake))
       )
 
       expect(detail).toEqual({ sessionID: 'ses_1', transcript, files })
@@ -47,11 +82,30 @@ describe('session detail', () => {
       yield* fake.setDiff('ses_1', 'fail')
 
       const detail = yield* loadSessionDetail({ sessionID: 'ses_1' }).pipe(
-        Effect.provide(fake.layer)
+        Effect.provide(services(fake))
       )
 
       expect(detail.transcript).toEqual(transcript)
       expect(detail.files).toBeUndefined()
+    })
+  )
+
+  it.effect('skips the diff of a session whose folder is gone; messages still load', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode()
+      const directories = yield* makeFakeDirectories([gone])
+
+      yield* fake.setTranscript('ses_gone', transcript)
+      yield* fake.setDiff('ses_gone', 'fail')
+
+      const detail = yield* loadSessionDetail({ sessionID: 'ses_gone' }).pipe(
+        Effect.provide(services(fake, directories.layer))
+      )
+
+      expect(detail).toEqual({ sessionID: 'ses_gone', transcript, files: undefined })
+      expect(yield* fake.calls).toEqual([
+        { op: 'transcript', sessionID: 'ses_gone', assistantOnly: false }
+      ])
     })
   )
 
@@ -62,9 +116,13 @@ describe('session detail', () => {
 
 describe('finished-run summaries', () => {
   const withSummaries = <A, E>(
-    fake: Effect.Success<ReturnType<typeof makeFakeOpenCode>>,
-    effect: Effect.Effect<A, E, SessionSummaries>
-  ) => effect.pipe(Effect.provide(SessionSummariesLive.pipe(Layer.provide(fake.layer))))
+    fake: FakeOpenCode,
+    effect: Effect.Effect<A, E, SessionSummaries>,
+    directories: Layer.Layer<Directories> = presentDirectories
+  ) =>
+    effect.pipe(
+      Effect.provide(SessionSummariesLive.pipe(Layer.provide(services(fake, directories))))
+    )
 
   const summaryReads = (fake: Effect.Success<ReturnType<typeof makeFakeOpenCode>>) =>
     Effect.map(fake.calls, calls => calls.filter(call => call.op === 'transcript').length)
@@ -103,6 +161,31 @@ describe('finished-run summaries', () => {
         sessionID: 'ses_1',
         assistantOnly: true
       })
+    })
+  )
+
+  it.effect('a session whose folder is gone gets its answer without a diff', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode()
+      const directories = yield* makeFakeDirectories([gone])
+
+      yield* fake.setTranscript('ses_gone', transcript)
+
+      const summary = yield* withSummaries(
+        fake,
+        Effect.flatMap(SessionSummaries, summaries =>
+          summaries.get({ sessionID: 'ses_gone', idle: baseTime })
+        ),
+        directories.layer
+      )
+
+      expect(summary).toEqual({
+        sessionID: 'ses_gone',
+        idle: baseTime,
+        answer: 'Updated README and 3 guides.',
+        changes: undefined
+      })
+      expect((yield* fake.calls).map(call => call.op)).toEqual(['transcript'])
     })
   )
 

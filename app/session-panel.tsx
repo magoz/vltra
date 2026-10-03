@@ -399,8 +399,9 @@ function useMarkViewed(sessionID: string, row: BoardRow['row'] | undefined) {
 
 /**
  * The session panel: side panel on desktop, full screen on the phone. Header facts, inline
- * answers, recent messages and files, the subagent tree, Handled (finished) / Reopen (handled),
- * follow-up prompt, Interrupt (while running), and the ways out.
+ * answers, recent messages and files, the subagent tree, Handled (finished) / Reopen (handled;
+ * neither once the session's folder is deleted), follow-up prompt, Interrupt (while running), and
+ * the ways out.
  */
 export function SessionPanel({
   sessionID,
@@ -467,6 +468,9 @@ export function SessionPanel({
         {facts.length === 0 ? null : (
           <p className="text-muted-foreground mt-1 text-xs">{facts.join(' · ')}</p>
         )}
+        {row?.gone === true ? (
+          <p className="text-muted-foreground mt-1 text-xs">folder deleted</p>
+        ) : null}
         {row === undefined ? (
           <p className="text-muted-foreground mt-3">
             This session is not on the board (it may be archived or a subagent).
@@ -479,12 +483,12 @@ export function SessionPanel({
         ) : null}
         <DetailBody sessionID={sessionID} version={version} />
         {row !== undefined && row.children.length > 0 ? <Subagents row={row} /> : null}
-        {row !== undefined && row.state === 'finished' ? (
+        {row !== undefined && row.state === 'finished' && !row.gone ? (
           <div className="mt-5">
             <HandledButton sessionID={sessionID} variant="default" />
           </div>
         ) : null}
-        {row !== undefined && row.state === 'handled' && row.handled !== undefined ? (
+        {row !== undefined && row.state === 'handled' && row.handled !== undefined && !row.gone ? (
           <div className="mt-5">
             <ReopenButton sessionID={sessionID} />
           </div>

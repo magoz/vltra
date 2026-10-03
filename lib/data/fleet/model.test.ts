@@ -2,7 +2,16 @@ import { describe, expect, it } from '@effect/vitest'
 import { Schema } from 'effect'
 import * as FastCheck from 'effect/testing/FastCheck'
 import { FleetEvent } from '@/lib/data/fleet/events'
-import { applyEvent, applyEvents, emptyModel, fromSnapshot } from '@/lib/data/fleet/model'
+import {
+  applyEvent,
+  applyEvents,
+  emptyModel,
+  fromSnapshot,
+  isFolderGone,
+  sessionDirectories,
+  snapshotDirectories,
+  uncheckedDirectories
+} from '@/lib/data/fleet/model'
 import type { FleetModel, TrackedSession } from '@/lib/data/fleet/model'
 import { ownState } from '@/lib/data/fleet/state'
 import { baseTime, sessionRecord } from '@/lib/data/fleet/testing/fixtures'
@@ -32,7 +41,9 @@ const stateOf = (model: FleetModel, sessionID = id): FleetState => {
     Array.from(model.permissions.values()).filter(item => item.sessionID === sessionID).length +
     Array.from(model.forms.values()).filter(item => item.sessionID === sessionID).length
 
-  return ownState(sessionOf(model, sessionID), pending)
+  const session = sessionOf(model, sessionID)
+
+  return ownState(session, pending, isFolderGone(model, session))
 }
 
 const started = (at: number) => FleetEvent.ExecutionStarted({ sessionID: id, at })
@@ -270,6 +281,78 @@ describe('state machine transitions (DESIGN.md "Session state")', () => {
     expect(stateOf(refreshed)).toBe('working')
     expect(sessionOf(refreshed).info.title).toBe('Fresh')
     expect(sessionOf(refreshed).startedAt).toBe(baseTime + 1)
+  })
+})
+
+describe('session folders', () => {
+  const here = '/home/magoz/dev/repos/fleet'
+  const gone = '/tmp/tmp.gone'
+
+  const snapshot = {
+    ...emptySnapshot,
+    sessions: [
+      sessionRecord('ses_a', { idle: baseTime }),
+      sessionRecord('ses_b', { directory: gone, idle: baseTime }),
+      sessionRecord('ses_c', { directory: gone })
+    ]
+  }
+
+  it('a snapshot lists each distinct session directory once', () => {
+    expect(Array.from(snapshotDirectories(snapshot))).toEqual([here, gone])
+  })
+
+  it('the snapshot model keeps the checked directories', () => {
+    const model = fromSnapshot(
+      snapshot,
+      connectedAt,
+      new Map([
+        [here, false],
+        [gone, true]
+      ])
+    )
+
+    expect(stateOf(model, 'ses_a')).toBe('finished')
+    expect(stateOf(model, 'ses_b')).toBe('handled')
+    expect(uncheckedDirectories(model)).toEqual([])
+  })
+
+  it('directories checks merge; new or moved sessions are unchecked until then', () => {
+    const model = fromSnapshot(snapshot, connectedAt, new Map([[here, false]]))
+
+    expect(uncheckedDirectories(model)).toEqual([gone])
+    expect(stateOf(model, 'ses_b')).toBe('finished')
+
+    const checked = applyEvent(
+      model,
+      FleetEvent.DirectoriesChecked({ directories: new Map([[gone, true]]) })
+    )
+
+    expect(Array.from(checked.directoryGone)).toEqual([
+      [here, false],
+      [gone, true]
+    ])
+    expect(stateOf(checked, 'ses_b')).toBe('handled')
+
+    const moved = applyEvent(
+      checked,
+      FleetEvent.SessionUpserted({
+        session: sessionRecord('ses_b', { directory: '/srv/new', idle: baseTime })
+      })
+    )
+
+    expect(uncheckedDirectories(moved)).toEqual(['/srv/new'])
+    expect(stateOf(moved, 'ses_b')).toBe('finished')
+    expect(Array.from(sessionDirectories(moved))).toEqual([here, '/srv/new', gone])
+  })
+
+  it('a folder deleted later flips a finished session to handled; restored, it is back', () => {
+    const model = fromSnapshot(snapshot, connectedAt, new Map([[here, false]]))
+
+    const check = (value: boolean) =>
+      FleetEvent.DirectoriesChecked({ directories: new Map([[here, value]]) })
+
+    expect(stateOf(applyEvent(model, check(true)), 'ses_a')).toBe('handled')
+    expect(stateOf(applyEvents(model, [check(true), check(false)]), 'ses_a')).toBe('finished')
   })
 })
 

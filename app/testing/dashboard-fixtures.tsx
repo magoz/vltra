@@ -19,9 +19,15 @@ type LiveFacts = Partial<Pick<TrackedSession, 'activity' | 'retry' | 'activityAt
 const modelFrom = (
   snapshot: Partial<OpenCodeSnapshot>,
   live: ReadonlyMap<string, LiveFacts>,
-  at: number
+  at: number,
+  gone: ReadonlyArray<string> = []
 ): FleetModel => {
-  const model = fromSnapshot({ ...emptySnapshot, ...snapshot }, at)
+  const model = fromSnapshot(
+    { ...emptySnapshot, ...snapshot },
+    at,
+    new Map(gone.map(directory => [directory, true] as const))
+  )
+
   const sessions = new Map(model.sessions)
 
   for (const [id, facts] of live) {
@@ -33,12 +39,14 @@ const modelFrom = (
   return { ...model, sessions }
 }
 
+/** The root row `id`; `gone` lists session folders deleted from disk. */
 export const rowFrom = (
   snapshot: Partial<OpenCodeSnapshot>,
   id: string,
-  live: LiveFacts = {}
+  live: LiveFacts = {},
+  gone: ReadonlyArray<string> = []
 ): FleetRow => {
-  const model = modelFrom(snapshot, new Map([[id, live]]), baseTime)
+  const model = modelFrom(snapshot, new Map([[id, live]]), baseTime, gone)
   const row = buildRows(model, webUrl).find(candidate => candidate.id === id)
 
   if (row === undefined) throw new Error(`no root row ${id}`)

@@ -1,14 +1,17 @@
 import { Cache, Context, Data, Effect, Exit, Layer, Option, Schema } from 'effect'
 import { withConnection } from '@/lib/data/fleet/actions'
+import { sessionFolderGone } from '@/lib/data/fleet/folders'
+import { FleetStore } from '@/lib/data/fleet/store'
 import type {
   ChangeTotals,
   FileChange,
   SessionDetail,
   SessionSummary
 } from '@/lib/data/fleet/types'
+import { Directories } from '@/lib/services/directories/service'
 import type { OpenCodeRequestError, OpenCodeUnavailableError } from '@/lib/services/opencode/errors'
 import { OpenCode } from '@/lib/services/opencode/service'
-import type { ActionError } from '@/lib/services/opencode/service'
+import type { ActionError, OpenCodeConnection } from '@/lib/services/opencode/service'
 
 // Read-only session data for the dashboard, fetched from OpenCode on demand (never through the
 // watcher): the session panel's transcript tail and files, and finished runs' answer excerpts.
@@ -43,6 +46,17 @@ const optionalDiff = (files: Effect.Effect<ReadonlyArray<FileChange>, ActionErro
     )
   )
 
+/**
+ * The latest turn's files, unless the session's folder is gone: OpenCode resolves the folder to
+ * diff, so the call can only fail. The transcript (messages) is read without it and still works.
+ */
+const latestFiles = (connection: OpenCodeConnection, sessionID: string) =>
+  Effect.flatMap(sessionFolderGone(sessionID), gone =>
+    gone
+      ? Effect.succeed(Option.none<ReadonlyArray<FileChange>>())
+      : optionalDiff(connection.diff({ sessionID }))
+  )
+
 export const totals = (files: ReadonlyArray<FileChange>): ChangeTotals => ({
   files: files.length,
   additions: files.reduce((sum, file) => sum + file.additions, 0),
@@ -59,7 +73,7 @@ export const loadSessionDetail = (input: SessionDetailInput) =>
           limit: panelMessages,
           assistantOnly: false
         }),
-        files: optionalDiff(connection.diff({ sessionID: input.sessionID }))
+        files: latestFiles(connection, input.sessionID)
       },
       { concurrency: 2 }
     ).pipe(
@@ -81,7 +95,7 @@ export const loadSessionSummary = (input: SessionSummaryInput) =>
           limit: answerMessages,
           assistantOnly: true
         }),
-        files: optionalDiff(connection.diff({ sessionID: input.sessionID }))
+        files: latestFiles(connection, input.sessionID)
       },
       { concurrency: 2 }
     ).pipe(
@@ -117,11 +131,15 @@ export const SessionSummariesLive = Layer.effect(
   SessionSummaries,
   Effect.gen(function* () {
     const opencode = yield* OpenCode
+    const store = yield* FleetStore
+    const directories = yield* Directories
 
     const cache = yield* Cache.makeWith(
       (key: SummaryKey) =>
         loadSessionSummary({ sessionID: key.sessionID, idle: key.idle }).pipe(
-          Effect.provideService(OpenCode, opencode)
+          Effect.provideService(OpenCode, opencode),
+          Effect.provideService(FleetStore, store),
+          Effect.provideService(Directories, directories)
         ),
       {
         capacity: summaryCapacity,

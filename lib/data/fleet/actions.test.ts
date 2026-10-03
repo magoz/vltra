@@ -13,10 +13,18 @@ import { fromSnapshot } from '@/lib/data/fleet/model'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
 import { FleetStore, makeFleetStore } from '@/lib/data/fleet/store'
 import { baseTime, sessionRecord, webUrl } from '@/lib/data/fleet/testing/fixtures'
+import { snapshotRows } from '@/lib/data/fleet/snapshot'
+import {
+  makeFakeDirectories,
+  presentDirectories
+} from '@/lib/services/directories/testing/fake-directories'
+import type { Directories } from '@/lib/services/directories/service'
 import { emptySnapshot, makeFakeOpenCode } from '@/lib/services/opencode/testing/fake-opencode'
 import type { FakeOpenCode } from '@/lib/services/opencode/testing/fake-opencode'
 
 const idle = baseTime + 10
+
+const gone = '/tmp/tmp.gone'
 
 const snapshot: OpenCodeSnapshot = {
   ...emptySnapshot,
@@ -29,16 +37,23 @@ const snapshot: OpenCodeSnapshot = {
     sessionRecord('ses_working', { idle, outcome: 'succeeded' }),
     sessionRecord('ses_child', { parentID: 'ses_finished', idle, outcome: 'succeeded' }),
     sessionRecord('ses_unread', { idle, viewed: baseTime, outcome: 'succeeded' }),
-    sessionRecord('ses_read', { idle, viewed: idle })
+    sessionRecord('ses_read', { idle, viewed: idle }),
+    sessionRecord('ses_gone', { directory: gone, idle, outcome: 'succeeded' }),
+    sessionRecord('ses_gone_handled', { directory: gone, idle, handled: idle, outcome: 'failed' }),
+    sessionRecord('ses_gone_blocked', { directory: gone, idle, outcome: 'succeeded' })
   ],
   running: ['ses_working'],
-  permissions: [{ id: 'per_1', sessionID: 'ses_blocked', action: 'bash', resources: [] }]
+  permissions: [
+    { id: 'per_1', sessionID: 'ses_blocked', action: 'bash', resources: [] },
+    { id: 'per_2', sessionID: 'ses_gone_blocked', action: 'bash', resources: [] }
+  ]
 }
 
 /** The fake OpenCode plus a store holding the watcher's view of `snapshot`. */
-const services = (fake: FakeOpenCode) =>
-  Layer.merge(
+const services = (fake: FakeOpenCode, directories: Layer.Layer<Directories> = presentDirectories) =>
+  Layer.mergeAll(
     fake.layer,
+    directories,
     Layer.effect(
       FleetStore,
       Effect.gen(function* () {
@@ -138,6 +153,38 @@ describe('mark handled', () => {
     })
   )
 
+  it.effect('a session whose folder is gone is already handled, without any OpenCode call', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode(snapshot)
+      const directories = yield* makeFakeDirectories([gone])
+
+      yield* Effect.gen(function* () {
+        // The watcher has not noticed yet (finished in its model): the fresh check catches it.
+        const outcomes = yield* Effect.forEach(['ses_gone', 'ses_gone_handled'], sessionID =>
+          markHandled({ sessionID })
+        )
+
+        expect(outcomes).toEqual(['already-handled', 'already-handled'])
+
+        // ...and flips the row at once.
+        const rows = snapshotRows(yield* Effect.flatMap(FleetStore, store => store.snapshot))
+
+        expect(rows.find(row => row.id === 'ses_gone')).toMatchObject({
+          state: 'handled',
+          gone: true
+        })
+
+        // A pending request still wins: that is what OpenCode reports.
+        const error = yield* markHandled({ sessionID: 'ses_gone_blocked' }).pipe(Effect.flip)
+
+        expect(error._tag).toBe('SessionNotFinishedError')
+        expect(error).toMatchObject({ state: 'blocked' })
+      }).pipe(Effect.provide(services(fake, directories.layer)))
+
+      expect(yield* fake.calls).toEqual([])
+    })
+  )
+
   it.effect('fails with SessionNotFoundError for unknown sessions', () =>
     Effect.gen(function* () {
       const fake = yield* makeFakeOpenCode(snapshot)
@@ -159,7 +206,9 @@ describe('reopen', () => {
 
       yield* fake.setMetadata('ses_handled', { ...foreign, fleet: { handled: idle, note: 'kept' } })
 
-      const outcome = yield* reopen({ sessionID: 'ses_handled' }).pipe(Effect.provide(fake.layer))
+      const outcome = yield* reopen({ sessionID: 'ses_handled' }).pipe(
+        Effect.provide(services(fake))
+      )
 
       expect(outcome).toBe('reopened')
       expect(yield* fake.calls).toEqual([
@@ -174,7 +223,7 @@ describe('reopen', () => {
       const fake = yield* makeFakeOpenCode(snapshot)
 
       yield* fake.setMetadata('ses_handled', { ...foreign, fleet: { handled: idle } })
-      yield* reopen({ sessionID: 'ses_handled' }).pipe(Effect.provide(fake.layer))
+      yield* reopen({ sessionID: 'ses_handled' }).pipe(Effect.provide(services(fake)))
 
       expect(yield* fake.metadata('ses_handled')).toEqual(foreign)
     })
@@ -184,17 +233,35 @@ describe('reopen', () => {
     Effect.gen(function* () {
       const fake = yield* makeFakeOpenCode(snapshot)
 
-      expect(yield* reopen({ sessionID: 'ses_finished' }).pipe(Effect.provide(fake.layer))).toBe(
-        'not-handled'
-      )
+      expect(
+        yield* reopen({ sessionID: 'ses_finished' }).pipe(Effect.provide(services(fake)))
+      ).toBe('not-handled')
       expect(yield* fake.calls).toEqual([])
 
       const error = yield* reopen({ sessionID: 'ses_missing' }).pipe(
-        Effect.provide(fake.layer),
+        Effect.provide(services(fake)),
         Effect.flip
       )
 
       expect(error._tag).toBe('SessionNotFoundError')
+    })
+  )
+})
+
+describe('reopen a session whose folder is gone', () => {
+  it.effect('fails with SessionFolderGoneError and writes nothing', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode(snapshot)
+      const directories = yield* makeFakeDirectories([gone])
+
+      const error = yield* reopen({ sessionID: 'ses_gone_handled' }).pipe(
+        Effect.provide(services(fake, directories.layer)),
+        Effect.flip
+      )
+
+      expect(error._tag).toBe('SessionFolderGoneError')
+      expect(error).toMatchObject({ sessionID: 'ses_gone_handled', directory: gone })
+      expect(yield* fake.calls).toEqual([])
     })
   )
 })
@@ -205,7 +272,7 @@ describe('mark viewed (OpenCode unread dots only)', () => {
       const fake = yield* makeFakeOpenCode(snapshot)
 
       const outcome = yield* markViewed({ sessionID: 'ses_unread' }).pipe(
-        Effect.provide(fake.layer)
+        Effect.provide(services(fake))
       )
 
       expect(outcome).toBe('marked')
@@ -218,7 +285,7 @@ describe('mark viewed (OpenCode unread dots only)', () => {
       const fake = yield* makeFakeOpenCode(snapshot)
 
       const outcomes = yield* Effect.forEach(['ses_read', 'ses_never'], sessionID =>
-        markViewed({ sessionID }).pipe(Effect.provide(fake.layer))
+        markViewed({ sessionID }).pipe(Effect.provide(services(fake)))
       )
 
       expect(outcomes).toEqual(['already-viewed', 'already-viewed'])
@@ -233,7 +300,7 @@ describe('mark viewed (OpenCode unread dots only)', () => {
       yield* fake.failConnects(1)
 
       const result = yield* markViewed({ sessionID: 'ses_unread' }).pipe(
-        Effect.provide(fake.layer),
+        Effect.provide(services(fake)),
         Effect.flip
       )
 
@@ -252,7 +319,7 @@ describe('proxied actions', () => {
         replyForm({ sessionID: 'ses_blocked', formID: 'frm_1', answer: { a: 'yes' } }),
         sendPrompt({ sessionID: 'ses_blocked', text: 'continue' }),
         interruptSession({ sessionID: 'ses_working' })
-      ]).pipe(Effect.provide(fake.layer))
+      ]).pipe(Effect.provide(services(fake)))
 
       expect(yield* fake.calls).toEqual([
         { op: 'replyPermission', sessionID: 'ses_blocked', requestID: 'per_1' },

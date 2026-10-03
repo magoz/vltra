@@ -9,3 +9,12 @@ export class SessionNotFinishedError extends Schema.TaggedError<SessionNotFinish
   'SessionNotFinishedError',
   { sessionID: Schema.String, state: Schema.optional(FleetState) }
 ) {}
+
+/**
+ * The session's folder no longer exists, so OpenCode cannot write its metadata (it resolves the
+ * folder for every write). Such a session counts as handled and cannot be reopened.
+ */
+export class SessionFolderGoneError extends Schema.TaggedError<SessionFolderGoneError>()(
+  'SessionFolderGoneError',
+  { sessionID: Schema.String, directory: Schema.String }
+) {}
