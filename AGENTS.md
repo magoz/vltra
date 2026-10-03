@@ -12,27 +12,30 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## OVERVIEW
 
-Fleet is one view of every OpenCode session on Box: which need me (permission/form), which are
-working, failed or finished unseen, grouped project → worktree. It is an OpenCode **API client**
-(never a server plugin), stateless (OpenCode owns all state, including "seen"), private and
-single-user (no auth, no database). `DESIGN.md` is the settled spec. Stack and conventions are
-10x's (`../10x`): Next.js 16 App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
+Fleet is one view of every OpenCode session on Box, built around attention: which need me
+(blocked on a permission/form, or finished and not yet handled), which are working (and which of
+those look stuck), grouped project → worktree. It is an OpenCode **API client** (never a server
+plugin), stateless (OpenCode owns all state; Fleet's only state is its handled marker,
+`metadata.fleet.handled`, stored on the OpenCode session), private and single-user (no auth, no
+database). `DESIGN.md` is the settled spec. Stack and conventions are 10x's (`../10x`): Next.js 16
+App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
 ## WHERE TO LOOK
 
 | Task                        | Location                                 | Notes                                                |
 | --------------------------- | ---------------------------------------- | ---------------------------------------------------- |
-| Session states / priority   | `lib/data/fleet/state.ts`, `model.ts`    | Pure state machine (`applyEvent`), exhaustive tests  |
+| Session states / priority   | `lib/data/fleet/state.ts`, `model.ts`    | blocked > working > finished > handled; stuck, order |
 | Wire shapes (API, SSE)      | `lib/data/fleet/types.ts`                | Effect Schema; the ocb plugin decodes the same types |
 | Snapshot rows / grouping    | `lib/data/fleet/snapshot.ts`, `links.ts` | Roll-up, projects → worktrees → rows, deep links     |
-| Watcher, resync, backoff    | `lib/data/fleet/watcher.ts`, `store.ts`  | See `patterns/LONG_LIVED_WATCHER.md`                 |
-| Action Effects + inputs     | `lib/data/fleet/actions.ts`              | Mark seen, permission, form, prompt, interrupt       |
+| Watcher, resync, backoff    | `lib/data/fleet/watcher.ts`, `store.ts`  | Also interrupt reasons; `LONG_LIVED_WATCHER.md`      |
+| Action Effects + inputs     | `lib/data/fleet/actions.ts`              | Handled, reopen, viewed, answers, prompt, interrupt  |
+| Rollout script              | `scripts/import-handled.ts`              | `pnpm fleet:import-handled`, one-off, never auto-run |
 | OpenCode client             | `lib/services/opencode/`                 | See `patterns/OPENCODE_SURFACE.md`                   |
 | Runtime (one per process)   | `lib/runtime/fleet-runtime.ts`           | `ManagedRuntime` on `globalThis`; `runFleet`         |
 | Watcher start               | `instrumentation.ts`                     | Node runtime only; skipped during `next build`       |
 | Page / API routes / actions | `app/`                                   | `api/fleet`, `api/fleet/events`, `*-action.ts`       |
 | Dashboard UI                | `app/fleet-dashboard.tsx` and siblings   | Client tree seeded by `fleet-live.tsx`; see below    |
-| Board (sections, idle 24h)  | `lib/data/fleet/board.ts`                | Pure: live row map, `fleet.changed` apply, grouping  |
+| Board (sections, handled)   | `lib/data/fleet/board.ts`                | Pure: live row map, `fleet.changed` apply, grouping  |
 | Session panel data          | `lib/data/fleet/session-detail.ts`       | Transcript tail + diff; summaries cached by `idle`   |
 | Test doubles                | `lib/**/testing/`                        | Fake OpenCode layer, throwaway `opencode serve`      |
 | Conventions                 | `patterns/`, then `../10x/patterns/`     | Fleet notes only where it differs from 10x           |
@@ -61,15 +64,18 @@ single-user (no auth, no database). `DESIGN.md` is the settled spec. Stack and c
   snapshot per request and seeds the client `FleetDashboard`, which stays live from
   `GET /api/fleet/events` (`use-fleet-live.ts`: reload the snapshot after every `initial` event,
   apply other changes in place, reconnect with backoff and on visibility).
-- State-first sections (needs you, failed, working, done) then idle, collapsed and grouped
-  project → worktree; idle rows are listed for 24h after their last activity (`board.ts`).
+- Attention sections (blocked, finished: needs me; then working) then every handled session,
+  collapsed and grouped project → worktree, no time limit (`board.ts`). Rows order by `activeAt`
+  (run times), never OpenCode's `time.updated`, which handled-marker writes bump. Phase 2 of the
+  redesign (DESIGN.md "Clients": sidebar + projects) replaces this interim layout.
 - The open session lives in the URL (`?session=<id>`, `use-selected-session.ts`): side panel from
   `lg`, full screen below it, so the phone's back button closes it.
 - Mutations go through `FleetActions` (`app/fleet-actions.tsx`): the dashboard provides the server
   actions, component tests provide recording fakes (`app/testing/dashboard-fixtures.tsx`).
 - Panel data: `GET /api/fleet/sessions/:id` (transcript tail + latest turn's files, uncached) and,
-  for done rows, `GET /api/fleet/sessions/:id/summary?idle=` (answer excerpt + change totals,
-  cached in the runtime by `(id, idle)`; see `patterns/LONG_LIVED_WATCHER.md`).
+  for finished rows, `GET /api/fleet/sessions/:id/summary?idle=` (answer excerpt + change totals,
+  cached in the runtime by `(id, idle)`; see `patterns/LONG_LIVED_WATCHER.md`). Opening the panel
+  marks the latest run viewed in OpenCode (its unread dots only; never Fleet state).
 - Look: the approved paper-and-ink mock (`app/globals.css` tokens, mono type, `attention` green
   and `destructive` red only); light/dark follow the system (`prefers-color-scheme`), no toggle.
 - PWA: `app/manifest.ts`, `app/icon.svg`, `app/apple-icon.png`, `public/icon-*.png` (no offline).
@@ -98,6 +104,7 @@ pnpm test              # unit + integration (vitest)
 pnpm build             # next build
 pnpm verify            # format + typecheck + lint + test + build
 pnpm ship              # build + systemctl --user restart fleet (Box only)
+pnpm fleet:import-handled [--dry-run]  # one-off rollout: viewed root runs → handled (never auto-run)
 ```
 
 ## CONFIGURATION
@@ -107,4 +114,4 @@ pnpm ship              # build + systemctl --user restart fleet (Box only)
 | `OPENCODE_URL`, `OPENCODE_PASSWORD` | unset → `Service.discover`              | Explicit endpoint (tests, dev)      |
 | `OPENCODE_SERVICE_FILE`             | `$XDG_STATE_HOME/opencode/service.json` | Registration file for discovery     |
 | `FLEET_OPENCODE_WEB_URL`            | `https://box.tail129a86.ts.net:9446`    | OpenCode web UI base for deep links |
-| `FLEET_SESSION_LIMIT`               | `300`                                   | Newest sessions loaded per snapshot |
+| `FLEET_SESSION_LIMIT`               | unset → every session                   | Optional cap on sessions loaded     |

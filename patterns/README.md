@@ -3,10 +3,10 @@
 Fleet follows the 10x patterns (`../10x/patterns/`) for Effect, TypeScript, linting, testing and
 Cache Components pages. Read those first; the notes here cover only where Fleet differs.
 
-| Pattern                                          | Purpose                                                          |
-| ------------------------------------------------ | ---------------------------------------------------------------- |
-| [LONG_LIVED_WATCHER.md](./LONG_LIVED_WATCHER.md) | The OpenCode watcher inside Next: runtime, resync, cache tags    |
-| [OPENCODE_SURFACE.md](./OPENCODE_SURFACE.md)     | OpenCode endpoints, events, seen state, and test isolation rules |
+| Pattern                                          | Purpose                                                        |
+| ------------------------------------------------ | -------------------------------------------------------------- |
+| [LONG_LIVED_WATCHER.md](./LONG_LIVED_WATCHER.md) | The OpenCode watcher inside Next: runtime, resync, cache tags  |
+| [OPENCODE_SURFACE.md](./OPENCODE_SURFACE.md)     | OpenCode endpoints, events, handled marker, and test isolation |
 
 Differences from 10x at a glance:
 

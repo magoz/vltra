@@ -32,10 +32,15 @@ route handlers and server actions.
 2. Subscribe to `GET /api/event` into an unbounded queue (`Stream.toQueue`).
 3. Wait for the server's `server.connected` marker (sent after its feed subscription is live).
    Anything before it predates the subscription and is covered by the snapshot.
-4. Load the snapshot, replace the model, mark `connected`.
+4. Load the snapshot (every session; `FLEET_SESSION_LIMIT` is an optional cap), replace the
+   model (running sessions count as active at the connect time), mark `connected`, and queue an
+   interrupt-reason recovery pass (below).
 5. Drain buffered then live signals through the pure state machine. The state machine is
    idempotent for events already reflected in the snapshot (`time.idle` only advances for
-   terminal events newer than the known idle; `viewed` is a monotone max).
+   terminal events newer than the known idle, while a replayed one still names its interrupt
+   reason; `viewed` is a monotone max; the handled marker is whatever the last
+   `session.metadata.updated` carried). Every event is committed atomically
+   (`store.commit(view => applyEvent(view.model, event))`), since recovery commits too.
 6. When the stream ends or fails: mark `disconnected` (keep the stale model), wait `dropDelay`,
    and start over. Failed attempts retry with `Schedule.min([exponential(500ms), spaced(30s)])`;
    the schedule restarts fresh after each successful connection.
@@ -43,6 +48,30 @@ route handlers and server actions.
 Events for sessions outside the snapshot window trigger a `session.get` first. Created, moved and
 forked sessions are re-read (`RefreshSession`); `worktree.updated` re-reads the worktree list;
 a `worktree.resolved` that changes project identity triggers a full `Resync`.
+
+## Interrupt reasons and auto-handling
+
+OpenCode puts an interruption's reason on the event only (`patterns/OPENCODE_SURFACE.md`). The
+watcher keeps a `RunReasons` map (`sessionID:idle` → reason, or none) for its whole life, i.e.
+once per process, across reconnects:
+
+- A live `interrupted(user|inactivity|superseded)` event records its reason for the run. For a
+  root session, `user` is auto-handled right away: read the session (stored `time.idle`), and
+  write `handled = idle` unless already handled. OpenCode answers with
+  `session.metadata.updated`, which the model applies like any other writer's marker.
+- After every snapshot (connect or `Resync`) a recovery pass runs in its own fiber, one pass at a
+  time (`Queue.sliding(1)` coalesces triggers): finished, unhandled root sessions that ended
+  interrupted without a known reason get it from the map, or else from the session log (two
+  reads at a time, result remembered). Recovered reasons are applied as `InterruptRecovered`
+  (only to the run they were read for); `user` is auto-handled as above. Read failures are
+  logged and retried on the next snapshot.
+
+## Time-based counts
+
+`counts.stuck` (working rows retrying or quiet for `quietAfter`, 10 minutes) changes with time
+alone. `FleetWatcherLive` therefore re-projects the snapshot every `recount` (1 minute), and
+`diffSnapshots` publishes a `fleet.changed` when only counts changed. Clients that render "quiet
+Nm" recompute it from `activityAt` with the exported helpers in `state.ts`.
 
 ## SSE fan-out
 
@@ -76,7 +105,7 @@ the snapshot already reads, so nothing needs invalidation yet.
 ## Stage 2: no `'use cache'`; finished-run summaries in an Effect `Cache`
 
 The dashboard's only slow-changing OpenCode read is a finished run's answer excerpt and change
-totals (done rows). It lives in `SessionSummaries` (`lib/data/fleet/session-detail.ts`), an Effect
+totals (finished rows). It lives in `SessionSummaries` (`lib/data/fleet/session-detail.ts`), an Effect
 `Cache` in the runtime keyed by `(sessionID, idle)`:
 
 - A run's answer and files are fixed once it is idle, and the next run gets a new `idle`, so

@@ -17,7 +17,7 @@ stable API; the integration suite is the tripwire when OpenCode is upgraded.
 
 | Purpose              | Call                                                               |
 | -------------------- | ------------------------------------------------------------------ |
-| Sessions             | `GET /api/session?limit=100` + `cursor.next`, newest-updated first |
+| Sessions (all)       | `GET /api/session?limit=100` + `cursor.next`, newest-updated first |
 | Active executions    | `GET /api/session/active`                                          |
 | Loaded locations     | `GET /api/debug/location` (falls back to running sessions' dirs)   |
 | Pending permissions  | `GET /api/permission/request?location[directory]=…` per location   |
@@ -26,6 +26,7 @@ stable API; the integration suite is the tripwire when OpenCode is upgraded.
 | One session          | `GET /api/session/:id` (outside window, created/moved/forked)      |
 | Transcript tail      | `GET /api/session/:id/message?order=desc&limit=…` (one page)       |
 | Latest turn's files  | `GET /api/session/:id/diff?context=0` (patch text dropped)         |
+| A run's end (missed) | `GET /api/experimental/session/:id/log` (`follow: false`)          |
 
 Permissions and forms are **per location** in 2.0.20 (each loaded location has its own pending
 map), so the DESIGN's `GET /api/permission/request` and `GET /api/form` are called once per
@@ -36,25 +37,61 @@ temporary MCP `sessionID: "global"` owner are kept in the model but not attached
 
 ## Events → Fleet
 
-`server.connected`, `session.execution.{started,succeeded,failed,interrupted}` (shutdown
-interruptions do not advance `time.idle`), `session.step.failed`, `session.retry.scheduled`,
-`session.status`, `session.viewed`, `session.created/moved/forked` (re-read), `session.deleted`,
-`session.renamed`, `session.agent.selected`, `session.model.selected`, `session.usage.updated`,
-`permission.asked/replied`, `form.created/replied/cancelled`, `project.updated`,
-`worktree.updated`, `worktree.resolved`. Live activity (dashboard only, never a state change):
+`server.connected`, `session.execution.{started,succeeded,failed,interrupted}` (see Interrupt
+reasons), `session.retry.scheduled`, `session.status`, `session.viewed`,
+`session.metadata.updated` (handled marker), `session.created/moved/forked` (re-read),
+`session.deleted`, `session.renamed`, `session.agent.selected`, `session.model.selected`,
+`session.usage.updated`, `permission.asked/replied`, `form.created/replied/cancelled`,
+`project.updated`, `worktree.updated`, `worktree.resolved`. Live activity (never a state change):
 `session.step.started` / `session.reasoning.started` → thinking, `session.text.started` →
 writing, `session.tool.input.started` → tool name, `session.tool.called` → tool input summary
-(command, path, pattern, ...). Activity is cleared when a run starts or ends and is not in the
-snapshot, so it is unknown until the next step after a (re)connect. Everything else (deltas,
-progress, ...) is ignored. On location shutdown
-OpenCode itself emits `permission.replied` (reject) and `form.cancelled` for pending requests.
+(command, path, pattern, ...). Each of those (and the run start) also stamps the session's last
+activity, which makes a working session "quiet" (stuck) after 10 minutes; a new step clears a
+scheduled retry. Activity is cleared when a run starts or ends and is not in the snapshot: after a
+(re)connect, running sessions count as active at the connect time. Everything else (deltas,
+progress, `session.step.failed`, ...) is ignored. On location shutdown OpenCode itself emits
+`permission.replied` (reject) and `form.cancelled` for pending requests.
 
-## Seen state
+## Handled marker (session metadata)
 
-OpenCode's projector sets `time.idle = max(event.created, previousIdle + 1)` on terminal
-events and `time.viewed = max(viewed, idle)` on `session.viewed`. A session is unseen while
-`viewed < idle`. "Mark seen" reads the stored `time.idle` (not the event time, which can differ
-by the +1) and posts `POST /api/session/:id/view { idle }`.
+Fleet's only state is `metadata.fleet.handled = <time.idle of the handled run>`; the latest run is
+handled while `handled >= idle`, so the next run that ends needs me again without an un-handle
+step. Verified in 2.0.20 (`core/src/session/projector.ts`):
+
+- `PATCH /api/session/:id { metadata }` **replaces** the whole object and bumps `time.updated`
+  (so Fleet never orders by `updated`; rows carry `activeAt` from run times instead). It emits
+  `session.metadata.updated` with the full new metadata.
+- Writes are read-modify-write (`setHandled` in `live-layer.ts`, merge in `mapping.ts`
+  `withFleetHandled`): read the session, keep every other key (other writers: plugins, the ocb
+  Fleet plugin), replace only `fleet.handled`; clearing deletes it, and `fleet` once empty.
+- Reading: `fleetHandled` decodes `metadata.fleet.handled` as a finite number; absent or malformed
+  metadata reads as unhandled.
+- Children and forks inherit the parent's metadata at creation (so a subagent may start with the
+  parent's marker; only root rows are ever handled, and a child's own run ends later anyway).
+- Mark handled reads the stored `time.idle` fresh (not the event time, which can differ by the
+  +1 of `time.idle = max(event.created, previousIdle + 1)`) and writes it.
+
+OpenCode's own `time.viewed` (`viewed < idle` = unread in OpenCode UIs) is independent: opening
+a session's panel posts `POST /api/session/:id/view { idle }` for OpenCode's unread dots, and
+`pnpm fleet:import-handled` used it once to seed markers. Fleet state never reads it.
+
+## Interrupt reasons
+
+`session.execution.interrupted` carries `data.reason` (`user` | `inactivity` | `shutdown` |
+`superseded`) on the event only; the session row stores just `outcome: interrupted`.
+
+- `shutdown` does not stamp `time.idle` (the run resumes after the restart): it only stops the
+  session.
+- `user` (any client's Stop): for a root session the watcher reads the session and writes
+  `handled = time.idle`, so a run I stopped myself never needs me.
+- `inactivity` (OpenCode stopping an evicted location's runs) stays finished, labelled "stopped
+  by OpenCode". `superseded` is declared but unused in 2.0.20.
+- Missed while Fleet was down: after every snapshot, finished, unhandled root sessions that ended
+  interrupted with no known reason get it from the durable session log
+  (`GET /api/experimental/session/:id/log`, `follow: false`, which ends after its `log.synced`
+  marker): the last terminal execution event that is not a shutdown. Results are cached per
+  `(sessionID, idle)` for the life of the process, so each run's log is read at most once;
+  `user` is then auto-handled as above.
 
 ## Test isolation (integration)
 
@@ -64,5 +101,9 @@ loopback port with a random password and a rebuilt environment: `HOME`, `XDG_*`,
 auto-update and models fetch disabled, `HTTP(S)_PROXY` pointed at a dead port. Sessions use
 the unavailable model `fleet-none/none`, so prompts fail with `provider.no-route` without any
 network call. (The default free `opencode` provider would otherwise answer real prompts.)
-"Done" sessions are created with `POST /api/experimental/session/import`, pending requests with
-`POST /api/session/:id/permission` (session rule `effect: ask`) and `POST /api/session/:id/form`.
+Finished sessions are created with `POST /api/experimental/session/import`, pending requests with
+`POST /api/session/:id/permission` (session rule `effect: ask`) and `POST /api/session/:id/form`,
+other writers' metadata with `PATCH /api/session/:id { metadata }`. No real run can be
+interrupted there (no model answers and `session.shell` runs without an execution), so interrupt
+reasons are covered by the fake-layer watcher tests; the integration suite only checks that the
+session log is readable.
