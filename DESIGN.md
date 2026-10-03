@@ -112,7 +112,17 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
 **Web (fleet.oox.sh, Mac + phone):** two full-width pages, **Agents** and **Projects**, switched
 by header tabs on desktop and a bottom tab bar on the phone (`1` / `2`). The header carries the
 count line (`6 need you · 17 working · 2 stuck`) on both pages.
-- **Agents = a kanban board by state** across all projects, columns `Blocked | Finished |
+- **Agents has two modes** (`?view=board` for the board; focus is the default, so plain `/` is
+  focus):
+  - **Focus (default)**: a left sidebar with only the needs-me list (blocked first, oldest wait
+    first, inline answers; then finished, oldest first, with Handled), and the selected session
+    open inline in the rest of the page: the same Summary | Chat tabs as the drawer, Chat (OpenCode
+    web) by default here. Nothing selected: a quiet empty state. Handling the open session opens
+    the next needs-me session, so triage is `h`, `h`, `h`. Working and handled sessions are not
+    listed (the header count line still shows them).
+  - **Board**: the four-column kanban below, with the drawer. A header button toggles the modes
+    (`b`); the choice lives in the URL so links and the back button keep it.
+- **Agents board = a kanban by state** across all projects, columns `Blocked | Finished |
   Working | Handled` (the two left columns are "needs me"). Blocked cards (oldest wait first)
   answer in place: approve/deny, form answers, subagent requests on the parent's card. Finished
   cards (oldest first): answer excerpt, change totals, red mark for failures, "stopped by
@@ -127,11 +137,14 @@ count line (`6 need you · 17 working · 2 stuck`) on both pages.
   worktrees are sections listing needs-me and working sessions; handled ones fold into
   "N handled · last 2h", expandable in place (Reopen there). No time limit yet (maybe 30 days
   later).
-- **Phone**: Agents shows one column at a time via a segmented control (`Blocked 2 · Finished
+- **Phone**: focus mode is the needs-me list; tapping a session opens it full screen (Chat by
+  default), back returns to the list. Board mode shows one column at a time via a segmented control (`Blocked 2 · Finished
   4 · Working 5 · Handled`), opening on the first non-empty needs-me column. Swipe left on a
   finished card marks it handled (no horizontal column scrolling, so the gesture stays
   unambiguous).
-- **Keyboard (Mac)**: Agents: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns,
+- **Keyboard (Mac)**: Focus: `j`/`k` move through the list, `Enter` opens the session on the
+  right, `h` handled (the next needs-me session opens), `u` undo, `a`/`d` approve/deny, `c` Summary
+  / Chat, `b` board. Board: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns,
   `h` handled (and next finished card), `u` undo, `a`/`d` approve/deny, `Enter` opens the
   drawer, `Esc` closes, `/` focuses the project filter; focus starts on the first needs-me card.
   Projects: arrows move between cards, `j`/`k` within a card, `Enter` on a card opens its
