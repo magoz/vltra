@@ -284,7 +284,7 @@ describe('session panel', () => {
   it('closes from the back button', () => {
     const { onClose } = renderPanel(doneRow())
 
-    fireEvent.click(screen.getByRole('button', { name: '‹ Fleet' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Fleet' }))
 
     expect(onClose).toHaveBeenCalled()
   })

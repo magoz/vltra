@@ -407,42 +407,25 @@ function OpenCodeChat({ url, title }: { readonly url: string; readonly title: st
   const [loaded, setLoaded] = useState(false)
 
   return (
-    <>
-      <div className="text-muted-foreground flex shrink-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b px-4 py-1.5 text-xs">
-        <p className="min-w-0 break-words">
-          Not signed in? Pair this browser once:{' '}
-          <code className="text-foreground select-all">
-            opencode pair --url {new URL(url).origin}
-          </code>
-        </p>
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className="hover:text-foreground shrink-0 underline underline-offset-2"
-        >
-          Open in new tab
-        </a>
-      </div>
-      <div className="relative min-h-0 flex-1">
-        {loaded ? null : (
-          <p
-            className="text-muted-foreground pointer-events-none absolute inset-x-0 top-0 z-10 p-4"
-            aria-busy="true"
-          >
-            Loading OpenCode…
+    <div className="relative min-h-0 flex-1">
+      {loaded ? null : (
+        <div className="text-muted-foreground pointer-events-none absolute inset-x-0 top-0 z-10 space-y-2 p-4">
+          <p aria-busy="true">Loading OpenCode…</p>
+          <p className="text-xs break-words">
+            Not signed in? Pair this browser once:{' '}
+            <code className="text-foreground">opencode pair --url {new URL(url).origin}</code>
           </p>
-        )}
-        <iframe
-          src={url}
-          title={title}
-          allow="clipboard-read; clipboard-write"
-          referrerPolicy="no-referrer"
-          onLoad={() => setLoaded(true)}
-          className="absolute inset-0 block size-full border-0"
-        />
-      </div>
-    </>
+        </div>
+      )}
+      <iframe
+        src={url}
+        title={title}
+        allow="clipboard-read; clipboard-write"
+        referrerPolicy="no-referrer"
+        onLoad={() => setLoaded(true)}
+        className="absolute inset-0 block size-full border-0"
+      />
+    </div>
   )
 }
 
@@ -452,8 +435,8 @@ const drawerTabs: ReadonlyArray<{ readonly tab: DrawerTab; readonly label: strin
 ]
 
 /**
- * The session drawer: side panel on desktop, full screen on the phone (with its `‹ Fleet` back
- * bar), with two tabs. **Summary**: header facts, inline answers, recent messages and files, the
+ * The session drawer: side panel on desktop, full screen on the phone, with one compact toolbar
+ * (phone back button, the two tabs, Interrupt on the phone, open-in-new-tab on Chat, close). **Summary**: header facts, inline answers, recent messages and files, the
  * subagent tree, Handled (finished) / Reopen (handled; neither once the session's folder is
  * deleted), follow-up prompt, Interrupt (while running), and the ways out. **Chat**: OpenCode's
  * web UI in an iframe, mounted the first time Chat shows and kept while switching back to
@@ -489,38 +472,58 @@ export function SessionPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="bg-background flex shrink-0 items-center justify-between gap-2 border-b px-2 py-2 lg:hidden">
-        <Button variant="ghost" onClick={onClose}>
-          ‹ Fleet
-        </Button>
-        {interrupt}
-      </div>
-      <div className="flex h-10 shrink-0 items-stretch justify-between border-b pr-2">
-        <div role="tablist" aria-label="Session views" className="flex">
-          {drawerTabs.map(entry => (
-            <button
-              key={entry.tab}
-              id={`${id}-${entry.tab}-tab`}
-              type="button"
-              role="tab"
-              aria-selected={entry.tab === tab}
-              aria-controls={`${id}-${entry.tab}`}
-              onClick={() => onTab(entry.tab)}
-              className="text-muted-foreground hover:text-foreground aria-selected:border-b-attention aria-selected:text-foreground focus-visible:ring-ring/50 -mb-px flex items-center border-b-2 border-b-transparent px-4 outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
-            >
-              {entry.label}
-            </button>
-          ))}
+      <div className="bg-background flex h-10 shrink-0 items-stretch justify-between gap-1 border-b pr-2">
+        <div className="flex min-w-0 items-stretch">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Back to Fleet"
+            className="ml-1 self-center lg:hidden"
+            onClick={onClose}
+          >
+            ‹
+          </Button>
+          <div role="tablist" aria-label="Session views" className="flex">
+            {drawerTabs.map(entry => (
+              <button
+                key={entry.tab}
+                id={`${id}-${entry.tab}-tab`}
+                type="button"
+                role="tab"
+                aria-selected={entry.tab === tab}
+                aria-controls={`${id}-${entry.tab}`}
+                onClick={() => onTab(entry.tab)}
+                className="text-muted-foreground hover:text-foreground aria-selected:border-b-attention aria-selected:text-foreground focus-visible:ring-ring/50 -mb-px flex items-center border-b-2 border-b-transparent px-4 outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Close panel"
-          className="self-center max-lg:hidden"
-          onClick={onClose}
-        >
-          ×
-        </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          {interrupt === null ? null : <div className="lg:hidden">{interrupt}</div>}
+          {tab === 'chat' && row !== undefined ? (
+            <a
+              href={row.links.web}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Open in new tab"
+              title="Open in new tab"
+              className="text-muted-foreground hover:text-foreground px-2"
+            >
+              ↗
+            </a>
+          ) : null}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Close panel"
+            className="max-lg:hidden"
+            onClick={onClose}
+          >
+            ×
+          </Button>
+        </div>
       </div>
       <div
         id={`${id}-summary`}

@@ -97,18 +97,20 @@ describe('session drawer tabs', () => {
 
     const chat = within(drawer()).getByRole('tabpanel', { name: 'Chat' })
 
+    // The pairing hint only shows while OpenCode loads; the toolbar opens it in a new tab.
     expect(chat.textContent).toContain(
       `Not signed in? Pair this browser once: opencode pair --url ${new URL(webLink('ses_wait_old')).origin}`
     )
-    expect(within(chat).getByRole('link', { name: 'Open in new tab' }).getAttribute('href')).toBe(
-      webLink('ses_wait_old')
-    )
+    expect(
+      within(drawer()).getByRole('link', { name: 'Open in new tab' }).getAttribute('href')
+    ).toBe(webLink('ses_wait_old'))
 
     if (frame === null) throw new Error('no iframe')
 
     fireEvent.load(frame)
 
     expect(within(drawer()).queryByText('Loading OpenCode…')).toBeNull()
+    expect(chat.textContent).not.toContain('Not signed in?')
   })
 
   it('keeps the iframe mounted when going back to Summary', () => {
@@ -218,12 +220,12 @@ describe('session drawer tabs', () => {
     expect(drawer().className).toContain('lg:w-[min(44rem,48vw)]')
   })
 
-  it('keeps the phone back bar above the iframe', () => {
+  it('keeps the phone back button above the iframe', () => {
     renderDashboard()
     open('Wait old')
     fireEvent.click(tab('Chat'))
 
-    const back = within(drawer()).getByRole('button', { name: '‹ Fleet' })
+    const back = within(drawer()).getByRole('button', { name: 'Back to Fleet' })
     const frame = iframe()
 
     if (frame === null) throw new Error('no iframe')
