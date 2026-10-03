@@ -106,6 +106,12 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
   OpenCode).
 - The CLI plugin uses the two GET routes for states (it never recomputes them) and writes
   `metadata.fleet.handled` itself, with the same read-modify-write rule.
+- Launcher: `GET /api/fleet/launcher` → `LauncherList` (repos with worktrees, owner, PR, session
+  tallies and latest root session, most recent activity first); `POST /api/fleet/launcher/branch`
+  `{ task }` → `{ branch, source: 'model' | 'fallback' }` (JSON only, same-origin: a non-browser
+  client sends `Origin` with Fleet's own origin). The web UI uses the server actions `launch`,
+  `openCheckout`, `retireWorktree`, `dismissLaunch` and `suggestBranch`; launches reach clients in
+  the snapshot (`launches`) and in `fleet.changed`.
 
 ## Clients
 

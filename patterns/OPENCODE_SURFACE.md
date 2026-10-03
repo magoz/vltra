@@ -35,6 +35,45 @@ loaded location. Querying only loaded locations avoids booting new ones. Forms k
 default) so the dashboard can answer them inline; OpenCode validates the answer. Forms with the
 temporary MCP `sessionID: "global"` owner are kept in the model but not attached to any row.
 
+## Launcher calls
+
+The launcher (`lib/data/fleet/launcher.ts`, `launches.ts`) adds these, each mapped in
+`mapping.ts` and exposed on `OpenCodeConnection`:
+
+| Purpose                   | Call                                                                 |
+| ------------------------- | -------------------------------------------------------------------- |
+| Register / resolve a repo | `GET /api/location?location[directory]=…` (`location.get`)           |
+| Create a worktree         | `POST /api/worktree { projectID, name }` (`worktree.create`)         |
+| Retire a worktree         | `DELETE /api/worktree { projectID, directory, force: false }`        |
+| A worktree list           | `GET /api/worktree?projectID=…` (`[{ directory, strategy? }]`)       |
+| Create a session          | `POST /api/session { location: { directory }, title }`               |
+| Send the task             | `POST /api/session/:id/prompt { text }` (returns the queued message) |
+| One branch name           | `POST /api/experimental/generate { prompt }` (`generate.text`)       |
+
+- `location.get` registers the project of a directory OpenCode never opened and returns
+  `{ directory, project: { id, directory, canonical } }`; Fleet keeps `project.canonical` as the
+  project directory (the same value `GET /api/project` calls `canonical`).
+- `worktree.create` is synchronous: it answers once the strategy is done, which with the dotfiles
+  `worktrees` plugin means a provisioned checkout (minutes). `fetch` (undici) gives up waiting for
+  response headers after 5 minutes, so worktree calls use their own client
+  (`NodeHttpClient.makeUndici`, which leaves time limits to `Effect.timeout`: 35 minutes for
+  create, 21 for remove, matching the plugin's bounds). Fleet sends `name =
+branch.replaceAll('/', '--')` (`branch.ts`; the plugin decodes `--` back to `/`).
+- OpenCode's **default `git` strategy** (no plugin, e.g. the integration server) ignores the
+  branch: it checks out a **detached** worktree at `$XDG_DATA_HOME/opencode/worktree/<id>/<name>`
+  and suffixes a colliding name (`feat--x-2`) instead of refusing.
+- Refusals are 4xx bodies with a message: the worktree group's
+  `{ name: 'WorktreeError', data: { message, forceRequired } }` (e.g. `Invalid worktree
+directory: …`, a dirty checkout, the plugin's preflight and `worktree-manage` refusals),
+  `InvalidRequestError` / `ProjectNotFoundError` / `ConflictError` `{ _tag, message }`.
+  `refusalMessage` decodes them (sanitized: no escapes or control characters, one line, 400
+  chars) into `OpenCodeRejectedError`, whose message reaches the user; anything else stays a
+  generic `OpenCodeRequestError`.
+- `generate.text` without a usable model fails fast (`InvalidRequestError: No model specified…`
+  or `ServiceUnavailableError` through the dead proxy); Fleet then uses its fallback slug.
+- `session.prompt` returns as soon as the message is queued; the run (and its failure without a
+  model) happens afterwards.
+
 ## Events → Fleet
 
 `server.connected`, `session.execution.{started,succeeded,failed,interrupted}` (see Interrupt
@@ -106,6 +145,9 @@ loopback port with a random password and a rebuilt environment: `HOME`, `XDG_*`,
 auto-update and models fetch disabled, `HTTP(S)_PROXY` pointed at a dead port. Sessions use
 the unavailable model `fleet-none/none`, so prompts fail with `provider.no-route` without any
 network call. (The default free `opencode` provider would otherwise answer real prompts.)
+The launcher suite (`launcher.integration.test.ts`) also sets `OPENCODE_CONFIG_CONTENT` to an
+unavailable default model and creates temp git repositories under the server's own temp folder;
+launches there use the default `git` strategy (the dotfiles plugin is not loaded).
 Finished sessions are created with `POST /api/experimental/session/import`, pending requests with
 `POST /api/session/:id/permission` (session rule `effect: ask`) and `POST /api/session/:id/form`,
 other writers' metadata with `PATCH /api/session/:id { metadata }`. No real run can be

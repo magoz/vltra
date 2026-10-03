@@ -118,6 +118,19 @@ The session panel's transcript tail and files (`GET /api/fleet/sessions/:id`) ar
 possibly running session, so they are never cached. Projects and worktrees still come from the
 watcher model.
 
+## Launches: background work in the runtime
+
+A launch (`lib/data/fleet/launches.ts`) waits minutes on `worktree.create`, so the `launch`
+server action only validates, registers the repository (`location.get`), records the launch and
+forks the rest with `Effect.forkIn` into the `Launches` layer's scope, i.e. the runtime's: the
+request returns at once, and the fiber lives until the launch settles or the runtime is disposed
+(a restart loses launches in flight, by design). The registry is part of the store's view
+(`FleetView.launches`, `store.updateLaunches`), so the snapshot and `fleet.changed` carry it like
+rows: `GET /api/fleet` has `launches`, and a change carries the whole list whenever any launch
+changed. A ready launch is removed by the same fiber after 10 minutes; failed ones stay until
+dismissed. PR lookups (`lib/services/repos/`) fork into the Repos layer's scope the same way, so
+a lookup still running when the launcher list answers keeps going and fills the cache.
+
 ## Shutdown
 
 `instrumentation.ts` also registers `stopFleetOnSignals()`: on SIGTERM/SIGINT the runtime is

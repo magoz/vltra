@@ -22,24 +22,29 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
 ## WHERE TO LOOK
 
-| Task                             | Location                                                        | Notes                                                  |
-| -------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
-| Session states / priority        | `lib/data/fleet/state.ts`, `model.ts`                           | blocked > working > finished > handled; stuck, order   |
-| Wire shapes (API, SSE)           | `lib/data/fleet/types.ts`                                       | Effect Schema; the ocb plugin decodes the same types   |
-| Snapshot rows / grouping         | `lib/data/fleet/snapshot.ts`, `links.ts`                        | Roll-up, projects → worktrees → rows, deep links       |
-| Watcher, resync, backoff         | `lib/data/fleet/watcher.ts`, `store.ts`                         | Also interrupt reasons; `LONG_LIVED_WATCHER.md`        |
-| Action Effects + inputs          | `lib/data/fleet/actions.ts`                                     | Handled, reopen, viewed, answers, prompt, interrupt    |
-| Rollout script                   | `scripts/import-handled.ts`                                     | `pnpm fleet:import-handled`, one-off, never auto-run   |
-| OpenCode client                  | `lib/services/opencode/`                                        | See `patterns/OPENCODE_SURFACE.md`                     |
-| Runtime (one per process)        | `lib/runtime/fleet-runtime.ts`                                  | `ManagedRuntime` on `globalThis`; `runFleet`           |
-| Watcher start                    | `instrumentation.ts`                                            | Node runtime only; skipped during `next build`         |
-| Pages / API routes / actions     | `app/`                                                          | `(fleet)/` pages, `api/fleet`, `*-action.ts`           |
-| Dashboard UI                     | `app/fleet-shell.tsx` and siblings                              | Layout's live tree (`fleet-live.tsx`); see below       |
-| Agents (focus, board) / Projects | `app/agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx` | Cards: `agent-card.tsx`, rows: `session-row.tsx`       |
-| Board projections                | `lib/data/fleet/board.ts`                                       | Pure: live rows, needs-me list, columns, cards, filter |
-| Session panel data               | `lib/data/fleet/session-detail.ts`                              | Transcript tail + diff; summaries cached by `idle`     |
-| Test doubles                     | `lib/**/testing/`                                               | Fake OpenCode layer, throwaway `opencode serve`        |
-| Conventions                      | `patterns/`, then `../10x/patterns/`                            | Fleet notes only where it differs from 10x             |
+| Task                             | Location                                                        | Notes                                                    |
+| -------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------- |
+| Session states / priority        | `lib/data/fleet/state.ts`, `model.ts`                           | blocked > working > finished > handled; stuck, order     |
+| Wire shapes (API, SSE)           | `lib/data/fleet/types.ts`                                       | Effect Schema; the ocb plugin decodes the same types     |
+| Snapshot rows / grouping         | `lib/data/fleet/snapshot.ts`, `links.ts`                        | Roll-up, projects → worktrees → rows, deep links         |
+| Watcher, resync, backoff         | `lib/data/fleet/watcher.ts`, `store.ts`                         | Also interrupt reasons; `LONG_LIVED_WATCHER.md`          |
+| Action Effects + inputs          | `lib/data/fleet/actions.ts`                                     | Handled, reopen, viewed, answers, prompt, interrupt      |
+| Rollout script                   | `scripts/import-handled.ts`                                     | `pnpm fleet:import-handled`, one-off, never auto-run     |
+| OpenCode client                  | `lib/services/opencode/`                                        | See `patterns/OPENCODE_SURFACE.md`                       |
+| Runtime (one per process)        | `lib/runtime/fleet-runtime.ts`                                  | `ManagedRuntime` on `globalThis`; `runFleet`             |
+| Watcher start                    | `instrumentation.ts`                                            | Node runtime only; skipped during `next build`           |
+| Pages / API routes / actions     | `app/`                                                          | `(fleet)/` pages, `api/fleet`, `*-action.ts`             |
+| Dashboard UI                     | `app/fleet-shell.tsx` and siblings                              | Layout's live tree (`fleet-live.tsx`); see below         |
+| Launcher UI                      | `app/launcher-dialog.tsx`, `pending-launches.tsx`               | Palette, launches, `retire-worktree.tsx`                 |
+| Agents (focus, board) / Projects | `app/agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx` | Cards: `agent-card.tsx`, rows: `session-row.tsx`         |
+| Board projections                | `lib/data/fleet/board.ts`                                       | Pure: live rows, needs-me list, columns, cards, filter   |
+| Session panel data               | `lib/data/fleet/session-detail.ts`                              | Transcript tail + diff; summaries cached by `idle`       |
+| Launcher list / open / retire    | `lib/data/fleet/launcher.ts`, `checkouts.ts`                    | Pure projection + guards; `GET /api/fleet/launcher`      |
+| Launches (worktree + session)    | `lib/data/fleet/launches.ts`                                    | Registry in the runtime, background fibers, in store     |
+| Branch names / palette rows      | `lib/data/fleet/branch.ts`, `palette.ts`                        | `--` encoding, suggestion check, fallback, fuzzy         |
+| Repos on Box (git, gh)           | `lib/services/repos/`                                           | Roots scan, worktrees + marker owner, cached PR status   |
+| Test doubles                     | `lib/**/testing/`                                               | Fake OpenCode / Repos layers, throwaway `opencode serve` |
+| Conventions                      | `patterns/`, then `../10x/patterns/`                            | Fleet notes only where it differs from 10x               |
 
 ## CONVENTIONS
 
@@ -113,6 +118,30 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first, inline
   The header links to the board, `/?view=board&project=<id>`; worktree sections list needs-me and working sessions
   (`ProjectRow`: marker, title, state label, age); handled sessions fold into
   "N handled · last 2h" per card (no time limit), expandable in place, with Reopen.
+- **Launcher** (DESIGN.md "Launcher and worktrees"; `launcher-dialog.tsx`, state in the shell,
+  `launcher-context.tsx`): header **New**, `n` and `⌘K`/`Ctrl+K` on any page, the phone tab bar's
+  **+** (full screen), and each Projects card's **+** (new-worktree step, repo preselected). The list
+  is `GET /api/fleet/launcher` (`use-launcher-list.ts`: on mount, on open, after a launch or a
+  retirement, again while PR lookups are still `unknown`, every 5 minutes): repos under
+  `FLEET_LAUNCHER_ROOTS` (plus OpenCode's project folders) with their linked worktrees, owner (the
+  dotfiles marker, else `pi`; `detached` for OpenCode's own git-strategy checkouts) and PR state,
+  most recent agent activity first. Type to fuzzy-filter (`palette.ts`), `↑`/`↓` (`j`/`k` once the
+  list has focus) to move, `Enter` opens the latest root session there, or a new empty one
+  (`openCheckout`), in focus mode. The last row, `+ New worktree in <highlighted repo>…`, switches to
+  a task textarea and a branch field filled by `suggestBranch` 600ms after typing stops ("suggested";
+  editing it stops the suggestions; `⌘↵` creates). Create calls `launch` (returns at once), closes
+  the palette and toasts; the launch's session opens when it is ready if the user is still on the
+  same page and mode and has not opened anything else meanwhile.
+- **Launches** (`live.launches`, from the snapshot and `fleet.changed`): focus mode's sidebar lists
+  them as **Provisioning** above Blocked (branch · repo, a ticking elapsed clock, the task; failures
+  red with what was kept and ×; ready ones "ready · open session" and ×), the board at the top of
+  Working (`pending-launches.tsx`). In memory on the server: lost on restart; ready ones go after 10
+  minutes.
+- **Projects worktrees**: a card for a launcher repo shows each worktree section under its branch
+  with `pi` / `detached`, the PR (`#123 open`, `merged · retire`, `closed · retire`, linked) and,
+  for dotfiles-owned worktrees, **Retire** (`retire-worktree.tsx`: disabled with "N sessions there
+  are working or blocked" while busy; a confirmation listing what happens; `retireWorktree`, toast).
+  The repo's other branch worktrees follow as sections without sessions (`cardSections`).
 - Rows order by `activeAt` (run times), never OpenCode's `time.updated`, which handled-marker
   writes bump.
 - Handled / Undo / Reopen (`use-handled.tsx`, provided by the shell): applied at once as
@@ -121,7 +150,8 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first, inline
   and drop. Phone: swipe a finished card left (`use-swipe.ts`); the Handled button stays.
 - Keys (`use-keys.ts`, desktop; ignored while typing (except `Escape`), with modifiers and in
   dialogs; keys typed inside the OpenCode iframe stay there): shell `1` / `2` pages, `b` the other
-  Agents mode, `Escape` closes the session (drawer or inline). Focus: `j`/`k` (`↓`/`↑`) through
+  Agents mode, `n` the launcher (and `⌘K` / `Ctrl+K`, its own listener, also while typing),
+  `Escape` closes the session (drawer or inline; the palette closes itself). Focus: `j`/`k` (`↓`/`↑`) through
   the list, `Enter` opens the focused session on the right, `h` handled (the focused finished
   session, else the open one; the next opens), `u` undo (reopens and opens it), `a`/`d` the
   focused (else open) session's first permission, `c` Summary / Chat, `/` filter; focus starts on
@@ -139,7 +169,9 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first, inline
   Chat is an iframe of OpenCode's web UI (`row.links.web`), signed in by its same-site pairing
   cookie (`opencode pair`), with full app chrome since upstream has no embed mode.
 - Mutations go through `FleetActions` (`app/fleet-actions.tsx`): the dashboard provides the server
-  actions, component tests provide recording fakes (`app/testing/dashboard-fixtures.tsx`:
+  actions (the launcher's `launch`, `openCheckout`, `retireWorktree`, `dismissLaunch` and
+  `suggestBranch` return `FleetActionValue`s when they carry a value), component tests provide
+  recording fakes (`app/testing/dashboard-fixtures.tsx`:
   `WithFleet` for one card, `TestDashboard` for the whole dashboard with the URL in state, read
   back with `testLocation()`; `fleet-scenario.ts` is the shared fleet).
 - Panel data: `GET /api/fleet/sessions/:id` (transcript tail + latest turn's files, uncached) and,
@@ -182,9 +214,10 @@ pnpm fleet:import-handled [--dry-run]  # one-off rollout: viewed root runs → h
 
 ## CONFIGURATION
 
-| Variable                            | Default                                 | Purpose                             |
-| ----------------------------------- | --------------------------------------- | ----------------------------------- |
-| `OPENCODE_URL`, `OPENCODE_PASSWORD` | unset → `Service.discover`              | Explicit endpoint (tests, dev)      |
-| `OPENCODE_SERVICE_FILE`             | `$XDG_STATE_HOME/opencode/service.json` | Registration file for discovery     |
-| `FLEET_OPENCODE_WEB_URL`            | `https://box.tail129a86.ts.net:9446`    | OpenCode web UI base for deep links |
-| `FLEET_SESSION_LIMIT`               | unset → every session                   | Optional cap on sessions loaded     |
+| Variable                            | Default                                         | Purpose                                                              |
+| ----------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------- |
+| `OPENCODE_URL`, `OPENCODE_PASSWORD` | unset → `Service.discover`                      | Explicit endpoint (tests, dev)                                       |
+| `OPENCODE_SERVICE_FILE`             | `$XDG_STATE_HOME/opencode/service.json`         | Registration file for discovery                                      |
+| `FLEET_OPENCODE_WEB_URL`            | `https://box.tail129a86.ts.net:9446`            | OpenCode web UI base for deep links                                  |
+| `FLEET_SESSION_LIMIT`               | unset → every session                           | Optional cap on sessions loaded                                      |
+| `FLEET_LAUNCHER_ROOTS`              | `~/dev/repos:~/.dotfiles:~/aha:~/collie:~/subs` | Launcher roots (`:` list, `~` ok): each a repo, or a folder of repos |
