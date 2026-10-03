@@ -214,14 +214,20 @@ OpenCode.
   `merged · retire` / `closed · retire`. Automatic cleanup on merge/close is a later switch.
 
 **Terminal (CLI plugin in the dotfiles, runs inside `ocb` on the Mac):**
-- **Focus sidebar**: replaces OpenCode's session sidebar content (`sidebar.content` slot; sidebar
-  shown on the left) with the needs-me list: blocked (oldest wait first), then finished (oldest
-  first), plus provisioning launches; the current session highlighted. `enter` opens a session
-  (`router.navigate({ type: "session" })`); permissions/questions are answered natively there.
-- `h` handled / `u` undo on finished sessions (Fleet routes); `ctrl+x j` next needs-me session.
-- **Launcher** `ctrl+x n`: the web launcher's flow in a dialog (fuzzy repos/worktrees from
-  `GET /api/fleet/launcher`, new worktree with task + suggested branch, provisioning progress,
-  navigate into the session when ready).
+- **Focus sidebar**: replaces OpenCode's session sidebar content (`sidebar.content` slot) with
+  the needs-me list: launches, then blocked (oldest wait first), then finished (oldest first);
+  the current session highlighted; empty → "Nothing needs you" with working/stuck counts.
+  OpenCode 2.0.20 puts the sidebar on the right only (`session.sidebar: "auto"` shows it above
+  120 columns, `ctrl+x b` toggles it) and it cannot take keyboard focus, so rows (and the undo
+  line) are clicked, never keyed. Permissions/questions are answered natively in the session.
+- Keys (global leader commands, all also in the palette; plugin option `keys` overrides them,
+  since `cli.json` keybinds only accept built-in ids): `ctrl+x o` launcher, `ctrl+x h` handled
+  (current session's root), `ctrl+x z` undo/reopen the last handled, `ctrl+x j` next needs-me,
+  `ctrl+x f` page. (`ctrl+x n` / `ctrl+x u` are OpenCode's own session.new / session.undo.)
+- **Launcher** `ctrl+x o`: the web launcher's flow in OpenCode's select dialog (repos/worktrees
+  from `GET /api/fleet/launcher`, open via `checkouts/open`, new worktree with task + suggested
+  branch → `POST /api/fleet/launches`; navigate into the session when ready if you have not
+  moved, else a toast).
 - Badge (`home.footer.status` / `prompt.footer.status`): `N need you · N working · N stuck`.
   Page `ctrl+x f`: needs me, then working (Projects stays on the web).
 - Mac notification via `attention.notify({ when: "blurred" })` on → blocked (gaps only by
