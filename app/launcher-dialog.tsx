@@ -94,12 +94,12 @@ const placeDirectory = (item: PaletteItem) =>
   item.kind === 'repo' ? item.entry.directory : item.worktree.directory
 
 /**
- * The highlighted row's two actions, keys shown on desktop: `↵` a new session there, `⇧↵` a new
- * worktree in its repository. Their own list item after the option (an option's children are
- * presentational to assistive tech). Buttons for pointers (the phone taps a row, then an action);
- * the keyboard uses the keys, so they stay out of the tab order.
+ * The palette's bottom bar: the highlighted row's two actions, keys shown on desktop (`↵` a new
+ * session there, `⇧↵` a new worktree in its repository), then the list keys. Buttons for pointers
+ * (the phone taps a row, then an action); the keyboard uses the keys, so they stay out of the tab
+ * order. In one place under the list, so moving the highlight never shifts the rows.
  */
-function RowActions({
+function ActionBar({
   item,
   starting,
   onSession,
@@ -111,10 +111,10 @@ function RowActions({
   readonly onWorktree: () => void
 }) {
   const action =
-    'hover:text-foreground flex w-full items-baseline gap-3 py-1 text-left disabled:opacity-50 max-lg:py-2.5'
+    'hover:text-foreground flex min-w-0 items-baseline gap-2 text-left disabled:opacity-50 max-lg:py-2'
 
   return (
-    <div className="text-muted-foreground pl-4 text-xs">
+    <div className="text-muted-foreground flex shrink-0 flex-wrap items-baseline gap-x-5 gap-y-1 border-t px-3 py-1.5 text-xs max-lg:flex-col max-lg:items-stretch">
       <button
         type="button"
         tabIndex={-1}
@@ -123,10 +123,12 @@ function RowActions({
         onClick={onSession}
         className={cn(action, 'text-attention')}
       >
-        <kbd aria-hidden="true" className="text-foreground w-6 font-mono max-lg:hidden">
+        <kbd aria-hidden="true" className="text-foreground font-mono max-lg:hidden">
           ↵
         </kbd>
-        {starting ? 'Starting…' : `New session in ${placeName(item)}`}
+        <span className="truncate">
+          {starting ? 'Starting…' : `New session in ${placeName(item)}`}
+        </span>
       </button>
       <button
         type="button"
@@ -136,19 +138,23 @@ function RowActions({
         onClick={onWorktree}
         className={action}
       >
-        <kbd aria-hidden="true" className="text-foreground w-6 font-mono max-lg:hidden">
+        <kbd aria-hidden="true" className="text-foreground font-mono max-lg:hidden">
           ⇧↵
         </kbd>
-        New worktree in {item.entry.name}…
+        <span className="truncate">New worktree in {item.entry.name}…</span>
       </button>
+      <span className="ml-auto shrink-0 max-lg:hidden">
+        <kbd className="text-foreground">↑ ↓</kbd> move · <kbd className="text-foreground">esc</kbd>{' '}
+        close
+      </span>
     </div>
   )
 }
 
 /**
- * The palette's first step: pick a repository or worktree. The highlighted row shows what it can
- * start: `Enter` a new session there, `Shift+Enter` a new worktree in its repository. Hovering
- * does not move the highlight (its actions would make the rows below jump); a click does.
+ * The palette's first step: pick a repository or worktree. The bar under the list shows what the
+ * highlighted row starts (`ActionBar`): `Enter` a new session there, `Shift+Enter` a new worktree
+ * in its repository. A click or tap moves the highlight; hovering does not.
  */
 function PickStep({
   list,
@@ -249,7 +255,7 @@ function PickStep({
           tabIndex={0}
           className="min-h-0 flex-1 overflow-y-auto py-1 outline-none"
         >
-          {items.map((item, position) => [
+          {items.map((item, position) => (
             <li
               key={item.key}
               id={`launcher-row-${position}`}
@@ -261,25 +267,18 @@ function PickStep({
               className="aria-selected:bg-accent flex cursor-pointer flex-wrap items-baseline gap-x-3 gap-y-0.5 px-3 py-1.5"
             >
               <Row item={item} now={now} grouped={query.trim() === ''} />
-            </li>,
-            position === index ? (
-              <li key={`${item.key}:actions`} role="none" className="bg-accent px-3 pb-1.5">
-                <RowActions
-                  item={item}
-                  starting={starting === item.key}
-                  onSession={() => startSession(item)}
-                  onWorktree={() => onNew(item.entry.directory)}
-                />
-              </li>
-            ) : null
-          ])}
+            </li>
+          ))}
         </ul>
       )}
-      <p className="text-muted-foreground border-t px-3 py-1.5 text-xs max-lg:hidden">
-        <kbd className="text-foreground">↑ ↓</kbd> move · <kbd className="text-foreground">↵</kbd>{' '}
-        new session · <kbd className="text-foreground">⇧↵</kbd> new worktree ·{' '}
-        <kbd className="text-foreground">esc</kbd> close
-      </p>
+      {current === undefined ? null : (
+        <ActionBar
+          item={current}
+          starting={starting === current.key}
+          onSession={() => startSession(current)}
+          onWorktree={() => onNew(current.entry.directory)}
+        />
+      )}
     </div>
   )
 }

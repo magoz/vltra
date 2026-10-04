@@ -73,7 +73,7 @@ const rows = () =>
 const highlighted = () =>
   options().find(option => option.getAttribute('aria-selected') === 'true')?.textContent
 
-/** The highlighted row's actions, as `key label`. */
+/** The bottom bar's actions for the highlighted row, as `key label`. */
 const actionNames = () =>
   within(palette())
     .getAllByRole('button', { name: /^New / })

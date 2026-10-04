@@ -211,8 +211,9 @@ sessionizer for agents. Everything that touches disk runs on Box; clients only c
 OpenCode.
 - **Open it**: header **New** + `n` / `⌘K` (palette), phone **+** in the tab bar, **+** on each
   Projects card (repo preselected). Type to fuzzy-match repos and their worktrees, most recent
-  agent activity first. The highlighted row spells out what it starts: `↵ New session in <repo ·
-  branch>` and `⇧↵ New worktree in <repo>…` (on the phone: tap a row, then an action).
+  agent activity first. The bar under the list spells out what the highlighted row starts: `↵ New
+  session in <repo · branch>` and `⇧↵ New worktree in <repo>…` (on the phone: tap a row, then an
+  action in the bar).
 - **New session** (`Enter`) → a new empty session in that repo or worktree, no new worktree,
   opened in focus mode. The launcher never resumes the latest session (the sidebar and Projects
   do that).

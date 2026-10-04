@@ -168,8 +168,9 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first,
   `FLEET_LAUNCHER_ROOTS` (plus OpenCode's project folders) with their linked worktrees, owner (the
   dotfiles marker, else `pi`; `detached` for OpenCode's own git-strategy checkouts) and PR state,
   most recent agent activity first. Type to fuzzy-filter (`palette.ts`), `↑`/`↓` (`j`/`k` once the
-  list has focus) to move. The highlighted row shows its two actions (their own `li role="none"`
-  after the option; hovering does not move the highlight, a click/tap does):
+  list has focus) to move. The bar under the list (`ActionBar`) shows the highlighted row's two
+  actions as buttons, then `↑ ↓ move · esc close` (hovering does not move the highlight, a
+  click/tap does):
   `↵ New session in <repo · branch>` (`newSession`: always a new empty session there, opened in
   focus mode; no open-latest, `openCheckout` is the terminal plugin's) and `⇧↵ New worktree in <repo>…`, which
   switches to a task textarea and a branch field filled by `suggestBranch` 600ms after typing stops ("suggested";
