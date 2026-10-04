@@ -55,9 +55,12 @@ export class FleetStore extends Context.Service<FleetStore, FleetStoreOperations
   '@fleet/FleetStore'
 ) {}
 
-/** Base URL of OpenCode's own web UI, used for the "Open in OpenCode" deep link. */
+/**
+ * Base URL of OpenCode's own web UI, used for the chat iframe and "Open in OpenCode": Fleet's own
+ * origin, which proxies it (`proxy.ts`).
+ */
 export const openCodeWebUrl = Config.url('FLEET_OPENCODE_WEB_URL').pipe(
-  Config.withDefault(new URL('https://box.tail129a86.ts.net:9446'))
+  Config.withDefault(new URL('https://fleet.oox.sh'))
 )
 
 /** Slow SSE consumers drop their oldest pending changes instead of growing without bound. */

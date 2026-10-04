@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
+import { useChatFrame } from '@/app/chat-keys'
 import { useFleet } from '@/app/fleet-context'
 import { sessionTitle } from '@/app/fleet-format'
 import { useFleetActions } from '@/app/fleet-actions'
@@ -30,12 +31,14 @@ function useMarkViewed(sessionID: string, row: BoardRow['row'] | undefined) {
 }
 
 /**
- * OpenCode's own web UI for the session (`row.links.web`), framed. Same-site with Fleet, so a
- * browser paired once (`opencode pair`) stays signed in here; OpenCode has no embed mode, so its
- * full app chrome shows.
+ * OpenCode's own web UI for the session (`row.links.web`), framed. Served from Fleet's origin
+ * (`proxy.ts`), so a browser paired once there (`opencode pair`) stays signed in and the keys
+ * pressed in the chat that it does not own reach Fleet (`useChatFrame`). OpenCode has no embed
+ * mode, so its full app chrome shows.
  */
 function OpenCodeChat({ url, title }: { readonly url: string; readonly title: string }) {
-  const [loaded, setLoaded] = useState(false)
+  const frame = useRef<HTMLIFrameElement>(null)
+  const loaded = useChatFrame(frame)
 
   return (
     <div className="relative min-h-0 flex-1">
@@ -49,11 +52,11 @@ function OpenCodeChat({ url, title }: { readonly url: string; readonly title: st
         </div>
       )}
       <iframe
+        ref={frame}
         src={url}
         title={title}
         allow="clipboard-read; clipboard-write"
         referrerPolicy="no-referrer"
-        onLoad={() => setLoaded(true)}
         className="absolute inset-0 block size-full border-0"
       />
     </div>

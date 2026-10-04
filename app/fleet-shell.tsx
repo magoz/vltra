@@ -82,7 +82,7 @@ function useLaunchAutoOpen(
   )
 }
 
-/** `⌘K` / `Ctrl+K` opens the launcher from anywhere (outside the OpenCode iframe). */
+/** `⌘K` / `Ctrl+K` opens the launcher from anywhere (in the OpenCode chat too: `forwardChatKeys`). */
 function useLauncherShortcut(open: () => void) {
   const latest = useRef(open)
 

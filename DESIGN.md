@@ -192,9 +192,13 @@ Tap a session for its panel (next to the tab: Focus' pane, a split on Agents and
 screen on the phone): the session's chat, nothing else (no Summary tab; messages, changes, the
 prompt and subagents are all in the chat):
 - **The chat** → OpenCode's own web UI on the same server, framed, verified deep link
-  `https://box.tail129a86.ts.net:9446/server/<base64url(origin)>/session/<id>`
-  (`app/src/shell/routes/session.ts`; server key = page origin). Works on Mac and phone after a
-  one-time `opencode pair` per browser (30-day cookie).
+  `https://fleet.oox.sh/server/<base64url(origin)>/session/<id>`
+  (`app/src/shell/routes/session.ts`; server key = page origin). Fleet proxies OpenCode's web UI
+  and API (its root paths, `/api/*` except `/api/fleet/*`) to the loopback service, so the chat is
+  same-origin with Fleet: Fleet's keys work while the chat has focus (keys the chat does not own:
+  not while typing, `⌘K` always, `Esc` leaves the chat). OpenCode's own auth stays: a one-time
+  `opencode pair --url https://fleet.oox.sh` per browser (30-day cookie); Fleet never adds the
+  password.
 - **Toolbar**: only what Fleet adds: ✔ Done (phone only; on desktop the card beside it has it) / Reopen, open the chat in a new tab, and
   **Open in terminal** (Mac only) → `ocb://session/<id>`, handled by a tiny URL-scheme app that
   `macos/setup-box` installs and that opens a new Ghostty window running `ocb -s <id>`.

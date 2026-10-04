@@ -31,6 +31,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | Action Effects + inputs          | `lib/data/fleet/actions.ts`                                     | Handled, reopen, viewed (asks: in OpenCode's chat)       |
 | Rollout script                   | `scripts/import-handled.ts`                                     | `pnpm fleet:import-handled`, one-off, never auto-run     |
 | OpenCode client                  | `lib/services/opencode/`                                        | See `patterns/OPENCODE_SURFACE.md`                       |
+| Chat proxy, chat keys            | `proxy.ts`, `app/opencode-proxy.ts`, `app/chat-keys.ts`         | Same-origin OpenCode iframe; Fleet's keys inside it      |
 | Runtime (one per process)        | `lib/runtime/fleet-runtime.ts`                                  | `ManagedRuntime` on `globalThis`; `runFleet`             |
 | Watcher start                    | `instrumentation.ts`                                            | Node runtime only; skipped during `next build`           |
 | Page / API routes / actions      | `app/`                                                          | `(fleet)/` one page, `api/fleet`, `*-action.ts`          |
@@ -199,7 +200,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first,
   raises a sonner toast with Undo (= reopen, after the handled write). No "handle all", no drag
   and drop. Phone: swipe a finished card left (`use-swipe.ts`); the `✔ Done` button stays.
 - Keys (`use-keys.ts`, desktop; ignored while typing (except `Escape`), with modifiers and in
-  dialogs; keys typed inside the OpenCode iframe stay there): shell `1` / `2` / `3` the tabs, `b`
+  dialogs; in the chat, `chat-keys.ts` hands Fleet the keys the chat does not own, see the
+  session panel): shell `1` / `2` / `3` the tabs, `b`
   Focus ↔ Agents, `n` the launcher (and `⌘K` / `Ctrl+K`, its own listener, also while typing),
   `?` the tab's keys (`shortcuts-dialog.tsx`, `keyHints`; also the header's `?`; no hints line),
   `Escape` closes the session (the palette closes itself). Focus: `j`/`k` (`↓`/`↑`) through
@@ -216,8 +218,16 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first,
   full screen below `lg`, so the phone's back button closes it (closing goes back only when Fleet
   pushed the entry on this tab).
 - The session panel (`session-panel.tsx`, the same on every tab) is the session's chat alone,
-  no Summary tab: an iframe of OpenCode's web UI (`row.links.web`), signed in by its same-site
-  pairing cookie (`opencode pair`), with full app chrome since upstream has no embed mode. Its
+  no Summary tab: an iframe of OpenCode's web UI (`row.links.web`), with full app chrome since
+  upstream has no embed mode. Fleet serves OpenCode's web UI and API from its own origin
+  (`proxy.ts`: OpenCode's root paths, `/api/*` but `/api/fleet/*`, to the loopback service;
+  `/sw.js` stays out; `opencode-proxy.ts` gives same-origin requests the target's `Origin` so
+  OpenCode honours its cookie), so the chat is same-origin, signed in by OpenCode's pairing cookie
+  (`opencode pair --url https://fleet.oox.sh`, once per browser). Same-origin lets Fleet take the
+  chat's keys (`useChatFrame` / `forwardChatKeys` in `chat-keys.ts`: a capture listener on the
+  frame's window replays each key on Fleet's document unless the chat owns it: typing, its
+  overlays, scroll keys, `Enter` on a control; `⌘K` is always Fleet's; `Escape` goes to the chat
+  first and an unused one moves focus to Fleet, where the next closes the session). Its
   slim toolbar has only what Fleet adds: the phone's back button, state and title, `✔ Done`
   (finished; phone only, the desktop card has its own) / Reopen (handled; neither for "folder deleted"), open in the terminal (`ocb://`,
   fine pointers only) or a new tab, close (desktop). Messages, asks, follow-ups and Stop happen in
@@ -280,7 +290,7 @@ pnpm fleet:import-handled [--dry-run]  # one-off rollout: viewed root runs → h
 | ----------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------- |
 | `OPENCODE_URL`, `OPENCODE_PASSWORD` | unset → `Service.discover`                      | Explicit endpoint (tests, dev)                                       |
 | `OPENCODE_SERVICE_FILE`             | `$XDG_STATE_HOME/opencode/service.json`         | Registration file for discovery                                      |
-| `FLEET_OPENCODE_WEB_URL`            | `https://box.tail129a86.ts.net:9446`            | OpenCode web UI base for deep links                                  |
+| `FLEET_OPENCODE_WEB_URL`            | `https://fleet.oox.sh`                          | OpenCode web UI base for deep links (Fleet's own origin, `proxy.ts`) |
 | `FLEET_SESSION_LIMIT`               | unset → every session                           | Optional cap on sessions loaded                                      |
 | `FLEET_LAUNCHER_ROOTS`              | `~/dev/repos:~/.dotfiles:~/aha:~/collie:~/subs` | Launcher roots (`:` list, `~` ok): each a repo, or a folder of repos |
 | `FLEET_BRANCH_MODEL`                | `subs-codex/gpt-5.6-sol`                        | Launcher branch suggestions (`generate.text` model)                  |

@@ -4,8 +4,8 @@ import { useEffect, useRef } from 'react'
 
 /**
  * The dashboard's keys (desktop). Each page binds its own; the shell binds the tabs' `1`, `2`,
- * `3`, and `b`, `n`, `?`, `Escape` (`⌘K` is the launcher's own listener). Keys typed inside the
- * OpenCode iframe stay in the iframe.
+ * `3`, and `b`, `n`, `?`, `Escape` (`⌘K` is the launcher's own listener). Keys pressed in the
+ * OpenCode chat that it does not own reach here too (`forwardChatKeys`).
  */
 export type FleetKey =
   | 'n'
