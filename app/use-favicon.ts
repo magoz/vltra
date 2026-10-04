@@ -7,9 +7,9 @@ import type { FleetCounts } from '@/lib/data/fleet/types'
 export type FaviconStatus = 'needs-you' | 'working' | 'idle'
 
 const dotColors: Readonly<Record<FaviconStatus, string>> = {
-  'needs-you': '#ffa800',
-  working: '#4cc26a',
-  idle: '#ff4f2b'
+  'needs-you': '#ff4f2b',
+  working: '#ffa800',
+  idle: '#4cc26a'
 }
 
 export const faviconStatus = (counts: FleetCounts): FaviconStatus => {

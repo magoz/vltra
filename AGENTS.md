@@ -223,8 +223,8 @@ Handled` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait fir
   and `destructive` red only, hairline borders, no shadows); light/dark follow the system
   (`prefers-color-scheme`), no toggle.
 - PWA: `app/manifest.ts`, `app/icon.svg`, `app/apple-icon.png`, `public/icon-*.png` (no offline).
-- Favicon dot (`use-favicon.ts`): amber when any session needs you, else green while any works,
-  else the brand orange (`app/icon.svg` as is).
+- Favicon dot (`use-favicon.ts`): brand orange when any session needs you, else amber while any
+  works, else green (`app/icon.svg` as is).
 
 ## TESTS
 
