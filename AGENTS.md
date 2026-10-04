@@ -91,14 +91,14 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 - `FleetDashboard` wires server actions, the clock and the URL (`use-fleet-nav.ts`: the tab and
   the filter; `use-selected-session.ts`: `?session=`; `fleet-href.ts` builds every URL) around
   `FleetShell` (`fleet-shell.tsx`): the tabs `Focus | Agents | Projects` (`fleet-header.tsx`), in
-  the desktop header (the count line `N need you · N working · N stuck`; on the right the usage
+  the desktop header (the count line `N need you · N working · N stuck`, centred; on the right the usage
   line, New, `?` and the connection) or the phone's bottom tab bar (`BottomTabs`, with `+`; no header there, only
   `ConnectionLine`: a slim `reconnecting…` line on top once a reconnect lasts 3s, the wait starting
   over when the page shows again), and each tab shows the open session itself (Focus' pane,
   Agents' and Projects' split). Every tab reads `useFleet()` (`fleet-context.tsx`: live fleet with
   overrides, clock, selection, nav). Tab links are `nav-link.tsx` (plain links; a plain click goes through
   `nav.show`).
-- Usage line (desktop header, right side, `UsageLine`; under 72rem it leaves): the subscription quotas from the `usage` dashboard
+- Usage line (desktop header, right side, `UsageLine`; under 84rem it leaves, so the centred count line keeps room): the subscription quotas from the `usage` dashboard
   (`~/usage`, `GET /api/usage` on loopback; `lib/services/usage/`, projected by `usage.ts` into
   `GET /api/fleet/usage`, polled by `use-usage.ts` every minute while the page shows):
   `Claude 45% · Codex 96% · Z.AI 100% · Go 34% left`, each the % left of the window that runs

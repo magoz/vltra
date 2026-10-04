@@ -179,7 +179,7 @@ export const usageDetail = (pools: ReadonlyArray<UsagePool>, now: number): strin
 /**
  * The subscription quotas, condensed: `Claude 45% · Codex 96% · Z.AI 100% · Go 34% left`, each the
  * window that runs out first (red at 10% or less); every window and reset on hover. Desktops
- * under 72rem leave it out, where it would push the connection off.
+ * under 84rem leave it out, where the count line could no longer sit centred beside it.
  */
 export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readonly now: number }) {
   if (usage.pools.length === 0) return null
@@ -188,7 +188,7 @@ export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readon
     <p
       aria-label="Usage left"
       title={usageDetail(usage.pools, now)}
-      className="text-muted-foreground shrink-0 text-xs max-[72rem]:hidden"
+      className="text-muted-foreground shrink-0 text-xs max-[84rem]:hidden"
     >
       {usage.pools.map((pool, index) => (
         <span key={pool.provider}>
@@ -276,8 +276,9 @@ export function BottomTabs({
 }
 
 /**
- * Desktop only (the phone has the tab bar and `ConnectionLine`): title, the tabs, the count line,
- * then on the right the usage line, the launcher's New, `?` (the keys) and the connection.
+ * Desktop only (the phone has the tab bar and `ConnectionLine`): title and tabs on the left, the
+ * count line centred, on the right the usage line, the launcher's New, `?` (the keys) and the
+ * connection.
  */
 export function FleetHeader({
   screen,
@@ -303,13 +304,15 @@ export function FleetHeader({
   const link = linkStatus(stream, connection)
 
   return (
-    <header className="bg-background/95 supports-backdrop-filter:bg-background/80 sticky top-0 z-20 flex h-12 items-center gap-x-4 border-b px-4 backdrop-blur-sm max-lg:hidden">
-      <h1 className="text-base font-semibold">Fleet</h1>
-      <HeaderTabs screen={screen} />
-      <div className="flex-1 text-sm whitespace-nowrap">
+    <header className="bg-background/95 supports-backdrop-filter:bg-background/80 sticky top-0 z-20 grid h-12 grid-cols-[1fr_auto_1fr] items-center gap-x-4 border-b px-4 backdrop-blur-sm max-lg:hidden">
+      <div className="flex items-center gap-x-4 self-stretch">
+        <h1 className="text-base font-semibold">Fleet</h1>
+        <HeaderTabs screen={screen} />
+      </div>
+      <div className="text-sm whitespace-nowrap">
         <CountLine counts={counts} />
       </div>
-      <div className="flex items-center gap-x-5">
+      <div className="flex items-center justify-end gap-x-5 whitespace-nowrap">
         {usage === undefined || now === undefined ? null : <UsageLine usage={usage} now={now} />}
         {onNew === undefined ? null : (
           <Button
