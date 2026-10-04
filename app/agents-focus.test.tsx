@@ -271,7 +271,7 @@ describe('tabs', () => {
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
     expect(screen.queryByText('Blocked')).toBeNull()
-    expect(testLocation()).toBe('/?view=board&project=prj_fleet&session=ses_done_old')
+    expect(testLocation()).toBe('/?view=agents&project=prj_fleet&session=ses_done_old')
     // On the board, the session is the split's chat beside the columns.
     expect(within(pane()).getByRole('heading', { name: 'Done old' })).toBeTruthy()
     expect(headerTab('Agents').getAttribute('aria-current')).toBe('page')
@@ -285,9 +285,9 @@ describe('tabs', () => {
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
     expect(navigations).toEqual([
-      { kind: 'show', screen: 'board', project: 'prj_fleet' },
+      { kind: 'show', screen: 'agents', project: 'prj_fleet' },
       { kind: 'show', screen: 'focus', project: 'prj_fleet' },
-      { kind: 'show', screen: 'board', project: 'prj_fleet' }
+      { kind: 'show', screen: 'agents', project: 'prj_fleet' }
     ])
   })
 
@@ -299,14 +299,14 @@ describe('tabs', () => {
     press('2')
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
-    expect(testLocation()).toBe('/?view=board&project=prj_fleet')
+    expect(testLocation()).toBe('/?view=agents&project=prj_fleet')
 
     press('3')
 
     expect(testLocation()).toBe('/?view=projects')
     expect(headerTab('Projects').getAttribute('aria-current')).toBe('page')
     // From Projects, Focus and Agents start unfiltered.
-    expect(headerTab('Agents').getAttribute('href')).toBe('/?view=board')
+    expect(headerTab('Agents').getAttribute('href')).toBe('/?view=agents')
 
     press('2')
 
@@ -317,9 +317,9 @@ describe('tabs', () => {
     expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
     expect(testLocation()).toBe('/')
     expect(navigations).toEqual([
-      { kind: 'show', screen: 'board', project: 'prj_fleet' },
+      { kind: 'show', screen: 'agents', project: 'prj_fleet' },
       { kind: 'show', screen: 'projects', project: undefined },
-      { kind: 'show', screen: 'board', project: undefined },
+      { kind: 'show', screen: 'agents', project: undefined },
       { kind: 'show', screen: 'focus', project: undefined }
     ])
   })
@@ -332,7 +332,7 @@ describe('tabs', () => {
     fireEvent.click(tab('Agents'))
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
-    expect(testLocation()).toBe('/?view=board&project=prj_fleet')
+    expect(testLocation()).toBe('/?view=agents&project=prj_fleet')
     expect(tab('Agents').getAttribute('aria-current')).toBe('page')
 
     fireEvent.click(tab('Projects'))
@@ -346,7 +346,7 @@ describe('tabs', () => {
     expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
     expect(testLocation()).toBe('/')
     expect(navigations).toEqual([
-      { kind: 'show', screen: 'board', project: 'prj_fleet' },
+      { kind: 'show', screen: 'agents', project: 'prj_fleet' },
       { kind: 'show', screen: 'projects', project: undefined },
       { kind: 'show', screen: 'focus', project: undefined }
     ])

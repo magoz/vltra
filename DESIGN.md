@@ -134,13 +134,13 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
 ## Clients
 
 **Web (fleet.oox.sh, Mac + phone):** one full-width page with three tabs in the URL: **Focus**
-(plain `/`), **Agents** (the board, `?view=board`) and **Projects** (`?view=projects`; the old
+(plain `/`), **Agents** (the board, `?view=agents`) and **Projects** (`?view=projects`; the old
 `/projects` redirects), `1` / `2` / `3`. One page on purpose: tabs switch in place, instantly,
 and Next's Cache Components never keeps a hidden copy of another page alive. Desktop: the tabs sit
 in the header, which also carries the count line (`6 need you · 17 working · 2 stuck`). Phone: no
 header; a bottom tab bar `Focus | Agents | Projects | +`, plus a slim `reconnecting…` line on top
 only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
-- **Two views of the sessions** (`?view=board` for the board; Focus is the default, so plain `/`
+- **Two views of the sessions** (`?view=agents` for the board; Focus is the default, so plain `/`
   is Focus):
   - **Focus (default)**: a left sidebar with only the needs-me list (blocked first, oldest wait
     first; then finished, oldest first, with Handled; rows are just project · worktree, title and

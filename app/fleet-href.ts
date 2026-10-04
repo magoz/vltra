@@ -1,13 +1,12 @@
-// The dashboard is one page, `/`: the tab in `?view=` (Focus, the default, so no param; `board`,
-// the Agents tab; `projects`), the open session (`?session=<id>`, kept across tabs) and Focus' and
-// Agents' project filter (`?project=<id>`). One route on purpose: Cache Components keeps up to three
-// visited routes mounted in hidden `<Activity>` boundaries, so a second route kept a hidden copy
-// of the other page (with its own OpenCode chat) alive and restored its stale state on return.
+// The dashboard is one page, `/`: the tab in `?view=` (Focus, the default, so no param; `agents`;
+// `projects`), the open session (`?session=<id>`, kept across tabs) and Focus' and Agents' project
+// filter (`?project=<id>`). One route on purpose: Cache Components keeps up to three visited
+// routes mounted in hidden `<Activity>` boundaries, so a second route kept a hidden copy of the
+// other page (with its own OpenCode chat) alive and restored its stale state on return.
 // Pure, so links, keys and history writes agree.
 
-/** The tabs: Focus (the needs-me list, the session inline), Agents (`board`, the kanban) and
- * Projects. */
-export type FleetScreen = 'focus' | 'board' | 'projects'
+/** The tabs: Focus (the needs-me list, the session inline), Agents (the kanban) and Projects. */
+export type FleetScreen = 'focus' | 'agents' | 'projects'
 
 export const sessionParam = 'session'
 
@@ -15,9 +14,15 @@ export const projectParam = 'project'
 
 export const viewParam = 'view'
 
-/** The tab a `?view=` value names: `board`, `projects`, else Agents (focus, the default). */
-export const screenOf = (value: string | null | undefined): FleetScreen =>
-  value === 'board' || value === 'projects' ? value : 'focus'
+/**
+ * The tab a `?view=` value names: `agents`, `projects`, else Focus (the default). `board`, the
+ * Agents tab's old name, still opens it, so old links keep working.
+ */
+export const screenOf = (value: string | null | undefined): FleetScreen => {
+  if (value === 'board') return 'agents'
+
+  return value === 'agents' || value === 'projects' ? value : 'focus'
+}
 
 /** A tab and its filter (Focus and Agents only). */
 export type FleetPlace = { readonly screen: FleetScreen; readonly project: string | undefined }

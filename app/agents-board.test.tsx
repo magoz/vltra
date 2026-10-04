@@ -16,7 +16,7 @@ const renderBoard = (
       live={options.live ?? fleetLive()}
       now={now}
       actions={actions.actions}
-      screen="board"
+      screen="agents"
       navigations={navigations}
       {...(options.project === undefined ? {} : { project: options.project })}
     />
@@ -299,7 +299,7 @@ describe('keyboard', () => {
     expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
     expect(navigations).toEqual([
       { kind: 'show', screen: 'projects', project: undefined },
-      { kind: 'show', screen: 'board', project: undefined },
+      { kind: 'show', screen: 'agents', project: undefined },
       { kind: 'show', screen: 'focus', project: undefined }
     ])
   })

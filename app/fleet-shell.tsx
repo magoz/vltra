@@ -161,9 +161,9 @@ export function FleetShell({
   useKeys({
     n: () => openLauncher(),
     '1': screen === 'focus' ? undefined : () => nav.show('focus'),
-    '2': screen === 'board' ? undefined : () => nav.show('board'),
+    '2': screen === 'agents' ? undefined : () => nav.show('agents'),
     '3': screen === 'projects' ? undefined : () => nav.show('projects'),
-    b: agents ? () => nav.show(screen === 'board' ? 'focus' : 'board') : undefined,
+    b: agents ? () => nav.show(screen === 'agents' ? 'focus' : 'agents') : undefined,
     Escape: selected === undefined ? undefined : selection.close
   })
 

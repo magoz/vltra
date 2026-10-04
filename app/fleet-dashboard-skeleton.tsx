@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 /** The tabs (header and phone tab bar): Focus, Agents (the board), Projects. */
 const tabs: ReadonlyArray<{ readonly screen: FleetScreen; readonly label: string }> = [
   { screen: 'focus', label: 'Focus' },
-  { screen: 'board', label: 'Agents' },
+  { screen: 'agents', label: 'Agents' },
   { screen: 'projects', label: 'Projects' }
 ]
 

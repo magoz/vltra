@@ -75,8 +75,8 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 ## DASHBOARD
 
 - One page (`app/(fleet)/page.tsx` → `current-tab.tsx`) with three tabs in `?view=`: **Focus**
-  (plain `/`, `agents-focus.tsx`), **Agents** (the board: `?view=board`, `agents-board.tsx`; code
-  and URL keep `board`) and **Projects** (`?view=projects`, `projects-grid.tsx`; the old `/projects` redirects in
+  (plain `/`, `agents-focus.tsx`), **Agents** (the board: `?view=agents`, `agents-board.tsx`; old
+  `?view=board` links still open it) and **Projects** (`?view=projects`, `projects-grid.tsx`; the old `/projects` redirects in
   `next.config.ts`). Keep it one route: Cache Components keeps up to three visited routes mounted
   in hidden `<Activity>` boundaries (`MAX_BF_CACHE_ENTRIES` in Next's `bfcache-state-manager`), so
   a second route kept a hidden copy of the other page alive (with its own OpenCode iframe) and
@@ -120,7 +120,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   Phone:
   the list full width; a session opens full screen (the pane becomes `fixed inset-0`), its back
   button returns to the list.
-- **Agents**, the board (`?view=board`, `agents-board.tsx`): columns `Needs you | Working |
+- **Agents**, the board (`?view=agents`, `agents-board.tsx`): columns `Needs you | Working |
 Handled` (`buildAgentsBoard` in `board.ts`). Needs you: blocked (longest wait first, each card
   badged `blocked`), then finished (oldest first). Working: stuck first, then newest session (`created`, so live activity does not reshuffle).
   Handled: active in the last 24h, newest first, then "N more → Projects". Cards
@@ -136,7 +136,7 @@ Handled` (`buildAgentsBoard` in `board.ts`). Needs you: blocked (longest wait fi
   (`initialColumn`, else Working), a session full screen; a new filter remounts the board (fresh
   column and focus).
 - **Projects**: cards (`buildProjectCards`) by latest activity, "Other" last, 1 / 2 / 3 columns.
-  The header links to the board, `/?view=board&project=<id>`; worktree sections list needs-me and working sessions
+  The header links to the board, `/?view=agents&project=<id>`; worktree sections list needs-me and working sessions
   (`ProjectRow`: marker, title, state label, age); handled sessions fold into
   "N handled · last 2h" per card (no time limit), expandable in place, with Reopen. An open session
   splits the page (`SessionSplit`); the grid takes its columns from its own width (`@container`:

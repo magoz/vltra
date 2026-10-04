@@ -155,7 +155,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: '/', label: 'filter' },
     { keys: '1 2 3', label: 'tabs' }
   ],
-  board: [
+  agents: [
     { keys: 'j k', label: 'move' },
     { keys: '← →', label: 'column' },
     { keys: '↵', label: 'open' },
@@ -202,7 +202,7 @@ function KeyHintLine({ screen }: { readonly screen: FleetScreen }) {
 /** The tabs, the same on desktop (header) and phone (bottom bar): Focus, Agents (the board), Projects. */
 const tabs: ReadonlyArray<{ readonly screen: FleetScreen; readonly label: string }> = [
   { screen: 'focus', label: 'Focus' },
-  { screen: 'board', label: 'Agents' },
+  { screen: 'agents', label: 'Agents' },
   { screen: 'projects', label: 'Projects' }
 ]
 

@@ -49,7 +49,7 @@ describe('header', () => {
     expect(screen.getByRole('heading', { name: 'Fleet' })).toBeTruthy()
     expect(tabLinks(tabs)).toEqual([
       ['Focus', '/'],
-      ['Agents', '/?view=board'],
+      ['Agents', '/?view=agents'],
       ['Projects', '/?view=projects']
     ])
     expect(screen.getByLabelText('Session counts').textContent).toBe(
@@ -64,7 +64,7 @@ describe('header', () => {
 
     cleanup()
 
-    expect(currentTab(renderHeader('board'))).toBe('Agents')
+    expect(currentTab(renderHeader('agents'))).toBe('Agents')
 
     cleanup()
 
@@ -79,7 +79,7 @@ describe('header', () => {
     )
 
     cleanup()
-    renderHeader('board')
+    renderHeader('agents')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
       'j k move · ← → column · ↵ open · h handled · u undo · b focus · n ⌘K new · / filter · 1 2 3 tabs'
@@ -132,7 +132,7 @@ describe('tab bar', () => {
     expect(bar.className).toContain('lg:hidden')
     expect(tabLinks(bar)).toEqual([
       ['Focus', '/'],
-      ['Agents', '/?view=board'],
+      ['Agents', '/?view=agents'],
       ['Projects', '/?view=projects']
     ])
     expect(within(bar).getByRole('button', { name: 'New (launcher)' })).toBeTruthy()
@@ -143,7 +143,7 @@ describe('tab bar', () => {
 
     cleanup()
 
-    expect(currentTab(renderTabs('board'))).toBe('Agents')
+    expect(currentTab(renderTabs('agents'))).toBe('Agents')
 
     cleanup()
 

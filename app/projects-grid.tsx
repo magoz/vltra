@@ -151,7 +151,7 @@ function Card({
     >
       <div className="flex border-b">
         <NavLink
-          screen="board"
+          screen="agents"
           project={card.id}
           className="hover:bg-accent/60 focus-visible:ring-ring/50 flex min-w-0 flex-1 items-baseline justify-between gap-3 px-3 py-2 outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
         >
@@ -207,7 +207,7 @@ const gridColumns = (grid: HTMLElement | null) => {
 
 /**
  * The Projects page (DESIGN.md "Clients" → Web): a grid of project cards by latest activity,
- * "Other" last. The header opens the Agents board (`?view=board`) filtered to the project, its +
+ * "Other" last. The header opens the Agents board (`?view=agents`) filtered to the project, its +
  * the launcher's new-worktree step for the repository; worktree sections list needs-me and working
  * sessions under the branch, owner (`pi`), PR state and Retire (Fleet/OpenCode worktrees), and the
  * repository's other branch worktrees follow without sessions; handled ones fold into "N handled ·
@@ -265,7 +265,7 @@ export function ProjectsGrid() {
     k: () => toRow(-1),
     Enter: () => {
       if (rowCursor !== undefined) selection.select(rowCursor)
-      else if (current !== undefined) nav.show('board', current.id)
+      else if (current !== undefined) nav.show('agents', current.id)
     }
   })
 

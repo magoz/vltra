@@ -274,7 +274,7 @@ describe('pending launches', () => {
   })
 
   it('show in the Working column on the board', () => {
-    renderDashboard({ screen: 'board', live: withLaunches([launch()]) })
+    renderDashboard({ screen: 'agents', live: withLaunches([launch()]) })
 
     const working = screen.getByRole('region', { name: 'Working' })
 

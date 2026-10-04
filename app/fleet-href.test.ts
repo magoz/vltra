@@ -4,7 +4,9 @@ import type { FleetPlace } from '@/app/fleet-href'
 
 describe('fleet URLs', () => {
   it('reads the tab from ?view=: board or projects, else Agents (focus)', () => {
-    expect(screenOf('board')).toBe('board')
+    expect(screenOf('agents')).toBe('agents')
+    // The Agents tab's old name, for old links.
+    expect(screenOf('board')).toBe('agents')
     expect(screenOf('projects')).toBe('projects')
     expect(screenOf(null)).toBe('focus')
     expect(screenOf('focus')).toBe('focus')
@@ -13,7 +15,7 @@ describe('fleet URLs', () => {
 
   it('keeps every tab on the one page, Agents without a param', () => {
     expect(fleetHref('focus', {})).toBe('/')
-    expect(fleetHref('board', {})).toBe('/?view=board')
+    expect(fleetHref('agents', {})).toBe('/?view=agents')
     expect(fleetHref('projects', {})).toBe('/?view=projects')
   })
 
@@ -21,8 +23,8 @@ describe('fleet URLs', () => {
     expect(fleetHref('focus', { project: 'prj_fleet', session: 'ses_1' })).toBe(
       '/?project=prj_fleet&session=ses_1'
     )
-    expect(fleetHref('board', { project: 'prj_fleet', session: 'ses_1' })).toBe(
-      '/?view=board&project=prj_fleet&session=ses_1'
+    expect(fleetHref('agents', { project: 'prj_fleet', session: 'ses_1' })).toBe(
+      '/?view=agents&project=prj_fleet&session=ses_1'
     )
     expect(fleetHref('projects', { project: 'prj_fleet', session: 'ses_1' })).toBe(
       '/?view=projects&session=ses_1'
@@ -32,15 +34,15 @@ describe('fleet URLs', () => {
   it('moves between tabs: the filter stays between Agents and Board, Projects has none', () => {
     const filtered: FleetPlace = { screen: 'focus', project: 'prj_fleet' }
 
-    expect(moveTo(filtered, 'board')).toEqual({ screen: 'board', project: 'prj_fleet' })
+    expect(moveTo(filtered, 'agents')).toEqual({ screen: 'agents', project: 'prj_fleet' })
     expect(moveTo(filtered, 'projects')).toEqual({ screen: 'projects', project: undefined })
-    expect(moveTo({ screen: 'projects', project: undefined }, 'board')).toEqual({
-      screen: 'board',
+    expect(moveTo({ screen: 'projects', project: undefined }, 'agents')).toEqual({
+      screen: 'agents',
       project: undefined
     })
     // A given filter wins (the Projects card headers open their board).
-    expect(moveTo({ screen: 'projects', project: undefined }, 'board', 'prj_box')).toEqual({
-      screen: 'board',
+    expect(moveTo({ screen: 'projects', project: undefined }, 'agents', 'prj_box')).toEqual({
+      screen: 'agents',
       project: 'prj_box'
     })
   })

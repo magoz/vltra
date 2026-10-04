@@ -89,12 +89,12 @@ describe('project cards', () => {
     const { navigations } = renderGrid()
     const header = within(projectCard('fleet')).getByRole('link', { name: /^fleet/ })
 
-    expect(header.getAttribute('href')).toBe('/?view=board&project=prj_fleet')
+    expect(header.getAttribute('href')).toBe('/?view=agents&project=prj_fleet')
 
     fireEvent.click(header)
 
-    expect(navigations).toEqual([{ kind: 'show', screen: 'board', project: 'prj_fleet' }])
-    expect(testLocation()).toBe('/?view=board&project=prj_fleet')
+    expect(navigations).toEqual([{ kind: 'show', screen: 'agents', project: 'prj_fleet' }])
+    expect(testLocation()).toBe('/?view=agents&project=prj_fleet')
     expect(screen.getByRole('button', { name: 'Clear the fleet filter' })).toBeTruthy()
     expect(rowIDs(screen.getByRole('region', { name: 'Handled' }))).toEqual(['ses_handled'])
   })
@@ -192,7 +192,7 @@ describe('keyboard', () => {
     press('ArrowRight')
     press('Enter')
 
-    expect(navigations).toEqual([{ kind: 'show', screen: 'board', project: 'prj_box' }])
+    expect(navigations).toEqual([{ kind: 'show', screen: 'agents', project: 'prj_box' }])
     expect(screen.getByRole('button', { name: 'Clear the box filter' })).toBeTruthy()
   })
 })

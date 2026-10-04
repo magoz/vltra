@@ -308,7 +308,7 @@ function Board({ project }: { readonly project: string | undefined }) {
 }
 
 /**
- * The Agents tab (`?view=board`, DESIGN.md "Clients" → Web): a kanban board by state across all
+ * The Agents tab (`?view=agents`, DESIGN.md "Clients" → Web): a kanban board by state across all
  * projects, or one project (`?project=`). Columns `Needs you | Working | Handled` (Needs you is
  * blocked then finished, blocked cards badged; the launcher's launches top Working) on desktop,
  * one at a time on the phone. Cards are minimal (`agent-card.tsx`); asks are answered in the
