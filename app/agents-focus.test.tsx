@@ -75,7 +75,19 @@ const cursorID = () =>
 
 const press = (key: string, target: Element = document.body) => fireEvent.keyDown(target, { key })
 
-const toggle = () => screen.getByRole('group', { name: 'Agents view' })
+/** The desktop header's tab `name`. */
+const headerTab = (name: string) => within(screen.getByRole('banner')).getByRole('link', { name })
+
+/** The phone's tab bar (the desktop header's tabs come first). */
+const tabBar = () => {
+  const bar = screen.getAllByRole('navigation', { name: 'Pages' })[1]
+
+  if (bar === undefined) throw new Error('no tab bar')
+
+  return bar
+}
+
+const tab = (name: string) => within(tabBar()).getByRole('link', { name })
 
 beforeEach(() => {
   // The launcher loads its list; answer with nothing.
@@ -96,9 +108,7 @@ describe('focus mode', () => {
 
     expect(screen.queryByRole('tablist', { name: 'Columns' })).toBeNull()
     expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
-    expect(within(toggle()).getByRole('link', { name: 'Focus' }).getAttribute('aria-current')).toBe(
-      'true'
-    )
+    expect(headerTab('Agents').getAttribute('aria-current')).toBe('page')
     expect(within(pane()).getByText('Pick a session on the left')).toBeTruthy()
     expect(testLocation()).toBe('/')
   })
@@ -132,13 +142,14 @@ describe('focus mode', () => {
     expect(within(pane()).getByText('Nothing needs you')).toBeTruthy()
   })
 
-  it('opens a clicked row inline (no drawer), framing its OpenCode chat', () => {
+  it('opens a clicked row inline (no drawer): its OpenCode chat, no Summary tab', () => {
     const { live, calls } = renderFocus()
 
     open('Done old')
 
     expect(drawer()).toBeNull()
     expect(within(pane()).getByRole('heading', { name: 'Done old' })).toBeTruthy()
+    expect(within(pane()).queryByRole('tab')).toBeNull()
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
     expect(row('ses_done_old').querySelector('[data-selected="true"]')).not.toBeNull()
     expect(testLocation()).toBe('/?session=ses_done_old')
@@ -197,6 +208,19 @@ describe('focus mode', () => {
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
   })
 
+  it("handles from the chat's toolbar and opens the next session", async () => {
+    const { live, calls } = renderFocus({ live: finishedOnly() })
+
+    open('Done old')
+    fireEvent.click(within(pane()).getByRole('button', { name: 'Handled' }))
+
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
+    expect(testLocation()).toBe('/?session=ses_done_new')
+    await waitFor(() =>
+      expect(calls()).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_done_old' } }])
+    )
+  })
+
   it('goes back to the list from a full-screen session (phone)', () => {
     renderFocus()
 
@@ -211,22 +235,20 @@ describe('focus mode', () => {
   })
 })
 
-describe('mode toggle', () => {
-  it('switches to the board and back, keeping the filter and the open session', () => {
+describe('tabs', () => {
+  it('switches Agents ↔ Board in place, keeping the filter and the open session', () => {
     const { navigations } = renderFocus({ project: 'prj_fleet', session: 'ses_done_old' })
 
     expect(drawer()).toBeNull()
 
-    fireEvent.click(within(toggle()).getByRole('link', { name: 'Board' }))
+    fireEvent.click(headerTab('Board'))
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
     expect(screen.queryByRole('region', { name: 'Needs you' })).toBeNull()
     expect(testLocation()).toBe('/?view=board&project=prj_fleet&session=ses_done_old')
     // On the board, the session is in the drawer.
     expect(drawer()).not.toBeNull()
-    expect(within(toggle()).getByRole('link', { name: 'Board' }).getAttribute('aria-current')).toBe(
-      'true'
-    )
+    expect(headerTab('Board').getAttribute('aria-current')).toBe('page')
 
     press('b')
 
@@ -244,34 +266,63 @@ describe('mode toggle', () => {
     ])
   })
 
-  it('keeps the mode across page switches (the Agents tab and 1)', () => {
-    const { navigations } = renderFocus()
-
-    press('b')
-    press('2')
+  it('switches with 1 / 2 / 3: Agents and Board in place, Projects a page switch', () => {
+    const { navigations } = renderFocus({ project: 'prj_fleet' })
 
     expect(screen.queryByRole('group', { name: 'Agents view' })).toBeNull()
-    expect(testLocation()).toBe('/projects?view=board')
 
-    const agentsTab = screen.getAllByRole('link', { name: 'Agents' })[0]
+    press('2')
 
-    expect(agentsTab?.getAttribute('href')).toBe('/?view=board')
+    expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
+    expect(testLocation()).toBe('/?view=board&project=prj_fleet')
 
-    press('1')
+    press('3')
+
+    expect(testLocation()).toBe('/projects')
+    expect(headerTab('Projects').getAttribute('aria-current')).toBe('page')
+    // From Projects, Agents and Board start unfiltered.
+    expect(headerTab('Board').getAttribute('href')).toBe('/?view=board')
+
+    press('2')
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
 
-    press('b')
-    press('2')
     press('1')
 
     expect(list()).toBeTruthy()
+    expect(testLocation()).toBe('/')
     expect(navigations).toEqual([
       { kind: 'view', view: 'board' },
       { kind: 'go', page: 'projects', project: undefined, view: 'board' },
       { kind: 'go', page: 'agents', project: undefined, view: 'board' },
-      { kind: 'view', view: 'focus' },
-      { kind: 'go', page: 'projects', project: undefined, view: 'focus' },
+      { kind: 'view', view: 'focus' }
+    ])
+  })
+
+  it("switches with the phone's tabs: the modes in place, Projects and back as page switches", () => {
+    const { navigations } = renderFocus({ project: 'prj_fleet' })
+
+    expect(tab('Agents').getAttribute('aria-current')).toBe('page')
+
+    fireEvent.click(tab('Board'))
+
+    expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
+    expect(testLocation()).toBe('/?view=board&project=prj_fleet')
+    expect(tab('Board').getAttribute('aria-current')).toBe('page')
+
+    fireEvent.click(tab('Projects'))
+
+    expect(testLocation()).toBe('/projects')
+    expect(tab('Projects').getAttribute('aria-current')).toBe('page')
+
+    // Agents is focus mode, whichever was showing last.
+    fireEvent.click(tab('Agents'))
+
+    expect(list()).toBeTruthy()
+    expect(testLocation()).toBe('/')
+    expect(navigations).toEqual([
+      { kind: 'view', view: 'board' },
+      { kind: 'go', page: 'projects', project: undefined, view: 'board' },
       { kind: 'go', page: 'agents', project: undefined, view: 'focus' }
     ])
   })

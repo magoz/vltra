@@ -366,7 +366,7 @@ export const FleetChange = Schema.Struct({
 
 export type FleetChange = typeof FleetChange.Type
 
-/** One line of a session's recent transcript, as shown in the session panel. */
+/** One line of a session's recent transcript, as read from OpenCode. */
 export const TranscriptEntry = Schema.Struct({
   id: Schema.String,
   role: Schema.Literals(['user', 'agent', 'tool', 'shell', 'error', 'note']),

@@ -3,9 +3,9 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * The dashboard's keys (desktop). Each page binds its own; the shell binds `1`, `2`, `b`, `n` and
- * `Escape` (`⌘K` is the launcher's own listener). Keys typed inside the OpenCode iframe stay in
- * the iframe.
+ * The dashboard's keys (desktop). Each page binds its own; the shell binds the tabs' `1`, `2`,
+ * `3`, and `b`, `n`, `Escape` (`⌘K` is the launcher's own listener). Keys typed inside the
+ * OpenCode iframe stay in the iframe.
  */
 export type FleetKey =
   | 'n'
@@ -16,6 +16,7 @@ export type FleetKey =
   | 'u'
   | '1'
   | '2'
+  | '3'
   | '/'
   | 'Enter'
   | 'Escape'
@@ -36,6 +37,7 @@ const fleetKeys: ReadonlyArray<string> = [
   'u',
   '1',
   '2',
+  '3',
   '/',
   'Enter',
   'Escape',
@@ -59,7 +61,7 @@ const isTyping = (target: EventTarget | null) =>
 const isControl = (target: EventTarget | null) =>
   closest(target, 'a, button, summary, [role="button"], [role="tab"]')
 
-/** A dialog (the Interrupt confirmation) owns the keyboard while it is open. */
+/** A dialog (the launcher, a confirmation) owns the keyboard while it is open. */
 const inDialog = (target: EventTarget | null) =>
   closest(target, '[role="dialog"], [role="alertdialog"]')
 

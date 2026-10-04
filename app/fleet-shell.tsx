@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import { useFleetActions } from '@/app/fleet-actions'
-import { FleetProvider } from '@/app/fleet-context'
+import { FleetProvider, showScreen } from '@/app/fleet-context'
 import type { FleetNav, SessionSelection } from '@/app/fleet-context'
-import { BottomTabs, FleetHeader } from '@/app/fleet-header'
+import { BottomTabs, ConnectionLine, FleetHeader } from '@/app/fleet-header'
+import { screenOf } from '@/app/fleet-href'
 import { LauncherProvider } from '@/app/launcher-context'
 import type { Launcher, LauncherRequest } from '@/app/launcher-context'
 import { LauncherDialog } from '@/app/launcher-dialog'
@@ -116,13 +117,14 @@ function useLauncherShortcut(open: () => void) {
 }
 
 /**
- * Around both pages (DESIGN.md "Clients" → Web): the header (tabs, the Agents mode toggle, count
- * line, key hint, connection), the phone's bottom tab bar, Handled / Undo / Reopen, and the
- * session drawer (`?session=`, the session's chat: right side on desktop, full screen on the
- * phone) over Projects and the Agents board. Focus mode shows the session inline instead
- * (`agents-focus.tsx`). Keys: `1` / `2` switch pages, `b` the Agents mode, `Escape` closes the
- * session, `n` / `⌘K` open the launcher (its palette, its list for the Projects cards, and the
- * auto-open of a launch started here).
+ * Around both pages (DESIGN.md "Clients" → Web): the tabs (Agents | Board | Projects; in the
+ * desktop header with the count line, key hint and connection, or the phone's bottom tab bar,
+ * whose only other chrome is a reconnecting line when the link is down), Handled / Undo / Reopen,
+ * and the session drawer (`?session=`, the session's chat: right side on desktop, full screen on
+ * the phone) over Projects and the board. Focus mode shows the session inline instead (`agents-focus.tsx`). Keys:
+ * `1` / `2` / `3` the tabs, `b` Agents ↔ Board, `Escape` closes the session, `n` / `⌘K` open the
+ * launcher (its palette, its list for the Projects cards, and the auto-open of a launch started
+ * here).
  */
 export function FleetShell({
   live,
@@ -147,6 +149,7 @@ export function FleetShell({
   const { selected } = selection
   const selectedRow = selected === undefined ? undefined : view.rows.get(selected)
   const selectedItem = selectedRow === undefined ? undefined : boardRow(view, selectedRow)
+  const screen = screenOf(nav.page, nav.view)
   const agents = nav.page === 'agents'
   // Focus mode shows the open session inline, so there is no drawer.
   const inline = agents && nav.view === 'focus'
@@ -175,8 +178,9 @@ export function FleetShell({
 
   useKeys({
     n: () => openLauncher(),
-    '1': agents ? undefined : () => nav.go('agents'),
-    '2': nav.page === 'projects' ? undefined : () => nav.go('projects'),
+    '1': screen === 'focus' ? undefined : () => showScreen(nav, 'focus'),
+    '2': screen === 'board' ? undefined : () => showScreen(nav, 'board'),
+    '3': screen === 'projects' ? undefined : () => showScreen(nav, 'projects'),
     b: agents ? () => nav.setView(nav.view === 'board' ? 'focus' : 'board') : undefined,
     Escape: selected === undefined ? undefined : selection.close
   })
@@ -187,15 +191,15 @@ export function FleetShell({
         <HandledProvider flow={flow}>
           <div className="flex min-h-dvh flex-col font-mono text-sm lg:h-dvh">
             <FleetHeader
-              page={nav.page}
-              view={nav.view}
+              screen={screen}
               counts={counts}
               stream={stream}
               connection={live.connection}
               onNew={() => openLauncher()}
             />
+            <ConnectionLine stream={stream} connection={live.connection} />
             <main className="flex min-h-0 flex-1 flex-col max-lg:pb-14">{children}</main>
-            <BottomTabs page={nav.page} onNew={() => openLauncher()} />
+            <BottomTabs screen={screen} onNew={() => openLauncher()} />
             <LauncherDialog
               open={launcherOpen}
               request={request}

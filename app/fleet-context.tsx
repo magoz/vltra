@@ -3,7 +3,7 @@
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { fleetHref } from '@/app/fleet-href'
-import type { AgentsView, FleetPage } from '@/app/fleet-href'
+import type { AgentsView, FleetPage, FleetScreen } from '@/app/fleet-href'
 import type { LiveFleet } from '@/lib/data/fleet/board'
 
 /** The open session (`?session=`, see `use-selected-session.ts`). */
@@ -16,13 +16,13 @@ export type SessionSelection = {
 /** Where the dashboard is (page, mode, project filter) and how to move (`use-fleet-nav.ts`). */
 export type FleetNav = {
   readonly page: FleetPage
-  /** The Agents page's mode (`?view=board`, else focus); kept across page switches. */
+  /** The Agents page's mode (`?view=board`, else focus). */
   readonly view: AgentsView
   /** The Agents page's filter (`?project=`, a `projectKey`). */
   readonly project: string | undefined
-  /** A page's URL, keeping the open session and (unless given) the current mode. */
+  /** A page's URL, keeping the open session and, for Agents, (unless given) the current mode. */
   readonly href: (page: FleetPage, project?: string, view?: AgentsView) => string
-  /** Navigates to a page (pushes a history entry), keeping the open session and the mode. */
+  /** Navigates to `href`'s URL (pushes a history entry). */
   readonly go: (page: FleetPage, project?: string, view?: AgentsView) => void
   /** Changes the Agents page's filter in place (replaces the history entry). */
   readonly setProject: (project: string | undefined) => void
@@ -66,3 +66,26 @@ export function useFleet(): Fleet {
 /** A session's URL on the current page (inline in focus mode, else the drawer over the page). */
 export const sessionHref = (nav: FleetNav, sessionID: string) =>
   fleetHref(nav.page, { project: nav.project, session: sessionID, view: nav.view })
+
+/**
+ * A tab's URL, keeping the open session: Agents and Board keep the filter between themselves,
+ * coming from Projects they start unfiltered.
+ */
+export const screenHref = (nav: FleetNav, screen: FleetScreen) =>
+  screen === 'projects'
+    ? nav.href('projects')
+    : nav.href('agents', nav.page === 'agents' ? nav.project : undefined, screen)
+
+/**
+ * Switches tabs (the tab links and `1` / `2` / `3`): between Agents and Board in place (a history
+ * entry, keeping the filter and the open session), else a page switch.
+ */
+export const showScreen = (nav: FleetNav, screen: FleetScreen) => {
+  if (screen === 'projects') {
+    nav.go('projects')
+  } else if (nav.page === 'agents') {
+    nav.setView(screen)
+  } else {
+    nav.go('agents', undefined, screen)
+  }
+}

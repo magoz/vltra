@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fleetHref, pageOf, viewOf } from '@/app/fleet-href'
+import { fleetHref, pageOf, screenOf, viewOf } from '@/app/fleet-href'
 
 describe('fleet URLs', () => {
   it('reads the page from the path', () => {
@@ -27,13 +27,17 @@ describe('fleet URLs', () => {
     expect(fleetHref('projects', {})).toBe('/projects')
   })
 
-  it('writes the board mode on both pages and leaves focus (the default) out', () => {
+  it('writes the board mode on Agents only and leaves focus (the default) out', () => {
     expect(fleetHref('agents', { view: 'focus', project: 'prj_fleet' })).toBe('/?project=prj_fleet')
     expect(fleetHref('agents', { view: 'board', project: 'prj_fleet', session: 'ses_1' })).toBe(
       '/?view=board&project=prj_fleet&session=ses_1'
     )
-    expect(fleetHref('projects', { view: 'board', project: 'prj_fleet' })).toBe(
-      '/projects?view=board'
-    )
+    expect(fleetHref('projects', { view: 'board', project: 'prj_fleet' })).toBe('/projects')
+  })
+
+  it('names the tab showing: Agents is focus mode, Board the board mode', () => {
+    expect(screenOf('agents', 'focus')).toBe('focus')
+    expect(screenOf('agents', 'board')).toBe('board')
+    expect(screenOf('projects', 'board')).toBe('projects')
   })
 })

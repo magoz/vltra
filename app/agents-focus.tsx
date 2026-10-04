@@ -226,11 +226,11 @@ function Focus({ project }: { readonly project: string | undefined }) {
  * The Agents page's focus mode (the default, DESIGN.md "Clients" → Web): a sidebar listing the
  * launcher's launches ("Provisioning", unfiltered) and the sessions that need me (blocked,
  * longest wait first; then finished, oldest first, with Handled; rows are titles only, asks are
- * answered in the chat), narrowed by `?project=`, and the open session's chat (`?session=`, also
- * one opened from elsewhere) inline in the rest of the page. Handling the open session opens the
- * next one in list order. Phone: the list; a session opens full screen. Keys: `j`/`k` (`↓`/`↑`)
- * move, `Enter` opens, `h` handled (the focused or open finished session; the next opens), `u`
- * undo, `/` filter (the shell adds `b` board and `Escape` closes).
+ * answered in the chat), narrowed by `?project=`, and the open session (`?session=`, also
+ * one opened from elsewhere) inline in the rest of the page: its chat. Handling the open session
+ * opens the next one in list order. Phone: the list; a session opens full screen. Keys: `j`/`k`
+ * (`↓`/`↑`) move, `Enter` opens, `h` handled (the focused or open finished session; the next
+ * opens), `u` undo, `/` filter (the shell adds the tabs, `b` board and `Escape` closes).
  */
 export function AgentsFocus() {
   const { nav } = useFleet()

@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
-import { BottomTabs, CountLine, FleetHeader, linkStatus } from '@/app/fleet-header'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { BottomTabs, ConnectionLine, CountLine, FleetHeader, linkStatus } from '@/app/fleet-header'
+import type { FleetScreen } from '@/app/fleet-href'
 import { fakeActions, WithFleet } from '@/app/testing/dashboard-fixtures'
 import type { FleetConnection, FleetCounts } from '@/lib/data/fleet/types'
 
@@ -10,73 +11,85 @@ const counts: FleetCounts = { blocked: 2, finished: 4, working: 17, stuck: 2, ha
 
 afterEach(cleanup)
 
-const renderHeader = (page: 'agents' | 'projects', view: 'focus' | 'board' = 'focus') =>
+const renderHeader = (current: FleetScreen) => {
   render(
     <WithFleet actions={fakeActions().actions} now={0}>
-      <FleetHeader page={page} view={view} counts={counts} stream="live" connection={connected} />
+      <FleetHeader screen={current} counts={counts} stream="live" connection={connected} />
     </WithFleet>
   )
 
+  return screen.getByRole('navigation', { name: 'Pages' })
+}
+
+const renderTabs = (current: FleetScreen) => {
+  render(
+    <WithFleet actions={fakeActions().actions} now={0}>
+      <BottomTabs screen={current} onNew={() => undefined} />
+    </WithFleet>
+  )
+
+  return screen.getByRole('navigation', { name: 'Pages' })
+}
+
+const tabLinks = (tabs: HTMLElement) =>
+  within(tabs)
+    .getAllByRole('link')
+    .map(link => [link.textContent, link.getAttribute('href')])
+
+const currentTab = (tabs: HTMLElement) =>
+  within(tabs)
+    .getAllByRole('link')
+    .find(link => link.getAttribute('aria-current') === 'page')?.textContent
+
 describe('header', () => {
-  it('shows the title, the page tabs, the count line and the connection', () => {
-    renderHeader('agents')
+  it('shows the title, the tabs, the count line and the connection, desktop only', () => {
+    const tabs = renderHeader('focus')
 
+    expect(screen.getByRole('banner').className).toContain('max-lg:hidden')
     expect(screen.getByRole('heading', { name: 'Fleet' })).toBeTruthy()
-
-    const tabs = screen.getAllByRole('navigation', { name: 'Pages' })[0]
-
-    if (tabs === undefined) throw new Error('missing page tabs')
-
-    expect(within(tabs).getByRole('link', { name: 'Agents' }).getAttribute('aria-current')).toBe(
-      'page'
-    )
-    expect(within(tabs).getByRole('link', { name: 'Projects' }).getAttribute('href')).toBe(
-      '/projects'
-    )
+    expect(tabLinks(tabs)).toEqual([
+      ['Agents', '/'],
+      ['Board', '/?view=board'],
+      ['Projects', '/projects']
+    ])
     expect(screen.getByLabelText('Session counts').textContent).toBe(
       '6 need you · 17 working · 2 stuck'
     )
     expect(screen.getByRole('status').textContent).toContain('live')
   })
 
-  it('offers the Agents mode toggle on the Agents page only', () => {
-    renderHeader('agents', 'board')
-
-    const toggle = screen.getByRole('group', { name: 'Agents view' })
-
-    expect(within(toggle).getByRole('link', { name: 'Focus' }).getAttribute('href')).toBe('/')
-    expect(within(toggle).getByRole('link', { name: 'Board' }).getAttribute('href')).toBe(
-      '/?view=board'
-    )
-    expect(within(toggle).getByRole('link', { name: 'Board' }).getAttribute('aria-current')).toBe(
-      'true'
-    )
+  it('marks the tab showing, with no Focus | Board toggle', () => {
+    expect(currentTab(renderHeader('focus'))).toBe('Agents')
+    expect(screen.queryByRole('group', { name: 'Agents view' })).toBeNull()
 
     cleanup()
-    renderHeader('projects')
 
-    expect(screen.queryByRole('group', { name: 'Agents view' })).toBeNull()
+    expect(currentTab(renderHeader('board'))).toBe('Board')
+
+    cleanup()
+
+    expect(currentTab(renderHeader('projects'))).toBe('Projects')
   })
 
-  it("shows each page's keys, per Agents mode", () => {
-    renderHeader('agents')
+  it("shows each tab's keys", () => {
+    renderHeader('focus')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ↵ open · h handled · u undo · b board · n ⌘K new · / filter · 1 2 pages'
+      'j k move · ↵ open · h handled · u undo · b board · n ⌘K new · / filter · 1 2 3 tabs'
     )
 
     cleanup()
-    renderHeader('agents', 'board')
+    renderHeader('board')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ← → column · ↵ open · h handled · u undo · b focus · n ⌘K new · / filter · 1 2 pages'
+      'j k move · ← → column · ↵ open · h handled · u undo · b agents · n ⌘K new · / filter · 1 2 3 tabs'
     )
 
     cleanup()
     renderHeader('projects')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      '← → ↑ ↓ card · j k session · ↵ open · n ⌘K new · 1 2 pages'
+      '← → ↑ ↓ card · j k session · ↵ open · n ⌘K new · 1 2 3 tabs'
     )
   })
 })
@@ -88,8 +101,7 @@ describe('new', () => {
     render(
       <WithFleet actions={fakeActions().actions} now={0}>
         <FleetHeader
-          page="agents"
-          view="focus"
+          screen="focus"
           counts={counts}
           stream="live"
           connection={connected}
@@ -98,7 +110,7 @@ describe('new', () => {
           }}
         />
         <BottomTabs
-          page="agents"
+          screen="focus"
           onNew={() => {
             opened += 1
           }}
@@ -110,6 +122,32 @@ describe('new', () => {
     fireEvent.click(screen.getByRole('button', { name: 'New (launcher)' }))
 
     expect(opened).toBe(2)
+  })
+})
+
+describe('tab bar', () => {
+  it("is the phone's chrome: the header's tabs and +", () => {
+    const bar = renderTabs('focus')
+
+    expect(bar.className).toContain('lg:hidden')
+    expect(tabLinks(bar)).toEqual([
+      ['Agents', '/'],
+      ['Board', '/?view=board'],
+      ['Projects', '/projects']
+    ])
+    expect(within(bar).getByRole('button', { name: 'New (launcher)' })).toBeTruthy()
+  })
+
+  it('marks the tab showing', () => {
+    expect(currentTab(renderTabs('focus'))).toBe('Agents')
+
+    cleanup()
+
+    expect(currentTab(renderTabs('board'))).toBe('Board')
+
+    cleanup()
+
+    expect(currentTab(renderTabs('projects'))).toBe('Projects')
   })
 })
 
@@ -146,5 +184,90 @@ describe('connection indicator', () => {
       detail: expect.stringContaining('connection refused'),
       healthy: false
     })
+  })
+})
+
+describe('connection line (phone)', () => {
+  const lost: FleetConnection = {
+    ...connected,
+    status: 'disconnected',
+    error: 'connection refused'
+  }
+
+  const line = () => screen.getByRole('status')
+
+  const wait = (ms: number) => {
+    act(() => {
+      vi.advanceTimersByTime(ms)
+    })
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+  })
+
+  it('says nothing while live, nor through a reconnect under 3s', () => {
+    const { rerender } = render(<ConnectionLine stream="live" connection={connected} />)
+
+    expect(line().className).toContain('lg:hidden')
+    expect(line().textContent).toBe('')
+
+    rerender(<ConnectionLine stream="reconnecting" connection={connected} />)
+    wait(2999)
+
+    expect(line().textContent).toBe('')
+
+    rerender(<ConnectionLine stream="live" connection={connected} />)
+    wait(5000)
+
+    expect(line().textContent).toBe('')
+  })
+
+  it('shows once a reconnect lasts 3s, and goes the moment the link is back', () => {
+    const { rerender } = render(<ConnectionLine stream="reconnecting" connection={connected} />)
+
+    wait(3000)
+
+    expect(line().textContent).toContain('reconnecting…')
+
+    rerender(<ConnectionLine stream="live" connection={connected} />)
+
+    expect(line().textContent).toBe('')
+  })
+
+  it('names OpenCode when Fleet lost it', () => {
+    render(<ConnectionLine stream="live" connection={lost} />)
+
+    wait(3000)
+
+    expect(line().textContent).toContain('reconnecting to OpenCode…')
+    expect(line().textContent).toContain('connection refused')
+  })
+
+  it('starts the wait over when the page shows again (a woken phone)', () => {
+    render(<ConnectionLine stream="reconnecting" connection={connected} />)
+
+    wait(5000)
+
+    expect(line().textContent).toContain('reconnecting…')
+
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+
+    expect(line().textContent).toBe('')
+
+    wait(2999)
+
+    expect(line().textContent).toBe('')
+
+    wait(1)
+
+    expect(line().textContent).toContain('reconnecting…')
   })
 })

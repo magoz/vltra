@@ -146,9 +146,7 @@ describe('project cards', () => {
 
     fireEvent.click(within(projectCard('fleet')).getByRole('link', { name: 'Busy run' }))
 
-    expect(
-      within(drawer() ?? document.body).getByRole('heading', { name: /Busy run/ })
-    ).toBeTruthy()
+    expect(drawer()?.querySelector('iframe')?.getAttribute('title')).toBe('Busy run')
 
     press('Escape')
     expect(drawer()).toBeNull()
@@ -189,9 +187,7 @@ describe('keyboard', () => {
     press('j')
     press('Enter')
 
-    expect(
-      within(drawer() ?? document.body).getByRole('heading', { name: /Retry run/ })
-    ).toBeTruthy()
+    expect(drawer()?.querySelector('iframe')?.getAttribute('title')).toBe('Retry run')
 
     press('Escape')
     press('ArrowRight')

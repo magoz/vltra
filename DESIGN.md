@@ -133,20 +133,23 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
 
 ## Clients
 
-**Web (fleet.oox.sh, Mac + phone):** two full-width pages, **Agents** and **Projects**, switched
-by header tabs on desktop and a bottom tab bar on the phone (`1` / `2`). The header carries the
-count line (`6 need you · 17 working · 2 stuck`) on both pages.
+**Web (fleet.oox.sh, Mac + phone):** two full-width pages, **Agents** and **Projects**, as three
+tabs: **Agents** (focus mode), **Board** (Agents' board mode) and **Projects** (`1` / `2` / `3`).
+Desktop: the tabs sit in the header, which also carries the count line (`6 need you · 17 working
+· 2 stuck`). Phone: no header; a bottom tab bar `Agents | Board | Projects | +`, plus a slim
+`reconnecting…` line on top only once a reconnect lasts 3s (page loads and a woken phone stay
+quiet).
 - **Agents has two modes** (`?view=board` for the board; focus is the default, so plain `/` is
   focus):
   - **Focus (default)**: a left sidebar with only the needs-me list (blocked first, oldest wait
     first; then finished, oldest first, with Handled; rows are just project · worktree, title and
-    age, no asks or answer excerpts, since the chat has them), and the selected session's chat
-    (OpenCode web, as in the drawer) open inline in the rest of the page. Nothing selected: a quiet
-    empty state. Handling the open session opens
-    the next needs-me session, so triage is `h`, `h`, `h`. Working and handled sessions are not
-    listed (the header count line still shows them).
-  - **Board**: the four-column kanban below, with the drawer. A header button toggles the modes
-    (`b`); the choice lives in the URL so links and the back button keep it.
+    age, no asks or answer excerpts, since the chat has them), and the selected session open
+    inline in the rest of the page: its chat, the same panel as the drawer. Nothing selected: a
+    quiet empty state. Handling the open session opens the next needs-me session, so triage is
+    `h`, `h`, `h`. Working and handled sessions are not listed (they are on Board; the desktop
+    count line still counts them).
+  - **Board**: the four-column kanban below, with the drawer. Its own tab (`b` toggles Agents ↔
+    Board); the mode lives in the URL so links and the back button keep it.
 - **Agents board = a kanban by state** across all projects, columns `Blocked | Finished |
   Working | Handled` (the two left columns are "needs me"). Cards are minimal, like focus mode's
   rows: project · worktree, title and age, a red mark for failures; asks, answers and live
@@ -161,31 +164,31 @@ count line (`6 need you · 17 working · 2 stuck`) on both pages.
   worktrees are sections listing needs-me and working sessions; handled ones fold into
   "N handled · last 2h", expandable in place (Reopen there). No time limit yet (maybe 30 days
   later).
-- **Phone**: focus mode is the needs-me list; tapping a session opens its chat full screen, back
-  returns to the list. Board mode shows one column at a time via a segmented control (`Blocked 2 · Finished
-  4 · Working 5 · Handled`), opening on the first non-empty needs-me column. Swipe left on a
-  finished card marks it handled (no horizontal column scrolling, so the gesture stays
-  unambiguous).
-- **Keyboard (Mac)**: Focus: `j`/`k` move through the list, `Enter` opens the session on the
-  right, `h` handled (the next needs-me session opens), `u` undo, `b` board. Board: `j`/`k`
-  (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and next finished card), `u`
-  undo, `Enter` opens the drawer, `Esc` closes, `/` focuses the project filter; focus starts on
-  the first needs-me card. No key answers asks: that happens in the chat.
-  Projects: arrows move between cards, `j`/`k` within a card, `Enter` on a card opens its
-  filtered board.
+- **Phone**: focus mode is the needs-me list; tapping a session opens its chat full screen
+  (Handled in its toolbar opens the next needs-me session), back returns to the list. Board mode
+  shows one column at a time via a segmented control (`Blocked 2 · Finished 4 · Working 5 ·
+  Handled`), opening on the first non-empty needs-me column. Swipe left on a finished card marks
+  it handled (no horizontal column scrolling, so the gesture stays unambiguous).
+- **Keyboard (Mac)**: `1` / `2` / `3` the tabs. Focus: `j`/`k` move through the list, `Enter`
+  opens the session on the right, `h` handled (the next needs-me session opens), `u` undo, `b`
+  board. Board: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and next
+  finished card), `u` undo, `Enter` opens the drawer, `Esc` closes, `/` focuses the project
+  filter; focus starts on the first needs-me card. Projects: arrows move between cards, `j`/`k`
+  within a card, `Enter` on a card opens its filtered board. No key answers asks: that happens in
+  the chat.
 
-Tap a session for its panel (a right-side drawer over either page, full screen on the phone):
-OpenCode's chat, framed (messages, asks, follow-ups and Stop all happen there), under a slim
-toolbar with Handled / Reopen and two ways out:
-- **Open in OpenCode** → OpenCode's own web UI on the same server, verified deep link
+Tap a session for its panel (a right-side drawer over the board and Projects, inline in focus
+mode, full screen on the phone): the session's chat, nothing else (no Summary tab; messages,
+changes, the prompt and subagents are all in the chat):
+- **The chat** → OpenCode's own web UI on the same server, framed, verified deep link
   `https://box.tail129a86.ts.net:9446/server/<base64url(origin)>/session/<id>`
   (`app/src/shell/routes/session.ts`; server key = page origin). Works on Mac and phone after a
   one-time `opencode pair` per browser (30-day cookie).
-- **Open in terminal** (Mac only) → `ocb://session/<id>`, handled by a tiny URL-scheme app that
+- **Toolbar**: only what Fleet adds: Handled / Reopen, open the chat in a new tab, and
+  **Open in terminal** (Mac only) → `ocb://session/<id>`, handled by a tiny URL-scheme app that
   `macos/setup-box` installs and that opens a new Ghostty window running `ocb -s <id>`.
   The OpenCode desktop app registers no URL scheme, so it cannot be targeted.
-
-Live via SSE. Installable to the phone home screen.
+- Live via SSE. Installable to the phone home screen.
 
 **Launcher and worktrees (web; the terminal plugin uses the same Fleet routes):** a
 sessionizer for agents. Everything that touches disk runs on Box; clients only call Fleet and
@@ -292,8 +295,8 @@ Cache Components (as in 10x `next.config.ts` and `patterns/EFFECT_PAGES.md`):
 - `'use cache'` helpers with `cacheTag` for slow-changing OpenCode data:
   - projects and worktrees (`fleet:projects`), invalidated on `project.updated` /
     `worktree.updated`;
-  - a finished session's transcript tail for the detail view (`fleet:session:<id>`),
-    invalidated when that session runs again.
+  - a finished run's summary for its card (`fleet:session:<id>`), invalidated when that
+    session runs again.
   Server actions use `updateTag` after mutations. Whether the background watcher (started
   from `instrumentation.ts`, outside a request) may call `revalidateTag` must be verified in
   the installed Next docs (`node_modules/next/dist/docs/`); otherwise it goes through a

@@ -144,8 +144,7 @@ describe('columns', () => {
     // ses_ancient (30 days) is left out.
     const more = within(column('Handled')).getByRole('link', { name: '1 more → Projects' })
 
-    // The mode stays in the URL, so the Agents tab comes back to the board.
-    expect(more.getAttribute('href')).toBe('/projects?view=board')
+    expect(more.getAttribute('href')).toBe('/projects')
 
     fireEvent.click(more)
 
@@ -272,17 +271,21 @@ describe('keyboard', () => {
     }
   })
 
-  it('switches pages with 1 / 2', () => {
+  it('switches tabs with 1 / 2 / 3', () => {
     const { navigations } = renderBoard()
 
-    press('2')
+    press('3')
     expect(screen.getByRole('region', { name: 'Other' })).toBeTruthy()
 
-    press('1')
+    press('2')
     expect(column('Blocked')).toBeTruthy()
+
+    press('1')
+    expect(screen.getByRole('region', { name: 'Needs you' })).toBeTruthy()
     expect(navigations).toEqual([
       { kind: 'go', page: 'projects', project: undefined, view: 'board' },
-      { kind: 'go', page: 'agents', project: undefined, view: 'board' }
+      { kind: 'go', page: 'agents', project: undefined, view: 'board' },
+      { kind: 'view', view: 'focus' }
     ])
   })
 })
@@ -295,18 +298,14 @@ describe('drawer', () => {
 
     press('Enter')
 
-    expect(
-      within(drawer() ?? document.body).getByRole('heading', { name: /Wait old/ })
-    ).toBeTruthy()
+    expect(drawer()?.querySelector('iframe')?.getAttribute('title')).toBe('Wait old')
 
     press('Escape')
     expect(drawer()).toBeNull()
 
     fireEvent.click(within(card('ses_busy')).getByRole('link', { name: 'Busy run' }))
 
-    expect(
-      within(drawer() ?? document.body).getByRole('heading', { name: /Busy run/ })
-    ).toBeTruthy()
+    expect(drawer()?.querySelector('iframe')?.getAttribute('title')).toBe('Busy run')
     // The cursor follows the click.
     expect(cursorID()).toBe('ses_busy')
   })
