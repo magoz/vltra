@@ -139,7 +139,8 @@ count line (`6 need you · 17 working · 2 stuck`) on both pages.
 - **Agents has two modes** (`?view=board` for the board; focus is the default, so plain `/` is
   focus):
   - **Focus (default)**: a left sidebar with only the needs-me list (blocked first, oldest wait
-    first, inline answers; then finished, oldest first, with Handled), and the selected session
+    first; then finished, oldest first, with Handled; rows are just project · worktree, title and
+    age, no asks or answer excerpts, since the chat has them), and the selected session
     open inline in the rest of the page: the same Summary | Chat tabs as the drawer, Chat (OpenCode
     web) by default here. Nothing selected: a quiet empty state. Handling the open session opens
     the next needs-me session, so triage is `h`, `h`, `h`. Working and handled sessions are not
@@ -167,8 +168,8 @@ count line (`6 need you · 17 working · 2 stuck`) on both pages.
   finished card marks it handled (no horizontal column scrolling, so the gesture stays
   unambiguous).
 - **Keyboard (Mac)**: Focus: `j`/`k` move through the list, `Enter` opens the session on the
-  right, `h` handled (the next needs-me session opens), `u` undo, `a`/`d` approve/deny, `c` Summary
-  / Chat, `b` board. Board: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns,
+  right, `h` handled (the next needs-me session opens), `u` undo, `c` Summary / Chat, `b` board
+  (asks are answered in the chat). Board: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns,
   `h` handled (and next finished card), `u` undo, `a`/`d` approve/deny, `Enter` opens the
   drawer, `Esc` closes, `/` focuses the project filter; focus starts on the first needs-me card.
   Projects: arrows move between cards, `j`/`k` within a card, `Enter` on a card opens its

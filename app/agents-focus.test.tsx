@@ -118,10 +118,12 @@ describe('focus mode', () => {
         .getAllByRole('heading')
         .map(heading => heading.textContent)
     ).toEqual(['Blocked2', 'Finished2'])
-    // Inline answers and the Handled button come with the rows.
-    expect(within(row('ses_wait_old')).getByRole('button', { name: /Allow once/ })).toBeTruthy()
+    // Rows are titles (and Handled when finished); asks and run facts are in the chat.
+    expect(row('ses_wait_old').textContent).not.toContain('pnpm test per_old')
+    expect(within(row('ses_wait_old')).queryByRole('button')).toBeNull()
     expect(within(row('ses_done_old')).getByRole('button', { name: 'Handled' })).toBeTruthy()
-    expect(within(row('ses_done_old')).getByText('run failed')).toBeTruthy()
+    expect(within(row('ses_done_old')).getByRole('img', { name: 'Finished · failed' })).toBeTruthy()
+    expect(within(row('ses_done_old')).queryByText('run failed')).toBeNull()
     // Working and handled sessions are not listed, but the count line still has them.
     expect(screen.getByLabelText('Session counts').textContent).toBe(
       '4 need you · 3 working · 2 stuck'
@@ -367,7 +369,7 @@ describe('keyboard', () => {
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
   })
 
-  it('c toggles Summary / Chat of the open session; a / d answer the focused row', async () => {
+  it('c toggles Summary / Chat of the open session; a / d answer nothing unseen', () => {
     const { calls } = renderFocus()
 
     press('c')
@@ -380,22 +382,12 @@ describe('keyboard', () => {
     press('c')
     expect(selectedTab()).toBe('Chat')
 
+    // The list no longer shows asks, so the keys must not answer them blind.
     press('a')
     press('j')
     press('d')
 
-    await waitFor(() =>
-      expect(calls()).toEqual([
-        {
-          action: 'replyPermission',
-          input: { sessionID: 'ses_wait_old', requestID: 'per_old', decision: 'once' }
-        },
-        {
-          action: 'replyPermission',
-          input: { sessionID: 'ses_wait_new', requestID: 'per_new', decision: 'reject' }
-        }
-      ])
-    )
+    expect(calls()).toEqual([])
   })
 
   it('/ focuses the project filter', () => {

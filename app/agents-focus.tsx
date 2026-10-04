@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { AgentCard } from '@/app/agent-card'
 import { useFleet } from '@/app/fleet-context'
-import { firstPermission } from '@/app/pending-asks'
 import { PendingLaunches } from '@/app/pending-launches'
 import { ProjectFilter } from '@/app/project-filter'
 import { SessionPanel } from '@/app/session-panel'
@@ -12,7 +11,6 @@ import type { DrawerTab } from '@/app/use-drawer-tab'
 import { HandledProvider, useHandled } from '@/app/use-handled'
 import type { HandledFlow } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
-import { usePermissionReply } from '@/app/use-permission-reply'
 import { boardRow, buildNeedsMe, needsMeOrder, nextNeedsMe } from '@/lib/data/fleet/board'
 import type { BoardRow } from '@/lib/data/fleet/board'
 import { cn } from '@/lib/utils'
@@ -103,7 +101,6 @@ function Focus({
 }) {
   const { view, now, selection } = useFleet()
   const flow = useHandled()
-  const replyPermission = usePermissionReply()
   const needsMe = useMemo(() => buildNeedsMe(view, project), [view, project])
   const list = useMemo(() => needsMeOrder(needsMe), [needsMe])
   const [cursor, setCursor] = useState<Cursor>()
@@ -159,13 +156,6 @@ function Focus({
     if (target !== undefined) handle(target.id, true)
   }
 
-  const reply = (decision: 'once' | 'reject') =>
-    replyPermission(
-      (focused === undefined ? undefined : firstPermission(focused.row)) ??
-        (selectedRow === undefined ? undefined : firstPermission(selectedRow)),
-      decision
-    )
-
   useKeys({
     j: () => move(1),
     ArrowDown: () => move(1),
@@ -183,8 +173,6 @@ function Focus({
       setCursor({ id, index: 0 })
       selection.select(id)
     },
-    a: () => reply('once'),
-    d: () => reply('reject'),
     c: selected === undefined ? undefined : () => onTab(tab === 'chat' ? 'summary' : 'chat'),
     '/': () => filterRef.current?.focus()
   })
@@ -251,13 +239,13 @@ function Focus({
 /**
  * The Agents page's focus mode (the default, DESIGN.md "Clients" → Web): a sidebar listing the
  * launcher's launches ("Provisioning", unfiltered) and the sessions that need me (blocked,
- * longest wait first, answered in place; then finished, oldest first, with Handled), narrowed by
- * `?project=`, and the open session (`?session=`, also
+ * longest wait first; then finished, oldest first, with Handled; rows are titles only, asks are
+ * answered in the chat), narrowed by `?project=`, and the open session (`?session=`, also
  * one opened from elsewhere) inline in the rest of the page, Chat first. Handling the open
  * session opens the next one in list order. Phone: the list; a session opens full screen. Keys:
  * `j`/`k` (`↓`/`↑`) move, `Enter` opens, `h` handled (the focused or open finished session; the
- * next opens), `u` undo, `a`/`d` allow once / deny, `c` Summary / Chat, `/` filter (the shell
- * adds `b` board and `Escape` closes).
+ * next opens), `u` undo, `c` Summary / Chat, `/` filter (the shell adds `b` board and `Escape`
+ * closes).
  */
 export function AgentsFocus() {
   const { nav } = useFleet()

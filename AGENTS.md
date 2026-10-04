@@ -101,13 +101,14 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 - **Agents focus mode** (`agents-focus.tsx`, default): a sidebar (26rem, hairline right border,
   scrolls on its own) with only the needs-me sessions (`buildNeedsMe` / `needsMeOrder` in
   `board.ts`: blocked, longest wait first, then finished, oldest first; the board's two left
-  columns are the same lists), as compact `AgentCard`s (`compact`: inline answers, Handled, swipe,
-  the finished facts) under `Blocked N` / `Finished N` headings, narrowed by the same project
-  filter (`project-filter.tsx`). The rest of the page shows the open session (`?session=`, also
-  one not in the list, e.g. a working session opened from Projects) inline: the same
-  `SessionPanel` as the drawer, filling the pane (the iframe's absolute fill; no page scroll on
-  desktop), Chat first (page state, independent of the drawer's stored tab). Nothing open: "Pick
-  a session on the left", or "Nothing needs you" when the list is empty. Handling the open session
+  columns are the same lists), as compact `AgentCard`s (`compact`: title, Handled and swipe only;
+  no inline answers or finished facts, the chat has them) under `Blocked N` / `Finished N`
+  headings, narrowed by the same project filter (`project-filter.tsx`). The rest of the page
+  shows the open session (`?session=`, also one not in the list, e.g. a working session opened
+  from Projects) inline: the same `SessionPanel` as the drawer, filling the pane (the iframe's
+  absolute fill; no page scroll on desktop), Chat first (page state, independent of the drawer's
+  stored tab). Nothing open: "Pick a session on the left", or "Nothing needs you" when the list
+  is empty. Handling the open session
   (button, `h`, swipe; focus mode wraps `useHandled` so all three go through it) opens the next one
   in list order (`nextNeedsMe`: the one after it, else the one before), or the empty state. Phone:
   the list full width; a session opens full screen (the pane becomes `fixed inset-0`), its back
@@ -162,9 +163,9 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first, inline
   Agents mode, `n` the launcher (and `⌘K` / `Ctrl+K`, its own listener, also while typing),
   `Escape` closes the session (drawer or inline; the palette closes itself). Focus: `j`/`k` (`↓`/`↑`) through
   the list, `Enter` opens the focused session on the right, `h` handled (the focused finished
-  session, else the open one; the next opens), `u` undo (reopens and opens it), `a`/`d` the
-  focused (else open) session's first permission, `c` Summary / Chat, `/` filter; focus starts on
-  the open session, else the first row. Board: `j`/`k` (`↓`/`↑`) within a
+  session, else the open one; the next opens), `u` undo (reopens and opens it), `c` Summary /
+  Chat, `/` filter (no `a`/`d`: the list shows no asks); focus starts on the open session, else
+  the first row. Board: `j`/`k` (`↓`/`↑`) within a
   column, `←`/`→` between columns, `h` handled + next finished card, `u` undo, `a`/`d` allow once
   / deny the focused card's first permission, `Enter` opens, `/` filter; focus starts on the first
   needs-me card and follows clicks. Projects: arrows between cards (up/down by grid row), `j`/`k`

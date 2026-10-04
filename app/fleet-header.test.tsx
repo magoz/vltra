@@ -62,7 +62,7 @@ describe('header', () => {
     renderHeader('agents')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ↵ open · h handled · u undo · a d allow/deny · c chat · b board · n ⌘K new · / filter · 1 2 pages'
+      'j k move · ↵ open · h handled · u undo · c chat · b board · n ⌘K new · / filter · 1 2 pages'
     )
 
     cleanup()

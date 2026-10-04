@@ -26,7 +26,8 @@ import { cn } from '@/lib/utils'
  * totals, failed / stopped-by-OpenCode labels and Handled (swipe left on a phone does the same).
  * Working: live activity and stuck labels. Handled: Reopen, or "folder deleted". `cursor` is the
  * keyboard focus. `compact` is focus mode's list row: no box of its own, a hairline under it,
- * tighter spacing, and the open session tinted.
+ * tighter spacing, the open session tinted, and no asks or finished facts (the chat has them), so
+ * a row is its title, plus Handled when finished.
  */
 export function AgentCard({
   item,
@@ -96,12 +97,12 @@ export function AgentCard({
         >
           {sessionTitle(row)}
         </RowLink>
-        {row.state === 'blocked' ? (
+        {row.state === 'blocked' && !compact ? (
           <div className="relative z-10 mt-1">
             <PendingAsks row={row} />
           </div>
         ) : null}
-        {finished ? <FinishedFacts row={row} /> : null}
+        {finished && !compact ? <FinishedFacts row={row} /> : null}
         {finished ? (
           <div className="relative z-10 mt-0.5 flex flex-wrap gap-2">
             <HandledButton sessionID={row.id} />
