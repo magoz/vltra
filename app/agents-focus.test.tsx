@@ -323,11 +323,11 @@ describe('tabs', () => {
     ])
   })
 
-  it('⌘1–⌘9 open the Nth session of the list, from any tab; ⌘⇧1–⌘⇧3 switch tabs', () => {
+  it('⌘1–⌘9 open the Nth session of the list, from any tab; ⌘⌥1–⌘⌥3 switch tabs', () => {
     renderFocus()
 
-    const chord = (code: string, shiftKey = false) =>
-      fireEvent.keyDown(document.body, { key: code.slice(-1), code, metaKey: true, shiftKey })
+    const chord = (code: string, altKey = false) =>
+      fireEvent.keyDown(document.body, { key: code.slice(-1), code, metaKey: true, altKey })
 
     chord('Digit3')
 

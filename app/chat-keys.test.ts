@@ -127,10 +127,10 @@ describe('forwardChatKeys', () => {
     const codes: Array<string> = []
 
     document.addEventListener('keydown', event => codes.push(event.code), { once: true })
-    chatFrame.press('@', textarea, { code: 'Digit2', metaKey: true, shiftKey: true })
+    chatFrame.press('™', textarea, { code: 'Digit2', metaKey: true, altKey: true })
 
     expect(codes).toEqual(['Digit2'])
-    expect(chatFrame.fleet).toEqual(['@'])
+    expect(chatFrame.fleet).toEqual(['™'])
   })
 
   it('stops forwarding once detached', () => {

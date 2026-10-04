@@ -15,23 +15,23 @@ describe('commandDigit', () => {
     expect(commandDigit(chord('Digit9'))).toEqual(CommandDigit.Session({ index: 8 }))
   })
 
-  it('⌘⇧1–⌘⇧3 pick a tab, by physical key whatever the layout prints', () => {
-    expect(commandDigit(chord('Digit1', { shift: true }))).toEqual(
+  it('⌘⌥1–⌘⌥3 pick a tab, by physical key whatever the layout prints', () => {
+    expect(commandDigit(chord('Digit1', { alt: true }))).toEqual(
       CommandDigit.Tab({ screen: 'focus' })
     )
-    expect(commandDigit(chord('Digit2', { shift: true }))).toEqual(
+    expect(commandDigit(chord('Digit2', { alt: true }))).toEqual(
       CommandDigit.Tab({ screen: 'agents' })
     )
-    expect(commandDigit(chord('Digit3', { shift: true }))).toEqual(
+    expect(commandDigit(chord('Digit3', { alt: true }))).toEqual(
       CommandDigit.Tab({ screen: 'projects' })
     )
-    expect(commandDigit(chord('Digit4', { shift: true }))).toBeUndefined()
+    expect(commandDigit(chord('Digit4', { alt: true }))).toBeUndefined()
   })
 
-  it('leaves everything else alone: no ⌘, Ctrl or ⌥ too, 0, letters', () => {
+  it('leaves everything else alone: no ⌘, Ctrl or ⇧ too (⌘⇧3 is a screenshot), 0, letters', () => {
     expect(commandDigit({ ...chord('Digit1'), metaKey: false })).toBeUndefined()
     expect(commandDigit(chord('Digit1', { ctrl: true }))).toBeUndefined()
-    expect(commandDigit(chord('Digit1', { alt: true }))).toBeUndefined()
+    expect(commandDigit(chord('Digit1', { shift: true }))).toBeUndefined()
     expect(commandDigit(chord('Digit0'))).toBeUndefined()
     expect(commandDigit(chord('KeyK'))).toBeUndefined()
   })

@@ -108,7 +108,7 @@ function useLauncherShortcut(open: () => void) {
 }
 
 /**
- * `⌘1`–`⌘9` / `⌘⇧1`–`⌘⇧3` (`commandDigit`) from anywhere, in the OpenCode chat too
+ * `⌘1`–`⌘9` / `⌘⌥1`–`⌘⌥3` (`commandDigit`) from anywhere, in the OpenCode chat too
  * (`forwardChatKeys`), even while typing; not in a dialog. Always taken, so the browser never
  * switches tabs instead.
  */
