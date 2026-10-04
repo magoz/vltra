@@ -5,13 +5,12 @@ import { CommandKey, commandKey } from '@/app/command-keys'
 
 /**
  * The dashboard's keys (desktop). Each page binds its own; the shell binds the tabs' `1`, `2`,
- * `3`, and `b`, `n`, `?`, `Escape` (`⌘/` is the launcher's own listener). Keys pressed in the
+ * `3`, and `n`, `?`, `Escape` (`⌘/` is the launcher's own listener). Keys pressed in the
  * OpenCode chat that it does not own reach here too (`forwardChatKeys`).
  */
 export type FleetKey =
   | 'i'
   | 'n'
-  | 'b'
   | 'j'
   | 'k'
   | 'h'
@@ -34,7 +33,6 @@ export type KeyBindings = { readonly [Key in FleetKey]?: (() => void) | undefine
 const fleetKeys: ReadonlyArray<string> = [
   'i',
   'n',
-  'b',
   'j',
   'k',
   'h',

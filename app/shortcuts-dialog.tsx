@@ -7,7 +7,7 @@ type KeyHint = { readonly keys: string; readonly label: string }
 
 /**
  * Each tab's keys (`agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`), plus the
- * shell's: `n` (the launcher, also `⌘/`), `b` (Focus ↔ Agents), `1` / `2` / `3` and `⌘⌥1`–`⌘⌥3`
+ * shell's: `n` (the launcher, also `⌘/`), `1` / `2` / `3` and `⌘⌥1`–`⌘⌥3`
  * (the tabs), `⌘1`–`⌘9` (Focus' Nth session), `Escape` (close the session) and `?` (this list).
  */
 export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
@@ -16,7 +16,6 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: '↵', label: 'open' },
     { keys: 'h ⌘D', label: 'done' },
     { keys: 'u ⌘U', label: 'undo' },
-    { keys: 'b', label: 'agents' },
     { keys: 'n ⌘/', label: 'new' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
     { keys: '1 2 3 ⌘⌥1–3', label: 'tabs' },
@@ -30,7 +29,6 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: '↵', label: 'open' },
     { keys: 'h ⌘D', label: 'done' },
     { keys: 'u ⌘U', label: 'undo' },
-    { keys: 'b', label: 'focus' },
     { keys: 'n ⌘/', label: 'new' },
     { keys: '/', label: 'filter' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },

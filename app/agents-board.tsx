@@ -317,7 +317,7 @@ function Board({ project }: { readonly project: string | undefined }) {
  * chat. The open session (`?session=`) is a split: its chat docks on the right and the columns
  * narrow beside it, so cards stay clickable; the phone shows it full screen. Keys: `j`/`k`
  * (`↓`/`↑`) within a column, `←`/`→` between columns, `h` done (and the next card), `u` undo,
- * `Enter` opens the focused card's chat, `/` focuses the project filter (`b`, Focus, and
+ * `Enter` opens the focused card's chat, `/` focuses the project filter (the tabs and
  * `Escape`, closing the chat, are the shell's).
  */
 export function AgentsBoard() {

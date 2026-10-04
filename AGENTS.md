@@ -110,8 +110,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   `openSession` (the launcher) pushes Focus with the session. `moveTo` in `fleet-href.ts` decides
   the filter: given (Projects card headers, and `Enter` on a card, open the board filtered), else
   kept between Focus (which ignores it) and Agents; Projects has none, so from it they start
-  unfiltered. `b`
-  toggles Focus ↔ Agents; `1` / `2` / `3` pick a tab.
+  unfiltered. `1` / `2` / `3` pick a tab.
 - **Focus** (`agents-focus.tsx`, default): a sidebar (26rem, hairline right border,
   scrolls on its own) with only the needs-me sessions (`buildNeedsMe` / `needsMeOrder` in
   `board.ts`: blocked, longest wait first, then finished, oldest first; the board's Need you
@@ -202,9 +201,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first,
   and drop. Phone: swipe a finished card left (`use-swipe.ts`); the `✔ Done` button stays.
 - Keys (`use-keys.ts`, desktop; ignored while typing (except `Escape`), with modifiers and in
   dialogs; in the chat, `chat-keys.ts` hands Fleet the keys the chat does not own, see the
-  session panel): shell `1` / `2` / `3` the tabs, `b`
-  Focus ↔ Agents, `n` the launcher (and `⌘/` / `Ctrl+/`, `isLauncherKey`, its own listener,
-  also while typing),
+  session panel): shell `1` / `2` / `3` the tabs, `n` the launcher (and `⌘/` / `Ctrl+/`,
+  `isLauncherKey`, its own listener, also while typing),
   `?` the tab's keys (`shortcuts-dialog.tsx`, `keyHints`; also the header's `?`; no hints line),
   `Escape` closes the session (the palette closes itself). `⌘1`–`⌘9` open Focus' Nth session
   (in Focus from another tab) and `⌘⌥1`–`⌘⌥3` pick a tab, `⌘U` is the tab's `u` (`useKeys`),

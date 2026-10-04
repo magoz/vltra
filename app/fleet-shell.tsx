@@ -139,7 +139,7 @@ function useCommandKeys(run: (chord: CommandKey) => void) {
  * desktop header with the count line, key hint and connection, or the phone's bottom tab bar,
  * whose only other chrome is a reconnecting line when the link is down) and Handled / Undo /
  * Reopen. Each tab shows the open session (`?session=`) itself: Focus' pane, the board's and
- * Projects' split (`SessionSplit`). Keys: `1` / `2` / `3` the tabs, `b` Focus ↔ Agents, `Escape`
+ * Projects' split (`SessionSplit`). Keys: `1` / `2` / `3` the tabs, `Escape`
  * closes the session, `n` / `⌘/` open the launcher (its palette, its list for the Projects cards,
  * and the auto-open of a launch started here).
  */
@@ -165,7 +165,6 @@ export function FleetShell({
   const fleet = useMemo(() => ({ view, now, selection, nav }), [view, now, selection, nav])
   const { selected } = selection
   const { screen } = nav
-  const agents = screen !== 'projects'
   const launcherList = useLauncherList()
   const usage = useUsage()
   const [launcherOpen, setLauncherOpen] = useState(false)
@@ -218,7 +217,6 @@ export function FleetShell({
     '1': screen === 'focus' ? undefined : () => nav.show('focus'),
     '2': screen === 'agents' ? undefined : () => nav.show('agents'),
     '3': screen === 'projects' ? undefined : () => nav.show('projects'),
-    b: agents ? () => nav.show(screen === 'agents' ? 'focus' : 'agents') : undefined,
     Escape: selected === undefined ? undefined : selection.close
   })
 

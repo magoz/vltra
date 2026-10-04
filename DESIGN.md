@@ -154,7 +154,7 @@ only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
     count line still counts them). The list marks the open session only; `j`/`k` show a cursor
     until another session opens, so nothing else ever looks selected.
   - **Agents**: the three-column kanban below, split with the open session's chat. Its own tab
-    (`b` toggles Focus ↔ Agents); the view lives in the URL so links and the back button keep it.
+    (`2`); the view lives in the URL so links and the back button keep it.
 - **Agents = a kanban by state** across all projects, columns `Need you | Working | Done`.
   Cards are minimal, like Focus' rows: project, title and age, the worktree with its PR, a red mark for
   failures; asks, answers and live activity are left to the chat. Need you: blocked first
@@ -183,8 +183,7 @@ only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
 - **Keyboard (Mac)**: `1` / `2` / `3` (or `⌘⌥1`–`⌘⌥3`, also inside the chat) the tabs; `⌘1`–`⌘9`
   open Focus' Nth session from anywhere, inside the chat too; `⌘D` marks the open session done, `⌘U` undoes; opening a
   chat puts the caret in its composer (desktop), and `i` / `⌘I` put it back after `Esc`. Focus: `j`/`k` move through the list, `Enter`
-  opens the session on the right, `h` handled (the next needs-me session opens), `u` undo, `b`
-  Agents. Agents: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and the
+  opens the session on the right, `h` handled (the next needs-me session opens), `u` undo. Agents: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and the
   next card), `u` undo, `Enter` opens the chat, `Esc` closes it, `/` focuses the project
   filter; focus starts on the first needs-me card. Projects: arrows move between cards, `j`/`k`
   within a card, `Enter` on a card opens its filtered board. No key answers asks: that happens in

@@ -275,18 +275,18 @@ describe('tabs', () => {
     expect(within(pane()).getByRole('heading', { name: 'Done old' })).toBeTruthy()
     expect(headerTab('Agents').getAttribute('aria-current')).toBe('page')
 
-    press('b')
-
-    expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
-    expect(testLocation()).toBe('/?project=prj_fleet&session=ses_done_old')
-
+    // `b` no longer toggles Focus ↔ Agents.
     press('b')
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
+
+    fireEvent.click(headerTab('Focus'))
+
+    expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
+    expect(testLocation()).toBe('/?project=prj_fleet&session=ses_done_old')
     expect(navigations).toEqual([
       { kind: 'show', screen: 'agents', project: 'prj_fleet' },
-      { kind: 'show', screen: 'focus', project: 'prj_fleet' },
-      { kind: 'show', screen: 'agents', project: 'prj_fleet' }
+      { kind: 'show', screen: 'focus', project: 'prj_fleet' }
     ])
   })
 
