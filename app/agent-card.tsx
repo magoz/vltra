@@ -31,9 +31,9 @@ function Flags({ row, now }: { readonly row: FleetRow; readonly now: number }) {
 
 /**
  * A session's card, on the Agents board and in focus mode's list: marker (red for a failed run),
- * project · worktree, a "blocked" badge (both lists hold blocked and finished alike), age and
- * `✔ Done` when finished (with a mouse only on hover, in the age's place; on touch always, left
- * of the age, and swiping left does the same), title, the stuck /
+ * project · worktree, a "blocked" badge (both lists hold blocked and finished alike), `✔ Done`
+ * left of the age when finished (with a mouse only on hover, the project name giving way; on
+ * touch always, and swiping left does the same), age, title, the stuck /
  * "folder deleted" flags, then Reopen when done. Asks, answers and activity are left to the
  * chat. `cursor` is the keyboard focus. `compact` is focus mode's list row: no box of its own, a
  * hairline under it, tighter spacing, and the open session tinted.
@@ -88,7 +88,7 @@ export function AgentCard({
           swipe.offset === 0 && 'transition-transform'
         )}
       >
-        <div className="text-muted-foreground relative flex items-baseline gap-2 text-xs">
+        <div className="text-muted-foreground flex items-baseline gap-2 text-xs">
           <StateMarker
             state={row.state}
             failed={row.outcome === 'failed'}
@@ -107,15 +107,12 @@ export function AgentCard({
               size="sm"
               className={cn(
                 'relative z-10 -my-1 self-center',
-                // Mouse: only on hover, laid over the age (hidden meanwhile) at the line's end,
-                // so the project name does not move.
-                'pointer-fine:bg-background pointer-fine:absolute pointer-fine:inset-y-0 pointer-fine:right-0 pointer-fine:my-auto pointer-fine:hidden pointer-fine:group-hover/card:inline-flex'
+                // Mouse: only on hover, left of the age (the project name gives way).
+                'pointer-fine:hidden pointer-fine:group-hover/card:inline-flex'
               )}
             />
           ) : null}
-          <span className={finished ? 'pointer-fine:group-hover/card:invisible' : undefined}>
-            <Age row={row} now={now} />
-          </span>
+          <Age row={row} now={now} />
         </div>
         <RowLink
           row={row}
