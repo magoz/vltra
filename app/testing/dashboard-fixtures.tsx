@@ -90,7 +90,7 @@ export type ActionCall =
   | { readonly action: 'markViewed'; readonly input: Input<'markViewed'> }
   | { readonly action: 'launch'; readonly input: Input<'launch'> }
   | { readonly action: 'dismissLaunch'; readonly input: Input<'dismissLaunch'> }
-  | { readonly action: 'openCheckout'; readonly input: Input<'openCheckout'> }
+  | { readonly action: 'newSession'; readonly input: Input<'newSession'> }
   | { readonly action: 'retireWorktree'; readonly input: Input<'retireWorktree'> }
   | { readonly action: 'deleteProject'; readonly input: Input<'deleteProject'> }
   | { readonly action: 'suggestBranch'; readonly input: Input<'suggestBranch'> }
@@ -98,7 +98,7 @@ export type ActionCall =
 /** What the fake value actions answer (a suggestion per task, else the fallback-like default). */
 export type FakeValues = {
   readonly launchID: string
-  readonly opened: { readonly sessionID: string; readonly created: boolean }
+  readonly opened: { readonly sessionID: string }
   readonly suggest: (task: string) => {
     readonly branch: string
     readonly source: 'model' | 'fallback'
@@ -107,7 +107,7 @@ export type FakeValues = {
 
 const defaultValues: FakeValues = {
   launchID: 'launch-1',
-  opened: { sessionID: 'ses_opened', created: false },
+  opened: { sessionID: 'ses_opened' },
   suggest: () => ({ branch: 'feat/suggested-name', source: 'model' })
 }
 
@@ -148,7 +148,7 @@ export const fakeActions = (failWith?: string, values: Partial<FakeValues> = {})
     markViewed: input => record({ action: 'markViewed', input }),
     launch: input => recordValue({ action: 'launch', input }, { launchID: answers.launchID }),
     dismissLaunch: input => record({ action: 'dismissLaunch', input }),
-    openCheckout: input => recordValue({ action: 'openCheckout', input }, answers.opened),
+    newSession: input => recordValue({ action: 'newSession', input }, answers.opened),
     retireWorktree: input => record({ action: 'retireWorktree', input }),
     deleteProject: input => record({ action: 'deleteProject', input }),
     suggestBranch: input =>

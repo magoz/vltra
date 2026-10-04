@@ -48,6 +48,13 @@ export const OpenCheckoutInput = Schema.Struct({ directory: Directory })
 
 export type OpenCheckoutInput = typeof OpenCheckoutInput.Type
 
+export const NewSessionInput = Schema.Struct({ directory: Directory })
+
+export type NewSessionInput = typeof NewSessionInput.Type
+
+/** A session the launcher just created. */
+export type NewSession = { readonly sessionID: string }
+
 export const RetireWorktreeInput = Schema.Struct({ projectID: Id, directory: Directory })
 
 export type RetireWorktreeInput = typeof RetireWorktreeInput.Type
@@ -224,7 +231,28 @@ export const suggestBranch = (input: SuggestBranchInput) =>
   )
 
 /**
- * Opening a repository or worktree from the launcher: its latest root session, or a new empty
+ * A new empty session in a repository or worktree (the launcher's Enter), never resuming one.
+ * Refused unless the folder is a git checkout on Box.
+ */
+export const newSession = (input: NewSessionInput) =>
+  Effect.gen(function* () {
+    const info = yield* Effect.flatMap(Repos, repos => repos.inspect(input.directory))
+
+    if (Option.isNone(info)) {
+      return yield* new NotACheckoutError({ directory: input.directory })
+    }
+
+    const session = yield* withConnection(connection =>
+      connection.createSession({ directory: info.value.directory, title: undefined })
+    )
+
+    const created: NewSession = { sessionID: session.id }
+
+    return created
+  }).pipe(Effect.withSpan('launcher.new-session'))
+
+/**
+ * Opening a repository or worktree (the terminal plugin): its latest root session, or a new empty
  * session there when it has none (only in a real checkout on Box).
  */
 export const openCheckout = (input: OpenCheckoutInput) =>
@@ -238,17 +266,8 @@ export const openCheckout = (input: OpenCheckoutInput) =>
       return opened
     }
 
-    const info = yield* Effect.flatMap(Repos, repos => repos.inspect(input.directory))
-
-    if (Option.isNone(info)) {
-      return yield* new NotACheckoutError({ directory: input.directory })
-    }
-
-    const session = yield* withConnection(connection =>
-      connection.createSession({ directory: info.value.directory, title: undefined })
-    )
-
-    const opened: OpenedCheckout = { sessionID: session.id, created: true }
+    const { sessionID } = yield* newSession(input)
+    const opened: OpenedCheckout = { sessionID, created: true }
 
     return opened
   }).pipe(Effect.withSpan('launcher.open'))

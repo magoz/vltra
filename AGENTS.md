@@ -161,9 +161,11 @@ Handled` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait fir
   `FLEET_LAUNCHER_ROOTS` (plus OpenCode's project folders) with their linked worktrees, owner (the
   dotfiles marker, else `pi`; `detached` for OpenCode's own git-strategy checkouts) and PR state,
   most recent agent activity first. Type to fuzzy-filter (`palette.ts`), `↑`/`↓` (`j`/`k` once the
-  list has focus) to move, `Enter` opens the latest root session there, or a new empty one
-  (`openCheckout`), in focus mode. The last row, `+ New worktree in <highlighted repo>…`, switches to
-  a task textarea and a branch field filled by `suggestBranch` 600ms after typing stops ("suggested";
+  list has focus) to move. The highlighted row shows its two actions (their own `li role="none"`
+  after the option; hovering does not move the highlight, a click/tap does):
+  `↵ New session in <repo · branch>` (`newSession`: always a new empty session there, opened in
+  focus mode; no open-latest, `openCheckout` is the terminal plugin's) and `⇧↵ New worktree in <repo>…`, which
+  switches to a task textarea and a branch field filled by `suggestBranch` 600ms after typing stops ("suggested";
   editing it stops the suggestions; `⌘↵` creates). Create calls `launch` (returns at once), closes
   the palette and toasts; the launch's session opens when it is ready if the user is still on the
   same page and mode and has not opened anything else meanwhile.
@@ -209,7 +211,7 @@ Handled` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait fir
   the chat. Being same-site, the iframe runs on Fleet's main thread: keep one chat mounted at a
   time (no hidden pages, no pools).
 - Mutations go through `FleetActions` (`app/fleet-actions.tsx`): the dashboard provides the server
-  actions (the launcher's `launch`, `openCheckout`, `retireWorktree`, `dismissLaunch` and
+  actions (the launcher's `launch`, `newSession`, `retireWorktree`, `dismissLaunch` and
   `suggestBranch` return `FleetActionValue`s when they carry a value), component tests provide
   recording fakes (`app/testing/dashboard-fixtures.tsx`:
   `WithFleet` for one card, `TestDashboard` for the whole dashboard with the URL in state, read

@@ -5,6 +5,7 @@ import { busySessions, latestSessionIn } from '@/lib/data/fleet/checkouts'
 import {
   buildLauncher,
   loadLauncher,
+  newSession,
   openCheckout,
   retireRefusal,
   retireWorktree,
@@ -286,6 +287,35 @@ describe('openCheckout', () => {
       )
 
       expect(error._tag).toBe('NotACheckoutError')
+    })
+  )
+})
+
+describe('newSession', () => {
+  it.effect('always creates a new empty session, even where one exists', () =>
+    Effect.gen(function* () {
+      const { fake, layer } = yield* setUp
+
+      expect(yield* newSession({ directory: fleetX }).pipe(Effect.provide(layer))).toEqual({
+        sessionID: 'ses_created_1'
+      })
+      expect((yield* fake.calls).filter(call => call.op === 'createSession')).toEqual([
+        { op: 'createSession', directory: fleetX, title: undefined }
+      ])
+    })
+  )
+
+  it.effect('refuses a folder that is not a checkout', () =>
+    Effect.gen(function* () {
+      const { fake, layer } = yield* setUp
+
+      const error = yield* newSession({ directory: '/tmp/elsewhere' }).pipe(
+        Effect.provide(layer),
+        Effect.flip
+      )
+
+      expect(error._tag).toBe('NotACheckoutError')
+      expect(yield* fake.calls).toEqual([])
     })
   )
 })

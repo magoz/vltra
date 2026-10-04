@@ -68,6 +68,15 @@ const rows = () =>
 const highlighted = () =>
   options().find(option => option.getAttribute('aria-selected') === 'true')?.textContent
 
+/** The highlighted row's actions, as `key label`. */
+const actionNames = () =>
+  within(palette())
+    .getAllByRole('button', { name: /^New / })
+    .map(button => button.textContent)
+
+const newWorktree = (repo: string) =>
+  within(palette()).getByRole('button', { name: `New worktree in ${repo}…` })
+
 const filter = () => within(palette()).getByRole('textbox', { name: /filter/i })
 
 const loaded = () => waitFor(() => expect(options().length).toBeGreaterThan(1))
@@ -87,7 +96,7 @@ afterEach(() => {
 })
 
 describe('launcher palette', () => {
-  it('opens on n with repositories by activity, their worktrees, and New last', async () => {
+  it('opens on n with repositories by activity and their worktrees, the first one offering its actions', async () => {
     renderDashboard()
 
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -100,15 +109,14 @@ describe('launcher palette', () => {
       'worktree └',
       'worktree └',
       'repo box5h',
-      'repo anvil',
-      'new +'
+      'repo anvil'
     ])
     // Under their repository, worktrees go by branch alone.
     expect(rows()[1]).toBe('worktree └ feat/x#7 open1 working3h')
     expect(rows()[3]).toContain('pi/thing')
     expect(rows()[3]).toContain('pi')
-    expect(rows().at(-1)).toBe('new + New worktree in fleet…')
-    expect(highlighted()).toContain('fleet')
+    // Only the highlighted row shows what it starts; no open-latest, no separate New row.
+    expect(actionNames()).toEqual(['↵New session in fleet', '⇧↵New worktree in fleet…'])
     expect(document.activeElement).toBe(filter())
   })
 
@@ -125,33 +133,33 @@ describe('launcher palette', () => {
     await loaded()
   })
 
-  it('fuzzy-filters and opens the highlighted checkout in focus mode', async () => {
+  it('Enter starts a new session in the highlighted checkout and opens it', async () => {
     const { calls, navigations } = renderDashboard({ screen: 'projects' })
 
     await openPalette()
 
     fireEvent.change(filter(), { target: { value: 'done' } })
 
-    expect(rows()).toEqual([
-      'worktree └ fleet · feat/donemerged · retire',
-      'new + New worktree in fleet…'
-    ])
+    expect(rows().map(row => row.split('merged')[0])).toEqual(['worktree └ fleet · feat/done'])
+    expect(actionNames()).toEqual(['↵New session in fleet · feat/done', '⇧↵New worktree in fleet…'])
 
     fireEvent.keyDown(filter(), { key: 'Enter' })
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(calls()).toEqual([{ action: 'openCheckout', input: { directory: fleetDone } }])
+    expect(calls()).toEqual([{ action: 'newSession', input: { directory: fleetDone } }])
     expect(navigations).toEqual([{ kind: 'open', session: 'ses_opened' }])
     expect(testLocation()).toBe('/?session=ses_opened')
+    expect(await screen.findByText('New session in fleet · feat/done')).toBeTruthy()
   })
 
-  it('moves with ↑ ↓ (and j k from the list); New follows the highlighted repository', async () => {
+  it('moves with ↑ ↓ (and j k from the list); the actions follow the highlight', async () => {
     renderDashboard()
 
     await openPalette()
 
     fireEvent.keyDown(filter(), { key: 'ArrowDown' })
     expect(highlighted()).toContain('feat/x')
+    expect(actionNames()[0]).toBe('↵New session in fleet · feat/x')
 
     fireEvent.keyDown(filter(), { key: 'j' })
     expect(highlighted()).toContain('feat/x')
@@ -162,12 +170,35 @@ describe('launcher palette', () => {
     fireEvent.keyDown(list, { key: 'j' })
     fireEvent.keyDown(list, { key: 'j' })
     expect(highlighted()).toContain('box')
-    expect(rows().at(-1)).toBe('new + New worktree in box…')
+    expect(actionNames()).toEqual(['↵New session in box', '⇧↵New worktree in box…'])
 
     fireEvent.keyDown(list, { key: 'k' })
     fireEvent.keyDown(filter(), { key: 'ArrowUp' })
     expect(highlighted()).toContain('feat/done')
-    expect(rows().at(-1)).toBe('new + New worktree in fleet…')
+    expect(actionNames()[1]).toBe('⇧↵New worktree in fleet…')
+  })
+
+  it('a tap highlights a row (hovering does not), then its action runs', async () => {
+    const { calls } = renderDashboard()
+
+    await openPalette()
+
+    const boxRow = options()[4]
+
+    if (boxRow === undefined) throw new Error('missing box')
+
+    fireEvent.mouseMove(boxRow)
+    expect(highlighted()).toContain('fleet')
+
+    fireEvent.click(boxRow)
+    expect(highlighted()).toContain('box')
+    expect(calls()).toEqual([])
+
+    fireEvent.click(within(palette()).getByRole('button', { name: /New session in box/ }))
+
+    await waitFor(() =>
+      expect(calls()).toEqual([{ action: 'newSession', input: { directory: box } }])
+    )
   })
 
   it('starts a new worktree: task, debounced suggestion, editable branch, Create', async () => {
@@ -180,9 +211,7 @@ describe('launcher palette', () => {
     await openPalette()
 
     fireEvent.change(filter(), { target: { value: 'anvil' } })
-    fireEvent.keyDown(filter(), { key: 'ArrowDown' })
-    expect(highlighted()).toBe('+ New worktree in anvil…')
-    fireEvent.keyDown(filter(), { key: 'Enter' })
+    fireEvent.keyDown(filter(), { key: 'Enter', shiftKey: true })
 
     expect(within(palette()).getByText('New worktree in anvil')).toBeTruthy()
 
@@ -224,7 +253,7 @@ describe('launcher palette', () => {
 
     await openPalette()
 
-    fireEvent.click(within(palette()).getByText('+ New worktree in fleet…'))
+    fireEvent.click(newWorktree('fleet'))
     fireEvent.change(within(palette()).getByRole('textbox', { name: 'Task' }), {
       target: { value: 'x' }
     })
@@ -288,7 +317,7 @@ describe('pending launches', () => {
 
     await openPalette()
 
-    fireEvent.click(within(palette()).getByText('+ New worktree in fleet…'))
+    fireEvent.click(newWorktree('fleet'))
     fireEvent.change(within(palette()).getByRole('textbox', { name: 'Task' }), {
       target: { value: 'Add the launcher palette' }
     })
@@ -315,7 +344,7 @@ describe('pending launches', () => {
 
     await openPalette()
 
-    fireEvent.click(within(palette()).getByText('+ New worktree in fleet…'))
+    fireEvent.click(newWorktree('fleet'))
     fireEvent.change(within(palette()).getByRole('textbox', { name: 'Task' }), {
       target: { value: 'x' }
     })

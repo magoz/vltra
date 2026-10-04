@@ -2,7 +2,7 @@
 
 import { Option, Predicate } from 'effect'
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
-import type { KeyboardEvent, ReactNode } from 'react'
+import type { KeyboardEvent } from 'react'
 import { toast } from 'sonner'
 import { settled, useFleetActions } from '@/app/fleet-actions'
 import { useFleet } from '@/app/fleet-context'
@@ -50,14 +50,12 @@ function Tally({ sessions }: { readonly sessions: SessionTally }) {
 function Row({
   item,
   now,
-  grouped,
-  children
+  grouped
 }: {
   readonly item: PaletteItem
   readonly now: number
   /** Worktrees right under their repository (no filter): no repository prefix. */
   readonly grouped: boolean
-  readonly children?: ReactNode
 }) {
   const at = item.kind === 'repo' ? item.entry.lastActivity : item.worktree.activeAt
 
@@ -83,13 +81,75 @@ function Row({
         ) : null}
         <Tally sessions={item.kind === 'repo' ? item.entry.sessions : item.worktree.sessions} />
         {at === undefined ? null : <span>{relativeTime(at, now)}</span>}
-        {children}
       </span>
     </>
   )
 }
 
-/** The palette's first step: pick a repository or worktree, or start a new worktree. */
+/** Where a row's new session runs: the repository, or `repo · branch` for a worktree. */
+const placeName = (item: PaletteItem) =>
+  item.kind === 'repo' ? item.entry.name : `${item.entry.name} · ${worktreeName(item.worktree)}`
+
+const placeDirectory = (item: PaletteItem) =>
+  item.kind === 'repo' ? item.entry.directory : item.worktree.directory
+
+/**
+ * The highlighted row's two actions, keys shown on desktop: `↵` a new session there, `⇧↵` a new
+ * worktree in its repository. Their own list item after the option (an option's children are
+ * presentational to assistive tech). Buttons for pointers (the phone taps a row, then an action);
+ * the keyboard uses the keys, so they stay out of the tab order.
+ */
+function RowActions({
+  item,
+  starting,
+  onSession,
+  onWorktree
+}: {
+  readonly item: PaletteItem
+  readonly starting: boolean
+  readonly onSession: () => void
+  readonly onWorktree: () => void
+}) {
+  const action =
+    'hover:text-foreground flex w-full items-baseline gap-3 py-1 text-left disabled:opacity-50 max-lg:py-2.5'
+
+  return (
+    <div className="text-muted-foreground pl-4 text-xs">
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-keyshortcuts="Enter"
+        disabled={starting}
+        onClick={onSession}
+        className={cn(action, 'text-attention')}
+      >
+        <kbd aria-hidden="true" className="text-foreground w-6 font-mono max-lg:hidden">
+          ↵
+        </kbd>
+        {starting ? 'Starting…' : `New session in ${placeName(item)}`}
+      </button>
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-keyshortcuts="Shift+Enter"
+        disabled={starting}
+        onClick={onWorktree}
+        className={action}
+      >
+        <kbd aria-hidden="true" className="text-foreground w-6 font-mono max-lg:hidden">
+          ⇧↵
+        </kbd>
+        New worktree in {item.entry.name}…
+      </button>
+    </div>
+  )
+}
+
+/**
+ * The palette's first step: pick a repository or worktree. The highlighted row shows what it can
+ * start: `Enter` a new session there, `Shift+Enter` a new worktree in its repository. Hovering
+ * does not move the highlight (its actions would make the rows below jump); a click does.
+ */
 function PickStep({
   list,
   onNew,
@@ -103,65 +163,40 @@ function PickStep({
   const { now, nav } = useFleet()
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
-  const [target, setTarget] = useState<string>()
-  const [opening, setOpening] = useState<string>()
+  const [starting, setStarting] = useState<string>()
   const [, startTransition] = useTransition()
   const entries = useMemo(() => list?.entries ?? [], [list])
   const items = useMemo(() => paletteItems(entries, query), [entries, query])
   const highlighted = useRef<HTMLLIElement>(null)
-  // The new-worktree row comes last: one past the items.
-  const count = items.length + (entries.length === 0 ? 0 : 1)
-  const index = Math.max(0, Math.min(cursor, count - 1))
+  const index = Math.max(0, Math.min(cursor, items.length - 1))
   const current = items[index]
-
-  /** The repository the last row starts a worktree in: the highlighted row's, else the last one. */
-  const targetEntry: LauncherEntry | undefined =
-    current?.entry ??
-    entries.find(entry => entry.directory === target) ??
-    items[0]?.entry ??
-    entries[0]
 
   useEffect(() => {
     highlighted.current?.scrollIntoView?.({ block: 'nearest' })
   }, [index])
 
-  const move = (delta: number) => {
-    const next = Math.max(0, Math.min(index + delta, count - 1))
-    const item = items[next]
+  const move = (delta: number) => setCursor(Math.max(0, Math.min(index + delta, items.length - 1)))
 
-    if (item !== undefined) setTarget(item.entry.directory)
+  const startSession = (item: PaletteItem) => {
+    if (starting !== undefined) return
 
-    setCursor(next)
-  }
-
-  const open = (item: PaletteItem) => {
-    const directory = item.kind === 'repo' ? item.entry.directory : item.worktree.directory
-
-    setOpening(item.key)
+    setStarting(item.key)
 
     startTransition(async () => {
-      const result = await settled(actions.openCheckout({ directory }))
+      const result = await settled(actions.newSession({ directory: placeDirectory(item) }))
 
-      setOpening(undefined)
+      setStarting(undefined)
 
       if (Predicate.isTagged(result, 'Error')) {
-        toast.error(`Could not open: ${result.message}`)
+        toast.error(`Could not start a session: ${result.message}`)
 
         return
       }
 
       onClose()
       nav.openSession(result.value.sessionID)
-
-      if (result.value.created) toast(`New session in ${item.entry.name}`)
+      toast(`New session in ${placeName(item)}`)
     })
-  }
-
-  const activate = () => {
-    if (opening !== undefined) return
-
-    if (current !== undefined) open(current)
-    else if (targetEntry !== undefined) onNew(targetEntry.directory)
   }
 
   const onKeyDown = (event: KeyboardEvent) => {
@@ -169,15 +204,17 @@ function PickStep({
 
     if (event.key === 'ArrowDown' || (!typing && event.key === 'j')) move(1)
     else if (event.key === 'ArrowUp' || (!typing && event.key === 'k')) move(-1)
-    else if (event.key === 'Enter') activate()
-    else return
+    else if (event.key === 'Enter' && current !== undefined) {
+      if (event.shiftKey) onNew(current.entry.directory)
+      else startSession(current)
+    } else return
 
     event.preventDefault()
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
-      <DialogTitle className="sr-only">Open a repository or worktree</DialogTitle>
+      <DialogTitle className="sr-only">Start a session or a worktree</DialogTitle>
       <div className="flex items-center gap-2 border-b px-3 py-2">
         <Input
           autoFocus
@@ -186,10 +223,10 @@ function PickStep({
             setQuery(event.target.value)
             setCursor(0)
           }}
-          placeholder="Open a repo or worktree…"
+          placeholder="Find a repo or worktree…"
           aria-label="Filter repositories and worktrees"
           aria-controls="launcher-list"
-          aria-activedescendant={count === 0 ? undefined : `launcher-row-${index}`}
+          aria-activedescendant={current === undefined ? undefined : `launcher-row-${index}`}
           className="border-0 px-0 shadow-none focus-visible:ring-0"
         />
         <DialogClose render={<Button variant="ghost" size="sm" className="lg:hidden" />}>
@@ -202,6 +239,8 @@ function PickStep({
         <p className="text-muted-foreground px-3 py-6 text-center text-xs">
           No git repositories under the launcher roots.
         </p>
+      ) : items.length === 0 ? (
+        <p className="text-muted-foreground px-3 py-6 text-center text-xs">No matches.</p>
       ) : (
         <ul
           id="launcher-list"
@@ -210,7 +249,7 @@ function PickStep({
           tabIndex={0}
           className="min-h-0 flex-1 overflow-y-auto py-1 outline-none"
         >
-          {items.map((item, position) => (
+          {items.map((item, position) => [
             <li
               key={item.key}
               id={`launcher-row-${position}`}
@@ -218,38 +257,28 @@ function PickStep({
               role="option"
               aria-selected={position === index}
               data-kind={item.kind}
-              onMouseMove={() => {
-                if (position !== index) move(position - index)
-              }}
-              onClick={() => open(item)}
+              onClick={() => setCursor(position)}
               className="aria-selected:bg-accent flex cursor-pointer flex-wrap items-baseline gap-x-3 gap-y-0.5 px-3 py-1.5"
             >
-              <Row item={item} now={now} grouped={query.trim() === ''}>
-                {opening === item.key ? <span>opening…</span> : null}
-              </Row>
-            </li>
-          ))}
-          {targetEntry === undefined ? null : (
-            <li
-              id={`launcher-row-${items.length}`}
-              ref={index === items.length ? highlighted : undefined}
-              role="option"
-              aria-selected={index === items.length}
-              data-kind="new"
-              onMouseMove={() => {
-                if (index !== items.length) setCursor(items.length)
-              }}
-              onClick={() => onNew(targetEntry.directory)}
-              className="aria-selected:bg-accent text-attention mt-1 cursor-pointer border-t px-3 py-2"
-            >
-              + New worktree in {targetEntry.name}…
-            </li>
-          )}
+              <Row item={item} now={now} grouped={query.trim() === ''} />
+            </li>,
+            position === index ? (
+              <li key={`${item.key}:actions`} role="none" className="bg-accent px-3 pb-1.5">
+                <RowActions
+                  item={item}
+                  starting={starting === item.key}
+                  onSession={() => startSession(item)}
+                  onWorktree={() => onNew(item.entry.directory)}
+                />
+              </li>
+            ) : null
+          ])}
         </ul>
       )}
       <p className="text-muted-foreground border-t px-3 py-1.5 text-xs max-lg:hidden">
         <kbd className="text-foreground">↑ ↓</kbd> move · <kbd className="text-foreground">↵</kbd>{' '}
-        open · <kbd className="text-foreground">esc</kbd> close
+        new session · <kbd className="text-foreground">⇧↵</kbd> new worktree ·{' '}
+        <kbd className="text-foreground">esc</kbd> close
       </p>
     </div>
   )
@@ -409,9 +438,9 @@ function NewStep({
 /**
  * The launcher (DESIGN.md "Launcher and worktrees"): a palette over the repositories on Box and
  * their worktrees, most recent agent activity first. Type to filter, `↑`/`↓` (or `j`/`k` from the
- * list) to move, `Enter` to open the latest session there (or a new one); the last row starts a
- * new worktree in the highlighted repository: a task, a suggested branch, Create. Full screen on
- * the phone; `Escape` closes.
+ * list) to move. `Enter` starts a new empty session in the highlighted repository or worktree;
+ * `Shift+Enter` a new worktree in its repository: a task, a suggested branch, Create. Full screen
+ * on the phone (tap a row, then one of its actions); `Escape` closes.
  */
 export function LauncherDialog({
   open,

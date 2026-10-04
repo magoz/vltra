@@ -9,7 +9,7 @@ import { dismissLaunchAction } from '@/app/dismiss-launch-action'
 import { launchAction } from '@/app/launch-action'
 import { markHandledAction } from '@/app/mark-handled-action'
 import { markViewedAction } from '@/app/mark-viewed-action'
-import { openCheckoutAction } from '@/app/open-checkout-action'
+import { newSessionAction } from '@/app/new-session-action'
 import { reopenAction } from '@/app/reopen-action'
 import { retireWorktreeAction } from '@/app/retire-worktree-action'
 import { suggestBranchAction } from '@/app/suggest-branch-action'
@@ -26,7 +26,7 @@ const serverActions: FleetActions = {
   markViewed: markViewedAction,
   launch: launchAction,
   dismissLaunch: dismissLaunchAction,
-  openCheckout: openCheckoutAction,
+  newSession: newSessionAction,
   retireWorktree: retireWorktreeAction,
   deleteProject: deleteProjectAction,
   suggestBranch: suggestBranchAction

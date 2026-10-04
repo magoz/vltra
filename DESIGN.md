@@ -128,7 +128,7 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
   tallies and latest root session, most recent activity first); `POST /api/fleet/launcher/branch`
   `{ task }` → `{ branch, source: 'model' | 'fallback' }` (JSON only, same-origin: a non-browser
   client sends `Origin` with Fleet's own origin). The web UI uses the server actions `launch`,
-  `openCheckout`, `retireWorktree`, `dismissLaunch` and `suggestBranch`; launches reach clients in
+  `newSession`, `retireWorktree`, `dismissLaunch` and `suggestBranch`; launches reach clients in
   the snapshot (`launches`) and in `fleet.changed`.
 
 ## Clients
@@ -205,10 +205,12 @@ sessionizer for agents. Everything that touches disk runs on Box; clients only c
 OpenCode.
 - **Open it**: header **New** + `n` / `⌘K` (palette), phone **+** in the tab bar, **+** on each
   Projects card (repo preselected). Type to fuzzy-match repos and their worktrees, most recent
-  agent activity first; the last row is `+ New worktree in <repo>…`.
-- **Pick an existing repo or worktree** → open its latest root session (focus mode, Chat), or a
-  new empty session there if it has none.
-- **New worktree** → describe the task; Fleet suggests a conventional branch (`feat/` `fix/`
+  agent activity first. The highlighted row spells out what it starts: `↵ New session in <repo ·
+  branch>` and `⇧↵ New worktree in <repo>…` (on the phone: tap a row, then an action).
+- **New session** (`Enter`) → a new empty session in that repo or worktree, no new worktree,
+  opened in focus mode. The launcher never resumes the latest session (the sidebar and Projects
+  do that).
+- **New worktree** (`Shift+Enter`) → describe the task; Fleet suggests a conventional branch (`feat/` `fix/`
   `chore/` `docs/` + short kebab, via OpenCode `generate.text`, falling back to a slug; always
   editable) → OpenCode `worktree.create({ projectID, name })` with `name =
   branch.replaceAll('/', '--')` → `session.create` in the returned directory →

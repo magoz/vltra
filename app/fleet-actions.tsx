@@ -13,11 +13,12 @@ import type {
 import type {
   DismissLaunchInput,
   LaunchInput,
-  OpenCheckoutInput,
+  NewSession,
+  NewSessionInput,
   RetireWorktreeInput,
   SuggestBranchInput
 } from '@/lib/data/fleet/launcher'
-import type { BranchSuggestion, OpenedCheckout } from '@/lib/data/fleet/types'
+import type { BranchSuggestion } from '@/lib/data/fleet/types'
 
 /** The mutations the dashboard can run; the server actions in production, fakes in tests. */
 export type FleetActions = {
@@ -27,8 +28,8 @@ export type FleetActions = {
   /** Start a new worktree + session (returns at once; progress comes with the fleet). */
   readonly launch: (input: LaunchInput) => Promise<FleetActionValue<{ readonly launchID: string }>>
   readonly dismissLaunch: (input: DismissLaunchInput) => Promise<FleetActionResult>
-  /** A repository's or worktree's latest root session, or a new empty one there. */
-  readonly openCheckout: (input: OpenCheckoutInput) => Promise<FleetActionValue<OpenedCheckout>>
+  /** A new empty session in a repository or worktree. */
+  readonly newSession: (input: NewSessionInput) => Promise<FleetActionValue<NewSession>>
   readonly retireWorktree: (input: RetireWorktreeInput) => Promise<FleetActionResult>
   /** Delete a Projects card's sessions in OpenCode, for good. */
   readonly deleteProject: (input: DeleteProjectInput) => Promise<FleetActionResult>
