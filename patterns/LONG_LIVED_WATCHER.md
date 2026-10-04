@@ -115,9 +115,7 @@ keyed by `(sessionID, idle)`:
   `'use cache'` function that throws stores its error; the Effect `Cache` makes it explicit.)
 - Capacity 500, TTL 1 day. A client may also keep a summary (`private, max-age=3600`).
 
-The session panel's transcript tail and files (`GET /api/fleet/sessions/:id`) are live data for a
-possibly running session, so they are never cached. Projects and worktrees still come from the
-watcher model.
+Projects and worktrees still come from the watcher model.
 
 ## Launches: background work in the runtime
 

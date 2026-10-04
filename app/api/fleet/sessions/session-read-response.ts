@@ -6,8 +6,8 @@ const json = (body: Readonly<Record<string, string>>, status: number) =>
   Response.json(body, { status, headers: { 'cache-control': 'no-store' } })
 
 /**
- * Shared tail of the session read routes: a JSON body on success, and a user-safe error with a
- * fitting status otherwise. Unexpected failures are logged.
+ * Tail of the session read route (`summary`): a JSON body on success, and a user-safe error with
+ * a fitting status otherwise. Unexpected failures are logged.
  */
 export const toReadResponse =
   (operation: string, cacheControl: string) =>

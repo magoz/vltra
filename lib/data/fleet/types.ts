@@ -395,16 +395,6 @@ export const FileChange = Schema.Struct({
 
 export type FileChange = typeof FileChange.Type
 
-/** `GET /api/fleet/sessions/:id`: the session panel's transcript tail and last turn's files. */
-export const SessionDetail = Schema.Struct({
-  sessionID: Schema.String,
-  transcript: Transcript,
-  /** Files changed by the latest turn; absent when OpenCode could not diff it. */
-  files: Schema.optional(Schema.Array(FileChange))
-})
-
-export type SessionDetail = typeof SessionDetail.Type
-
 export const ChangeTotals = Schema.Struct({
   files: Schema.Number,
   additions: Schema.Number,

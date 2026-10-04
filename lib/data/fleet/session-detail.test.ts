@@ -1,11 +1,6 @@
 import { describe, expect, it } from '@effect/vitest'
 import { Effect, Layer } from 'effect'
-import {
-  loadSessionDetail,
-  SessionSummaries,
-  SessionSummariesLive,
-  totals
-} from '@/lib/data/fleet/session-detail'
+import { SessionSummaries, SessionSummariesLive, totals } from '@/lib/data/fleet/session-detail'
 import { fromSnapshot } from '@/lib/data/fleet/model'
 import { FleetStore, makeFleetStore } from '@/lib/data/fleet/store'
 import { baseTime, sessionRecord, webUrl } from '@/lib/data/fleet/testing/fixtures'
@@ -58,62 +53,6 @@ const services = (fake: FakeOpenCode, directories: Layer.Layer<Directories> = pr
     )
   )
 
-describe('session detail', () => {
-  it.effect('reads the transcript tail and the latest turn files', () =>
-    Effect.gen(function* () {
-      const fake = yield* makeFakeOpenCode()
-
-      yield* fake.setTranscript('ses_1', transcript)
-      yield* fake.setDiff('ses_1', files)
-
-      const detail = yield* loadSessionDetail({ sessionID: 'ses_1' }).pipe(
-        Effect.provide(services(fake))
-      )
-
-      expect(detail).toEqual({ sessionID: 'ses_1', transcript, files })
-    })
-  )
-
-  it.effect('a failed diff only hides the file list', () =>
-    Effect.gen(function* () {
-      const fake = yield* makeFakeOpenCode()
-
-      yield* fake.setTranscript('ses_1', transcript)
-      yield* fake.setDiff('ses_1', 'fail')
-
-      const detail = yield* loadSessionDetail({ sessionID: 'ses_1' }).pipe(
-        Effect.provide(services(fake))
-      )
-
-      expect(detail.transcript).toEqual(transcript)
-      expect(detail.files).toBeUndefined()
-    })
-  )
-
-  it.effect('skips the diff of a session whose folder is gone; messages still load', () =>
-    Effect.gen(function* () {
-      const fake = yield* makeFakeOpenCode()
-      const directories = yield* makeFakeDirectories([gone])
-
-      yield* fake.setTranscript('ses_gone', transcript)
-      yield* fake.setDiff('ses_gone', 'fail')
-
-      const detail = yield* loadSessionDetail({ sessionID: 'ses_gone' }).pipe(
-        Effect.provide(services(fake, directories.layer))
-      )
-
-      expect(detail).toEqual({ sessionID: 'ses_gone', transcript, files: undefined })
-      expect(yield* fake.calls).toEqual([
-        { op: 'transcript', sessionID: 'ses_gone', assistantOnly: false }
-      ])
-    })
-  )
-
-  it('totals changed files', () => {
-    expect(totals(files)).toEqual({ files: 2, additions: 72, deletions: 31 })
-  })
-})
-
 describe('finished-run summaries', () => {
   const withSummaries = <A, E>(
     fake: FakeOpenCode,
@@ -164,6 +103,25 @@ describe('finished-run summaries', () => {
     })
   )
 
+  it.effect('a failed diff only drops the change totals', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode()
+
+      yield* fake.setTranscript('ses_1', transcript)
+      yield* fake.setDiff('ses_1', 'fail')
+
+      const summary = yield* withSummaries(
+        fake,
+        Effect.flatMap(SessionSummaries, summaries =>
+          summaries.get({ sessionID: 'ses_1', idle: baseTime })
+        )
+      )
+
+      expect(summary.answer).toBe('Updated README and 3 guides.')
+      expect(summary.changes).toBeUndefined()
+    })
+  )
+
   it.effect('a session whose folder is gone gets its answer without a diff', () =>
     Effect.gen(function* () {
       const fake = yield* makeFakeOpenCode()
@@ -210,4 +168,8 @@ describe('finished-run summaries', () => {
       expect(yield* fake.connectAttempts).toBe(2)
     })
   )
+
+  it('totals changed files', () => {
+    expect(totals(files)).toEqual({ files: 2, additions: 72, deletions: 31 })
+  })
 })

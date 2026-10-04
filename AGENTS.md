@@ -28,7 +28,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | Wire shapes (API, SSE)           | `lib/data/fleet/types.ts`                                       | Effect Schema; the ocb plugin decodes the same types     |
 | Snapshot rows / grouping         | `lib/data/fleet/snapshot.ts`, `links.ts`                        | Roll-up, projects → worktrees → rows, deep links         |
 | Watcher, resync, backoff         | `lib/data/fleet/watcher.ts`, `store.ts`                         | Also interrupt reasons; `LONG_LIVED_WATCHER.md`          |
-| Action Effects + inputs          | `lib/data/fleet/actions.ts`                                     | Handled, reopen, viewed, answers, prompt, interrupt      |
+| Action Effects + inputs          | `lib/data/fleet/actions.ts`                                     | Handled, reopen, viewed (asks: in OpenCode's chat)       |
 | Rollout script                   | `scripts/import-handled.ts`                                     | `pnpm fleet:import-handled`, one-off, never auto-run     |
 | OpenCode client                  | `lib/services/opencode/`                                        | See `patterns/OPENCODE_SURFACE.md`                       |
 | Runtime (one per process)        | `lib/runtime/fleet-runtime.ts`                                  | `ManagedRuntime` on `globalThis`; `runFleet`             |
@@ -39,7 +39,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | Launcher UI                      | `app/launcher-dialog.tsx`, `pending-launches.tsx`               | Palette, launches, `retire-worktree.tsx`                 |
 | Agents (focus, board) / Projects | `app/agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx` | Cards: `agent-card.tsx`, rows: `session-row.tsx`         |
 | Board projections                | `lib/data/fleet/board.ts`                                       | Pure: live rows, needs-me list, columns, cards, filter   |
-| Session panel data               | `lib/data/fleet/session-detail.ts`                              | Transcript tail + diff; summaries cached by `idle`       |
+| Run summaries (plugin page)      | `lib/data/fleet/session-detail.ts`                              | Latest answer + diff totals, cached by `idle`            |
 | Launcher list / open / retire    | `lib/data/fleet/launcher.ts`, `checkouts.ts`                    | Pure projection + guards; `GET /api/fleet/launcher`      |
 | Launches (worktree + session)    | `lib/data/fleet/launches.ts`                                    | Registry in the runtime, background fibers, in store     |
 | Branch names / palette rows      | `lib/data/fleet/branch.ts`, `palette.ts`                        | `--` encoding, suggestion check, fallback, fuzzy         |

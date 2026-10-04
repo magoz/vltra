@@ -11,11 +11,6 @@ import type {
   SessionNotFoundError
 } from '@/lib/services/opencode/errors'
 
-export type PermissionDecision = 'once' | 'always' | 'reject'
-
-/** A form answer value, as accepted by OpenCode's `Form.Answer`. */
-export type FormValue = string | number | boolean | ReadonlyArray<string>
-
 export type ActionError = OpenCodeRequestError | OpenCodeInvalidInputError | SessionNotFoundError
 
 /** Calls OpenCode may refuse with a message of its own (worktrees, location registration). */
@@ -67,22 +62,11 @@ export type OpenCodeConnection = {
     readonly sessionID: string
     readonly idle: number
   }) => Effect.Effect<void, ActionError>
-  readonly replyPermission: (input: {
-    readonly sessionID: string
-    readonly requestID: string
-    readonly decision: PermissionDecision
-    readonly message?: string | undefined
-  }) => Effect.Effect<void, ActionError>
-  readonly replyForm: (input: {
-    readonly sessionID: string
-    readonly formID: string
-    readonly answer: Readonly<Record<string, FormValue>>
-  }) => Effect.Effect<void, ActionError>
+  /** `POST /api/session/:id/prompt { text }`: a launch's task. */
   readonly prompt: (input: {
     readonly sessionID: string
     readonly text: string
   }) => Effect.Effect<void, ActionError>
-  readonly interrupt: (input: { readonly sessionID: string }) => Effect.Effect<boolean, ActionError>
   /**
    * `GET /api/session/:id/message`: the newest `limit` messages as a transcript tail. With
    * `assistantOnly`, only assistant messages are read (enough for the latest answer).

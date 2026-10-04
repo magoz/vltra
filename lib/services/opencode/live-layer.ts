@@ -2,10 +2,8 @@ import * as NodeFileSystem from '@effect/platform-node/NodeFileSystem'
 import * as NodeHttpClient from '@effect/platform-node/NodeHttpClient'
 import {
   AbsolutePath,
-  Form,
   Model,
   OpenCode as OpenCodeApi,
-  Permission,
   Project,
   Session
 } from '@opencode/client/effect'
@@ -89,10 +87,6 @@ const decodeId =
 const decodeSessionId = decodeId(Session.ID, 'sessionID')
 
 const decodeProjectId = decodeId(Project.ID, 'projectID')
-
-const decodePermissionId = decodeId(Permission.ID, 'requestID')
-
-const decodeFormId = decodeId(Form.ID, 'formID')
 
 const decodeDirectory = decodeId(AbsolutePath, 'directory')
 
@@ -433,23 +427,6 @@ const makeConnection = (
             .view({ sessionID: id, idle: at })
             .pipe(action('session.view', sessionID))
         }),
-      replyPermission: ({ sessionID, requestID, decision, message }) =>
-        Effect.gen(function* () {
-          const id = yield* decodeSessionId(sessionID)
-          const request = yield* decodePermissionId(requestID)
-
-          yield* client.permission
-            .reply({ sessionID: id, requestID: request, decision, message })
-            .pipe(action('permission.reply', sessionID))
-        }),
-      replyForm: ({ sessionID, formID, answer }) =>
-        Effect.gen(function* () {
-          const form = yield* decodeFormId(formID)
-
-          yield* client.session.form
-            .reply({ sessionID, formID: form, answer })
-            .pipe(action('session.form.reply', sessionID))
-        }),
       prompt: ({ sessionID, text }) =>
         Effect.gen(function* () {
           const id = yield* decodeSessionId(sessionID)
@@ -457,16 +434,6 @@ const makeConnection = (
           yield* client.session
             .prompt({ sessionID: id, text })
             .pipe(action('session.prompt', sessionID))
-        }),
-      interrupt: ({ sessionID }) =>
-        Effect.gen(function* () {
-          const id = yield* decodeSessionId(sessionID)
-
-          const result = yield* client.session
-            .interrupt({ sessionID: id })
-            .pipe(action('session.interrupt', sessionID))
-
-          return result.interrupted
         }),
       transcript: ({ sessionID, limit, assistantOnly }) =>
         Effect.gen(function* () {

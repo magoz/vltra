@@ -1,14 +1,6 @@
 import { describe, expect, it } from '@effect/vitest'
 import { Effect, Layer } from 'effect'
-import {
-  interruptSession,
-  markHandled,
-  markViewed,
-  reopen,
-  replyForm,
-  replyPermission,
-  sendPrompt
-} from '@/lib/data/fleet/actions'
+import { markHandled, markViewed, reopen } from '@/lib/data/fleet/actions'
 import { fromSnapshot } from '@/lib/data/fleet/model'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
 import { FleetStore, makeFleetStore } from '@/lib/data/fleet/store'
@@ -305,28 +297,6 @@ describe('mark viewed (OpenCode unread dots only)', () => {
       )
 
       expect(result._tag).toBe('OpenCodeUnavailableError')
-    })
-  )
-})
-
-describe('proxied actions', () => {
-  it.effect('reply, answer, prompt and interrupt reach OpenCode unchanged', () =>
-    Effect.gen(function* () {
-      const fake = yield* makeFakeOpenCode(snapshot)
-
-      yield* Effect.all([
-        replyPermission({ sessionID: 'ses_blocked', requestID: 'per_1', decision: 'once' }),
-        replyForm({ sessionID: 'ses_blocked', formID: 'frm_1', answer: { a: 'yes' } }),
-        sendPrompt({ sessionID: 'ses_blocked', text: 'continue' }),
-        interruptSession({ sessionID: 'ses_working' })
-      ]).pipe(Effect.provide(services(fake)))
-
-      expect(yield* fake.calls).toEqual([
-        { op: 'replyPermission', sessionID: 'ses_blocked', requestID: 'per_1' },
-        { op: 'replyForm', sessionID: 'ses_blocked', formID: 'frm_1' },
-        { op: 'prompt', sessionID: 'ses_blocked', text: 'continue' },
-        { op: 'interrupt', sessionID: 'ses_working' }
-      ])
     })
   )
 })

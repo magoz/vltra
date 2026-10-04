@@ -2,14 +2,8 @@ import { mkdirSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from '@effect/vitest'
 import { ConfigProvider, Effect, Layer, Option, Schedule } from 'effect'
-import {
-  markHandled,
-  markViewed,
-  reopen,
-  replyForm,
-  replyPermission
-} from '@/lib/data/fleet/actions'
-import { loadSessionDetail, loadSessionSummary } from '@/lib/data/fleet/session-detail'
+import { markHandled, markViewed, reopen } from '@/lib/data/fleet/actions'
+import { loadSessionSummary } from '@/lib/data/fleet/session-detail'
 import { snapshotRows } from '@/lib/data/fleet/snapshot'
 import { FleetStore, FleetStoreLive } from '@/lib/data/fleet/store'
 import type { FleetRow, FleetSnapshot } from '@/lib/data/fleet/types'
@@ -175,12 +169,7 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
           // The durable session log (`session.log`) is readable; a failed run has no interrupt.
           expect(yield* actionConnection.interruptReason(sessionID)).toEqual(Option.none())
 
-          // Session panel data: the transcript tail (prompt, then the failure) and the summary.
-          const detail = yield* loadSessionDetail({ sessionID })
-
-          expect(detail.transcript.entries[0]).toMatchObject({ role: 'user', text: 'hello' })
-          expect(detail.transcript.entries.some(entry => entry.role !== 'user')).toBe(true)
-
+          // The run's summary (the terminal plugin's page) reads the messages and the diff.
           const summary = yield* loadSessionSummary({ sessionID, idle: failed.idle ?? 1 })
 
           expect(summary.sessionID).toBe(sessionID)
@@ -231,7 +220,7 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
           yield* markHandled({ sessionID })
           yield* eventually(rowIn(sessionID, 'handled'), 'handled again')
 
-          // Permission: asked → blocked; Fleet replies → handled again.
+          // Permission: asked → blocked; the chat replies → handled again.
           const asked = yield* server.json<{ readonly data: { readonly id: string } }>(
             'POST',
             `/api/session/${sessionID}/permission?${locationQuery(server)}`,
@@ -247,10 +236,16 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
 
           expect(rejected._tag).toBe('SessionNotFinishedError')
 
-          yield* replyPermission({ sessionID, requestID: asked.data.id, decision: 'once' })
+          const replied = yield* server.request(
+            'POST',
+            `/api/session/${sessionID}/permission/${asked.data.id}/reply`,
+            { decision: 'once' }
+          )
+
+          expect(replied.ok).toBe(true)
           yield* eventually(rowIn(sessionID, 'handled'), 'permission replied')
 
-          // Form (V2 agent question): created → blocked; Fleet answers → handled.
+          // Form (V2 agent question): created → blocked; the chat answers → handled.
           const form = yield* server.json<{ readonly data: { readonly id: string } }>(
             'POST',
             `/api/session/${sessionID}/form`,
@@ -262,7 +257,14 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
           expect(asking.forms[0]?.fields).toMatchObject([
             { key: 'choice', type: 'string', title: 'Choice?' }
           ])
-          yield* replyForm({ sessionID, formID: form.data.id, answer: { choice: 'a' } })
+
+          const answered = yield* server.request(
+            'POST',
+            `/api/session/${sessionID}/form/${form.data.id}/reply`,
+            { answer: { choice: 'a' } }
+          )
+
+          expect(answered.ok).toBe(true)
           yield* eventually(rowIn(sessionID, 'handled'), 'form answered')
 
           // A finished session with a subagent child: finished, child nested under it.
@@ -363,11 +365,11 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
           expect(refused._tag).toBe('SessionFolderGoneError')
           expect((yield* storedSession(server, sessionID)).metadata).toBeUndefined()
 
-          // The transcript (messages) still loads; the diff is skipped.
-          const detail = yield* loadSessionDetail({ sessionID })
+          // The run's summary still loads (messages); the diff is skipped.
+          const summary = yield* loadSessionSummary({ sessionID, idle: finished.idle ?? 1 })
 
-          expect(detail.transcript.entries[0]).toMatchObject({ role: 'user', text: 'hello' })
-          expect(detail.files).toBeUndefined()
+          expect(summary.sessionID).toBe(sessionID)
+          expect(summary.changes).toBeUndefined()
 
           // Why: once OpenCode has to resolve the location again (here after a restart), every
           // location-scoped write fails on the missing folder (500 on 2.0.20, 404 on 2.0.22).

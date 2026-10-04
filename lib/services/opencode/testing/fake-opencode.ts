@@ -23,10 +23,7 @@ export type FakeCall =
   | { readonly op: 'view'; readonly sessionID: string; readonly idle: number }
   | { readonly op: 'setHandled'; readonly sessionID: string; readonly handled: number | undefined }
   | { readonly op: 'interruptReason'; readonly sessionID: string }
-  | { readonly op: 'replyPermission'; readonly sessionID: string; readonly requestID: string }
-  | { readonly op: 'replyForm'; readonly sessionID: string; readonly formID: string }
   | { readonly op: 'prompt'; readonly sessionID: string; readonly text: string }
-  | { readonly op: 'interrupt'; readonly sessionID: string }
   | { readonly op: 'transcript'; readonly sessionID: string; readonly assistantOnly: boolean }
   | { readonly op: 'diff'; readonly sessionID: string }
   | { readonly op: 'resolveLocation'; readonly directory: string }
@@ -285,15 +282,11 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
             )
           }))
         ),
-      replyPermission: ({ sessionID, requestID }) =>
-        record({ op: 'replyPermission', sessionID, requestID }),
-      replyForm: ({ sessionID, formID }) => record({ op: 'replyForm', sessionID, formID }),
       prompt: ({ sessionID, text }) =>
         Effect.andThen(
           record({ op: 'prompt', sessionID, text }),
           Effect.flatMap(Ref.get(launcher), behavior => behavior.prompt({ sessionID, text }))
         ),
-      interrupt: ({ sessionID }) => Effect.as(record({ op: 'interrupt', sessionID }), true),
       transcript: ({ sessionID, assistantOnly }) =>
         Effect.andThen(
           record({ op: 'transcript', sessionID, assistantOnly }),

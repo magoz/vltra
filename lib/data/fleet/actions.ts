@@ -9,7 +9,8 @@ import { SessionNotFoundError } from '@/lib/services/opencode/errors'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type { OpenCodeConnection } from '@/lib/services/opencode/service'
 
-// Typed inputs for the web UI's server actions, and the Effects that proxy them to OpenCode.
+// Typed inputs and Effects for Fleet's session mutations: the web's server actions and the
+// terminal plugin's JSON routes.
 
 const Id = Schema.String.check(Schema.isNonEmpty(), Schema.isMaxLength(200))
 
@@ -24,41 +25,6 @@ export type ReopenInput = typeof ReopenInput.Type
 export const MarkViewedInput = Schema.Struct({ sessionID: Id })
 
 export type MarkViewedInput = typeof MarkViewedInput.Type
-
-export const ReplyPermissionInput = Schema.Struct({
-  sessionID: Id,
-  requestID: Id,
-  decision: Schema.Literals(['once', 'always', 'reject']),
-  message: Schema.optional(Schema.String.check(Schema.isMaxLength(10_000)))
-})
-
-export type ReplyPermissionInput = typeof ReplyPermissionInput.Type
-
-export const FormValue = Schema.Union([
-  Schema.String,
-  Schema.Finite,
-  Schema.Boolean,
-  Schema.Array(Schema.String)
-])
-
-export const ReplyFormInput = Schema.Struct({
-  sessionID: Id,
-  formID: Id,
-  answer: Schema.Record(Schema.String, FormValue)
-})
-
-export type ReplyFormInput = typeof ReplyFormInput.Type
-
-export const SendPromptInput = Schema.Struct({
-  sessionID: Id,
-  text: Schema.String.check(Schema.isNonEmpty(), Schema.isMaxLength(100_000))
-})
-
-export type SendPromptInput = typeof SendPromptInput.Type
-
-export const InterruptSessionInput = Schema.Struct({ sessionID: Id })
-
-export type InterruptSessionInput = typeof InterruptSessionInput.Type
 
 export type MarkViewedOutcome = 'marked' | 'already-viewed'
 
@@ -180,15 +146,3 @@ export const markViewed = (input: MarkViewedInput) =>
       return outcome
     })
   )
-
-export const replyPermission = (input: ReplyPermissionInput) =>
-  withConnection(connection => connection.replyPermission(input))
-
-export const replyForm = (input: ReplyFormInput) =>
-  withConnection(connection => connection.replyForm(input))
-
-export const sendPrompt = (input: SendPromptInput) =>
-  withConnection(connection => connection.prompt(input))
-
-export const interruptSession = (input: InterruptSessionInput) =>
-  withConnection(connection => connection.interrupt(input))

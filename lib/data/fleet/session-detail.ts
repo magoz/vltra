@@ -2,25 +2,16 @@ import { Cache, Context, Data, Effect, Exit, Layer, Option, Schema } from 'effec
 import { withConnection } from '@/lib/data/fleet/actions'
 import { sessionFolderGone } from '@/lib/data/fleet/folders'
 import { FleetStore } from '@/lib/data/fleet/store'
-import type {
-  ChangeTotals,
-  FileChange,
-  SessionDetail,
-  SessionSummary
-} from '@/lib/data/fleet/types'
+import type { ChangeTotals, FileChange, SessionSummary } from '@/lib/data/fleet/types'
 import { Directories } from '@/lib/services/directories/service'
 import type { OpenCodeRequestError, OpenCodeUnavailableError } from '@/lib/services/opencode/errors'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type { ActionError, OpenCodeConnection } from '@/lib/services/opencode/service'
 
-// Read-only session data for the dashboard, fetched from OpenCode on demand (never through the
-// watcher): the session panel's transcript tail and files, and finished runs' answer excerpts.
+// Finished runs' answer excerpts and change totals, read from OpenCode on demand (never through
+// the watcher) for `GET /api/fleet/sessions/:id/summary` (the terminal plugin's page).
 
 const Id = Schema.String.check(Schema.isNonEmpty(), Schema.isMaxLength(200))
-
-export const SessionDetailInput = Schema.Struct({ sessionID: Id })
-
-export type SessionDetailInput = typeof SessionDetailInput.Type
 
 export const SessionSummaryInput = Schema.Struct({
   sessionID: Id,
@@ -30,9 +21,6 @@ export const SessionSummaryInput = Schema.Struct({
 export type SessionSummaryInput = typeof SessionSummaryInput.Type
 
 export type SessionReadError = ActionError | OpenCodeUnavailableError | OpenCodeRequestError
-
-/** Newest messages read for the session panel. */
-const panelMessages = 30
 
 /** Newest assistant messages searched for the latest answer. */
 const answerMessages = 5
@@ -62,28 +50,6 @@ export const totals = (files: ReadonlyArray<FileChange>): ChangeTotals => ({
   additions: files.reduce((sum, file) => sum + file.additions, 0),
   deletions: files.reduce((sum, file) => sum + file.deletions, 0)
 })
-
-/** The session panel's data: transcript tail and the latest turn's changed files. */
-export const loadSessionDetail = (input: SessionDetailInput) =>
-  withConnection(connection =>
-    Effect.all(
-      {
-        transcript: connection.transcript({
-          sessionID: input.sessionID,
-          limit: panelMessages,
-          assistantOnly: false
-        }),
-        files: latestFiles(connection, input.sessionID)
-      },
-      { concurrency: 2 }
-    ).pipe(
-      Effect.map(({ transcript, files }): SessionDetail => ({
-        sessionID: input.sessionID,
-        transcript,
-        files: Option.getOrUndefined(files)
-      }))
-    )
-  )
 
 /** A finished run's answer excerpt and change totals (uncached). */
 export const loadSessionSummary = (input: SessionSummaryInput) =>
