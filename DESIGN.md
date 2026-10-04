@@ -148,8 +148,8 @@ quiet).
     quiet empty state. Handling the open session opens the next needs-me session, so triage is
     `h`, `h`, `h`. Working and handled sessions are not listed (they are on Board; the desktop
     count line still counts them).
-  - **Board**: the four-column kanban below, with the drawer. Its own tab (`b` toggles Agents ↔
-    Board); the mode lives in the URL so links and the back button keep it.
+  - **Board**: the four-column kanban below, split with the open session's chat. Its own tab (`b`
+    toggles Agents ↔ Board); the mode lives in the URL so links and the back button keep it.
 - **Agents board = a kanban by state** across all projects, columns `Blocked | Finished |
   Working | Handled` (the two left columns are "needs me"). Cards are minimal, like focus mode's
   rows: project · worktree, title and age, a red mark for failures; asks, answers and live
@@ -157,7 +157,9 @@ quiet).
   (undo toast). Working: stuck first, with the stuck label. Handled column: last 24h only, then
   "N more → Projects"; cards offer Reopen. No drag and drop (columns show state; actions are buttons and
   keys). No "handle all". A project filter (`?project=`, chip with ×) narrows the board to one
-  project.
+  project. Opening a session splits the screen: its chat docks on the right, a bit narrower than
+  the old drawer, and the four columns narrow beside it, still clickable, so you can keep clicking
+  cards and watching the chat.
 - **Projects = a grid of project cards** (2–3 columns desktop, 1 on the phone), ordered by
   latest activity, "Other" (sessions outside any repository, each showing its directory)
   last. Card header: name + counts; clicking it opens Agents filtered to that project. Inside,
@@ -172,14 +174,14 @@ quiet).
 - **Keyboard (Mac)**: `1` / `2` / `3` the tabs. Focus: `j`/`k` move through the list, `Enter`
   opens the session on the right, `h` handled (the next needs-me session opens), `u` undo, `b`
   board. Board: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and next
-  finished card), `u` undo, `Enter` opens the drawer, `Esc` closes, `/` focuses the project
+  finished card), `u` undo, `Enter` opens the chat, `Esc` closes it, `/` focuses the project
   filter; focus starts on the first needs-me card. Projects: arrows move between cards, `j`/`k`
   within a card, `Enter` on a card opens its filtered board. No key answers asks: that happens in
   the chat.
 
-Tap a session for its panel (a right-side drawer over the board and Projects, inline in focus
-mode, full screen on the phone): the session's chat, nothing else (no Summary tab; messages,
-changes, the prompt and subagents are all in the chat):
+Tap a session for its panel (inline on the Agents page: focus mode's pane, the board's split; a
+right-side drawer over Projects; full screen on the phone): the session's chat, nothing else (no
+Summary tab; messages, changes, the prompt and subagents are all in the chat):
 - **The chat** → OpenCode's own web UI on the same server, framed, verified deep link
   `https://box.tail129a86.ts.net:9446/server/<base64url(origin)>/session/<id>`
   (`app/src/shell/routes/session.ts`; server key = page origin). Works on Mac and phone after a

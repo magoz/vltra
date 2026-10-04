@@ -265,8 +265,9 @@ describe('tabs', () => {
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
     expect(screen.queryByRole('region', { name: 'Needs you' })).toBeNull()
     expect(testLocation()).toBe('/?view=board&project=prj_fleet&session=ses_done_old')
-    // On the board, the session is in the drawer.
-    expect(drawer()).not.toBeNull()
+    // On the board, the session is the split's chat beside the columns, not a drawer.
+    expect(drawer()).toBeNull()
+    expect(within(pane()).getByRole('heading', { name: 'Done old' })).toBeTruthy()
     expect(headerTab('Board').getAttribute('aria-current')).toBe('page')
 
     press('b')

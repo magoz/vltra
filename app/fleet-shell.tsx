@@ -122,10 +122,10 @@ function useLauncherShortcut(open: () => void) {
  * desktop header with the count line, key hint and connection, or the phone's bottom tab bar,
  * whose only other chrome is a reconnecting line when the link is down), Handled / Undo / Reopen,
  * and the session drawer (`?session=`, the session's chat: right side on desktop, full screen on
- * the phone) over Projects and the board. Focus mode shows the session inline instead (`agents-focus.tsx`). Keys:
- * `1` / `2` / `3` the tabs, `b` Agents ↔ Board, `Escape` closes the session, `n` / `⌘K` open the
- * launcher (its palette, its list for the Projects cards, and the auto-open of a launch started
- * here).
+ * the phone) over Projects. The Agents page shows the session inline instead (focus mode's pane,
+ * the board's split). Keys: `1` / `2` / `3` the tabs, `b` Agents ↔ Board, `Escape` closes the
+ * session, `n` / `⌘K` open the launcher (its palette, its list for the Projects cards, and the
+ * auto-open of a launch started here).
  */
 export function FleetShell({
   live,
@@ -154,8 +154,9 @@ export function FleetShell({
   const shownItem = shownRow === undefined ? undefined : boardRow(view, shownRow)
   const screen = screenOf(nav.page, nav.view)
   const agents = nav.page === 'agents'
-  // Focus mode shows the open session inline, so there is no drawer.
-  const inline = agents && nav.view === 'focus'
+  // The Agents page shows the open session inline (focus mode's pane, the board's split), so the
+  // drawer is only for Projects.
+  const inline = agents
   const launcherList = useLauncherList()
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [request, setRequest] = useState<LauncherRequest>({ step: 'pick' })

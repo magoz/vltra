@@ -91,7 +91,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   `N need you · N working · N stuck`, the tab's key hint and the connection) or the phone's bottom
   tab bar (`BottomTabs`, with `+`; no header there, only `ConnectionLine`: a slim `reconnecting…`
   line on top once a reconnect lasts 3s, the wait starting over when the page shows again), and
-  the session drawer (Projects and the board; focus mode shows the session inline). Both pages
+  the session drawer (Projects; the Agents page shows the session inline). Both pages
   read `useFleet()` (`fleet-context.tsx`: live fleet with overrides, clock, selection, nav). Page
   links are `nav-link.tsx` (`next/link`, prefetched; plain clicks go through `nav.go`).
 - **Agents** has two modes (DESIGN.md "Clients" → Web), in the URL: focus is the absence of
@@ -124,9 +124,12 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first. Finish
   / `quiet Nm` and "folder deleted", Handled (finished) or Reopen (handled, not for "folder
   deleted"). Asks, answers and live activity are left to the chat. `?project=<projectKey>`
   (`other` = the global project) narrows every column: a select (`/` focuses it) and a chip with ×
-  (`setProject` replaces the history entry). Phone: one
+  (`setProject` replaces the history entry). An open session (`?session=`) splits the board: its
+  chat docks on the right (`min(52rem, 42vw)`, the same `SessionPanel`) and the four columns narrow
+  beside it (down to 11rem, then they scroll), still clickable to switch the chat. Phone: one
   column via a segmented control, opening on the first non-empty needs-me column
-  (`initialColumn`, else Working); a new filter remounts the board (fresh column and focus).
+  (`initialColumn`, else Working), a session full screen; a new filter remounts the board (fresh
+  column and focus).
 - **Projects**: cards (`buildProjectCards`) by latest activity, "Other" last, 1 / 2 / 3 columns.
   The header links to the board, `/?view=board&project=<id>`; worktree sections list needs-me and working sessions
   (`ProjectRow`: marker, title, state label, age); handled sessions fold into
@@ -172,10 +175,10 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first. Finish
   `/` filter; focus starts on the first needs-me card and follows clicks. No key answers asks:
   they are answered in the chat. Projects: arrows between cards (up/down by grid row), `j`/`k`
   within a card (fold rows when open), `Enter` opens the focused session, else the card's board.
-- The open session lives in the URL (`?session=<id>`, kept across page switches): inline in focus
-  mode, else a right-side drawer (`SessionDrawer`) over the page from `lg`; full screen below it
-  either way, so the phone's back button closes it (closing goes back only when Fleet pushed the
-  entry on this page and mode).
+- The open session lives in the URL (`?session=<id>`, kept across page switches): inline on the
+  Agents page (focus mode's pane, the board's split), a right-side drawer (`SessionDrawer`) over
+  Projects from `lg`; full screen below it either way, so the phone's back button closes it
+  (closing goes back only when Fleet pushed the entry on this page and mode).
 - The session panel (`session-panel.tsx`, drawer and inline alike) is the session's chat alone,
   no Summary tab: an iframe of OpenCode's web UI (`row.links.web`), signed in by its same-site
   pairing cookie (`opencode pair`), with full app chrome since upstream has no embed mode. Its

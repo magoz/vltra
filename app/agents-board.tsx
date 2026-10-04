@@ -8,9 +8,11 @@ import { useFleet } from '@/app/fleet-context'
 import { NavLink } from '@/app/nav-link'
 import { PendingLaunches } from '@/app/pending-launches'
 import { ProjectFilter } from '@/app/project-filter'
+import { SessionPanel } from '@/app/session-panel'
 import { useHandled } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
-import { boardColumns, buildAgentsBoard, initialColumn } from '@/lib/data/fleet/board'
+import { usePanelSession } from '@/app/use-panel-session'
+import { boardColumns, boardRow, buildAgentsBoard, initialColumn } from '@/lib/data/fleet/board'
 import type { AgentsBoard as Board, BoardColumn, BoardRow } from '@/lib/data/fleet/board'
 import type { Launch } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
@@ -275,43 +277,65 @@ function Board({ project }: { readonly project: string | undefined }) {
   })
 
   const cursorID = position?.item.row.id
+  // The chat follows the selection a paint behind when switching sessions (`usePanelSession`).
+  const shownSession = usePanelSession(selection.selected)
+  const shownRow = shownSession === undefined ? undefined : view.rows.get(shownSession)
+  const shownItem = shownRow === undefined ? undefined : boardRow(view, shownRow)
 
   return (
-    <>
-      <ProjectFilter filterRef={filterRef} className="px-3 pt-3 lg:px-4 lg:pt-3" />
-      <Segments board={board} current={segment} onSelect={setSegment} />
-      <div className="flex min-h-0 flex-1 flex-col gap-3 py-2 lg:grid lg:grid-cols-4 lg:p-4 lg:pt-3">
-        {boardColumns.map(column => (
-          <Column
-            key={column}
-            column={column}
-            rows={board.columns[column]}
-            launches={column === 'working' ? view.launches : []}
-            cursor={cursorID}
-            olderHandled={board.olderHandled}
-            shown={column === segment}
-            onCardClick={(clicked, id) =>
-              setCursor({
-                column: clicked,
-                id,
-                index: board.columns[clicked].findIndex(item => item.row.id === id)
-              })
-            }
-          />
-        ))}
+    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <ProjectFilter filterRef={filterRef} className="px-3 pt-3 lg:px-4 lg:pt-3" />
+        <Segments board={board} current={segment} onSelect={setSegment} />
+        {/* Next to an open chat the columns narrow, down to 11rem; past that, they scroll. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-3 py-2 lg:grid lg:grid-cols-[repeat(4,minmax(11rem,1fr))] lg:overflow-x-auto lg:p-4 lg:pt-3">
+          {boardColumns.map(column => (
+            <Column
+              key={column}
+              column={column}
+              rows={board.columns[column]}
+              launches={column === 'working' ? view.launches : []}
+              cursor={cursorID}
+              olderHandled={board.olderHandled}
+              shown={column === segment}
+              onCardClick={(clicked, id) =>
+                setCursor({
+                  column: clicked,
+                  id,
+                  index: board.columns[clicked].findIndex(item => item.row.id === id)
+                })
+              }
+            />
+          ))}
+        </div>
       </div>
-    </>
+      {shownSession === undefined ? null : (
+        <section
+          aria-label="Session"
+          className="bg-background flex min-h-0 min-w-0 flex-col max-lg:fixed max-lg:inset-0 max-lg:z-30 lg:w-[min(52rem,42vw)] lg:shrink-0 lg:border-l"
+        >
+          <SessionPanel
+            key={shownSession}
+            sessionID={shownSession}
+            item={shownItem}
+            onClose={selection.close}
+          />
+        </section>
+      )}
+    </div>
   )
 }
 
 /**
  * The Agents page's board mode (`?view=board`, DESIGN.md "Clients" → Web): a kanban board by
- * state across all projects, or one project (`?project=`), with the session drawer. Columns
+ * state across all projects, or one project (`?project=`). Columns
  * `Blocked | Finished | Working | Handled` (the launcher's launches top Working) on desktop, one
  * at a time on the phone. Cards are minimal (`agent-card.tsx`); asks are answered in the chat.
- * Keys: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and next
- * finished card), `u` undo, `Enter` opens the drawer, `/` focuses the project filter (`b`, focus
- * mode, is the shell's).
+ * The open session (`?session=`) is a split: its chat docks on the right and the columns narrow
+ * beside it, so cards stay clickable; the phone shows it full screen. Keys: `j`/`k` (`↓`/`↑`)
+ * within a column, `←`/`→` between columns, `h` handled (and next finished card), `u` undo,
+ * `Enter` opens the focused card's chat, `/` focuses the project filter (`b`, focus mode, and
+ * `Escape`, closing the chat, are the shell's).
  */
 export function AgentsBoard() {
   const { nav } = useFleet()

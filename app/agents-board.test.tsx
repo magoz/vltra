@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fakeActions, TestDashboard } from '@/app/testing/dashboard-fixtures'
+import { afterPaint, fakeActions, TestDashboard } from '@/app/testing/dashboard-fixtures'
 import type { NavCall } from '@/app/testing/dashboard-fixtures'
 import { fleetLive, now, rowIDs } from '@/app/testing/fleet-scenario'
 import type { LiveFleet } from '@/lib/data/fleet/board'
@@ -46,6 +46,8 @@ const cursorID = () =>
 const press = (key: string, target: Element = document.body) => fireEvent.keyDown(target, { key })
 
 const drawer = () => screen.queryByRole('complementary', { name: 'Session' })
+
+const pane = () => screen.queryByRole('region', { name: 'Session' })
 
 beforeEach(() => {
   // The launcher loads its list; answer with nothing.
@@ -290,24 +292,29 @@ describe('keyboard', () => {
   })
 })
 
-describe('drawer', () => {
-  it('opens with Enter on the focused card or a click, and closes with Escape', () => {
+describe('split view', () => {
+  it('opens the chat beside the columns, switches it from any card, closes with Escape', async () => {
     renderBoard()
 
-    expect(drawer()).toBeNull()
+    expect(pane()).toBeNull()
 
     press('Enter')
 
-    expect(drawer()?.querySelector('iframe')?.getAttribute('title')).toBe('Wait old')
-
-    press('Escape')
+    expect(pane()?.querySelector('iframe')?.getAttribute('title')).toBe('Wait old')
+    // Beside the columns, not over them: no drawer, and every column still lists its cards.
     expect(drawer()).toBeNull()
+    expect(columnIDs().Working).toEqual(['ses_run', 'ses_retry', 'ses_busy'])
 
     fireEvent.click(within(card('ses_busy')).getByRole('link', { name: 'Busy run' }))
+    await afterPaint()
 
-    expect(drawer()?.querySelector('iframe')?.getAttribute('title')).toBe('Busy run')
+    expect(pane()?.querySelector('iframe')?.getAttribute('title')).toBe('Busy run')
     // The cursor follows the click.
     expect(cursorID()).toBe('ses_busy')
+
+    press('Escape')
+
+    expect(pane()).toBeNull()
   })
 })
 
