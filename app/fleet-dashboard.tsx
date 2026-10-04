@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import type { FleetActions } from '@/app/fleet-actions'
 import { FleetActionsProvider } from '@/app/fleet-actions'
 import { FleetShell } from '@/app/fleet-shell'
+import { deleteProjectAction } from '@/app/delete-project-action'
 import { dismissLaunchAction } from '@/app/dismiss-launch-action'
 import { launchAction } from '@/app/launch-action'
 import { markHandledAction } from '@/app/mark-handled-action'
@@ -27,6 +28,7 @@ const serverActions: FleetActions = {
   dismissLaunch: dismissLaunchAction,
   openCheckout: openCheckoutAction,
   retireWorktree: retireWorktreeAction,
+  deleteProject: deleteProjectAction,
   suggestBranch: suggestBranchAction
 }
 

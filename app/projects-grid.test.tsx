@@ -129,6 +129,27 @@ describe('project cards', () => {
     expect(rowIDs(fleet)).toContain('ses_handled')
   })
 
+  it('deletes an idle project after a confirmation; a busy one says why it cannot', async () => {
+    const { calls } = renderGrid()
+    const busy = within(projectCard('fleet')).getByRole('button', { name: 'Delete fleet' })
+
+    expect(busy.hasAttribute('disabled')).toBe(true)
+    expect(busy.title).toBe('5 sessions there are working or blocked')
+
+    fireEvent.click(within(projectCard('box')).getByRole('button', { name: 'Delete box' }))
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete box?' })
+
+    expect(within(dialog).getByText(/1 session, with their messages/)).toBeTruthy()
+    expect(calls).toEqual([])
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(calls).toEqual([{ action: 'deleteProject', input: { project: 'prj_box' } }])
+    )
+  })
+
   it('shows the directory of Other sessions in the fold', () => {
     renderGrid()
 

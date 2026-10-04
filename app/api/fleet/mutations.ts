@@ -53,6 +53,7 @@ export const failureStatus = (error: FleetActionError): number =>
       SessionFolderGoneError: () => 409,
       LaunchInProgressError: () => 409,
       RetireRefusedError: () => 409,
+      ProjectBusyError: () => 409,
       OpenCodeRejectedError: () => 409,
       OpenCodeRequestError: () => 502,
       OpenCodeUnavailableError: () => 503

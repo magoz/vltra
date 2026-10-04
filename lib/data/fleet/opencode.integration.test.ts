@@ -390,6 +390,19 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
 
           expect(yield* markHandled({ sessionID })).toBe('already-handled')
           expect((yield* storedSession(server, sessionID)).metadata).toBeUndefined()
+
+          // Deleting still works with the folder gone (the projects cleanup relies on it), and
+          // deleting it again is a no-op.
+          const connection = yield* (yield* OpenCode).connect
+
+          yield* connection.removeSession(sessionID)
+          yield* connection.removeSession(sessionID)
+
+          expect((yield* server.request('GET', `/api/session/${sessionID}`)).status).toBe(404)
+          yield* eventually(
+            value => (findRow(value, sessionID) === undefined ? true : undefined),
+            'deleted session leaves the fleet'
+          )
         }).pipe(Effect.provide(fleetLayer(server, watcher)))
       }).pipe(Effect.scoped),
     120_000

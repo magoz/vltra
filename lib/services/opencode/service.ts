@@ -98,6 +98,11 @@ export type OpenCodeConnection = {
     readonly projectID: string
     readonly directory: string
   }) => Effect.Effect<void, RejectableError>
+  /**
+   * `DELETE /api/session/:id`: removes the session for good (messages too). A session already gone
+   * counts as removed.
+   */
+  readonly removeSession: (sessionID: string) => Effect.Effect<void, RejectableError>
   /** `POST /api/session { location: { directory }, title }`. */
   readonly createSession: (input: {
     readonly directory: string

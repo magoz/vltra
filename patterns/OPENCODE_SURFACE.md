@@ -45,6 +45,7 @@ The launcher (`lib/data/fleet/launcher.ts`, `launches.ts`) adds these, each mapp
 | Register / resolve a repo | `GET /api/location?location[directory]=…` (`location.get`)           |
 | Create a worktree         | `POST /api/worktree { projectID, name }` (`worktree.create`)         |
 | Retire a worktree         | `DELETE /api/worktree { projectID, directory, force: false }`        |
+| Delete a session          | `DELETE /api/session/:id` (Projects' Delete; not found = done)       |
 | A worktree list           | `GET /api/worktree?projectID=…` (`[{ directory, strategy? }]`)       |
 | Create a session          | `POST /api/session { location: { directory }, title }`               |
 | Send the task             | `POST /api/session/:id/prompt { text }` (returns the queued message) |

@@ -168,7 +168,10 @@ only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
   worktrees are sections listing needs-me and working sessions; handled ones fold into
   "N handled · last 2h", expandable in place (Reopen there). No time limit yet (maybe 30 days
   later). Opening a session splits the page like the board: its chat docks on the right and the
-  grid drops a column when it gets too narrow, its cards still clickable.
+  grid drops a column when it gets too narrow, its cards still clickable. **Delete** on a card
+  header removes all its sessions in OpenCode for good (OpenCode has no project delete, so the
+  card goes with its last session), to clear out old projects: disabled while any session there
+  is working or blocked, behind a confirmation with the count; files and branches stay.
 - **Phone**: focus mode is the needs-me list; tapping a session opens its chat full screen
   (Handled in its toolbar opens the next needs-me session), back returns to the list. Agents
   shows one column at a time via a segmented control (`Need you 6 · Working 5 · Handled`),

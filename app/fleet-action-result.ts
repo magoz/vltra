@@ -5,6 +5,7 @@ import type {
   LaunchInProgressError,
   LaunchNotFoundError,
   NotACheckoutError,
+  ProjectBusyError,
   RetireRefusedError,
   SessionFolderGoneError,
   SessionNotFinishedError
@@ -72,6 +73,7 @@ export type FleetActionError =
   | OpenCodeRejectedError
   | NotACheckoutError
   | RetireRefusedError
+  | ProjectBusyError
   | LaunchNotFoundError
   | LaunchInProgressError
 
@@ -84,7 +86,8 @@ const requestFailures = new Map([
   ['session.form.reply', 'OpenCode could not record the answer'],
   ['location.get', 'OpenCode could not open the repository'],
   ['session.create', 'OpenCode could not create the session'],
-  ['worktree.remove', 'OpenCode could not remove the worktree']
+  ['worktree.remove', 'OpenCode could not remove the worktree'],
+  ['session.remove', 'OpenCode could not delete a session']
 ])
 
 /**
@@ -105,6 +108,8 @@ export const failureMessage = (error: FleetActionError): string =>
       OpenCodeRejectedError: rejected => rejected.message,
       NotACheckoutError: () => 'Not a git checkout on Box',
       RetireRefusedError: refused => refused.reason,
+      ProjectBusyError: ({ busy }) =>
+        `${busy} ${busy === 1 ? 'session there is' : 'sessions there are'} working or blocked`,
       LaunchNotFoundError: () => 'That launch is gone',
       LaunchInProgressError: () => 'The launch is still running',
       OpenCodeRequestError: failed =>

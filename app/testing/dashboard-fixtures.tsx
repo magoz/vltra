@@ -92,6 +92,7 @@ export type ActionCall =
   | { readonly action: 'dismissLaunch'; readonly input: Input<'dismissLaunch'> }
   | { readonly action: 'openCheckout'; readonly input: Input<'openCheckout'> }
   | { readonly action: 'retireWorktree'; readonly input: Input<'retireWorktree'> }
+  | { readonly action: 'deleteProject'; readonly input: Input<'deleteProject'> }
   | { readonly action: 'suggestBranch'; readonly input: Input<'suggestBranch'> }
 
 /** What the fake value actions answer (a suggestion per task, else the fallback-like default). */
@@ -149,6 +150,7 @@ export const fakeActions = (failWith?: string, values: Partial<FakeValues> = {})
     dismissLaunch: input => record({ action: 'dismissLaunch', input }),
     openCheckout: input => recordValue({ action: 'openCheckout', input }, answers.opened),
     retireWorktree: input => record({ action: 'retireWorktree', input }),
+    deleteProject: input => record({ action: 'deleteProject', input }),
     suggestBranch: input =>
       recordValue({ action: 'suggestBranch', input }, answers.suggest(input.task))
   }

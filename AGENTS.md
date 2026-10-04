@@ -140,7 +140,12 @@ Handled` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait fir
   (`ProjectRow`: marker, title, state label, age); handled sessions fold into
   "N handled · last 2h" per card (no time limit), expandable in place, with Reopen. An open session
   splits the page (`SessionSplit`); the grid takes its columns from its own width (`@container`:
-  2 from 48rem, 3 from 80rem), so it loses one beside the chat.
+  2 from 48rem, 3 from 80rem), so it loses one beside the chat. **Delete** in the header
+  (`delete-project.tsx`, `deleteProject` in `actions.ts`) clears out old projects: disabled with
+  "N sessions there are working or blocked" while busy; after a confirmation, OpenCode removes
+  every session Fleet files under the card (`projectKey`; subagents and archived ones too,
+  also with the folder gone) for good, and the card leaves with their `session.deleted`. OpenCode
+  has no project delete; files, worktrees and branches are untouched.
 - **Launcher** (DESIGN.md "Launcher and worktrees"; `launcher-dialog.tsx`, state in the shell,
   `launcher-context.tsx`): header **New**, `n` and `⌘K`/`Ctrl+K` on any page, the phone tab bar's
   **+** (full screen), and each Projects card's **+** (new-worktree step, repo preselected). The list

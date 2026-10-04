@@ -491,6 +491,15 @@ const makeConnection = (
             .remove({ projectID: id, directory: path, force: false })
             .pipe(refusable('worktree.remove', removeWorktreeTimeout))
         }),
+      removeSession: sessionID =>
+        Effect.gen(function* () {
+          const id = yield* decodeSessionId(sessionID)
+
+          yield* client.session.remove({ sessionID: id }).pipe(
+            Effect.catchTag('SessionNotFoundError', () => Effect.void),
+            refusable('session.remove')
+          )
+        }),
       createSession: ({ directory, title }) =>
         Effect.gen(function* () {
           const path = yield* decodeDirectory(directory)

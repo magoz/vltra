@@ -1,10 +1,16 @@
 import { Effect, Option, Schema } from 'effect'
-import { SessionFolderGoneError, SessionNotFinishedError } from '@/lib/data/fleet/errors'
+import { fromSnapshot, projectKey } from '@/lib/data/fleet/board'
+import { busyStates } from '@/lib/data/fleet/checkouts'
+import {
+  ProjectBusyError,
+  SessionFolderGoneError,
+  SessionNotFinishedError
+} from '@/lib/data/fleet/errors'
 import { folderGone } from '@/lib/data/fleet/folders'
 import { snapshotRows } from '@/lib/data/fleet/snapshot'
 import { isHandled } from '@/lib/data/fleet/state'
 import { FleetStore } from '@/lib/data/fleet/store'
-import type { MarkHandledOutcome, ReopenOutcome } from '@/lib/data/fleet/types'
+import type { FleetRow, MarkHandledOutcome, ReopenOutcome } from '@/lib/data/fleet/types'
 import { SessionNotFoundError } from '@/lib/services/opencode/errors'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type { OpenCodeConnection } from '@/lib/services/opencode/service'
@@ -25,6 +31,11 @@ export type ReopenInput = typeof ReopenInput.Type
 export const MarkViewedInput = Schema.Struct({ sessionID: Id })
 
 export type MarkViewedInput = typeof MarkViewedInput.Type
+
+/** A Projects card: its `projectKey` (a project id, or `other`). */
+export const DeleteProjectInput = Schema.Struct({ project: Id })
+
+export type DeleteProjectInput = typeof DeleteProjectInput.Type
 
 export type MarkViewedOutcome = 'marked' | 'already-viewed'
 
@@ -146,3 +157,33 @@ export const markViewed = (input: MarkViewedInput) =>
       return outcome
     })
   )
+
+/**
+ * Delete a Projects card: every session Fleet knows filed under the project (its `projectKey`, so
+ * `other` is the global project's), subagents and archived ones included, removed in OpenCode for
+ * good (messages too; also with the folder gone). Refused while any of its rows is working or
+ * blocked. Returns how many sessions were removed; the card leaves with their `session.deleted`.
+ */
+export const deleteProject = (input: DeleteProjectInput) =>
+  Effect.gen(function* () {
+    const view = yield* Effect.flatMap(FleetStore, store => store.view)
+    const live = fromSnapshot(view.snapshot)
+    const inProject = (row: Pick<FleetRow, 'projectID'>) => projectKey(live, row) === input.project
+
+    const busy = snapshotRows(view.snapshot).filter(
+      row => inProject(row) && busyStates.includes(row.state)
+    ).length
+
+    if (busy > 0) return yield* new ProjectBusyError({ project: input.project, busy })
+
+    const sessions = Array.from(view.model.sessions.values(), session => session.info).filter(
+      inProject
+    )
+
+    yield* withConnection(connection =>
+      // One at a time: removing a parent may remove its subagents too (then theirs is a no-op).
+      Effect.forEach(sessions, session => connection.removeSession(session.id), { discard: true })
+    )
+
+    return sessions.length
+  })

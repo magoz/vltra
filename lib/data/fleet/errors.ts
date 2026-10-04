@@ -25,6 +25,12 @@ export class NotACheckoutError extends Schema.TaggedError<NotACheckoutError>()(
   { directory: Schema.String }
 ) {}
 
+/** A project's sessions are not deleted while `busy` of them are working or blocked. */
+export class ProjectBusyError extends Schema.TaggedError<ProjectBusyError>()('ProjectBusyError', {
+  project: Schema.String,
+  busy: Schema.Number
+}) {}
+
 /** Fleet will not retire this worktree; `reason` says why (shown to the user). */
 export class RetireRefusedError extends Schema.TaggedError<RetireRefusedError>()(
   'RetireRefusedError',

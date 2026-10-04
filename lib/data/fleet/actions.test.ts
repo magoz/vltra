@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@effect/vitest'
 import { Effect, Layer } from 'effect'
-import { markHandled, markViewed, reopen } from '@/lib/data/fleet/actions'
+import { deleteProject, markHandled, markViewed, reopen } from '@/lib/data/fleet/actions'
+import { ProjectBusyError } from '@/lib/data/fleet/errors'
 import { fromSnapshot } from '@/lib/data/fleet/model'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
 import { FleetStore, makeFleetStore } from '@/lib/data/fleet/store'
@@ -41,8 +42,12 @@ const snapshot: OpenCodeSnapshot = {
   ]
 }
 
-/** The fake OpenCode plus a store holding the watcher's view of `snapshot`. */
-const services = (fake: FakeOpenCode, directories: Layer.Layer<Directories> = presentDirectories) =>
+/** The fake OpenCode plus a store holding the watcher's view of `model`. */
+const services = (
+  fake: FakeOpenCode,
+  directories: Layer.Layer<Directories> = presentDirectories,
+  model: OpenCodeSnapshot = snapshot
+) =>
   Layer.mergeAll(
     fake.layer,
     directories,
@@ -51,7 +56,7 @@ const services = (fake: FakeOpenCode, directories: Layer.Layer<Directories> = pr
       Effect.gen(function* () {
         const store = yield* makeFleetStore(webUrl)
 
-        yield* store.commit(view => ({ ...view, model: fromSnapshot(snapshot, baseTime) }))
+        yield* store.commit(view => ({ ...view, model: fromSnapshot(model, baseTime) }))
 
         return store
       })
@@ -297,6 +302,84 @@ describe('mark viewed (OpenCode unread dots only)', () => {
       )
 
       expect(result._tag).toBe('OpenCodeUnavailableError')
+    })
+  )
+})
+
+describe('delete project', () => {
+  const projects: OpenCodeSnapshot = {
+    ...emptySnapshot,
+    projects: [
+      { id: 'prj_fleet', name: 'fleet', directory: '/home/magoz/dev/repos/fleet' },
+      { id: 'prj_old', name: 'old', directory: '/home/magoz/dev/repos/old' },
+      { id: 'prj_global', directory: '/' }
+    ],
+    sessions: [
+      sessionRecord('ses_fleet_working', { idle }),
+      sessionRecord('ses_fleet_done', { idle, handled: idle }),
+      sessionRecord('ses_old_handled', { projectID: 'prj_old', idle, handled: idle }),
+      sessionRecord('ses_old_finished', { projectID: 'prj_old', idle, outcome: 'succeeded' }),
+      sessionRecord('ses_old_child', { projectID: 'prj_old', parentID: 'ses_old_handled', idle }),
+      sessionRecord('ses_old_archived', {
+        projectID: 'prj_old',
+        idle,
+        handled: idle,
+        archived: idle
+      }),
+      sessionRecord('ses_old_gone', { projectID: 'prj_old', directory: gone, idle }),
+      sessionRecord('ses_tmp', { projectID: 'prj_global', directory: '/tmp', idle, handled: idle })
+    ],
+    running: ['ses_fleet_working']
+  }
+
+  const removed = (fake: FakeOpenCode) =>
+    Effect.map(fake.calls, calls =>
+      calls.flatMap(call => (call.op === 'removeSession' ? [call.sessionID] : [])).toSorted()
+    )
+
+  it.effect('removes every session filed under the project, subagents and archived ones too', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode(projects)
+      const directories = yield* makeFakeDirectories([gone])
+
+      const count = yield* deleteProject({ project: 'prj_old' }).pipe(
+        Effect.provide(services(fake, directories.layer, projects))
+      )
+
+      expect(count).toBe(5)
+      expect(yield* removed(fake)).toEqual([
+        'ses_old_archived',
+        'ses_old_child',
+        'ses_old_finished',
+        'ses_old_gone',
+        'ses_old_handled'
+      ])
+    })
+  )
+
+  it.effect('"other" is the global project', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode(projects)
+
+      yield* deleteProject({ project: 'other' }).pipe(
+        Effect.provide(services(fake, presentDirectories, projects))
+      )
+
+      expect(yield* removed(fake)).toEqual(['ses_tmp'])
+    })
+  )
+
+  it.effect('refuses while a session there works or is blocked, deleting nothing', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode(projects)
+
+      const error = yield* deleteProject({ project: 'prj_fleet' }).pipe(
+        Effect.provide(services(fake, presentDirectories, projects)),
+        Effect.flip
+      )
+
+      expect(error).toEqual(new ProjectBusyError({ project: 'prj_fleet', busy: 1 }))
+      expect(yield* fake.calls).toEqual([])
     })
   )
 })

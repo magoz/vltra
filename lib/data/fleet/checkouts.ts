@@ -19,7 +19,8 @@ export const latestSessionIn = (
       undefined
     )?.id
 
-const busyStates: ReadonlyArray<FleetRow['state']> = ['working', 'blocked']
+/** The states that keep a checkout or project from being removed. */
+export const busyStates: ReadonlyArray<FleetRow['state']> = ['working', 'blocked']
 
 /** Root rows and subagents running in `directory` (or below it) that are working or blocked. */
 export const busySessions = (

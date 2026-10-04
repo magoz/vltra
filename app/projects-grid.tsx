@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { DeleteProject } from '@/app/delete-project'
 import { useFleet } from '@/app/fleet-context'
 import { relativeTime } from '@/app/fleet-format'
 import { entryForProject, useLauncher } from '@/app/launcher-context'
@@ -169,6 +170,7 @@ function Card({
             +
           </button>
         )}
+        <DeleteProject card={card} />
       </div>
       {sections.map(section => (
         <div key={section.directory} data-worktree={section.directory} className="pt-1.5">

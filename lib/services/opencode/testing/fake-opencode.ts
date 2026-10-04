@@ -30,6 +30,7 @@ export type FakeCall =
   | { readonly op: 'createWorktree'; readonly projectID: string; readonly name: string }
   | { readonly op: 'removeWorktree'; readonly projectID: string; readonly directory: string }
   | { readonly op: 'createSession'; readonly directory: string; readonly title: string | undefined }
+  | { readonly op: 'removeSession'; readonly sessionID: string }
   | { readonly op: 'generateText'; readonly prompt: string }
 
 /** How the fake answers the launcher's calls; each defaults to a quick success (text: a refusal). */
@@ -46,6 +47,7 @@ export type FakeLauncherBehavior = {
     readonly directory: string
     readonly title: string | undefined
   }) => Effect.Effect<void, RejectableError>
+  readonly removeSession: (sessionID: string) => Effect.Effect<void, RejectableError>
   readonly prompt: (input: {
     readonly sessionID: string
     readonly text: string
@@ -57,6 +59,7 @@ const defaultLauncherBehavior: FakeLauncherBehavior = {
   createWorktree: ({ name }) => Effect.succeed(`/worktrees/${name}`),
   removeWorktree: () => Effect.void,
   createSession: () => Effect.void,
+  removeSession: () => Effect.void,
   prompt: () => Effect.void,
   generateText: () =>
     Effect.fail(new OpenCodeRequestError({ operation: 'generate.text', message: 'fake: no model' }))
@@ -322,6 +325,11 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
           Effect.flatMap(Ref.get(launcher), behavior =>
             behavior.removeWorktree({ projectID, directory })
           )
+        ),
+      removeSession: sessionID =>
+        Effect.andThen(
+          record({ op: 'removeSession', sessionID }),
+          Effect.flatMap(Ref.get(launcher), behavior => behavior.removeSession(sessionID))
         ),
       createSession: ({ directory, title }) =>
         createSession(title === undefined ? { directory } : { directory, title }),

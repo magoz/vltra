@@ -4,7 +4,12 @@ import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { FleetActionResult } from '@/app/fleet-action-result'
 import type { FleetActionFailure, FleetActionValue } from '@/app/fleet-action-result'
-import type { MarkHandledInput, MarkViewedInput, ReopenInput } from '@/lib/data/fleet/actions'
+import type {
+  DeleteProjectInput,
+  MarkHandledInput,
+  MarkViewedInput,
+  ReopenInput
+} from '@/lib/data/fleet/actions'
 import type {
   DismissLaunchInput,
   LaunchInput,
@@ -25,6 +30,8 @@ export type FleetActions = {
   /** A repository's or worktree's latest root session, or a new empty one there. */
   readonly openCheckout: (input: OpenCheckoutInput) => Promise<FleetActionValue<OpenedCheckout>>
   readonly retireWorktree: (input: RetireWorktreeInput) => Promise<FleetActionResult>
+  /** Delete a Projects card's sessions in OpenCode, for good. */
+  readonly deleteProject: (input: DeleteProjectInput) => Promise<FleetActionResult>
   readonly suggestBranch: (input: SuggestBranchInput) => Promise<FleetActionValue<BranchSuggestion>>
 }
 
