@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
-import { CommandDigit, commandDigit } from '@/app/command-digit'
+import { CommandKey, commandKey, inDialog } from '@/app/command-keys'
 import { useFleetActions } from '@/app/fleet-actions'
 import { FleetProvider } from '@/app/fleet-context'
 import type { FleetNav, SessionSelection } from '@/app/fleet-context'
@@ -108,11 +108,11 @@ function useLauncherShortcut(open: () => void) {
 }
 
 /**
- * `⌘1`–`⌘9` / `⌘⌥1`–`⌘⌥3` (`commandDigit`) from anywhere, in the OpenCode chat too
- * (`forwardChatKeys`), even while typing; not in a dialog. Always taken, so the browser never
- * switches tabs instead.
+ * Fleet's `⌘` chords (`commandKey`) from anywhere, in the OpenCode chat too (`forwardChatKeys`),
+ * even while typing; not in a dialog. Always taken, so the browser never acts instead (switching
+ * tabs, `⌘D`'s bookmark); `⌘D` itself is the open session panel's (`useDoneKey`).
  */
-function useCommandDigits(run: (chord: CommandDigit) => void) {
+function useCommandKeys(run: (chord: CommandKey) => void) {
   const latest = useRef(run)
 
   useEffect(() => {
@@ -121,15 +121,9 @@ function useCommandDigits(run: (chord: CommandDigit) => void) {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      const chord = commandDigit(event)
+      const chord = commandKey(event)
 
-      if (chord === undefined) return
-
-      const target = event.target
-
-      if (target instanceof Element && target.closest('[role="dialog"], [role="alertdialog"]')) {
-        return
-      }
+      if (chord === undefined || inDialog(event)) return
 
       event.preventDefault()
       latest.current(chord)
@@ -199,8 +193,8 @@ export function FleetShell({
   useFavicon(counts)
   useLauncherShortcut(openLauncher)
 
-  useCommandDigits(
-    CommandDigit.$match({
+  useCommandKeys(
+    CommandKey.$match({
       Tab: ({ screen: target }) => nav.show(target),
       Session: ({ index }) => {
         const item = focusList(view)[index]
@@ -212,7 +206,8 @@ export function FleetShell({
         } else {
           nav.openSession(item.row.id)
         }
-      }
+      },
+      Done: () => undefined
     })
   )
 

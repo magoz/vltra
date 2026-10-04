@@ -2,12 +2,14 @@
 
 import { useEffect, useRef } from 'react'
 import { useChatFrame } from '@/app/chat-keys'
+import { CommandKey, commandKey, inDialog } from '@/app/command-keys'
 import { useFleet } from '@/app/fleet-context'
 import { sessionTitle } from '@/app/fleet-format'
 import { useFleetActions } from '@/app/fleet-actions'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
 import { isReopenable } from '@/app/session-row'
 import { StateMarker } from '@/app/state-marker'
+import { useHandled } from '@/app/use-handled'
 import { Button } from '@/components/ui/button'
 import { boardRow } from '@/lib/data/fleet/board'
 import type { BoardRow } from '@/lib/data/fleet/board'
@@ -28,6 +30,37 @@ function useMarkViewed(sessionID: string, row: BoardRow['row'] | undefined) {
       // Only OpenCode's unread dots depend on it; the next open tries again.
     })
   }, [actions, sessionID, idle, unread])
+}
+
+/**
+ * `⌘D` marks the open session done when it is finished, like its `✔ Done` (so in Focus the next
+ * session opens); in the chat too, even while typing (`forwardChatKeys`). The shell's
+ * `useCommandKeys` takes the key from the browser either way.
+ */
+function useDoneKey(row: BoardRow['row'] | undefined) {
+  const { markHandled } = useHandled()
+  const done = row?.state === 'finished' ? row.id : undefined
+  const latest = useRef({ done, markHandled })
+
+  useEffect(() => {
+    latest.current = { done, markHandled }
+  })
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const chord = commandKey(event)
+
+      if (chord === undefined || !CommandKey.$is('Done')(chord) || inDialog(event)) return
+
+      const { done: id, markHandled: mark } = latest.current
+
+      if (id !== undefined) mark(id)
+    }
+
+    document.addEventListener('keydown', onKey)
+
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
 }
 
 /**
@@ -116,6 +149,7 @@ export function SessionPanel({ sessionID, item, onClose }: SessionPanelProps) {
   const title = row === undefined ? sessionID : sessionTitle(row)
 
   useMarkViewed(sessionID, row)
+  useDoneKey(row)
 
   return (
     <div className="flex h-full min-h-0 flex-col">

@@ -468,4 +468,25 @@ describe('keyboard', () => {
     // The last one: the one before it opens.
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
   })
+
+  it('⌘D marks the open session done and opens the next; not a blocked one', async () => {
+    const { live, calls } = renderFocus({ session: 'ses_done_old' })
+
+    // `fireEvent` is false once the default is prevented.
+    const commandD = () =>
+      fireEvent.keyDown(document.body, { key: 'd', code: 'KeyD', metaKey: true })
+
+    // Taken from the browser (no bookmark), whatever it does.
+    expect(commandD()).toBe(false)
+    expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_new'])
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
+
+    open('Wait old')
+    commandD()
+
+    await waitFor(() =>
+      expect(calls()).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_done_old' } }])
+    )
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_wait_old'))
+  })
 })

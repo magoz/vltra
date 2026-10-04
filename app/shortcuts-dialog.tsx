@@ -14,7 +14,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
   focus: [
     { keys: 'j k', label: 'move' },
     { keys: '↵', label: 'open' },
-    { keys: 'h', label: 'done' },
+    { keys: 'h ⌘D', label: 'done' },
     { keys: 'u', label: 'undo' },
     { keys: 'b', label: 'agents' },
     { keys: 'n ⌘K', label: 'new' },
@@ -27,7 +27,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: 'j k', label: 'move' },
     { keys: '← →', label: 'column' },
     { keys: '↵', label: 'open' },
-    { keys: 'h', label: 'done' },
+    { keys: 'h ⌘D', label: 'done' },
     { keys: 'u', label: 'undo' },
     { keys: 'b', label: 'focus' },
     { keys: 'n ⌘K', label: 'new' },

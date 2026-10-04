@@ -205,8 +205,9 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first,
   Focus ↔ Agents, `n` the launcher (and `⌘K` / `Ctrl+K`, its own listener, also while typing),
   `?` the tab's keys (`shortcuts-dialog.tsx`, `keyHints`; also the header's `?`; no hints line),
   `Escape` closes the session (the palette closes itself). `⌘1`–`⌘9` open Focus' Nth session
-  (in Focus from another tab) and `⌘⌥1`–`⌘⌥3` pick a tab (`command-digit.ts`, read by `code`;
-  `useCommandDigits` in the shell, from anywhere but dialogs, in the chat even while typing;
+  (in Focus from another tab) and `⌘⌥1`–`⌘⌥3` pick a tab, `⌘D` marks the open finished session done (`useDoneKey` in
+  `session-panel.tsx`, through `markHandled`, so Focus opens the next) (`command-keys.ts`, read by
+  `code`; `useCommandKeys` in the shell, from anywhere but dialogs, in the chat even while typing;
   always `preventDefault`, so the browser does not switch tabs). Focus: `j`/`k` (`↓`/`↑`) through
   the list, `Enter` opens the focused session on the right, `h` handled (the cursor's finished
   session, else the open one; the next opens), `u` undo (reopens and opens it); no

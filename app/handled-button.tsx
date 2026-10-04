@@ -26,7 +26,7 @@ export function HandledButton({
       variant={variant}
       size={size}
       className={className}
-      title="Mark done (h)"
+      title="Mark done (h, ⌘D)"
       onClick={() => markHandled(sessionID)}
     >
       <span aria-hidden="true">✔</span>
