@@ -276,9 +276,9 @@ export function BottomTabs({
 }
 
 /**
- * Desktop only (the phone has the tab bar and `ConnectionLine`): title and tabs on the left, the
- * count line centred, on the right the usage line, the launcher's New, `?` (the keys) and the
- * connection.
+ * Desktop only (the phone has the tab bar and `ConnectionLine`): the tabs on the left (the title
+ * is screen-reader only), the count line centred, on the right the usage line, the launcher's
+ * New, `?` (the keys) and the connection.
  */
 export function FleetHeader({
   screen,
@@ -305,8 +305,9 @@ export function FleetHeader({
 
   return (
     <header className="bg-background/95 supports-backdrop-filter:bg-background/80 sticky top-0 z-20 grid h-12 grid-cols-[1fr_auto_1fr] items-center gap-x-4 border-b px-4 backdrop-blur-sm max-lg:hidden">
-      <div className="flex items-center gap-x-4 self-stretch">
-        <h1 className="text-base font-semibold">Fleet</h1>
+      <div className="-ml-3 flex items-center self-stretch">
+        {/* No visible title: the tabs start the bar. */}
+        <h1 className="sr-only">Fleet</h1>
         <HeaderTabs screen={screen} />
       </div>
       <div className="text-sm whitespace-nowrap">

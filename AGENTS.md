@@ -91,7 +91,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 - `FleetDashboard` wires server actions, the clock and the URL (`use-fleet-nav.ts`: the tab and
   the filter; `use-selected-session.ts`: `?session=`; `fleet-href.ts` builds every URL) around
   `FleetShell` (`fleet-shell.tsx`): the tabs `Focus | Agents | Projects` (`fleet-header.tsx`), in
-  the desktop header (the count line `N need you · N working · N stuck`, centred; on the right the usage
+  the desktop header (no visible title, the tabs first; the count line `N need you · N working · N stuck`, centred; on the right the usage
   line, New, `?` and the connection) or the phone's bottom tab bar (`BottomTabs`, with `+`; no header there, only
   `ConnectionLine`: a slim `reconnecting…` line on top once a reconnect lasts 3s, the wait starting
   over when the page shows again), and each tab shows the open session itself (Focus' pane,
@@ -133,8 +133,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first,
   badged `blocked`), then finished (oldest first). Working: stuck first, then newest session (`created`, so live activity does not reshuffle).
   Done (handled): active in the last 24h, newest first, then "N more → Projects". Cards
   (`agent-card.tsx`) are minimal: marker (red for a failed run), project · worktree (`boardRow`;
-  the global project's sessions by their directory), the `blocked` badge, `✔ Done` left of the age (finished; with a mouse
-  only on hover, the open session and the cursor; always on touch), age and title, flags for
+  the global project's sessions by their directory), the `blocked` badge, age, `✔ Done` (finished; with a mouse only on
+  hover, laid over the age so nothing moves; on touch always, left of the age), title, flags for
   `retrying (n×, …)` / `quiet Nm` and "folder deleted", Reopen (handled, not for "folder
   deleted"). Asks, answers and live activity are left to the chat. `?project=<projectKey>`
   (`other` = the global project) narrows every column: a select (`/` focuses it) and a chip with ×
