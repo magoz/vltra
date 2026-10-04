@@ -235,7 +235,7 @@ describe('focus mode', () => {
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
   })
 
-  it("handles from the chat's toolbar and opens the next session", async () => {
+  it("handles from the chat's toolbar (phone) and opens the next session", async () => {
     const { live, calls } = renderFocus({ live: finishedOnly() })
 
     open('Done old')

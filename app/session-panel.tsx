@@ -60,11 +60,16 @@ function OpenCodeChat({ url, title }: { readonly url: string; readonly title: st
   )
 }
 
-/** Fleet's own action on the session (✔ Done or Reopen), then the ways out. */
+/**
+ * Fleet's own action on the session, then the ways out. `✔ Done` only below `lg`, where the
+ * session fills the screen; on desktop the card beside the chat has its own. Reopen everywhere.
+ */
 function ToolbarActions({ row }: { readonly row: BoardRow['row'] }) {
   return (
     <>
-      {row.state === 'finished' ? <HandledButton sessionID={row.id} size="sm" /> : null}
+      {row.state === 'finished' ? (
+        <HandledButton sessionID={row.id} size="sm" className="lg:hidden" />
+      ) : null}
       {isReopenable(row) ? <ReopenButton sessionID={row.id} size="sm" /> : null}
       {/* `ocb://` is handled by the Mac URL-scheme app only; touch devices cannot open it. */}
       <a

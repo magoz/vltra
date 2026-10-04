@@ -214,7 +214,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first,
   no Summary tab: an iframe of OpenCode's web UI (`row.links.web`), signed in by its same-site
   pairing cookie (`opencode pair`), with full app chrome since upstream has no embed mode. Its
   slim toolbar has only what Fleet adds: the phone's back button, state and title, `✔ Done`
-  (finished) / Reopen (handled; neither for "folder deleted"), open in the terminal (`ocb://`,
+  (finished; phone only, the desktop card has its own) / Reopen (handled; neither for "folder deleted"), open in the terminal (`ocb://`,
   fine pointers only) or a new tab, close (desktop). Messages, asks, follow-ups and Stop happen in
   the chat. Being same-site, the iframe runs on Fleet's main thread: keep one chat mounted at a
   time (no hidden pages, no pools).

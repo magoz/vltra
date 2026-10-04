@@ -195,7 +195,7 @@ prompt and subagents are all in the chat):
   `https://box.tail129a86.ts.net:9446/server/<base64url(origin)>/session/<id>`
   (`app/src/shell/routes/session.ts`; server key = page origin). Works on Mac and phone after a
   one-time `opencode pair` per browser (30-day cookie).
-- **Toolbar**: only what Fleet adds: ✔ Done / Reopen, open the chat in a new tab, and
+- **Toolbar**: only what Fleet adds: ✔ Done (phone only; on desktop the card beside it has it) / Reopen, open the chat in a new tab, and
   **Open in terminal** (Mac only) → `ocb://session/<id>`, handled by a tiny URL-scheme app that
   `macos/setup-box` installs and that opens a new Ghostty window running `ocb -s <id>`.
   The OpenCode desktop app registers no URL scheme, so it cannot be targeted.

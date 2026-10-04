@@ -71,11 +71,12 @@ describe('session panel', () => {
     expect(screen.queryByRole('button', { name: 'Done' })).toBeNull()
   })
 
-  it('offers Handled, not Reopen, for a finished run', async () => {
+  it('offers Done (phone only; desktop has the card), not Reopen, for a finished run', async () => {
     const { calls } = renderPanel(doneRow())
 
     expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull()
 
+    expect(screen.getByRole('button', { name: 'Done' }).className).toContain('lg:hidden')
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
 
     await vi.waitFor(() =>
