@@ -16,6 +16,7 @@ import { suggestBranchAction } from '@/app/suggest-branch-action'
 import { useFleetLive } from '@/app/use-fleet-live'
 import { useFleetNav } from '@/app/use-fleet-nav'
 import { useNow } from '@/app/use-now'
+import { useReloadOnDeploy } from '@/app/use-reload-on-deploy'
 import { useSelectedSession } from '@/app/use-selected-session'
 import { Toaster } from '@/components/ui/sonner'
 import type { FleetSnapshot } from '@/lib/data/fleet/types'
@@ -40,12 +41,17 @@ const serverActions: FleetActions = {
  */
 export function FleetDashboard({
   initial,
+  build,
   children
 }: {
   readonly initial: FleetSnapshot
+  /** The server build that rendered this page (`useReloadOnDeploy`). */
+  readonly build: string
   readonly children: ReactNode
 }) {
   const { live, stream } = useFleetLive(initial)
+
+  useReloadOnDeploy(build, stream)
   const now = useNow(initial.generatedAt)
   const selection = useSelectedSession()
   const nav = useFleetNav()

@@ -228,6 +228,12 @@ Handled` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait fir
   and `destructive` red only, hairline borders, no shadows); light/dark follow the system
   (`prefers-color-scheme`), no toggle.
 - PWA: `app/manifest.ts`, `app/icon.svg`, `app/apple-icon.png`, `public/icon-*.png` (no offline).
+- Deploys reload open pages (`use-reload-on-deploy.ts`): the live tree passes the build that
+  rendered the page (`.next/BUILD_ID`, read once at boot: `lib/runtime/build-id.ts`, warmed in
+  `instrumentation.ts`, since `pnpm ship` rewrites it under the running server); every time the
+  event stream goes live the page asks `GET /api/fleet/version` and, on a different build,
+  reloads at once when hidden or idle, else (focus in the chat iframe, a field, an open dialog)
+  toasts "Fleet was updated" with Reload and reloads the next time the page is hidden.
 - Favicon dot (`use-favicon.ts`): brand orange when any session needs you, else amber while any
   works, else green (`app/icon.svg` as is).
 
