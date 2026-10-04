@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="88 88 336 336">
-  <style>path{fill:#141312}@media (prefers-color-scheme:dark){path{fill:#eeebe6}}</style>
+  <style>path{fill:#3a3835}@media (prefers-color-scheme:dark){path{fill:#ccc8c0}}</style>
   <path d="M112 400V131A269 269 0 0 1 381 400Z"/>
   <circle cx="360.55" cy="151.45" r="39.45" fill="#ff4f2b"/>
 </svg>
