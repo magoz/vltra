@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 
 /**
  * The dashboard's keys (desktop). Each page binds its own; the shell binds the tabs' `1`, `2`,
- * `3`, and `b`, `n`, `Escape` (`⌘K` is the launcher's own listener). Keys typed inside the
+ * `3`, and `b`, `n`, `?`, `Escape` (`⌘K` is the launcher's own listener). Keys typed inside the
  * OpenCode iframe stay in the iframe.
  */
 export type FleetKey =
@@ -18,6 +18,7 @@ export type FleetKey =
   | '2'
   | '3'
   | '/'
+  | '?'
   | 'Enter'
   | 'Escape'
   | 'ArrowDown'
@@ -39,6 +40,7 @@ const fleetKeys: ReadonlyArray<string> = [
   '2',
   '3',
   '/',
+  '?',
   'Enter',
   'Escape',
   'ArrowDown',

@@ -78,26 +78,21 @@ describe('header', () => {
     expect(currentTab(renderHeader('projects'))).toBe('Projects')
   })
 
-  it("shows each tab's keys", () => {
-    renderHeader('focus')
-
-    expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ↵ open · h handled · u undo · b agents · n ⌘K new · / filter · 1 2 3 tabs'
+  it('keeps the keys behind ?, not in the header', () => {
+    render(
+      <WithFleet actions={fakeActions().actions} now={0}>
+        <FleetHeader
+          screen="focus"
+          counts={counts}
+          stream="live"
+          connection={connected}
+          onShortcuts={() => undefined}
+        />
+      </WithFleet>
     )
 
-    cleanup()
-    renderHeader('agents')
-
-    expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ← → column · ↵ open · h handled · u undo · b focus · n ⌘K new · / filter · 1 2 3 tabs'
-    )
-
-    cleanup()
-    renderHeader('projects')
-
-    expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      '← → ↑ ↓ card · j k session · ↵ open · n ⌘K new · 1 2 3 tabs'
-    )
+    expect(screen.getByRole('button', { name: 'Keyboard shortcuts' }).textContent).toBe('?')
+    expect(screen.queryByText('handled')).toBeNull()
   })
 })
 

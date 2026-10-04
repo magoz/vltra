@@ -178,9 +178,8 @@ export const usageDetail = (pools: ReadonlyArray<UsagePool>, now: number): strin
 
 /**
  * The subscription quotas, condensed: `Claude 45% · Codex 96% · Z.AI 100% · Go 34% left`, each the
- * window that runs out first (red at 10% or less); every window and reset on hover. It keeps its
- * width (the key hints drop first) and leaves desktops under 70rem, where it would push the
- * connection off.
+ * window that runs out first (red at 10% or less); every window and reset on hover. Desktops
+ * under 72rem leave it out, where it would push the connection off.
  */
 export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readonly now: number }) {
   if (usage.pools.length === 0) return null
@@ -189,7 +188,7 @@ export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readon
     <p
       aria-label="Usage left"
       title={usageDetail(usage.pools, now)}
-      className="text-muted-foreground text-xs max-[70rem]:hidden"
+      className="text-muted-foreground shrink-0 text-xs max-[72rem]:hidden"
     >
       {usage.pools.map((pool, index) => (
         <span key={pool.provider}>
@@ -207,68 +206,6 @@ export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readon
         </span>
       ))}{' '}
       left
-    </p>
-  )
-}
-
-type KeyHint = { readonly keys: string; readonly label: string }
-
-/**
- * Each tab's keys (`agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`), plus the
- * shell's: `n` (the launcher, also `⌘K`), `b` (Focus ↔ Agents), `1` / `2` / `3` (the tabs). Most
- * needed first: on narrower desktops the last ones drop.
- */
-export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
-  focus: [
-    { keys: 'j k', label: 'move' },
-    { keys: '↵', label: 'open' },
-    { keys: 'h', label: 'handled' },
-    { keys: 'u', label: 'undo' },
-    { keys: 'b', label: 'agents' },
-    { keys: 'n ⌘K', label: 'new' },
-    { keys: '/', label: 'filter' },
-    { keys: '1 2 3', label: 'tabs' }
-  ],
-  agents: [
-    { keys: 'j k', label: 'move' },
-    { keys: '← →', label: 'column' },
-    { keys: '↵', label: 'open' },
-    { keys: 'h', label: 'handled' },
-    { keys: 'u', label: 'undo' },
-    { keys: 'b', label: 'focus' },
-    { keys: 'n ⌘K', label: 'new' },
-    { keys: '/', label: 'filter' },
-    { keys: '1 2 3', label: 'tabs' }
-  ],
-  projects: [
-    { keys: '← → ↑ ↓', label: 'card' },
-    { keys: 'j k', label: 'session' },
-    { keys: '↵', label: 'open' },
-    { keys: 'n ⌘K', label: 'new' },
-    { keys: '1 2 3', label: 'tabs' }
-  ]
-}
-
-/**
- * The tab's keys, wide desktops only. One line: hints that do not fit wrap onto a clipped second
- * line, so the last (least needed) ones drop whole instead of squeezing the count line.
- */
-function KeyHintLine({ screen }: { readonly screen: FleetScreen }) {
-  return (
-    <p
-      aria-label="Keyboard shortcuts"
-      className="text-muted-foreground flex h-4 min-w-0 flex-wrap justify-end overflow-hidden text-xs leading-4 max-xl:hidden"
-    >
-      {keyHints[screen].map((hint, index) => (
-        <span key={hint.keys} className="whitespace-nowrap">
-          {index === 0 ? null : (
-            <span aria-hidden="true" className="whitespace-pre">
-              {' · '}
-            </span>
-          )}
-          <kbd className="text-foreground font-mono">{hint.keys}</kbd> {hint.label}
-        </span>
-      ))}
     </p>
   )
 }
@@ -340,7 +277,7 @@ export function BottomTabs({
 
 /**
  * Desktop only (the phone has the tab bar and `ConnectionLine`): title, the tabs, the count line,
- * the usage line, the launcher's New, the tab's key hint, the connection.
+ * then on the right the usage line, the launcher's New, `?` (the keys) and the connection.
  */
 export function FleetHeader({
   screen,
@@ -349,7 +286,8 @@ export function FleetHeader({
   connection,
   usage,
   now,
-  onNew
+  onNew,
+  onShortcuts
 }: {
   readonly screen: FleetScreen
   readonly counts: FleetCounts
@@ -359,6 +297,8 @@ export function FleetHeader({
   readonly usage?: UsageSummary | undefined
   readonly now?: number
   readonly onNew?: () => void
+  /** Opens the keys (`?`). */
+  readonly onShortcuts?: () => void
 }) {
   const link = linkStatus(stream, connection)
 
@@ -366,11 +306,11 @@ export function FleetHeader({
     <header className="bg-background/95 supports-backdrop-filter:bg-background/80 sticky top-0 z-20 flex h-12 items-center gap-x-4 border-b px-4 backdrop-blur-sm max-lg:hidden">
       <h1 className="text-base font-semibold">Fleet</h1>
       <HeaderTabs screen={screen} />
-      <div className="flex flex-1 items-baseline gap-x-6 text-sm whitespace-nowrap">
+      <div className="flex-1 text-sm whitespace-nowrap">
         <CountLine counts={counts} />
-        {usage === undefined || now === undefined ? null : <UsageLine usage={usage} now={now} />}
       </div>
-      <div className="flex min-w-0 items-center gap-x-5">
+      <div className="flex items-center gap-x-5">
+        {usage === undefined || now === undefined ? null : <UsageLine usage={usage} now={now} />}
         {onNew === undefined ? null : (
           <Button
             variant="outline"
@@ -381,7 +321,17 @@ export function FleetHeader({
             New
           </Button>
         )}
-        <KeyHintLine screen={screen} />
+        {onShortcuts === undefined ? null : (
+          <button
+            type="button"
+            onClick={onShortcuts}
+            aria-label="Keyboard shortcuts"
+            title="Keyboard shortcuts (?)"
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 -mx-1.5 px-1.5 text-xs outline-none focus-visible:ring-[3px]"
+          >
+            ?
+          </button>
+        )}
         <p role="status" title={link.detail} className="flex shrink-0 items-center gap-1.5 text-xs">
           <span
             aria-hidden="true"

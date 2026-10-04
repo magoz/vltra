@@ -10,6 +10,7 @@ import { BottomTabs, ConnectionLine, FleetHeader } from '@/app/fleet-header'
 import { LauncherProvider } from '@/app/launcher-context'
 import type { Launcher, LauncherRequest } from '@/app/launcher-context'
 import { LauncherDialog } from '@/app/launcher-dialog'
+import { ShortcutsDialog } from '@/app/shortcuts-dialog'
 import type { StreamStatus } from '@/app/use-fleet-live'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
 import { useFavicon } from '@/app/use-favicon'
@@ -140,6 +141,7 @@ export function FleetShell({
   const launcherList = useLauncherList()
   const usage = useUsage()
   const [launcherOpen, setLauncherOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [request, setRequest] = useState<LauncherRequest>({ step: 'pick' })
   const { reload } = launcherList
 
@@ -164,6 +166,7 @@ export function FleetShell({
 
   useKeys({
     n: () => openLauncher(),
+    '?': () => setShortcutsOpen(true),
     '1': screen === 'focus' ? undefined : () => nav.show('focus'),
     '2': screen === 'agents' ? undefined : () => nav.show('agents'),
     '3': screen === 'projects' ? undefined : () => nav.show('projects'),
@@ -184,6 +187,7 @@ export function FleetShell({
               usage={usage}
               now={now}
               onNew={() => openLauncher()}
+              onShortcuts={() => setShortcutsOpen(true)}
             />
             <ConnectionLine stream={stream} connection={live.connection} />
             <main className="flex min-h-0 flex-1 flex-col max-lg:pb-14">{children}</main>
@@ -198,6 +202,7 @@ export function FleetShell({
                 toast(`Provisioning ${branch}…`)
               }}
             />
+            <ShortcutsDialog screen={screen} open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
           </div>
         </HandledProvider>
       </LauncherProvider>
