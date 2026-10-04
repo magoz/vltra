@@ -48,9 +48,9 @@ describe('header', () => {
     expect(screen.getByRole('banner').className).toContain('max-lg:hidden')
     expect(screen.getByRole('heading', { name: 'Fleet' })).toBeTruthy()
     expect(tabLinks(tabs)).toEqual([
-      ['Agents', '/'],
-      ['Board', '/?view=board'],
-      ['Projects', '/projects']
+      ['Focus', '/'],
+      ['Agents', '/?view=board'],
+      ['Projects', '/?view=projects']
     ])
     expect(screen.getByLabelText('Session counts').textContent).toBe(
       '6 need you · 17 working · 2 stuck'
@@ -58,13 +58,13 @@ describe('header', () => {
     expect(screen.getByRole('status').textContent).toContain('live')
   })
 
-  it('marks the tab showing, with no Focus | Board toggle', () => {
-    expect(currentTab(renderHeader('focus'))).toBe('Agents')
+  it('marks the tab showing, with no mode toggle', () => {
+    expect(currentTab(renderHeader('focus'))).toBe('Focus')
     expect(screen.queryByRole('group', { name: 'Agents view' })).toBeNull()
 
     cleanup()
 
-    expect(currentTab(renderHeader('board'))).toBe('Board')
+    expect(currentTab(renderHeader('board'))).toBe('Agents')
 
     cleanup()
 
@@ -75,14 +75,14 @@ describe('header', () => {
     renderHeader('focus')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ↵ open · h handled · u undo · b board · n ⌘K new · / filter · 1 2 3 tabs'
+      'j k move · ↵ open · h handled · u undo · b agents · n ⌘K new · / filter · 1 2 3 tabs'
     )
 
     cleanup()
     renderHeader('board')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ← → column · ↵ open · h handled · u undo · b agents · n ⌘K new · / filter · 1 2 3 tabs'
+      'j k move · ← → column · ↵ open · h handled · u undo · b focus · n ⌘K new · / filter · 1 2 3 tabs'
     )
 
     cleanup()
@@ -131,19 +131,19 @@ describe('tab bar', () => {
 
     expect(bar.className).toContain('lg:hidden')
     expect(tabLinks(bar)).toEqual([
-      ['Agents', '/'],
-      ['Board', '/?view=board'],
-      ['Projects', '/projects']
+      ['Focus', '/'],
+      ['Agents', '/?view=board'],
+      ['Projects', '/?view=projects']
     ])
     expect(within(bar).getByRole('button', { name: 'New (launcher)' })).toBeTruthy()
   })
 
   it('marks the tab showing', () => {
-    expect(currentTab(renderTabs('focus'))).toBe('Agents')
+    expect(currentTab(renderTabs('focus'))).toBe('Focus')
 
     cleanup()
 
-    expect(currentTab(renderTabs('board'))).toBe('Board')
+    expect(currentTab(renderTabs('board'))).toBe('Agents')
 
     cleanup()
 

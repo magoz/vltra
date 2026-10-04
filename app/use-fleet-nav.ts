@@ -1,65 +1,64 @@
 'use client'
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useCallback, useMemo } from 'react'
 import type { FleetNav } from '@/app/fleet-context'
-import { fleetHref, pageOf, projectParam, sessionParam, viewOf, viewParam } from '@/app/fleet-href'
-import type { AgentsView, FleetPage } from '@/app/fleet-href'
+import {
+  fleetHref,
+  moveTo,
+  projectParam,
+  screenOf,
+  sessionParam,
+  viewParam
+} from '@/app/fleet-href'
+import type { FleetScreen } from '@/app/fleet-href'
 
 /**
- * The dashboard's navigation from the URL: the page from the path; the Agents mode, the project
- * filter and the open session from the query. Page switches are router navigations (both pages
- * share the layout that holds the live fleet, so nothing reloads); the filter changes in place;
- * a mode switch pushes a history entry, so Back returns to the other mode. The launcher lands in
- * focus mode with the session open.
+ * The dashboard's navigation from the URL: the tab, the filter and the open session, all in the
+ * query of the one page (`fleet-href.ts`). Every move is a history write, which Next syncs into
+ * `useSearchParams`, so nothing is fetched or remounted: switching tabs pushes an entry (Back
+ * returns), the filter changes in place, and the launcher lands on Agents with the session open.
  */
 export function useFleetNav(): FleetNav {
-  const pathname = usePathname()
   const searchParams = useSearchParams()
-  const router = useRouter()
-  const page = pageOf(pathname)
-  const view = viewOf(searchParams.get(viewParam))
-  const project = searchParams.get(projectParam) ?? undefined
+  const screen = screenOf(searchParams.get(viewParam))
+  const project = screen === 'projects' ? undefined : (searchParams.get(projectParam) ?? undefined)
   const session = searchParams.get(sessionParam) ?? undefined
 
   const href = useCallback(
-    (target: FleetPage, filter?: string, mode?: AgentsView) =>
-      fleetHref(target, { project: filter, session, view: mode ?? view }),
-    [session, view]
+    (target: FleetScreen, filter?: string) => {
+      const to = moveTo({ screen, project }, target, filter)
+
+      return fleetHref(to.screen, { project: to.project, session })
+    },
+    [screen, project, session]
   )
 
-  const go = useCallback(
-    (target: FleetPage, filter?: string, mode?: AgentsView) =>
-      router.push(href(target, filter, mode)),
-    [router, href]
+  const show = useCallback(
+    (target: FleetScreen, filter?: string) => {
+      const to = moveTo({ screen, project }, target, filter)
+
+      if (to.screen === screen && to.project === project) return
+
+      window.history.pushState(null, '', fleetHref(to.screen, { project: to.project, session }))
+    },
+    [screen, project, session]
   )
 
   const setProject = useCallback(
     (filter: string | undefined) =>
-      window.history.replaceState(
-        null,
-        '',
-        fleetHref('agents', { project: filter, session, view })
-      ),
-    [session, view]
-  )
-
-  const setView = useCallback(
-    (mode: AgentsView) => {
-      if (mode === view) return
-
-      window.history.pushState(null, '', fleetHref('agents', { project, session, view: mode }))
-    },
-    [project, session, view]
+      window.history.replaceState(null, '', fleetHref(screen, { project: filter, session })),
+    [screen, session]
   )
 
   const openSession = useCallback(
-    (sessionID: string) => router.push(fleetHref('agents', { session: sessionID, view: 'focus' })),
-    [router]
+    (sessionID: string) =>
+      window.history.pushState(null, '', fleetHref('focus', { session: sessionID })),
+    []
   )
 
   return useMemo(
-    () => ({ page, view, project, href, go, setProject, setView, openSession }),
-    [page, view, project, href, go, setProject, setView, openSession]
+    () => ({ screen, project, href, show, setProject, openSession }),
+    [screen, project, href, show, setProject, openSession]
   )
 }

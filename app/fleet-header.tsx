@@ -1,11 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
-import { screenHref, showScreen, useFleet } from '@/app/fleet-context'
 import type { FleetScreen } from '@/app/fleet-href'
-import { isPlainClick } from '@/app/session-row'
+import { NavLink } from '@/app/nav-link'
 import type { StreamStatus } from '@/app/use-fleet-live'
 import { Button } from '@/components/ui/button'
 import type { FleetConnection, FleetCounts } from '@/lib/data/fleet/types'
@@ -144,7 +141,7 @@ type KeyHint = { readonly keys: string; readonly label: string }
 
 /**
  * Each tab's keys (`agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`), plus the
- * shell's: `n` (the launcher, also `⌘K`), `b` (Agents ↔ Board), `1` / `2` / `3` (the tabs). Most
+ * shell's: `n` (the launcher, also `⌘K`), `b` (Focus ↔ Agents), `1` / `2` / `3` (the tabs). Most
  * needed first: on narrower desktops the last ones drop.
  */
 export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
@@ -153,7 +150,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: '↵', label: 'open' },
     { keys: 'h', label: 'handled' },
     { keys: 'u', label: 'undo' },
-    { keys: 'b', label: 'board' },
+    { keys: 'b', label: 'agents' },
     { keys: 'n ⌘K', label: 'new' },
     { keys: '/', label: 'filter' },
     { keys: '1 2 3', label: 'tabs' }
@@ -164,7 +161,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: '↵', label: 'open' },
     { keys: 'h', label: 'handled' },
     { keys: 'u', label: 'undo' },
-    { keys: 'b', label: 'agents' },
+    { keys: 'b', label: 'focus' },
     { keys: 'n ⌘K', label: 'new' },
     { keys: '/', label: 'filter' },
     { keys: '1 2 3', label: 'tabs' }
@@ -202,67 +199,33 @@ function KeyHintLine({ screen }: { readonly screen: FleetScreen }) {
   )
 }
 
-/** The tabs, the same on desktop (header) and phone (bottom bar): Agents is focus mode. */
+/** The tabs, the same on desktop (header) and phone (bottom bar): Focus, Agents (the board), Projects. */
 const tabs: ReadonlyArray<{ readonly screen: FleetScreen; readonly label: string }> = [
-  { screen: 'focus', label: 'Agents' },
-  { screen: 'board', label: 'Board' },
+  { screen: 'focus', label: 'Focus' },
+  { screen: 'board', label: 'Agents' },
   { screen: 'projects', label: 'Projects' }
 ]
 
-/**
- * A tab: a link, so each tab is a URL (prefetched like any `Link`); a plain click switches
- * through `showScreen`, in place between Agents and Board.
- */
-function ScreenLink({
-  screen,
-  current,
-  className,
-  children
-}: {
-  readonly screen: FleetScreen
-  readonly current: boolean
-  readonly className: string
-  readonly children: ReactNode
-}) {
-  const { nav } = useFleet()
-
-  return (
-    <Link
-      href={screenHref(nav, screen)}
-      aria-current={current ? 'page' : undefined}
-      onClick={event => {
-        if (!isPlainClick(event)) return
-
-        event.preventDefault()
-        showScreen(nav, screen)
-      }}
-      className={className}
-    >
-      {children}
-    </Link>
-  )
-}
-
-/** Agents | Board | Projects: header tabs on desktop. */
+/** Focus | Agents | Projects: header tabs on desktop. */
 function HeaderTabs({ screen }: { readonly screen: FleetScreen }) {
   return (
     <nav aria-label="Pages" className="flex self-stretch">
       {tabs.map(tab => (
-        <ScreenLink
+        <NavLink
           key={tab.screen}
           screen={tab.screen}
           current={tab.screen === screen}
           className="text-muted-foreground hover:text-foreground aria-[current=page]:border-b-foreground aria-[current=page]:text-foreground focus-visible:ring-ring/50 flex items-center border-b-2 border-b-transparent px-3 outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
         >
           {tab.label}
-        </ScreenLink>
+        </NavLink>
       ))}
     </nav>
   )
 }
 
 /**
- * Agents | Board | Projects | +: the phone's bottom tab bar (no header there; `ConnectionLine`
+ * Focus | Agents | Projects | +: the phone's bottom tab bar (no header there; `ConnectionLine`
  * shows only while reconnecting); + opens the launcher, full screen.
  */
 export function BottomTabs({
@@ -278,14 +241,14 @@ export function BottomTabs({
       className="bg-background fixed inset-x-0 bottom-0 z-20 flex border-t pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
       {tabs.map(tab => (
-        <ScreenLink
+        <NavLink
           key={tab.screen}
           screen={tab.screen}
           current={tab.screen === screen}
           className="text-muted-foreground aria-[current=page]:border-t-foreground aria-[current=page]:text-foreground focus-visible:ring-ring/50 -mt-px flex h-12 flex-1 items-center justify-center border-t-2 border-t-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
         >
           {tab.label}
-        </ScreenLink>
+        </NavLink>
       ))}
       {onNew === undefined ? null : (
         <button

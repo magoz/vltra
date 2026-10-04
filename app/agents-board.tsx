@@ -17,20 +17,18 @@ import type { Launch } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
 const columnNames: Readonly<Record<BoardColumn, string>> = {
-  blocked: 'Blocked',
-  finished: 'Finished',
+  needsYou: 'Needs you',
   working: 'Working',
   handled: 'Handled'
 }
 
 const emptyText: Readonly<Record<BoardColumn, string>> = {
-  blocked: 'Nothing waits on you.',
-  finished: 'No finished runs to look at.',
+  needsYou: 'Nothing needs you.',
   working: 'Nothing running.',
   handled: 'Nothing handled in the last 24h.'
 }
 
-const needsMe = (column: BoardColumn) => column === 'blocked' || column === 'finished'
+const needsMe = (column: BoardColumn) => column === 'needsYou'
 
 /** Keyboard focus: the card's id, its column, and where it was in case it leaves. */
 type Cursor = { readonly column: BoardColumn; readonly id: string; readonly index: number }
@@ -48,7 +46,7 @@ const at = (board: Board, column: BoardColumn, index: number): Position | undefi
 }
 
 /** Where focus starts: the first needs-me card. */
-const firstNeedsMe = (board: Board) => at(board, 'blocked', 0) ?? at(board, 'finished', 0)
+const firstNeedsMe = (board: Board) => at(board, 'needsYou', 0)
 
 /** The first card of the first column with any (for `j` / arrows with no focus yet). */
 const firstCard = (board: Board) =>
@@ -161,7 +159,7 @@ function Column({
       )}
       {column === 'handled' && olderHandled > 0 ? (
         <NavLink
-          page="projects"
+          screen="projects"
           className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 px-3 pt-1 pb-3 text-xs outline-none focus-visible:ring-[3px]"
         >
           {olderHandled} more → Projects
@@ -171,7 +169,7 @@ function Column({
   )
 }
 
-/** The phone's column picker: `Blocked 2 · Finished 4 · Working 5 · Handled`. */
+/** The phone's column picker: `Needs you 6 · Working 5 · Handled`. */
 function Segments({
   board,
   current,
@@ -249,11 +247,11 @@ function Board({ project }: { readonly project: string | undefined }) {
   const handled = () => {
     if (position === undefined || position.item.row.state !== 'finished') return
 
-    const rows = board.columns.finished
+    const rows = board.columns.needsYou
     const next = rows[position.index + 1] ?? rows[position.index - 1]
 
     flow.markHandled(position.item.row.id)
-    setCursor({ column: 'finished', id: next?.row.id ?? '', index: position.index })
+    setCursor({ column: 'needsYou', id: next?.row.id ?? '', index: position.index })
   }
 
   useKeys({
@@ -270,7 +268,7 @@ function Board({ project }: { readonly project: string | undefined }) {
     u: () => {
       const id = flow.undo()
 
-      if (id !== undefined) setCursor({ column: 'finished', id, index: 0 })
+      if (id !== undefined) setCursor({ column: 'needsYou', id, index: 0 })
     },
     '/': () => filterRef.current?.focus()
   })
@@ -283,7 +281,7 @@ function Board({ project }: { readonly project: string | undefined }) {
         <ProjectFilter filterRef={filterRef} className="px-3 pt-3 lg:px-4 lg:pt-3" />
         <Segments board={board} current={segment} onSelect={setSegment} />
         {/* Next to an open chat the columns narrow, down to 11rem; past that, they scroll. */}
-        <div className="flex min-h-0 flex-1 flex-col gap-3 py-2 lg:grid lg:grid-cols-[repeat(4,minmax(11rem,1fr))] lg:overflow-x-auto lg:p-4 lg:pt-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 py-2 lg:grid lg:grid-cols-[repeat(3,minmax(11rem,1fr))] lg:overflow-x-auto lg:p-4 lg:pt-3">
           {boardColumns.map(column => (
             <Column
               key={column}
@@ -310,14 +308,14 @@ function Board({ project }: { readonly project: string | undefined }) {
 }
 
 /**
- * The Agents page's board mode (`?view=board`, DESIGN.md "Clients" → Web): a kanban board by
- * state across all projects, or one project (`?project=`). Columns
- * `Blocked | Finished | Working | Handled` (the launcher's launches top Working) on desktop, one
- * at a time on the phone. Cards are minimal (`agent-card.tsx`); asks are answered in the chat.
- * The open session (`?session=`) is a split: its chat docks on the right and the columns narrow
- * beside it, so cards stay clickable; the phone shows it full screen. Keys: `j`/`k` (`↓`/`↑`)
- * within a column, `←`/`→` between columns, `h` handled (and next finished card), `u` undo,
- * `Enter` opens the focused card's chat, `/` focuses the project filter (`b`, focus mode, and
+ * The Agents tab (`?view=board`, DESIGN.md "Clients" → Web): a kanban board by state across all
+ * projects, or one project (`?project=`). Columns `Needs you | Working | Handled` (Needs you is
+ * blocked then finished, blocked cards badged; the launcher's launches top Working) on desktop,
+ * one at a time on the phone. Cards are minimal (`agent-card.tsx`); asks are answered in the
+ * chat. The open session (`?session=`) is a split: its chat docks on the right and the columns
+ * narrow beside it, so cards stay clickable; the phone shows it full screen. Keys: `j`/`k`
+ * (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and the next card), `u` undo,
+ * `Enter` opens the focused card's chat, `/` focuses the project filter (`b`, Focus, and
  * `Escape`, closing the chat, are the shell's).
  */
 export function AgentsBoard() {

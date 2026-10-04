@@ -1,20 +1,13 @@
-'use client'
-
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { pageOf, screenOf } from '@/app/fleet-href'
+import { fleetHref } from '@/app/fleet-href'
 import type { FleetScreen } from '@/app/fleet-href'
 import { Skeleton } from '@/components/ui/skeleton'
 
-/** The tabs (header and phone tab bar): Agents is focus mode, Board the board mode. */
-const tabs: ReadonlyArray<{
-  readonly screen: FleetScreen
-  readonly href: string
-  readonly label: string
-}> = [
-  { screen: 'focus', href: '/', label: 'Agents' },
-  { screen: 'board', href: '/?view=board', label: 'Board' },
-  { screen: 'projects', href: '/projects', label: 'Projects' }
+/** The tabs (header and phone tab bar): Focus, Agents (the board), Projects. */
+const tabs: ReadonlyArray<{ readonly screen: FleetScreen; readonly label: string }> = [
+  { screen: 'focus', label: 'Focus' },
+  { screen: 'board', label: 'Agents' },
+  { screen: 'projects', label: 'Projects' }
 ]
 
 /** Focus mode's list: a few blocked rows, then finished ones. */
@@ -23,16 +16,7 @@ const sections = [
   { id: 'finished', rows: ['c', 'd', 'e'] }
 ]
 
-const cards = [
-  { id: 'first', sections: [['a', 'b'], ['c']] },
-  { id: 'second', sections: [['d', 'e']] },
-  { id: 'third', sections: [['f']] }
-]
-
-/**
- * Agents in focus mode, the default (the prerender cannot see `?view=`, so `/?view=board` shows
- * this too until the live board replaces it): the needs-me sidebar and a quiet right side.
- */
+/** Agents in focus mode: the needs-me sidebar and a quiet right side. */
 function AgentsSkeleton() {
   return (
     <div aria-label="Loading sessions" className="flex min-h-0 flex-1 flex-col lg:flex-row">
@@ -64,46 +48,12 @@ function AgentsSkeleton() {
   )
 }
 
-function ProjectsSkeleton() {
-  return (
-    <div
-      aria-label="Loading projects"
-      className="grid items-start gap-3 p-3 md:grid-cols-2 lg:p-4 xl:grid-cols-3"
-    >
-      {cards.map(card => (
-        <div key={card.id} className="border pb-2">
-          <div className="flex justify-between border-b px-3 py-2.5">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-3 w-20" />
-          </div>
-          {card.sections.map(rows => (
-            <div key={rows.join()} className="px-3 pt-2">
-              <Skeleton className="h-3 w-16" />
-              {rows.map(row => (
-                <div key={row} className="flex items-center gap-2.5 py-2">
-                  <Skeleton className="size-2.5 rounded-none" />
-                  <Skeleton className="h-4 flex-1" />
-                  <Skeleton className="h-3 w-6" />
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  )
-}
-
 /**
- * The dashboard's prerendered stand-in (the static shell of both pages): the same desktop header
- * and phone tab bar with working tabs, and the current page's frame (focus mode's list or project
- * cards).
+ * The dashboard's prerendered stand-in (the one page's static shell): the same desktop header and
+ * phone tab bar with working tabs, and Focus' frame. The prerender cannot see `?view=`, so Agents
+ * and Projects show it too, Focus marked, until the live tab replaces it.
  */
 export function FleetDashboardSkeleton() {
-  const page = pageOf(usePathname())
-  // The prerender cannot see `?view=`: `/` marks Agents, never Board.
-  const screen = screenOf(page, 'focus')
-
   return (
     <div className="flex min-h-dvh flex-col font-mono text-sm lg:h-dvh" aria-busy="true">
       <header className="sticky top-0 z-20 flex h-12 items-center gap-x-4 border-b px-4 max-lg:hidden">
@@ -112,8 +62,8 @@ export function FleetDashboardSkeleton() {
           {tabs.map(item => (
             <Link
               key={item.screen}
-              href={item.href}
-              aria-current={item.screen === screen ? 'page' : undefined}
+              href={fleetHref(item.screen, {})}
+              aria-current={item.screen === 'focus' ? 'page' : undefined}
               className="text-muted-foreground aria-[current=page]:border-b-foreground aria-[current=page]:text-foreground flex items-center border-b-2 border-b-transparent px-3"
             >
               {item.label}
@@ -124,7 +74,7 @@ export function FleetDashboardSkeleton() {
         <Skeleton className="h-3 w-10" />
       </header>
       <main className="flex min-h-0 flex-1 flex-col max-lg:pb-14">
-        {page === 'projects' ? <ProjectsSkeleton /> : <AgentsSkeleton />}
+        <AgentsSkeleton />
       </main>
       <nav
         aria-label="Pages"
@@ -133,8 +83,8 @@ export function FleetDashboardSkeleton() {
         {tabs.map(item => (
           <Link
             key={item.screen}
-            href={item.href}
-            aria-current={item.screen === screen ? 'page' : undefined}
+            href={fleetHref(item.screen, {})}
+            aria-current={item.screen === 'focus' ? 'page' : undefined}
             className="text-muted-foreground aria-[current=page]:border-t-foreground aria-[current=page]:text-foreground -mt-px flex h-12 flex-1 items-center justify-center border-t-2 border-t-transparent"
           >
             {item.label}

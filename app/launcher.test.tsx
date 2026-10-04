@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AgentsView, FleetPage } from '@/app/fleet-href'
+import type { FleetScreen } from '@/app/fleet-href'
 import { fakeActions, TestDashboard, testLocation } from '@/app/testing/dashboard-fixtures'
 import type { FakeValues, NavCall } from '@/app/testing/dashboard-fixtures'
 import {
@@ -25,8 +25,7 @@ const withLaunches = (launches: ReadonlyArray<Launch>): LiveFleet => ({
 
 const renderDashboard = (
   options: {
-    readonly page?: FleetPage
-    readonly view?: AgentsView
+    readonly screen?: FleetScreen
     readonly live?: LiveFleet
     readonly failWith?: string
     readonly values?: Partial<FakeValues>
@@ -41,8 +40,7 @@ const renderDashboard = (
       now={now}
       actions={actions.actions}
       navigations={navigations}
-      page={options.page ?? 'agents'}
-      view={options.view ?? 'focus'}
+      screen={options.screen ?? 'focus'}
     />
   )
 
@@ -115,7 +113,7 @@ describe('launcher palette', () => {
   })
 
   it('opens on ⌘K and Ctrl+K from anywhere, and closes on Escape', async () => {
-    renderDashboard({ page: 'projects' })
+    renderDashboard({ screen: 'projects' })
 
     press('k', { metaKey: true })
     await loaded()
@@ -128,7 +126,7 @@ describe('launcher palette', () => {
   })
 
   it('fuzzy-filters and opens the highlighted checkout in focus mode', async () => {
-    const { calls, navigations } = renderDashboard({ page: 'projects' })
+    const { calls, navigations } = renderDashboard({ screen: 'projects' })
 
     await openPalette()
 
@@ -276,7 +274,7 @@ describe('pending launches', () => {
   })
 
   it('show in the Working column on the board', () => {
-    renderDashboard({ view: 'board', live: withLaunches([launch()]) })
+    renderDashboard({ screen: 'board', live: withLaunches([launch()]) })
 
     const working = screen.getByRole('region', { name: 'Working' })
 
@@ -286,7 +284,7 @@ describe('pending launches', () => {
   })
 
   it('auto-opens a launch started here once ready', async () => {
-    const { rerender, navigations } = renderDashboard({ page: 'projects' })
+    const { rerender, navigations } = renderDashboard({ screen: 'projects' })
 
     await openPalette()
 
@@ -354,7 +352,7 @@ describe('Projects', () => {
   }
 
   it('+ on a card opens the new-worktree step for its repository', async () => {
-    renderDashboard({ page: 'projects' })
+    renderDashboard({ screen: 'projects' })
 
     const add = await screen.findByRole('button', { name: 'New worktree in box' })
 
@@ -366,7 +364,7 @@ describe('Projects', () => {
   })
 
   it('shows each worktree section with its branch, owner and PR state', async () => {
-    renderDashboard({ page: 'projects' })
+    renderDashboard({ screen: 'projects' })
 
     await waitFor(() =>
       expect(
@@ -394,7 +392,7 @@ describe('Projects', () => {
   })
 
   it('disables Retire with the reason while a session there works', async () => {
-    renderDashboard({ page: 'projects' })
+    renderDashboard({ screen: 'projects' })
 
     const retire = await within(
       section('/home/magoz/.local/share/opencode/worktree/fleet/feat-x')
@@ -408,7 +406,7 @@ describe('Projects', () => {
   })
 
   it('confirms what happens, then retires with a toast', async () => {
-    const { calls } = renderDashboard({ page: 'projects' })
+    const { calls } = renderDashboard({ screen: 'projects' })
 
     await waitFor(() => section(fleetDone))
     fireEvent.click(within(section(fleetDone)).getByRole('button', { name: 'Retire' }))
@@ -432,7 +430,7 @@ describe('Projects', () => {
   })
 
   it("shows OpenCode's refusal when retiring fails", async () => {
-    renderDashboard({ page: 'projects', failWith: 'worktree-manage: refusing dirty checkout' })
+    renderDashboard({ screen: 'projects', failWith: 'worktree-manage: refusing dirty checkout' })
 
     await waitFor(() => section(fleetDone))
     fireEvent.click(within(section(fleetDone)).getByRole('button', { name: 'Retire' }))

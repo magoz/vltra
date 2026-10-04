@@ -103,10 +103,16 @@ const columnIDs = (agents: AgentsBoard) =>
   Object.fromEntries(boardColumns.map(column => [column, ids(agents.columns[column])]))
 
 describe('agents board', () => {
-  it('puts every root session in its state column, in column order', () => {
+  it('puts every root session in its column: Needs you is blocked, then finished', () => {
     expect(columnIDs(board)).toEqual({
-      blocked: ['ses_wait_long', 'ses_wait_short'],
-      finished: ['ses_done_old', 'ses_done', 'ses_fail', 'ses_tmp'],
+      needsYou: [
+        'ses_wait_long',
+        'ses_wait_short',
+        'ses_done_old',
+        'ses_done',
+        'ses_fail',
+        'ses_tmp'
+      ],
       working: ['ses_run'],
       handled: ['ses_handled_recent', 'ses_handled_wt', 'ses_box']
     })
@@ -167,14 +173,13 @@ describe('agents board', () => {
     const fleetOnly = buildAgentsBoard(live, now, 'prj_fleet')
 
     expect(columnIDs(fleetOnly)).toEqual({
-      blocked: ['ses_wait_long', 'ses_wait_short'],
-      finished: ['ses_done_old', 'ses_done', 'ses_fail'],
+      needsYou: ['ses_wait_long', 'ses_wait_short', 'ses_done_old', 'ses_done', 'ses_fail'],
       working: ['ses_run'],
       handled: ['ses_handled_recent', 'ses_handled_wt']
     })
     expect(fleetOnly.olderHandled).toBe(1)
     expect(columnIDs(buildAgentsBoard(live, now, 'prj_box'))).toMatchObject({
-      finished: [],
+      needsYou: [],
       handled: ['ses_box']
     })
     expect(buildAgentsBoard(live, now, 'prj_box').olderHandled).toBe(0)
@@ -182,20 +187,19 @@ describe('agents board', () => {
 
   it("files OpenCode's global project under Other", () => {
     expect(columnIDs(buildAgentsBoard(live, now, otherProjectID))).toEqual({
-      blocked: [],
-      finished: ['ses_tmp'],
+      needsYou: ['ses_tmp'],
       working: [],
       handled: []
     })
-    expect(columnIDs(buildAgentsBoard(live, now, 'global')).finished).toEqual([])
+    expect(columnIDs(buildAgentsBoard(live, now, 'global')).needsYou).toEqual([])
     expect(projectName(live, otherProjectID)).toBe('Other')
     expect(projectName(live, 'prj_box')).toBe('box')
   })
 
-  it('opens the phone on the first needs-me column with cards, else Working', () => {
-    expect(initialColumn(board)).toBe('blocked')
+  it('opens the phone on Needs you when it has cards, else Working', () => {
+    expect(initialColumn(board)).toBe('needsYou')
     expect(initialColumn(buildAgentsBoard(live, now, 'prj_box'))).toBe('working')
-    expect(initialColumn(buildAgentsBoard(live, now, otherProjectID))).toBe('finished')
+    expect(initialColumn(buildAgentsBoard(live, now, otherProjectID))).toBe('needsYou')
   })
 })
 
@@ -213,9 +217,8 @@ describe('needs me (focus mode)', () => {
       'ses_fail',
       'ses_tmp'
     ])
-    // The board's two left columns are the same list.
-    expect(board.columns.blocked).toEqual(needsMe.blocked)
-    expect(board.columns.finished).toEqual(needsMe.finished)
+    // The board's Needs you column is the same list.
+    expect(board.columns.needsYou).toEqual(needsMeOrder(needsMe))
   })
 
   it('narrows to one project', () => {
@@ -393,7 +396,7 @@ describe('optimistic overrides', () => {
     )
 
     expect(optimistic.rows.get('ses_done')).toMatchObject({ state: 'handled', handled: done.idle })
-    expect(ids(buildAgentsBoard(optimistic, now, undefined).columns.finished)).not.toContain(
+    expect(ids(buildAgentsBoard(optimistic, now, undefined).columns.needsYou)).not.toContain(
       'ses_done'
     )
     expect(ids(buildAgentsBoard(optimistic, now, undefined).columns.handled)).toContain('ses_done')

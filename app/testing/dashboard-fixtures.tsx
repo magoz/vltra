@@ -1,16 +1,14 @@
-import { act } from '@testing-library/react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Agents } from '@/app/agents'
+import { CurrentTab } from '@/app/current-tab'
 import { FleetActionResult, FleetActionValue } from '@/app/fleet-action-result'
 import type { FleetActions } from '@/app/fleet-actions'
 import { FleetActionsProvider } from '@/app/fleet-actions'
 import { FleetProvider } from '@/app/fleet-context'
 import type { FleetNav, SessionSelection } from '@/app/fleet-context'
-import { fleetHref } from '@/app/fleet-href'
-import type { AgentsView, FleetPage } from '@/app/fleet-href'
+import { fleetHref, moveTo } from '@/app/fleet-href'
+import type { FleetPlace, FleetScreen } from '@/app/fleet-href'
 import { FleetShell } from '@/app/fleet-shell'
-import { ProjectsGrid } from '@/app/projects-grid'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
 import { Toaster } from '@/components/ui/sonner'
 import { fromSnapshot as liveFromSnapshot } from '@/lib/data/fleet/board'
@@ -193,15 +191,13 @@ export function WithActions({
   )
 }
 
-/** A page-and-session stand-in for card tests: the Agents page, nothing open. */
+/** A tab-and-session stand-in for card tests: the Agents tab, nothing open. */
 const staticNav: FleetNav = {
-  page: 'agents',
-  view: 'focus',
+  screen: 'focus',
   project: undefined,
-  href: (page, project, view) => fleetHref(page, { project, view }),
-  go: () => undefined,
+  href: (screen, project) => fleetHref(screen, { project }),
+  show: () => undefined,
   setProject: () => undefined,
-  setView: () => undefined,
   openSession: () => undefined
 }
 
@@ -245,32 +241,24 @@ export function WithFleet({
 }
 
 /**
- * A navigation the test dashboard made: a page switch (`go`), a filter change in place, an Agents
- * mode switch, or a session opened in focus mode (the launcher).
+ * A navigation the test dashboard made: a tab switch (`show`, where it landed), a filter change
+ * in place, or a session opened on the Agents tab (the launcher).
  */
 export type NavCall =
-  | {
-      readonly kind: 'go'
-      readonly page: FleetPage
-      readonly project: string | undefined
-      readonly view: AgentsView
-    }
+  | { readonly kind: 'show'; readonly screen: FleetScreen; readonly project: string | undefined }
   | { readonly kind: 'filter'; readonly project: string | undefined }
-  | { readonly kind: 'view'; readonly view: AgentsView }
   | { readonly kind: 'open'; readonly session: string }
 
 /**
- * The whole dashboard as the layout renders it, with the URL kept in state: the page, the Agents
- * mode, the project filter and the open session (`session` opens one at the start).
- * `navigations` records page switches, filter changes and mode switches; `testLocation` reads the
- * URL the state stands for.
+ * The whole dashboard as the layout renders it, with the URL kept in state: the tab, the filter
+ * and the open session (`session` opens one at the start). Moves follow the same `moveTo` as the
+ * real navigation. `navigations` records them; `testLocation` reads the URL the state stands for.
  */
 export function TestDashboard({
   live,
   now,
   actions,
-  page: initialPage = 'agents',
-  view: initialView = 'focus',
+  screen: initialScreen = 'focus',
   project: initialProject,
   session,
   navigations = []
@@ -278,44 +266,40 @@ export function TestDashboard({
   readonly live: LiveFleet
   readonly now: number
   readonly actions: FleetActions
-  readonly page?: FleetPage
-  readonly view?: AgentsView
+  readonly screen?: FleetScreen
   readonly project?: string
   readonly session?: string
   readonly navigations?: Array<NavCall>
 }) {
-  const [page, setPage] = useState<FleetPage>(initialPage)
-  const [view, setView] = useState<AgentsView>(initialView)
-  const [project, setProject] = useState(initialProject)
   const [selected, setSelected] = useState<string | undefined>(session)
 
+  const [place, setPlace] = useState<FleetPlace>(() =>
+    moveTo({ screen: 'focus', project: undefined }, initialScreen, initialProject)
+  )
+
   const nav: FleetNav = {
-    page,
-    view,
-    project,
-    href: (target, filter, mode) =>
-      fleetHref(target, { project: filter, session: selected, view: mode ?? view }),
-    go: (target, filter, mode) => {
-      navigations.push({ kind: 'go', page: target, project: filter, view: mode ?? view })
-      setPage(target)
-      setProject(target === 'agents' ? filter : undefined)
-      setView(mode ?? view)
+    screen: place.screen,
+    project: place.project,
+    href: (target, filter) => {
+      const to = moveTo(place, target, filter)
+
+      return fleetHref(to.screen, { project: to.project, session: selected })
+    },
+    show: (target, filter) => {
+      const to = moveTo(place, target, filter)
+
+      if (to.screen === place.screen && to.project === place.project) return
+
+      navigations.push({ kind: 'show', screen: to.screen, project: to.project })
+      setPlace(to)
     },
     setProject: filter => {
       navigations.push({ kind: 'filter', project: filter })
-      setProject(filter)
-    },
-    setView: mode => {
-      if (mode === view) return
-
-      navigations.push({ kind: 'view', view: mode })
-      setView(mode)
+      setPlace({ screen: place.screen, project: filter })
     },
     openSession: sessionID => {
       navigations.push({ kind: 'open', session: sessionID })
-      setPage('agents')
-      setView('focus')
-      setProject(undefined)
+      setPlace({ screen: 'focus', project: undefined })
       setSelected(sessionID)
     }
   }
@@ -329,10 +313,13 @@ export function TestDashboard({
   return (
     <FleetActionsProvider actions={actions}>
       <FleetShell live={live} stream="live" now={now} selection={selection} nav={nav}>
-        {page === 'agents' ? <Agents /> : <ProjectsGrid />}
+        <CurrentTab />
       </FleetShell>
       <Toaster theme="light" />
-      <output hidden data-location={fleetHref(page, { project, session: selected, view })} />
+      <output
+        hidden
+        data-location={fleetHref(place.screen, { project: place.project, session: selected })}
+      />
     </FleetActionsProvider>
   )
 }
@@ -340,7 +327,3 @@ export function TestDashboard({
 /** The URL a rendered `TestDashboard` stands for. */
 export const testLocation = () =>
   document.querySelector('output[data-location]')?.getAttribute('data-location')
-
-/** Waits out a session switch: the panel swaps after the next paint (`use-panel-session.ts`). */
-export const afterPaint = () =>
-  act(() => new Promise<void>(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))))

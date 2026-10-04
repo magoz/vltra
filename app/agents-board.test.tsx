@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { afterPaint, fakeActions, TestDashboard } from '@/app/testing/dashboard-fixtures'
+import { fakeActions, TestDashboard } from '@/app/testing/dashboard-fixtures'
 import type { NavCall } from '@/app/testing/dashboard-fixtures'
 import { fleetLive, now, rowIDs } from '@/app/testing/fleet-scenario'
 import type { LiveFleet } from '@/lib/data/fleet/board'
@@ -16,7 +16,7 @@ const renderBoard = (
       live={options.live ?? fleetLive()}
       now={now}
       actions={actions.actions}
-      view="board"
+      screen="board"
       navigations={navigations}
       {...(options.project === undefined ? {} : { project: options.project })}
     />
@@ -28,9 +28,7 @@ const renderBoard = (
 const column = (name: string) => screen.getByRole('region', { name })
 
 const columnIDs = () =>
-  Object.fromEntries(
-    ['Blocked', 'Finished', 'Working', 'Handled'].map(name => [name, rowIDs(column(name))])
-  )
+  Object.fromEntries(['Needs you', 'Working', 'Handled'].map(name => [name, rowIDs(column(name))]))
 
 const card = (id: string) => {
   const found = document.querySelector(`main li[data-session="${id}"]`)
@@ -61,15 +59,17 @@ afterEach(() => {
 })
 
 describe('columns', () => {
-  it('puts every session in its state column: oldest wait, oldest finished, stuck first', () => {
+  it('puts every session in its column: blocked then finished need you, stuck first', () => {
     renderBoard()
 
     expect(columnIDs()).toEqual({
-      Blocked: ['ses_wait_old', 'ses_wait_new'],
-      Finished: ['ses_done_old', 'ses_done_new'],
+      'Needs you': ['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'],
       Working: ['ses_run', 'ses_retry', 'ses_busy'],
       Handled: ['ses_tmp', 'ses_handled', 'ses_box']
     })
+    // Blocked cards say so; finished ones do not.
+    expect(within(card('ses_wait_old')).getByText('blocked')).toBeTruthy()
+    expect(within(card('ses_done_old')).queryByText('blocked')).toBeNull()
     expect(screen.getByLabelText('Session counts').textContent).toBe(
       '4 need you · 3 working · 2 stuck'
     )
@@ -102,7 +102,7 @@ describe('columns', () => {
 
     fireEvent.click(within(card('ses_done_new')).getByRole('button', { name: 'Handled' }))
 
-    expect(rowIDs(column('Finished'))).toEqual(['ses_done_old'])
+    expect(rowIDs(column('Needs you'))).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_old'])
     expect(rowIDs(column('Handled'))).toEqual(['ses_tmp', 'ses_done_new', 'ses_handled', 'ses_box'])
 
     fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
@@ -113,7 +113,12 @@ describe('columns', () => {
         { action: 'reopen', input: { sessionID: 'ses_done_new' } }
       ])
     )
-    expect(rowIDs(column('Finished'))).toEqual(['ses_done_old', 'ses_done_new'])
+    expect(rowIDs(column('Needs you'))).toEqual([
+      'ses_wait_old',
+      'ses_wait_new',
+      'ses_done_old',
+      'ses_done_new'
+    ])
   })
 
   it('puts a card back and says why when marking handled fails', async () => {
@@ -124,15 +129,21 @@ describe('columns', () => {
     expect(
       await screen.findByText('Could not mark handled: OpenCode is not reachable')
     ).toBeTruthy()
-    expect(rowIDs(column('Finished'))).toContain('ses_done_new')
+    expect(rowIDs(column('Needs you'))).toContain('ses_done_new')
   })
 
-  it('reopens a handled card into Finished', async () => {
+  it('reopens a handled card into Needs you', async () => {
     const { calls } = renderBoard()
 
     fireEvent.click(within(card('ses_handled')).getByRole('button', { name: 'Reopen' }))
 
-    expect(rowIDs(column('Finished'))).toEqual(['ses_done_old', 'ses_handled', 'ses_done_new'])
+    expect(rowIDs(column('Needs you'))).toEqual([
+      'ses_wait_old',
+      'ses_wait_new',
+      'ses_done_old',
+      'ses_handled',
+      'ses_done_new'
+    ])
     await waitFor(() =>
       expect(calls).toEqual([{ action: 'reopen', input: { sessionID: 'ses_handled' } }])
     )
@@ -144,13 +155,11 @@ describe('columns', () => {
     // ses_ancient (30 days) is left out.
     const more = within(column('Handled')).getByRole('link', { name: '1 more → Projects' })
 
-    expect(more.getAttribute('href')).toBe('/projects')
+    expect(more.getAttribute('href')).toBe('/?view=projects')
 
     fireEvent.click(more)
 
-    expect(navigations).toEqual([
-      { kind: 'go', page: 'projects', project: undefined, view: 'board' }
-    ])
+    expect(navigations).toEqual([{ kind: 'show', screen: 'projects', project: undefined }])
     expect(screen.getByRole('region', { name: 'fleet' })).toBeTruthy()
   })
 })
@@ -160,8 +169,7 @@ describe('project filter', () => {
     const { navigations } = renderBoard({ project: 'prj_fleet' })
 
     expect(columnIDs()).toEqual({
-      Blocked: ['ses_wait_old', 'ses_wait_new'],
-      Finished: ['ses_done_old', 'ses_done_new'],
+      'Needs you': ['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'],
       Working: ['ses_run', 'ses_retry', 'ses_busy'],
       Handled: ['ses_handled']
     })
@@ -189,7 +197,7 @@ describe('project filter', () => {
 
     expect(navigations).toEqual([{ kind: 'filter', project: 'other' }])
     expect(screen.getByRole('button', { name: 'Clear the Other filter' })).toBeTruthy()
-    expect(columnIDs()).toEqual({ Blocked: [], Finished: [], Working: [], Handled: ['ses_tmp'] })
+    expect(columnIDs()).toEqual({ 'Needs you': [], Working: [], Handled: ['ses_tmp'] })
   })
 })
 
@@ -202,34 +210,36 @@ describe('keyboard', () => {
     press('j')
     expect(cursorID()).toBe('ses_wait_new')
 
+    press('j')
     press('ArrowDown')
-    expect(cursorID()).toBe('ses_wait_new')
-
-    press('ArrowRight')
+    press('ArrowDown')
     expect(cursorID()).toBe('ses_done_new')
 
     press('ArrowRight')
-    press('ArrowDown')
     expect(cursorID()).toBe('ses_busy')
+
+    press('ArrowRight')
+    expect(cursorID()).toBe('ses_box')
 
     press('ArrowLeft')
     press('k')
-    expect(cursorID()).toBe('ses_done_old')
+    expect(cursorID()).toBe('ses_retry')
 
     press('ArrowLeft')
     press('ArrowUp')
     expect(cursorID()).toBe('ses_wait_old')
   })
 
-  it('marks the focused card handled with h, moves to the next finished card, u undoes', async () => {
+  it('marks the focused card handled with h, moves to the next card, u undoes', async () => {
     const { calls } = renderBoard()
 
-    press('ArrowRight')
+    press('j')
+    press('j')
     expect(cursorID()).toBe('ses_done_old')
 
     press('h')
 
-    expect(rowIDs(column('Finished'))).toEqual(['ses_done_new'])
+    expect(rowIDs(column('Needs you'))).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_new'])
     expect(cursorID()).toBe('ses_done_new')
 
     press('u')
@@ -240,7 +250,12 @@ describe('keyboard', () => {
         { action: 'reopen', input: { sessionID: 'ses_done_old' } }
       ])
     )
-    expect(rowIDs(column('Finished'))).toEqual(['ses_done_old', 'ses_done_new'])
+    expect(rowIDs(column('Needs you'))).toEqual([
+      'ses_wait_old',
+      'ses_wait_new',
+      'ses_done_old',
+      'ses_done_new'
+    ])
     expect(cursorID()).toBe('ses_done_old')
   })
 
@@ -278,20 +293,20 @@ describe('keyboard', () => {
     expect(screen.getByRole('region', { name: 'Other' })).toBeTruthy()
 
     press('2')
-    expect(column('Blocked')).toBeTruthy()
+    expect(column('Needs you')).toBeTruthy()
 
     press('1')
-    expect(screen.getByRole('region', { name: 'Needs you' })).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
     expect(navigations).toEqual([
-      { kind: 'go', page: 'projects', project: undefined, view: 'board' },
-      { kind: 'go', page: 'agents', project: undefined, view: 'board' },
-      { kind: 'view', view: 'focus' }
+      { kind: 'show', screen: 'projects', project: undefined },
+      { kind: 'show', screen: 'board', project: undefined },
+      { kind: 'show', screen: 'focus', project: undefined }
     ])
   })
 })
 
 describe('split view', () => {
-  it('opens the chat beside the columns, switches it from any card, closes with Escape', async () => {
+  it('opens the chat beside the columns, switches it from any card, closes with Escape', () => {
     renderBoard()
 
     expect(pane()).toBeNull()
@@ -303,7 +318,6 @@ describe('split view', () => {
     expect(columnIDs().Working).toEqual(['ses_run', 'ses_retry', 'ses_busy'])
 
     fireEvent.click(within(card('ses_busy')).getByRole('link', { name: 'Busy run' }))
-    await afterPaint()
 
     expect(pane()?.querySelector('iframe')?.getAttribute('title')).toBe('Busy run')
     // The cursor follows the click.
@@ -316,7 +330,7 @@ describe('split view', () => {
 })
 
 describe('phone', () => {
-  it('shows one column, opening on the first needs-me column with cards', () => {
+  it('shows one column, opening on Needs you', () => {
     renderBoard()
 
     const tabs = screen.getByRole('tablist', { name: 'Columns' })
@@ -325,20 +339,20 @@ describe('phone', () => {
       within(tabs)
         .getAllByRole('tab')
         .map(tab => tab.textContent)
-    ).toEqual(['Blocked 2', 'Finished 2', 'Working 3', 'Handled'])
-    expect(within(tabs).getByRole('tab', { name: 'Blocked 2' }).getAttribute('aria-selected')).toBe(
-      'true'
-    )
-    expect(column('Blocked').className).not.toContain('max-lg:hidden')
-    expect(column('Finished').className).toContain('max-lg:hidden')
+    ).toEqual(['Needs you 4', 'Working 3', 'Handled'])
+    expect(
+      within(tabs).getByRole('tab', { name: 'Needs you 4' }).getAttribute('aria-selected')
+    ).toBe('true')
+    expect(column('Needs you').className).not.toContain('max-lg:hidden')
+    expect(column('Working').className).toContain('max-lg:hidden')
 
     act(() => within(tabs).getByRole('tab', { name: 'Working 3' }).click())
 
     expect(column('Working').className).not.toContain('max-lg:hidden')
-    expect(column('Blocked').className).toContain('max-lg:hidden')
+    expect(column('Needs you').className).toContain('max-lg:hidden')
   })
 
-  it('opens on Finished when nothing is blocked, and on Working when nothing needs me', () => {
+  it('opens on Working when nothing needs me', () => {
     renderBoard({ project: 'prj_box' })
 
     expect(screen.getByRole('tab', { name: 'Working 0' }).getAttribute('aria-selected')).toBe(
@@ -349,20 +363,7 @@ describe('phone', () => {
       target: { value: '' }
     })
 
-    expect(screen.getByRole('tab', { name: 'Blocked 2' }).getAttribute('aria-selected')).toBe(
-      'true'
-    )
-
-    cleanup()
-
-    const live = fleetLive()
-    const rows = new Map(live.rows)
-
-    rows.delete('ses_wait_new')
-    rows.delete('ses_wait_old')
-    renderBoard({ live: { ...live, rows } })
-
-    expect(screen.getByRole('tab', { name: 'Finished 2' }).getAttribute('aria-selected')).toBe(
+    expect(screen.getByRole('tab', { name: 'Needs you 4' }).getAttribute('aria-selected')).toBe(
       'true'
     )
   })

@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { MouseEvent } from 'react'
 import { AgentCard } from '@/app/agent-card'
 import { useFleet } from '@/app/fleet-context'
 import { PendingLaunches } from '@/app/pending-launches'
@@ -10,36 +9,25 @@ import { SessionPanel } from '@/app/session-panel'
 import { HandledProvider, useHandled } from '@/app/use-handled'
 import type { HandledFlow } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
-import { usePanelSession } from '@/app/use-panel-session'
 import { boardRow, buildNeedsMe, needsMeOrder, nextNeedsMe } from '@/lib/data/fleet/board'
 import type { BoardRow } from '@/lib/data/fleet/board'
 import { cn } from '@/lib/utils'
 
-/** Keyboard focus in the list: the row's id, and where it was in case it leaves. */
-type Cursor = { readonly id: string; readonly index: number }
+/**
+ * Keyboard focus from `j` / `k`: the row's id, where it was in case it leaves, and the open session
+ * it was moved under. Opening another session spends it, so the list marks the open session and,
+ * only while the keys are in use, this cursor.
+ */
+type Cursor = { readonly id: string; readonly index: number; readonly under: string | undefined }
 
-/** The cursor's row: its own, or the one now in its place when it left; else the start. */
-const resolve = (
-  list: ReadonlyArray<BoardRow>,
-  cursor: Cursor | undefined,
-  selected: string | undefined
-): number => {
-  if (list.length === 0) return -1
+/** The cursor's row: its own, or the one now in its place when it left; none without a cursor. */
+const resolve = (list: ReadonlyArray<BoardRow>, cursor: Cursor | undefined): number => {
+  if (cursor === undefined || list.length === 0) return -1
 
-  const find = (id: string | undefined) => list.findIndex(item => item.row.id === id)
-
-  if (cursor === undefined) return Math.max(0, find(selected))
-
-  const found = find(cursor.id)
+  const found = list.findIndex(item => item.row.id === cursor.id)
 
   return found >= 0 ? found : Math.min(cursor.index, list.length - 1)
 }
-
-/** The row id a click landed on, so the cursor follows the mouse. */
-const clickedRow = (event: MouseEvent) =>
-  event.target instanceof Element
-    ? (event.target.closest('li[data-session]')?.getAttribute('data-session') ?? undefined)
-    : undefined
 
 function Section({
   name,
@@ -77,7 +65,7 @@ function EmptyPane({ empty }: { readonly empty: boolean }) {
       <p className="text-xs">
         {empty ? (
           <>
-            Working sessions are on the board (<kbd className="text-foreground">b</kbd>).
+            Working sessions are on Agents (<kbd className="text-foreground">b</kbd>).
           </>
         ) : (
           <>
@@ -95,20 +83,14 @@ function Focus({ project }: { readonly project: string | undefined }) {
   const flow = useHandled()
   const needsMe = useMemo(() => buildNeedsMe(view, project), [view, project])
   const list = useMemo(() => needsMeOrder(needsMe), [needsMe])
-  const [cursor, setCursor] = useState<Cursor>()
+  const [moved, setMoved] = useState<Cursor>()
   const filterRef = useRef<HTMLSelectElement>(null)
   const { selected } = selection
-  const index = resolve(list, cursor, selected)
+  const cursor = moved?.under === selected ? moved : undefined
+  const index = resolve(list, cursor)
   const focused = list[index]
   const selectedRow = selected === undefined ? undefined : view.rows.get(selected)
-  // The pane follows the selection a paint behind when switching sessions (`usePanelSession`).
-  const shown = usePanelSession(selected)
-  const shownRow = shown === undefined ? undefined : view.rows.get(shown)
-  const shownItem = shownRow === undefined ? undefined : boardRow(view, shownRow)
-
-  const focus = (item: BoardRow | undefined) => {
-    if (item !== undefined) setCursor({ id: item.row.id, index: list.indexOf(item) })
-  }
+  const selectedItem = selectedRow === undefined ? undefined : boardRow(view, selectedRow)
 
   /**
    * Marks `id` handled; when it is the open session (or `always`, the `h` key), the next needs-me
@@ -123,7 +105,6 @@ function Focus({ project }: { readonly project: string | undefined }) {
     if (!open && !always) return
 
     if (next !== undefined) {
-      setCursor({ id: next.row.id, index: list.indexOf(next) })
       selection.select(next.row.id)
     } else if (open) {
       selection.close()
@@ -142,8 +123,14 @@ function Focus({ project }: { readonly project: string | undefined }) {
     [flow]
   )
 
-  const move = (delta: 1 | -1) =>
-    focus(list[index < 0 ? 0 : Math.max(0, Math.min(index + delta, list.length - 1))])
+  /** `j` / `k`: from the cursor, else from the open session's row, else onto the first row. */
+  const move = (delta: 1 | -1) => {
+    const from = index >= 0 ? index : list.findIndex(item => item.row.id === selected)
+    const to = from < 0 ? 0 : Math.max(0, Math.min(from + delta, list.length - 1))
+    const item = list[to]
+
+    if (item !== undefined) setMoved({ id: item.row.id, index: to, under: selected })
+  }
 
   const handledKey = () => {
     const target = [focused?.row, selectedRow].find(row => row?.state === 'finished')
@@ -163,10 +150,7 @@ function Focus({ project }: { readonly project: string | undefined }) {
     u: () => {
       const id = flow.undo()
 
-      if (id === undefined) return
-
-      setCursor({ id, index: 0 })
-      selection.select(id)
+      if (id !== undefined) selection.select(id)
     },
     '/': () => filterRef.current?.focus()
   })
@@ -177,12 +161,6 @@ function Focus({ project }: { readonly project: string | undefined }) {
         <section
           aria-label="Needs you"
           className="flex flex-col lg:w-[26rem] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain lg:border-r"
-          onClickCapture={event => {
-            const id = clickedRow(event)
-            const item = list.find(candidate => candidate.row.id === id)
-
-            if (item !== undefined) focus(item)
-          }}
         >
           <ProjectFilter filterRef={filterRef} className="px-3 pt-3" />
           {view.launches.length === 0 ? null : (
@@ -207,16 +185,16 @@ function Focus({ project }: { readonly project: string | undefined }) {
           aria-label="Session"
           className={cn(
             'bg-background flex min-h-0 min-w-0 flex-1 flex-col',
-            shown === undefined ? 'max-lg:hidden' : 'max-lg:fixed max-lg:inset-0 max-lg:z-30'
+            selected === undefined ? 'max-lg:hidden' : 'max-lg:fixed max-lg:inset-0 max-lg:z-30'
           )}
         >
-          {shown === undefined ? (
+          {selected === undefined ? (
             <EmptyPane empty={list.length === 0} />
           ) : (
             <SessionPanel
-              key={shown}
-              sessionID={shown}
-              item={shownItem}
+              key={selected}
+              sessionID={selected}
+              item={selectedItem}
               onClose={selection.close}
             />
           )}
@@ -232,9 +210,10 @@ function Focus({ project }: { readonly project: string | undefined }) {
  * longest wait first; then finished, oldest first, with Handled; rows are titles only, asks are
  * answered in the chat), narrowed by `?project=`, and the open session (`?session=`, also
  * one opened from elsewhere) inline in the rest of the page: its chat. Handling the open session
- * opens the next one in list order. Phone: the list; a session opens full screen. Keys: `j`/`k`
- * (`↓`/`↑`) move, `Enter` opens, `h` handled (the focused or open finished session; the next
- * opens), `u` undo, `/` filter (the shell adds the tabs, `b` board and `Escape` closes).
+ * opens the next one in list order. The list marks the open session only; `j` / `k` add a cursor
+ * until another session opens. Phone: the list; a session opens full screen. Keys: `j`/`k`
+ * (`↓`/`↑`) move, `Enter` opens, `h` handled (the cursor's finished session, else the open one;
+ * the next opens), `u` undo, `/` filter (the shell adds the tabs, `b` board and `Escape` closes).
  */
 export function AgentsFocus() {
   const { nav } = useFleet()

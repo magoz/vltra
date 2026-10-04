@@ -1,16 +1,13 @@
-// The dashboard's URLs: two pages (`/` Agents, `/projects` Projects), the Agents page's mode
-// (`?view=board`; focus is the default, so no param), the open session (`?session=<id>`, kept
-// across page switches) and the Agents page's project filter (`?project=<id>`). Agents' two modes
-// and Projects are the dashboard's three tabs (`FleetScreen`). Pure, so links, keys and history
-// writes agree.
+// The dashboard is one page, `/`: the tab in `?view=` (Focus, the default, so no param; `board`,
+// the Agents tab; `projects`), the open session (`?session=<id>`, kept across tabs) and Focus' and
+// Agents' project filter (`?project=<id>`). One route on purpose: Cache Components keeps up to three
+// visited routes mounted in hidden `<Activity>` boundaries, so a second route kept a hidden copy
+// of the other page (with its own OpenCode chat) alive and restored its stale state on return.
+// Pure, so links, keys and history writes agree.
 
-export type FleetPage = 'agents' | 'projects'
-
-/** The Agents page's modes: the needs-me list with the session inline, or the kanban board. */
-export type AgentsView = 'focus' | 'board'
-
-/** What shows, one per tab: Agents (focus mode), Board (Agents' board mode) or Projects. */
-export type FleetScreen = AgentsView | 'projects'
+/** The tabs: Focus (the needs-me list, the session inline), Agents (`board`, the kanban) and
+ * Projects. */
+export type FleetScreen = 'focus' | 'board' | 'projects'
 
 export const sessionParam = 'session'
 
@@ -18,34 +15,34 @@ export const projectParam = 'project'
 
 export const viewParam = 'view'
 
-const pagePaths: Readonly<Record<FleetPage, string>> = { agents: '/', projects: '/projects' }
+/** The tab a `?view=` value names: `board`, `projects`, else Agents (focus, the default). */
+export const screenOf = (value: string | null | undefined): FleetScreen =>
+  value === 'board' || value === 'projects' ? value : 'focus'
 
-/** The page a pathname shows; anything but `/projects` is the Agents page. */
-export const pageOf = (pathname: string): FleetPage =>
-  pathname === pagePaths.projects || pathname.startsWith(`${pagePaths.projects}/`)
-    ? 'projects'
-    : 'agents'
+/** A tab and its filter (Focus and Agents only). */
+export type FleetPlace = { readonly screen: FleetScreen; readonly project: string | undefined }
 
-/** The Agents mode a `?view=` value names: `board`, else focus (the default). */
-export const viewOf = (value: string | null | undefined): AgentsView =>
-  value === 'board' ? 'board' : 'focus'
-
-export const screenOf = (page: FleetPage, view: AgentsView): FleetScreen =>
-  page === 'agents' ? view : 'projects'
+/**
+ * Where moving to `screen` lands: filtered to `project` when given, else Focus and Agents keep the
+ * filter between themselves; Projects has none, so from it they start unfiltered.
+ */
+export const moveTo = (from: FleetPlace, screen: FleetScreen, project?: string): FleetPlace => ({
+  screen,
+  project: screen === 'projects' ? undefined : (project ?? from.project)
+})
 
 export type FleetLocation = {
   readonly project?: string | undefined
   readonly session?: string | undefined
-  readonly view?: AgentsView | undefined
 }
 
-/** `page`'s URL with the given mode and filter (Agents only) and open session. */
-export const fleetHref = (page: FleetPage, location: FleetLocation): string => {
+/** `screen`'s URL with its filter (Focus and Agents only) and the open session. */
+export const fleetHref = (screen: FleetScreen, location: FleetLocation): string => {
   const params = new URLSearchParams()
 
-  if (page === 'agents' && location.view === 'board') params.set(viewParam, 'board')
+  if (screen !== 'focus') params.set(viewParam, screen)
 
-  if (page === 'agents' && location.project !== undefined) {
+  if (screen !== 'projects' && location.project !== undefined) {
     params.set(projectParam, location.project)
   }
 
@@ -53,5 +50,5 @@ export const fleetHref = (page: FleetPage, location: FleetLocation): string => {
 
   const query = params.toString()
 
-  return query === '' ? pagePaths[page] : `${pagePaths[page]}?${query}`
+  return query === '' ? '/' : `/?${query}`
 }

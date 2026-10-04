@@ -133,32 +133,34 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
 
 ## Clients
 
-**Web (fleet.oox.sh, Mac + phone):** two full-width pages, **Agents** and **Projects**, as three
-tabs: **Agents** (focus mode), **Board** (Agents' board mode) and **Projects** (`1` / `2` / `3`).
-Desktop: the tabs sit in the header, which also carries the count line (`6 need you · 17 working
-· 2 stuck`). Phone: no header; a bottom tab bar `Agents | Board | Projects | +`, plus a slim
-`reconnecting…` line on top only once a reconnect lasts 3s (page loads and a woken phone stay
-quiet).
-- **Agents has two modes** (`?view=board` for the board; focus is the default, so plain `/` is
-  focus):
+**Web (fleet.oox.sh, Mac + phone):** one full-width page with three tabs in the URL: **Focus**
+(plain `/`), **Agents** (the board, `?view=board`) and **Projects** (`?view=projects`; the old
+`/projects` redirects), `1` / `2` / `3`. One page on purpose: tabs switch in place, instantly,
+and Next's Cache Components never keeps a hidden copy of another page alive. Desktop: the tabs sit
+in the header, which also carries the count line (`6 need you · 17 working · 2 stuck`). Phone: no
+header; a bottom tab bar `Focus | Agents | Projects | +`, plus a slim `reconnecting…` line on top
+only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
+- **Two views of the sessions** (`?view=board` for the board; Focus is the default, so plain `/`
+  is Focus):
   - **Focus (default)**: a left sidebar with only the needs-me list (blocked first, oldest wait
     first; then finished, oldest first, with Handled; rows are just project · worktree, title and
     age, no asks or answer excerpts, since the chat has them), and the selected session open
     inline in the rest of the page: its chat, the same panel as the splits. Nothing selected: a
     quiet empty state. Handling the open session opens the next needs-me session, so triage is
-    `h`, `h`, `h`. Working and handled sessions are not listed (they are on Board; the desktop
-    count line still counts them).
-  - **Board**: the four-column kanban below, split with the open session's chat. Its own tab (`b`
-    toggles Agents ↔ Board); the mode lives in the URL so links and the back button keep it.
-- **Agents board = a kanban by state** across all projects, columns `Blocked | Finished |
-  Working | Handled` (the two left columns are "needs me"). Cards are minimal, like focus mode's
-  rows: project · worktree, title and age, a red mark for failures; asks, answers and live
-  activity are left to the chat. Blocked: oldest wait first. Finished: oldest first, **Handled**
-  (undo toast). Working: stuck first, with the stuck label. Handled column: last 24h only, then
+    `h`, `h`, `h`. Working and handled sessions are not listed (they are on Agents; the desktop
+    count line still counts them). The list marks the open session only; `j`/`k` show a cursor
+    until another session opens, so nothing else ever looks selected.
+  - **Agents**: the three-column kanban below, split with the open session's chat. Its own tab
+    (`b` toggles Focus ↔ Agents); the view lives in the URL so links and the back button keep it.
+- **Agents = a kanban by state** across all projects, columns `Needs you | Working | Handled`.
+  Cards are minimal, like Focus' rows: project · worktree, title and age, a red mark for
+  failures; asks, answers and live activity are left to the chat. Needs you: blocked first
+  (oldest wait first, each with a `blocked` badge), then finished (oldest first, **Handled**, undo
+  toast). Working: stuck first, with the stuck label. Handled column: last 24h only, then
   "N more → Projects"; cards offer Reopen. No drag and drop (columns show state; actions are buttons and
   keys). No "handle all". A project filter (`?project=`, chip with ×) narrows the board to one
   project. Opening a session splits the screen: its chat docks on the right (at most 52rem) and the
-  four columns narrow beside it, still clickable, so you can keep clicking cards and watching the
+  three columns narrow beside it, still clickable, so you can keep clicking cards and watching the
   chat.
 - **Projects = a grid of project cards** (2–3 columns desktop, 1 on the phone), ordered by
   latest activity, "Other" (sessions outside any repository, each showing its directory)
@@ -168,21 +170,21 @@ quiet).
   later). Opening a session splits the page like the board: its chat docks on the right and the
   grid drops a column when it gets too narrow, its cards still clickable.
 - **Phone**: focus mode is the needs-me list; tapping a session opens its chat full screen
-  (Handled in its toolbar opens the next needs-me session), back returns to the list. Board mode
-  shows one column at a time via a segmented control (`Blocked 2 · Finished 4 · Working 5 ·
-  Handled`), opening on the first non-empty needs-me column. Swipe left on a finished card marks
+  (Handled in its toolbar opens the next needs-me session), back returns to the list. Agents
+  shows one column at a time via a segmented control (`Needs you 6 · Working 5 · Handled`),
+  opening on Needs you when it has cards. Swipe left on a finished card marks
   it handled (no horizontal column scrolling, so the gesture stays unambiguous).
 - **Keyboard (Mac)**: `1` / `2` / `3` the tabs. Focus: `j`/`k` move through the list, `Enter`
   opens the session on the right, `h` handled (the next needs-me session opens), `u` undo, `b`
-  board. Board: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and next
-  finished card), `u` undo, `Enter` opens the chat, `Esc` closes it, `/` focuses the project
+  Agents. Agents: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and the
+  next card), `u` undo, `Enter` opens the chat, `Esc` closes it, `/` focuses the project
   filter; focus starts on the first needs-me card. Projects: arrows move between cards, `j`/`k`
   within a card, `Enter` on a card opens its filtered board. No key answers asks: that happens in
   the chat.
 
-Tap a session for its panel (next to the page: focus mode's pane, a split on the board and
-Projects; full screen on the phone): the session's chat, nothing else (no Summary tab; messages,
-changes, the prompt and subagents are all in the chat):
+Tap a session for its panel (next to the tab: Focus' pane, a split on Agents and Projects; full
+screen on the phone): the session's chat, nothing else (no Summary tab; messages, changes, the
+prompt and subagents are all in the chat):
 - **The chat** → OpenCode's own web UI on the same server, framed, verified deep link
   `https://box.tail129a86.ts.net:9446/server/<base64url(origin)>/session/<id>`
   (`app/src/shell/routes/session.ts`; server key = page origin). Works on Mac and phone after a

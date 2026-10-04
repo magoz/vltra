@@ -13,7 +13,7 @@ const renderGrid = () => {
       live={fleetLive()}
       now={now}
       actions={actions.actions}
-      page="projects"
+      screen="projects"
       navigations={navigations}
     />
   )
@@ -93,9 +93,7 @@ describe('project cards', () => {
 
     fireEvent.click(header)
 
-    expect(navigations).toEqual([
-      { kind: 'go', page: 'agents', project: 'prj_fleet', view: 'board' }
-    ])
+    expect(navigations).toEqual([{ kind: 'show', screen: 'board', project: 'prj_fleet' }])
     expect(testLocation()).toBe('/?view=board&project=prj_fleet')
     expect(screen.getByRole('button', { name: 'Clear the fleet filter' })).toBeTruthy()
     expect(rowIDs(screen.getByRole('region', { name: 'Handled' }))).toEqual(['ses_handled'])
@@ -194,7 +192,7 @@ describe('keyboard', () => {
     press('ArrowRight')
     press('Enter')
 
-    expect(navigations).toEqual([{ kind: 'go', page: 'agents', project: 'prj_box', view: 'board' }])
+    expect(navigations).toEqual([{ kind: 'show', screen: 'board', project: 'prj_box' }])
     expect(screen.getByRole('button', { name: 'Clear the box filter' })).toBeTruthy()
   })
 })

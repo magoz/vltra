@@ -151,9 +151,8 @@ function Card({
     >
       <div className="flex border-b">
         <NavLink
-          page="agents"
+          screen="board"
           project={card.id}
-          view="board"
           className="hover:bg-accent/60 focus-visible:ring-ring/50 flex min-w-0 flex-1 items-baseline justify-between gap-3 px-3 py-2 outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
         >
           <span className="font-semibold">{card.name}</span>
@@ -266,7 +265,7 @@ export function ProjectsGrid() {
     k: () => toRow(-1),
     Enter: () => {
       if (rowCursor !== undefined) selection.select(rowCursor)
-      else if (current !== undefined) nav.go('agents', current.id, 'board')
+      else if (current !== undefined) nav.show('board', current.id)
     }
   })
 

@@ -7,7 +7,6 @@ import { useFleetActions } from '@/app/fleet-actions'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
 import { isReopenable } from '@/app/session-row'
 import { StateMarker } from '@/app/state-marker'
-import { usePanelSession } from '@/app/use-panel-session'
 import { Button } from '@/components/ui/button'
 import { boardRow } from '@/lib/data/fleet/board'
 import type { BoardRow } from '@/lib/data/fleet/board'
@@ -157,16 +156,15 @@ export function SessionPanel({ sessionID, item, onClose }: SessionPanelProps) {
 /**
  * The open session (`?session=`) docked beside a page (the board, Projects): its chat on the right
  * from `lg`, `min(52rem, 42vw)` wide, while the page narrows beside it and stays clickable; full
- * screen below `lg`. Nothing when no session is open. A switch to another session lands after the
- * next paint (`usePanelSession`).
+ * screen below `lg`. Nothing when no session is open.
  */
 export function SessionSplit() {
   const { view, selection } = useFleet()
-  const shown = usePanelSession(selection.selected)
+  const { selected } = selection
 
-  if (shown === undefined) return null
+  if (selected === undefined) return null
 
-  const row = view.rows.get(shown)
+  const row = view.rows.get(selected)
 
   return (
     <section
@@ -174,8 +172,8 @@ export function SessionSplit() {
       className="bg-background flex min-h-0 min-w-0 flex-col max-lg:fixed max-lg:inset-0 max-lg:z-30 lg:w-[min(52rem,42vw)] lg:shrink-0 lg:border-l"
     >
       <SessionPanel
-        key={shown}
-        sessionID={shown}
+        key={selected}
+        sessionID={selected}
         item={row === undefined ? undefined : boardRow(view, row)}
         onClose={selection.close}
       />

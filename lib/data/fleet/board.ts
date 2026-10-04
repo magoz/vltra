@@ -176,8 +176,8 @@ const hour = 60 * 60 * 1000
 /** The Agents board's Handled column shows sessions active within this window. */
 export const handledWindow = 24 * hour
 
-/** The Agents board's columns, left to right; the first two need me. */
-export const boardColumns = ['blocked', 'finished', 'working', 'handled'] as const
+/** The Agents board's columns, left to right; the first needs me (blocked, then finished). */
+export const boardColumns = ['needsYou', 'working', 'handled'] as const
 
 export type BoardColumn = (typeof boardColumns)[number]
 
@@ -196,7 +196,7 @@ const allRows = (live: LiveFleet) => Array.from(live.rows.values(), row => board
 const projectRows = (live: LiveFleet, project: string | undefined) =>
   allRows(live).filter(item => project === undefined || projectKey(live, item.row) === project)
 
-/** The sessions that need me: the board's two left columns, and focus mode's list. */
+/** The sessions that need me: the board's Needs you column, and focus mode's list. */
 export type NeedsMe = {
   readonly blocked: ReadonlyArray<BoardRow>
   readonly finished: ReadonlyArray<BoardRow>
@@ -215,7 +215,7 @@ const needsMeOf = (rows: ReadonlyArray<BoardRow>): NeedsMe => ({
 export const buildNeedsMe = (live: LiveFleet, project: string | undefined): NeedsMe =>
   needsMeOf(projectRows(live, project))
 
-/** Focus mode's list order: blocked, then finished. */
+/** Needs-me order (focus mode's list, the board's Needs you column): blocked, then finished. */
 export const needsMeOrder = (needsMe: NeedsMe): ReadonlyArray<BoardRow> => [
   ...needsMe.blocked,
   ...needsMe.finished
@@ -236,7 +236,7 @@ export const nextNeedsMe = (list: ReadonlyArray<BoardRow>, id: string): BoardRow
 
 /**
  * The Agents board as of `now`, narrowed to `project` (a `projectKey`) when given:
- * - blocked and finished: `buildNeedsMe`;
+ * - needs you: `buildNeedsMe` in `needsMeOrder` (blocked, longest wait first, then finished);
  * - working: stuck first, then the newest session first (`created`, which never moves, so live
  *   activity does not reshuffle the column);
  * - handled: active within `handledWindow`, newest first; the rest only counted.
@@ -253,7 +253,7 @@ export const buildAgentsBoard = (
 
   return {
     columns: {
-      ...needsMeOf(rows),
+      needsYou: needsMeOrder(needsMeOf(rows)),
       working: inState('working').toSorted(
         (left, right) =>
           Number(isStuck(right.row, now)) - Number(isStuck(left.row, now)) ||
@@ -265,14 +265,9 @@ export const buildAgentsBoard = (
   }
 }
 
-/** The phone shows one column: the first needs-me column with cards, else Working. */
-export const initialColumn = (board: AgentsBoard): BoardColumn => {
-  if (board.columns.blocked.length > 0) return 'blocked'
-
-  if (board.columns.finished.length > 0) return 'finished'
-
-  return 'working'
-}
+/** The phone shows one column: Needs you when it has cards, else Working. */
+export const initialColumn = (board: AgentsBoard): BoardColumn =>
+  board.columns.needsYou.length > 0 ? 'needsYou' : 'working'
 
 /** A worktree section of a project card: its needs-me and working sessions. */
 export type CardSection = {

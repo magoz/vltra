@@ -4,10 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import { useFleetActions } from '@/app/fleet-actions'
-import { FleetProvider, showScreen } from '@/app/fleet-context'
+import { FleetProvider } from '@/app/fleet-context'
 import type { FleetNav, SessionSelection } from '@/app/fleet-context'
 import { BottomTabs, ConnectionLine, FleetHeader } from '@/app/fleet-header'
-import { screenOf } from '@/app/fleet-href'
 import { LauncherProvider } from '@/app/launcher-context'
 import type { Launcher, LauncherRequest } from '@/app/launcher-context'
 import { LauncherDialog } from '@/app/launcher-dialog'
@@ -26,8 +25,7 @@ type AwaitedLaunch = {
   readonly seen: boolean
   /** Where the user was when it started: any change means they moved on. */
   readonly selected: string | undefined
-  readonly page: FleetNav['page']
-  readonly view: FleetNav['view']
+  readonly screen: FleetNav['screen']
 }
 
 /**
@@ -47,11 +45,7 @@ function useLaunchAutoOpen(
 
     if (target === undefined) return
 
-    if (
-      selection.selected !== target.selected ||
-      nav.page !== target.page ||
-      nav.view !== target.view
-    ) {
+    if (selection.selected !== target.selected || nav.screen !== target.screen) {
       awaited.current = undefined
 
       return
@@ -79,15 +73,9 @@ function useLaunchAutoOpen(
 
   return useCallback(
     (id: string) => {
-      awaited.current = {
-        id,
-        seen: false,
-        selected: selection.selected,
-        page: nav.page,
-        view: nav.view
-      }
+      awaited.current = { id, seen: false, selected: selection.selected, screen: nav.screen }
     },
-    [selection.selected, nav.page, nav.view]
+    [selection.selected, nav.screen]
   )
 }
 
@@ -116,11 +104,11 @@ function useLauncherShortcut(open: () => void) {
 }
 
 /**
- * Around both pages (DESIGN.md "Clients" → Web): the tabs (Agents | Board | Projects; in the
+ * Around the tab showing (DESIGN.md "Clients" → Web): the tabs (Focus | Agents | Projects; in the
  * desktop header with the count line, key hint and connection, or the phone's bottom tab bar,
  * whose only other chrome is a reconnecting line when the link is down) and Handled / Undo /
- * Reopen. Each page shows the open session (`?session=`) itself: focus mode's pane, the board's and
- * Projects' split (`SessionSplit`). Keys: `1` / `2` / `3` the tabs, `b` Agents ↔ Board, `Escape`
+ * Reopen. Each tab shows the open session (`?session=`) itself: Focus' pane, the board's and
+ * Projects' split (`SessionSplit`). Keys: `1` / `2` / `3` the tabs, `b` Focus ↔ Agents, `Escape`
  * closes the session, `n` / `⌘K` open the launcher (its palette, its list for the Projects cards,
  * and the auto-open of a launch started here).
  */
@@ -145,8 +133,8 @@ export function FleetShell({
   const counts = useMemo(() => countRows(Array.from(view.rows.values()), now), [view, now])
   const fleet = useMemo(() => ({ view, now, selection, nav }), [view, now, selection, nav])
   const { selected } = selection
-  const screen = screenOf(nav.page, nav.view)
-  const agents = nav.page === 'agents'
+  const { screen } = nav
+  const agents = screen !== 'projects'
   const launcherList = useLauncherList()
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [request, setRequest] = useState<LauncherRequest>({ step: 'pick' })
@@ -172,10 +160,10 @@ export function FleetShell({
 
   useKeys({
     n: () => openLauncher(),
-    '1': screen === 'focus' ? undefined : () => showScreen(nav, 'focus'),
-    '2': screen === 'board' ? undefined : () => showScreen(nav, 'board'),
-    '3': screen === 'projects' ? undefined : () => showScreen(nav, 'projects'),
-    b: agents ? () => nav.setView(nav.view === 'board' ? 'focus' : 'board') : undefined,
+    '1': screen === 'focus' ? undefined : () => nav.show('focus'),
+    '2': screen === 'board' ? undefined : () => nav.show('board'),
+    '3': screen === 'projects' ? undefined : () => nav.show('projects'),
+    b: agents ? () => nav.show(screen === 'board' ? 'focus' : 'board') : undefined,
     Escape: selected === undefined ? undefined : selection.close
   })
 

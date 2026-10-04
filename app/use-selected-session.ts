@@ -1,6 +1,6 @@
 'use client'
 
-import { usePathname, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef } from 'react'
 import type { SessionSelection } from '@/app/fleet-context'
 import { sessionParam, viewParam } from '@/app/fleet-href'
@@ -19,21 +19,20 @@ const withSession = (sessionID: string | undefined) => {
 
 /**
  * The selected session and how to change it; it lives in the URL (`?session=<id>`), so the
- * phone's back button works on either page. Opening from a page pushes one history entry;
- * switching between sessions replaces it, so Back always returns to the page. Closing goes back
- * when Fleet pushed the entry on this page and mode, and otherwise (a deep link, or a page or
- * mode switch since) replaces the URL with the page.
+ * phone's back button works on every tab. Opening from a tab pushes one history entry; switching
+ * between sessions replaces it, so Back always returns to the tab. Closing goes back when Fleet
+ * pushed the entry on this tab, and otherwise (a deep link, or a tab switch since) replaces the
+ * URL with the tab.
  */
 export function useSelectedSession(): SessionSelection {
   const searchParams = useSearchParams()
-  const pathname = usePathname()
   const selected = searchParams.get(sessionParam) ?? undefined
   const view = searchParams.get(viewParam)
   const pushed = useRef(false)
 
   useEffect(() => {
     pushed.current = false
-  }, [pathname, view])
+  }, [view])
 
   const select = useCallback(
     (sessionID: string) => {

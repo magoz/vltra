@@ -1,11 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  afterPaint,
-  fakeActions,
-  TestDashboard,
-  testLocation
-} from '@/app/testing/dashboard-fixtures'
+import { fakeActions, TestDashboard, testLocation } from '@/app/testing/dashboard-fixtures'
 import type { NavCall } from '@/app/testing/dashboard-fixtures'
 import { fleetLive, now, rowIDs } from '@/app/testing/fleet-scenario'
 import type { LiveFleet } from '@/lib/data/fleet/board'
@@ -47,6 +42,15 @@ const finishedOnly = () => {
   rows.delete('ses_wait_new')
 
   return { ...live, rows }
+}
+
+/** `live` with session `id` running again, as after a message sent in its chat. */
+const working = (live: LiveFleet, id: string): LiveFleet => {
+  const row = live.rows.get(id)
+
+  if (row === undefined) throw new Error(`no row ${id}`)
+
+  return { ...live, rows: new Map(live.rows).set(id, { ...row, state: 'working', running: true }) }
 }
 
 const webLink = (live: LiveFleet, id: string) => {
@@ -111,7 +115,7 @@ describe('focus mode', () => {
 
     expect(screen.queryByRole('tablist', { name: 'Columns' })).toBeNull()
     expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
-    expect(headerTab('Agents').getAttribute('aria-current')).toBe('page')
+    expect(headerTab('Focus').getAttribute('aria-current')).toBe('page')
     expect(within(pane()).getByText('Pick a session on the left')).toBeTruthy()
     expect(testLocation()).toBe('/')
   })
@@ -165,20 +169,6 @@ describe('focus mode', () => {
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_wait_old'))
   })
 
-  it('marks a newly picked session at once and swaps the chat after the paint', async () => {
-    const { live } = renderFocus({ session: 'ses_done_old' })
-
-    open('Wait old')
-
-    // The click shows in the list right away; the heavy chat swap waits for that paint.
-    expect(row('ses_wait_old').querySelector('[data-selected="true"]')).not.toBeNull()
-    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
-
-    await afterPaint()
-
-    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_wait_old'))
-  })
-
   it('shows a session opened from elsewhere inline, even when it is not listed', () => {
     const { live } = renderFocus({ session: 'ses_busy' })
 
@@ -223,6 +213,29 @@ describe('focus mode', () => {
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
   })
 
+  it('marks only the open session, and no row once it leaves the list', () => {
+    const live = fleetLive()
+    const actions = fakeActions().actions
+
+    const view = render(
+      <TestDashboard live={live} now={now} actions={actions} session="ses_done_old" />
+    )
+
+    expect(cursorID()).toBeUndefined()
+    expect(row('ses_done_old').querySelector('[data-selected="true"]')).not.toBeNull()
+
+    // A message sent in the chat: the session works again and leaves the needs-me list.
+    view.rerender(
+      <TestDashboard live={working(live, 'ses_done_old')} now={now} actions={actions} />
+    )
+
+    expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_new'])
+    expect(cursorID()).toBeUndefined()
+    expect(list().querySelector('[data-selected="true"]')).toBeNull()
+    // The chat stays open.
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
+  })
+
   it("handles from the chat's toolbar and opens the next session", async () => {
     const { live, calls } = renderFocus({ live: finishedOnly() })
 
@@ -251,34 +264,34 @@ describe('focus mode', () => {
 })
 
 describe('tabs', () => {
-  it('switches Agents ↔ Board in place, keeping the filter and the open session', () => {
+  it('switches Focus ↔ Agents in place, keeping the filter and the open session', () => {
     const { navigations } = renderFocus({ project: 'prj_fleet', session: 'ses_done_old' })
 
-    fireEvent.click(headerTab('Board'))
+    fireEvent.click(headerTab('Agents'))
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
-    expect(screen.queryByRole('region', { name: 'Needs you' })).toBeNull()
+    expect(screen.queryByText('Blocked')).toBeNull()
     expect(testLocation()).toBe('/?view=board&project=prj_fleet&session=ses_done_old')
     // On the board, the session is the split's chat beside the columns.
     expect(within(pane()).getByRole('heading', { name: 'Done old' })).toBeTruthy()
-    expect(headerTab('Board').getAttribute('aria-current')).toBe('page')
+    expect(headerTab('Agents').getAttribute('aria-current')).toBe('page')
 
     press('b')
 
-    expect(list()).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
     expect(testLocation()).toBe('/?project=prj_fleet&session=ses_done_old')
 
     press('b')
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
     expect(navigations).toEqual([
-      { kind: 'view', view: 'board' },
-      { kind: 'view', view: 'focus' },
-      { kind: 'view', view: 'board' }
+      { kind: 'show', screen: 'board', project: 'prj_fleet' },
+      { kind: 'show', screen: 'focus', project: 'prj_fleet' },
+      { kind: 'show', screen: 'board', project: 'prj_fleet' }
     ])
   })
 
-  it('switches with 1 / 2 / 3: Agents and Board in place, Projects a page switch', () => {
+  it('switches with 1 / 2 / 3, all on the one page', () => {
     const { navigations } = renderFocus({ project: 'prj_fleet' })
 
     expect(screen.queryByRole('group', { name: 'Agents view' })).toBeNull()
@@ -290,10 +303,10 @@ describe('tabs', () => {
 
     press('3')
 
-    expect(testLocation()).toBe('/projects')
+    expect(testLocation()).toBe('/?view=projects')
     expect(headerTab('Projects').getAttribute('aria-current')).toBe('page')
-    // From Projects, Agents and Board start unfiltered.
-    expect(headerTab('Board').getAttribute('href')).toBe('/?view=board')
+    // From Projects, Focus and Agents start unfiltered.
+    expect(headerTab('Agents').getAttribute('href')).toBe('/?view=board')
 
     press('2')
 
@@ -301,53 +314,57 @@ describe('tabs', () => {
 
     press('1')
 
-    expect(list()).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
     expect(testLocation()).toBe('/')
     expect(navigations).toEqual([
-      { kind: 'view', view: 'board' },
-      { kind: 'go', page: 'projects', project: undefined, view: 'board' },
-      { kind: 'go', page: 'agents', project: undefined, view: 'board' },
-      { kind: 'view', view: 'focus' }
+      { kind: 'show', screen: 'board', project: 'prj_fleet' },
+      { kind: 'show', screen: 'projects', project: undefined },
+      { kind: 'show', screen: 'board', project: undefined },
+      { kind: 'show', screen: 'focus', project: undefined }
     ])
   })
 
-  it("switches with the phone's tabs: the modes in place, Projects and back as page switches", () => {
+  it("switches with the phone's tabs, keeping the filter between Focus and Agents", () => {
     const { navigations } = renderFocus({ project: 'prj_fleet' })
 
-    expect(tab('Agents').getAttribute('aria-current')).toBe('page')
+    expect(tab('Focus').getAttribute('aria-current')).toBe('page')
 
-    fireEvent.click(tab('Board'))
+    fireEvent.click(tab('Agents'))
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
     expect(testLocation()).toBe('/?view=board&project=prj_fleet')
-    expect(tab('Board').getAttribute('aria-current')).toBe('page')
+    expect(tab('Agents').getAttribute('aria-current')).toBe('page')
 
     fireEvent.click(tab('Projects'))
 
-    expect(testLocation()).toBe('/projects')
+    expect(testLocation()).toBe('/?view=projects')
     expect(tab('Projects').getAttribute('aria-current')).toBe('page')
 
-    // Agents is focus mode, whichever was showing last.
-    fireEvent.click(tab('Agents'))
+    // Focus is the needs-me list, whichever tab was showing last.
+    fireEvent.click(tab('Focus'))
 
-    expect(list()).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
     expect(testLocation()).toBe('/')
     expect(navigations).toEqual([
-      { kind: 'view', view: 'board' },
-      { kind: 'go', page: 'projects', project: undefined, view: 'board' },
-      { kind: 'go', page: 'agents', project: undefined, view: 'focus' }
+      { kind: 'show', screen: 'board', project: 'prj_fleet' },
+      { kind: 'show', screen: 'projects', project: undefined },
+      { kind: 'show', screen: 'focus', project: undefined }
     ])
   })
 })
 
 describe('keyboard', () => {
-  it('j / k move, Enter opens on the right, Escape clears', () => {
+  it('j / k move a cursor, Enter opens on the right (the cursor gives way), Escape clears', () => {
     const { live } = renderFocus()
 
-    expect(cursorID()).toBe('ses_wait_old')
+    // Nothing is marked until the keys move.
+    expect(cursorID()).toBeUndefined()
 
     press('j')
+    expect(cursorID()).toBe('ses_wait_old')
+
     press('ArrowDown')
+    press('j')
     press('j')
     press('k')
     expect(cursorID()).toBe('ses_done_old')
@@ -355,6 +372,9 @@ describe('keyboard', () => {
     press('Enter')
 
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
+    // Only the open session is marked now.
+    expect(cursorID()).toBeUndefined()
+    expect(row('ses_done_old').querySelector('[data-selected="true"]')).not.toBeNull()
 
     press('Escape')
 
@@ -372,10 +392,11 @@ describe('keyboard', () => {
 
     press('j')
     press('j')
+    press('j')
     press('h')
 
     expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_new'])
-    expect(cursorID()).toBe('ses_done_new')
+    expect(row('ses_done_new').querySelector('[data-selected="true"]')).not.toBeNull()
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
 
     press('u')
@@ -387,15 +408,15 @@ describe('keyboard', () => {
       ])
     )
     expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'])
-    expect(cursorID()).toBe('ses_done_old')
+    expect(row('ses_done_old').querySelector('[data-selected="true"]')).not.toBeNull()
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
   })
 
   it('h handles the open session when the focused row is blocked', async () => {
     const { live, calls } = renderFocus({ session: 'ses_done_new' })
 
-    // Focus starts on the open session.
-    expect(cursorID()).toBe('ses_done_new')
+    // Only the open session is marked; the keys start from it.
+    expect(cursorID()).toBeUndefined()
 
     press('k')
     press('k')
@@ -407,7 +428,6 @@ describe('keyboard', () => {
     await waitFor(() =>
       expect(calls()).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_done_new' } }])
     )
-    await afterPaint()
     // The last one: the one before it opens.
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
   })

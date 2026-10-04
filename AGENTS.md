@@ -33,7 +33,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | OpenCode client                  | `lib/services/opencode/`                                        | See `patterns/OPENCODE_SURFACE.md`                       |
 | Runtime (one per process)        | `lib/runtime/fleet-runtime.ts`                                  | `ManagedRuntime` on `globalThis`; `runFleet`             |
 | Watcher start                    | `instrumentation.ts`                                            | Node runtime only; skipped during `next build`           |
-| Pages / API routes / actions     | `app/`                                                          | `(fleet)/` pages, `api/fleet`, `*-action.ts`             |
+| Page / API routes / actions      | `app/`                                                          | `(fleet)/` one page, `api/fleet`, `*-action.ts`          |
 | Plugin mutation routes (JSON)    | `app/api/fleet/mutations.ts`, `json-request.ts`                 | handled, reopen, launches, dismiss, checkouts/open       |
 | Dashboard UI                     | `app/fleet-shell.tsx` and siblings                              | Layout's live tree (`fleet-live.tsx`); see below         |
 | Launcher UI                      | `app/launcher-dialog.tsx`, `pending-launches.tsx`               | Palette, launches, `retire-worktree.tsx`                 |
@@ -74,37 +74,39 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
 ## DASHBOARD
 
-- Two pages under one layout (`app/(fleet)/layout.tsx`): **Agents** (`/`, `page.tsx` →
-  `agents.tsx`, which picks the mode: `agents-focus.tsx` or `agents-board.tsx`) and **Projects**
-  (`/projects` → `projects-grid.tsx`). The pages are static; the layout's `<Suspense>` holds the
-  live client tree (`fleet-live.tsx`: `await connection()`, the watcher's snapshot, then
-  `FleetDashboard`), and its fallback, the page's skeleton (`fleet-dashboard-skeleton.tsx`, picked
-  by `usePathname`; Agents is focus mode's frame, since the prerender cannot see `?view=`), is
-  each route's prerendered shell.
-  Because the layout survives page switches, both pages share one `GET /api/fleet/events`
-  stream (`use-fleet-live.ts`: reload the snapshot after every `initial` event, apply other changes
-  in place, reconnect with backoff and on visibility), the clock and Handled's undo state.
-- `FleetDashboard` wires server actions, the clock and the URL (`use-fleet-nav.ts`: page from the
-  path, `?view=board` Agents mode, `?project=` filter; `use-selected-session.ts`: `?session=`;
-  `fleet-href.ts` builds every URL) around `FleetShell` (`fleet-shell.tsx`): the tabs
-  `Agents | Board | Projects` (`fleet-header.tsx`), in the desktop header (with the count line
-  `N need you · N working · N stuck`, the tab's key hint and the connection) or the phone's bottom
-  tab bar (`BottomTabs`, with `+`; no header there, only `ConnectionLine`: a slim `reconnecting…`
-  line on top once a reconnect lasts 3s, the wait starting over when the page shows again); each
-  page shows the open session itself (focus mode's pane, the board's and Projects' split). Both pages
-  read `useFleet()` (`fleet-context.tsx`: live fleet with overrides, clock, selection, nav). Page
-  links are `nav-link.tsx` (`next/link`, prefetched; plain clicks go through `nav.go`).
-- **Agents** has two modes (DESIGN.md "Clients" → Web), in the URL: focus is the absence of
-  `?view`, the board is `?view=board`. They are the first two tabs: Agents is focus mode, Board
-  the board (`FleetScreen` / `screenOf` in `fleet-href.ts`; `screenHref` / `showScreen` in
-  `fleet-context.tsx`, shared by the tab links and `1` / `2` / `3`). Between Agents and Board the
-  switch is in place (`nav.setView`: a history entry, keeping `?project=` and `?session=`); `b`
-  toggles them. Projects is a page switch, and from it Agents and Board start unfiltered (Projects
-  URLs carry no mode). Projects card headers (and `Enter` on a card) open the board.
-- **Agents focus mode** (`agents-focus.tsx`, default): a sidebar (26rem, hairline right border,
+- One page (`app/(fleet)/page.tsx` → `current-tab.tsx`) with three tabs in `?view=`: **Focus**
+  (plain `/`, `agents-focus.tsx`), **Agents** (the board: `?view=board`, `agents-board.tsx`; code
+  and URL keep `board`) and **Projects** (`?view=projects`, `projects-grid.tsx`; the old `/projects` redirects in
+  `next.config.ts`). Keep it one route: Cache Components keeps up to three visited routes mounted
+  in hidden `<Activity>` boundaries (`MAX_BF_CACHE_ENTRIES` in Next's `bfcache-state-manager`), so
+  a second route kept a hidden copy of the other page alive (with its own OpenCode iframe) and
+  restored its stale state on return. The page is static; the layout's `<Suspense>` holds the live
+  client tree (`fleet-live.tsx`: `await connection()`, the watcher's snapshot, then
+  `FleetDashboard`), and its fallback, the skeleton (`fleet-dashboard-skeleton.tsx`, Focus' frame
+  for every tab, since the prerender cannot see `?view=`), is the prerendered shell. The live tree
+  holds the one `GET /api/fleet/events` stream (`use-fleet-live.ts`: reload the snapshot after
+  every `initial` event, apply other changes in place, reconnect with backoff and on visibility),
+  the clock and Handled's undo state.
+- `FleetDashboard` wires server actions, the clock and the URL (`use-fleet-nav.ts`: the tab and
+  the filter; `use-selected-session.ts`: `?session=`; `fleet-href.ts` builds every URL) around
+  `FleetShell` (`fleet-shell.tsx`): the tabs `Focus | Agents | Projects` (`fleet-header.tsx`), in
+  the desktop header (with the count line `N need you · N working · N stuck`, the tab's key hint
+  and the connection) or the phone's bottom tab bar (`BottomTabs`, with `+`; no header there, only
+  `ConnectionLine`: a slim `reconnecting…` line on top once a reconnect lasts 3s, the wait starting
+  over when the page shows again), and each tab shows the open session itself (Focus' pane,
+  Agents' and Projects' split). Every tab reads `useFleet()` (`fleet-context.tsx`: live fleet with
+  overrides, clock, selection, nav). Tab links are `nav-link.tsx` (plain links; a plain click goes through
+  `nav.show`).
+- Every move is a history write that Next syncs into `useSearchParams` (no router navigation, no
+  fetch, no remount): `nav.show` pushes an entry (Back returns), `setProject` replaces it,
+  `openSession` (the launcher) pushes Focus with the session. `moveTo` in `fleet-href.ts` decides
+  the filter: given (Projects card headers, and `Enter` on a card, open the board filtered), else
+  kept between Focus and Agents; Projects has none, so from it they start unfiltered. `b`
+  toggles Focus ↔ Agents; `1` / `2` / `3` pick a tab.
+- **Focus** (`agents-focus.tsx`, default): a sidebar (26rem, hairline right border,
   scrolls on its own) with only the needs-me sessions (`buildNeedsMe` / `needsMeOrder` in
-  `board.ts`: blocked, longest wait first, then finished, oldest first; the board's two left
-  columns are the same lists), as compact `AgentCard`s (the board's minimal cards without a box
+  `board.ts`: blocked, longest wait first, then finished, oldest first; the board's Needs you
+  column is the same list), as compact `AgentCard`s (the board's minimal cards without a box
   of their own) under `Blocked N` / `Finished N` headings, narrowed by the same project filter
   (`project-filter.tsx`). The rest of the page shows the open session (`?session=`, also one not
   in the list, e.g. a working session opened from Projects) inline: the same `SessionPanel` (its
@@ -112,22 +114,25 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   Nothing open: "Pick a session on the left", or "Nothing needs you" when the list is empty.
   Handling the open session (the row's or the chat toolbar's button, `h`, swipe; focus mode wraps
   `useHandled` so all go through it) opens the next one in list order (`nextNeedsMe`: the one
-  after it, else the one before), or the empty state. Phone:
+  after it, else the one before), or the empty state. The list marks the open session only (tint
+  and left edge); `j`/`k` add a cursor (outline) that any change of the open session spends
+  (`Cursor.under`), so a session that leaves the list (it works again) leaves nothing marked.
+  Phone:
   the list full width; a session opens full screen (the pane becomes `fixed inset-0`), its back
   button returns to the list.
-- **Agents board** (`?view=board`, `agents-board.tsx`): columns `Blocked | Finished | Working |
-Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first. Finished: oldest first.
-  Working: stuck first, then newest session (`created`, so live activity does not reshuffle).
+- **Agents**, the board (`?view=board`, `agents-board.tsx`): columns `Needs you | Working |
+Handled` (`buildAgentsBoard` in `board.ts`). Needs you: blocked (longest wait first, each card
+  badged `blocked`), then finished (oldest first). Working: stuck first, then newest session (`created`, so live activity does not reshuffle).
   Handled: active in the last 24h, newest first, then "N more → Projects". Cards
   (`agent-card.tsx`) are minimal: marker (red for a failed run), project · worktree (`boardRow`;
-  the global project's sessions by their directory), age and title, flags for `retrying (n×, …)`
+  the global project's sessions by their directory), the `blocked` badge (board only), age and title, flags for `retrying (n×, …)`
   / `quiet Nm` and "folder deleted", Handled (finished) or Reopen (handled, not for "folder
   deleted"). Asks, answers and live activity are left to the chat. `?project=<projectKey>`
   (`other` = the global project) narrows every column: a select (`/` focuses it) and a chip with ×
   (`setProject` replaces the history entry). An open session (`?session=`) splits the board
-  (`SessionSplit`): the four columns narrow beside its chat (down to 11rem, then they scroll),
-  still clickable to switch it. Phone: one
-  column via a segmented control, opening on the first non-empty needs-me column
+  (`SessionSplit`): the three columns narrow beside its chat (down to 11rem, then they scroll),
+  still clickable to switch it. Phone: one column via a segmented control, opening on Needs you
+  when it has cards
   (`initialColumn`, else Working), a session full screen; a new filter remounts the board (fresh
   column and focus).
 - **Projects**: cards (`buildProjectCards`) by latest activity, "Other" last, 1 / 2 / 3 columns.
@@ -168,29 +173,28 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first. Finish
   and drop. Phone: swipe a finished card left (`use-swipe.ts`); the Handled button stays.
 - Keys (`use-keys.ts`, desktop; ignored while typing (except `Escape`), with modifiers and in
   dialogs; keys typed inside the OpenCode iframe stay there): shell `1` / `2` / `3` the tabs, `b`
-  Agents ↔ Board, `n` the launcher (and `⌘K` / `Ctrl+K`, its own listener, also while typing),
+  Focus ↔ Agents, `n` the launcher (and `⌘K` / `Ctrl+K`, its own listener, also while typing),
   `Escape` closes the session (the palette closes itself). Focus: `j`/`k` (`↓`/`↑`) through
-  the list, `Enter` opens the focused session on the right, `h` handled (the focused finished
-  session, else the open one; the next opens), `u` undo (reopens and opens it), `/` filter;
-  focus starts on the open session, else the first row. Board: `j`/`k` (`↓`/`↑`) within a
-  column, `←`/`→` between columns, `h` handled + next finished card, `u` undo, `Enter` opens,
+  the list, `Enter` opens the focused session on the right, `h` handled (the cursor's finished
+  session, else the open one; the next opens), `u` undo (reopens and opens it), `/` filter; no
+  cursor until `j`/`k`, which start from the open session's row. Agents (board): `j`/`k` (`↓`/`↑`) within a
+  column, `←`/`→` between columns, `h` handled + next card, `u` undo, `Enter` opens,
   `/` filter; focus starts on the first needs-me card and follows clicks. No key answers asks:
   they are answered in the chat. Projects: arrows between cards (up/down by grid row), `j`/`k`
   within a card (fold rows when open), `Enter` opens the focused session, else the card's board.
-- The open session lives in the URL (`?session=<id>`, kept across page switches), next to the page
-  from `lg`: focus mode's pane, and on the board and Projects a split (`SessionSplit` in
-  `session-panel.tsx`: the chat docks on the right, `min(52rem, 42vw)`, and the page narrows beside
-  it, still clickable); full screen below `lg`, so the phone's back button closes it (closing goes
-  back only when Fleet pushed the entry on this page and mode).
-- The session panel (`session-panel.tsx`, the same on every page) is the session's chat alone,
+- The open session lives in the URL (`?session=<id>`, kept across tabs), next to the tab from
+  `lg`: Focus' pane, and on Agents and Projects a split (`SessionSplit` in `session-panel.tsx`: the
+  chat docks on the right, `min(52rem, 42vw)`, and the tab narrows beside it, still clickable);
+  full screen below `lg`, so the phone's back button closes it (closing goes back only when Fleet
+  pushed the entry on this tab).
+- The session panel (`session-panel.tsx`, the same on every tab) is the session's chat alone,
   no Summary tab: an iframe of OpenCode's web UI (`row.links.web`), signed in by its same-site
   pairing cookie (`opencode pair`), with full app chrome since upstream has no embed mode. Its
   slim toolbar has only what Fleet adds: the phone's back button, state and title, Handled
   (finished) / Reopen (handled; neither for "folder deleted"), open in the terminal (`ocb://`,
   fine pointers only) or a new tab, close (desktop). Messages, asks, follow-ups and Stop happen in
-  the chat. Being same-site, the iframe runs on Fleet's main thread, so switching sessions swaps it
-  after the next paint (`usePanelSession`: the list shows the click first; opening and closing
-  are immediate). Tests wait for the swap with `afterPaint()`.
+  the chat. Being same-site, the iframe runs on Fleet's main thread: keep one chat mounted at a
+  time (no hidden pages, no pools).
 - Mutations go through `FleetActions` (`app/fleet-actions.tsx`): the dashboard provides the server
   actions (the launcher's `launch`, `openCheckout`, `retireWorktree`, `dismissLaunch` and
   `suggestBranch` return `FleetActionValue`s when they carry a value), component tests provide

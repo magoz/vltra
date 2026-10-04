@@ -1,9 +1,7 @@
-import type { Metadata } from 'next'
-import { Agents } from '@/app/agents'
+import { CurrentTab } from '@/app/current-tab'
 
-export const metadata: Metadata = { title: 'Agents · Fleet' }
-
-// Static: the page reads the live fleet, and its mode (`?view=`), from the layout's client tree.
-export default function AgentsPage() {
-  return <Agents />
+// Static: the dashboard's one page. The tab (`?view=`) and the live fleet come from the layout's
+// client tree.
+export default function FleetPage() {
+  return <CurrentTab />
 }
