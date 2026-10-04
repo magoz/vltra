@@ -11,10 +11,11 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     background_color: '#faf8f4',
     theme_color: '#faf8f4',
+    // Rendered from app/icon.svg with rsvg-convert, like app/apple-icon.png (180 px).
     icons: [
       { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      // The markers sit inside the maskable safe zone, so the same artwork serves both.
+      // The mark sits well inside the maskable safe zone, so the same artwork serves both.
       { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
     ]
   }
