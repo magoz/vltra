@@ -55,7 +55,12 @@ export function FleetDashboard({
       <FleetShell live={live} stream={stream} now={now} selection={selection} nav={nav}>
         {children}
       </FleetShell>
-      <Toaster position="bottom-center" offset={{ bottom: 64 }} mobileOffset={{ bottom: 64 }} />
+      {/* Top right below the desktop header; phones (under 600px) get them across the top. */}
+      <Toaster
+        position="top-right"
+        offset={{ top: 60, right: 16 }}
+        mobileOffset={{ top: 'calc(env(safe-area-inset-top) + 12px)', left: 12, right: 12 }}
+      />
     </FleetActionsProvider>
   )
 }
