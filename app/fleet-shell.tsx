@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
+import { CommandDigit, commandDigit } from '@/app/command-digit'
 import { useFleetActions } from '@/app/fleet-actions'
 import { FleetProvider } from '@/app/fleet-context'
 import type { FleetNav, SessionSelection } from '@/app/fleet-context'
@@ -17,7 +18,7 @@ import { useFavicon } from '@/app/use-favicon'
 import { useKeys } from '@/app/use-keys'
 import { useLauncherList } from '@/app/use-launcher-list'
 import { useUsage } from '@/app/use-usage'
-import { withOverrides } from '@/lib/data/fleet/board'
+import { focusList, withOverrides } from '@/lib/data/fleet/board'
 import type { LiveFleet } from '@/lib/data/fleet/board'
 import { countRows } from '@/lib/data/fleet/state'
 import type { Launch } from '@/lib/data/fleet/types'
@@ -107,6 +108,40 @@ function useLauncherShortcut(open: () => void) {
 }
 
 /**
+ * `⌘1`–`⌘9` / `⌘⇧1`–`⌘⇧3` (`commandDigit`) from anywhere, in the OpenCode chat too
+ * (`forwardChatKeys`), even while typing; not in a dialog. Always taken, so the browser never
+ * switches tabs instead.
+ */
+function useCommandDigits(run: (chord: CommandDigit) => void) {
+  const latest = useRef(run)
+
+  useEffect(() => {
+    latest.current = run
+  })
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const chord = commandDigit(event)
+
+      if (chord === undefined) return
+
+      const target = event.target
+
+      if (target instanceof Element && target.closest('[role="dialog"], [role="alertdialog"]')) {
+        return
+      }
+
+      event.preventDefault()
+      latest.current(chord)
+    }
+
+    document.addEventListener('keydown', onKey)
+
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+}
+
+/**
  * Around the tab showing (DESIGN.md "Clients" → Web): the tabs (Focus | Agents | Projects; in the
  * desktop header with the count line, key hint and connection, or the phone's bottom tab bar,
  * whose only other chrome is a reconnecting line when the link is down) and Handled / Undo /
@@ -163,6 +198,23 @@ export function FleetShell({
 
   useFavicon(counts)
   useLauncherShortcut(openLauncher)
+
+  useCommandDigits(
+    CommandDigit.$match({
+      Tab: ({ screen: target }) => nav.show(target),
+      Session: ({ index }) => {
+        const item = focusList(view)[index]
+
+        if (item === undefined) return
+
+        if (screen === 'focus') {
+          selection.select(item.row.id)
+        } else {
+          nav.openSession(item.row.id)
+        }
+      }
+    })
+  )
 
   useKeys({
     n: () => openLauncher(),

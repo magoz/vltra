@@ -323,6 +323,44 @@ describe('tabs', () => {
     ])
   })
 
+  it('⌘1–⌘9 open the Nth session of the list, from any tab; ⌘⇧1–⌘⇧3 switch tabs', () => {
+    renderFocus()
+
+    const chord = (code: string, shiftKey = false) =>
+      fireEvent.keyDown(document.body, { key: code.slice(-1), code, metaKey: true, shiftKey })
+
+    chord('Digit3')
+
+    expect(testLocation()).toBe('/?session=ses_done_old')
+
+    chord('Digit2', true)
+
+    expect(testLocation()).toBe('/?view=agents&session=ses_done_old')
+
+    // From another tab, the Nth session opens in Focus.
+    chord('Digit1')
+
+    expect(testLocation()).toBe('/?session=ses_wait_old')
+
+    chord('Digit3', true)
+
+    expect(testLocation()).toBe('/?view=projects&session=ses_wait_old')
+
+    // Past the end of the list, nothing happens (and the browser still does not get it).
+    const past = new KeyboardEvent('keydown', {
+      key: '9',
+      code: 'Digit9',
+      metaKey: true,
+      bubbles: true,
+      cancelable: true
+    })
+
+    document.body.dispatchEvent(past)
+
+    expect(past.defaultPrevented).toBe(true)
+    expect(testLocation()).toBe('/?view=projects&session=ses_wait_old')
+  })
+
   it("switches with the phone's tabs, keeping the filter between Focus and Agents", () => {
     const { navigations } = renderFocus({ project: 'prj_fleet' })
 

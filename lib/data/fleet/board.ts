@@ -227,6 +227,10 @@ export const needsMeOrder = (needsMe: NeedsMe): ReadonlyArray<BoardRow> => [
   ...needsMe.finished
 ]
 
+/** Focus' list: every session that needs me (no project filter), in needs-me order. */
+export const focusList = (live: LiveFleet): ReadonlyArray<BoardRow> =>
+  needsMeOrder(buildNeedsMe(live, undefined))
+
 /**
  * The session focus mode opens once `id` is handled, from `list` (the needs-me order as it was
  * before handling): the one after it, else the one before it (it was last); the first when `id`

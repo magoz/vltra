@@ -119,6 +119,20 @@ describe('forwardChatKeys', () => {
     expect(chatFrame.chat).toEqual([])
   })
 
+  it("gives Fleet ⌘ + digits even while typing (OpenCode's tab keys never see them)", () => {
+    const textarea = chatFrame.frameDocument.querySelector('textarea')
+
+    if (textarea === null) throw new Error('missing fixture')
+
+    const codes: Array<string> = []
+
+    document.addEventListener('keydown', event => codes.push(event.code), { once: true })
+    chatFrame.press('@', textarea, { code: 'Digit2', metaKey: true, shiftKey: true })
+
+    expect(codes).toEqual(['Digit2'])
+    expect(chatFrame.fleet).toEqual(['@'])
+  })
+
   it('stops forwarding once detached', () => {
     chatFrame.detach?.()
     chatFrame.press('j')

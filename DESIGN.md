@@ -180,7 +180,8 @@ only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
   shows one column at a time via a segmented control (`Need you 6 · Working 5 · Done`),
   opening on Need you when it has cards. Swipe left on a finished card marks
   it handled (no horizontal column scrolling, so the gesture stays unambiguous).
-- **Keyboard (Mac)**: `1` / `2` / `3` the tabs. Focus: `j`/`k` move through the list, `Enter`
+- **Keyboard (Mac)**: `1` / `2` / `3` (or `⌘⇧1`–`⌘⇧3`, also inside the chat) the tabs; `⌘1`–`⌘9`
+  open Focus' Nth session from anywhere, inside the chat too. Focus: `j`/`k` move through the list, `Enter`
   opens the session on the right, `h` handled (the next needs-me session opens), `u` undo, `b`
   Agents. Agents: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and the
   next card), `u` undo, `Enter` opens the chat, `Esc` closes it, `/` focuses the project

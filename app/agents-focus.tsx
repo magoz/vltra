@@ -8,13 +8,7 @@ import { SessionPanel } from '@/app/session-panel'
 import { HandledProvider, useHandled } from '@/app/use-handled'
 import type { HandledFlow } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
-import {
-  boardRow,
-  buildNeedsMe,
-  needsMeOrder,
-  nextNeedsMe,
-  pendingLaunches
-} from '@/lib/data/fleet/board'
+import { boardRow, focusList, nextNeedsMe, pendingLaunches } from '@/lib/data/fleet/board'
 import type { BoardRow } from '@/lib/data/fleet/board'
 import { cn } from '@/lib/utils'
 
@@ -60,8 +54,7 @@ function EmptyPane({ empty }: { readonly empty: boolean }) {
 function Focus() {
   const { view, selection } = useFleet()
   const flow = useHandled()
-  const needsMe = useMemo(() => buildNeedsMe(view, undefined), [view])
-  const list = useMemo(() => needsMeOrder(needsMe), [needsMe])
+  const list = useMemo(() => focusList(view), [view])
   const launches = useMemo(() => pendingLaunches(view.launches), [view.launches])
   const [moved, setMoved] = useState<Cursor>()
   const { selected } = selection

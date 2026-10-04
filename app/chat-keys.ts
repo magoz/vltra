@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { RefObject } from 'react'
+import { commandDigit } from '@/app/command-digit'
 
 /** Typing in a field of the chat (OpenCode's composer, a search box). */
 const typingSelector = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])'
@@ -23,9 +24,14 @@ const scrollKeys: ReadonlyArray<string> = [
   ' '
 ]
 
-/** `⌘K` / `Ctrl+K`, the launcher's, wins even while typing in the chat (OpenCode's palette: `⇧⌘P`). */
-const isLauncherShortcut = (event: KeyboardEvent) =>
-  event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey) && !event.altKey
+/**
+ * Fleet's chords, which win even while typing in the chat: `⌘K` / `Ctrl+K` (the launcher;
+ * OpenCode's palette is also `⇧⌘P`) and `⌘` + digits (`commandDigit`; OpenCode's own `⌘1`–`⌘9`
+ * pick its tab strip's tabs, which Fleet's one-session chat has no use for).
+ */
+const isFleetChord = (event: KeyboardEvent) =>
+  (event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey) && !event.altKey) ||
+  commandDigit(event) !== undefined
 
 /**
  * Whether a key pressed in the chat stays with it: while typing or in one of its overlays, the
@@ -34,7 +40,7 @@ const isLauncherShortcut = (event: KeyboardEvent) =>
  * here: selectors only.
  */
 export const chatOwnsKey = (event: KeyboardEvent, active: Element | null): boolean => {
-  if (isLauncherShortcut(event)) return false
+  if (isFleetChord(event)) return false
 
   if (event.isComposing || event.key === 'Escape' || scrollKeys.includes(event.key)) return true
 

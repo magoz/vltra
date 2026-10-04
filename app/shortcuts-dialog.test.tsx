@@ -43,7 +43,8 @@ describe('shortcuts', () => {
       'b focus',
       'n ⌘K new',
       '/ filter',
-      '1 2 3 tabs',
+      '⌘1–9 Nth session (Focus)',
+      '1 2 3 ⌘⇧1–3 tabs',
       'esc close the session',
       '? shortcuts'
     ])
