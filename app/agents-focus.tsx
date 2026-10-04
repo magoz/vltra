@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AgentCard } from '@/app/agent-card'
 import { useFleet } from '@/app/fleet-context'
 import { PendingLaunches } from '@/app/pending-launches'
-import { ProjectFilter } from '@/app/project-filter'
 import { SessionPanel } from '@/app/session-panel'
 import { HandledProvider, useHandled } from '@/app/use-handled'
 import type { HandledFlow } from '@/app/use-handled'
@@ -35,32 +34,6 @@ const resolve = (list: ReadonlyArray<BoardRow>, cursor: Cursor | undefined): num
   return found >= 0 ? found : Math.min(cursor.index, list.length - 1)
 }
 
-function Section({
-  name,
-  rows,
-  cursor
-}: {
-  readonly name: string
-  readonly rows: ReadonlyArray<BoardRow>
-  readonly cursor: string | undefined
-}) {
-  if (rows.length === 0) return null
-
-  return (
-    <section aria-label={name} className="pt-3">
-      <h2 className="text-attention flex items-baseline justify-between px-3 pb-1.5 text-xs tracking-widest uppercase">
-        <span>{name}</span>
-        <span className="tabular-nums">{rows.length}</span>
-      </h2>
-      <ul className="border-t">
-        {rows.map(item => (
-          <AgentCard key={item.row.id} item={item} cursor={item.row.id === cursor} compact />
-        ))}
-      </ul>
-    </section>
-  )
-}
-
 /** The right side with nothing open: a quiet line, desktop only. */
 function EmptyPane({ empty }: { readonly empty: boolean }) {
   return (
@@ -84,14 +57,13 @@ function EmptyPane({ empty }: { readonly empty: boolean }) {
   )
 }
 
-function Focus({ project }: { readonly project: string | undefined }) {
+function Focus() {
   const { view, selection } = useFleet()
   const flow = useHandled()
-  const needsMe = useMemo(() => buildNeedsMe(view, project), [view, project])
+  const needsMe = useMemo(() => buildNeedsMe(view, undefined), [view])
   const list = useMemo(() => needsMeOrder(needsMe), [needsMe])
   const launches = useMemo(() => pendingLaunches(view.launches), [view.launches])
   const [moved, setMoved] = useState<Cursor>()
-  const filterRef = useRef<HTMLSelectElement>(null)
   const { selected } = selection
   const cursor = moved?.under === selected ? moved : undefined
   const index = resolve(list, cursor)
@@ -158,8 +130,7 @@ function Focus({ project }: { readonly project: string | undefined }) {
       const id = flow.undo()
 
       if (id !== undefined) selection.select(id)
-    },
-    '/': () => filterRef.current?.focus()
+    }
   })
 
   return (
@@ -169,7 +140,6 @@ function Focus({ project }: { readonly project: string | undefined }) {
           aria-label="Need you"
           className="flex flex-col lg:w-[26rem] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain lg:border-r"
         >
-          <ProjectFilter filterRef={filterRef} className="px-3 pt-3" />
           {launches.length === 0 ? null : (
             <section aria-label="Provisioning" className="pt-3">
               <h2 className="text-muted-foreground flex items-baseline justify-between px-3 pb-1.5 text-xs tracking-widest uppercase">
@@ -179,8 +149,18 @@ function Focus({ project }: { readonly project: string | undefined }) {
               <PendingLaunches launches={launches} compact className="border-t" />
             </section>
           )}
-          <Section name="Blocked" rows={needsMe.blocked} cursor={focused?.row.id} />
-          <Section name="Finished" rows={needsMe.finished} cursor={focused?.row.id} />
+          {list.length === 0 ? null : (
+            <ul aria-label="Sessions" className={cn(launches.length > 0 && 'mt-3 border-t')}>
+              {list.map(item => (
+                <AgentCard
+                  key={item.row.id}
+                  item={item}
+                  cursor={item.row.id === focused?.row.id}
+                  compact
+                />
+              ))}
+            </ul>
+          )}
           {list.length === 0 ? (
             <p className="text-muted-foreground px-3 py-10 text-center lg:hidden">
               Nothing needs you.
@@ -212,19 +192,16 @@ function Focus({ project }: { readonly project: string | undefined }) {
 }
 
 /**
- * The Agents page's focus mode (the default, DESIGN.md "Clients" → Web): a sidebar listing the
- * launcher's launches ("Provisioning", unfiltered) and the sessions that need me (blocked,
- * longest wait first; then finished, oldest first, with Handled; rows are titles only, asks are
- * answered in the chat), narrowed by `?project=`, and the open session (`?session=`, also
+ * Focus (the default tab, DESIGN.md "Clients" → Web): a sidebar listing the launcher's launches
+ * ("Provisioning") and, in one list without headings or a filter, the sessions that need me
+ * (blocked, longest wait first, badged; then finished, oldest first, with Handled; asks are
+ * answered in the chat), and the open session (`?session=`, also
  * one opened from elsewhere) inline in the rest of the page: its chat. Handling the open session
  * opens the next one in list order. The list marks the open session only; `j` / `k` add a cursor
  * until another session opens. Phone: the list; a session opens full screen. Keys: `j`/`k`
  * (`↓`/`↑`) move, `Enter` opens, `h` handled (the cursor's finished session, else the open one;
- * the next opens), `u` undo, `/` filter (the shell adds the tabs, `b` board and `Escape` closes).
+ * the next opens), `u` undo (the shell adds the tabs, `b` board and `Escape` closes).
  */
 export function AgentsFocus() {
-  const { nav } = useFleet()
-
-  // A new filter is a new list: the keyboard focus starts over.
-  return <Focus key={nav.project ?? ''} project={nav.project} />
+  return <Focus />
 }

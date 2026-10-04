@@ -108,14 +108,15 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   fetch, no remount): `nav.show` pushes an entry (Back returns), `setProject` replaces it,
   `openSession` (the launcher) pushes Focus with the session. `moveTo` in `fleet-href.ts` decides
   the filter: given (Projects card headers, and `Enter` on a card, open the board filtered), else
-  kept between Focus and Agents; Projects has none, so from it they start unfiltered. `b`
+  kept between Focus (which ignores it) and Agents; Projects has none, so from it they start
+  unfiltered. `b`
   toggles Focus ↔ Agents; `1` / `2` / `3` pick a tab.
 - **Focus** (`agents-focus.tsx`, default): a sidebar (26rem, hairline right border,
   scrolls on its own) with only the needs-me sessions (`buildNeedsMe` / `needsMeOrder` in
   `board.ts`: blocked, longest wait first, then finished, oldest first; the board's Need you
   column is the same list), as compact `AgentCard`s (the board's minimal cards without a box
-  of their own) under `Blocked N` / `Finished N` headings, narrowed by the same project filter
-  (`project-filter.tsx`). The rest of the page shows the open session (`?session=`, also one not
+  of their own) in one list: no headings and no project filter (it ignores Agents' `?project=`,
+  which stays in the URL for the way back); blocked rows carry the `blocked` badge. The rest of the page shows the open session (`?session=`, also one not
   in the list, e.g. a working session opened from Projects) inline: the same `SessionPanel` (its
   chat) as the splits, filling the pane (the iframe's absolute fill; no page scroll on desktop).
   Nothing open: "Pick a session on the left", or "Nothing needs you" when the list is empty.
@@ -132,7 +133,7 @@ Handled` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait fir
   badged `blocked`), then finished (oldest first). Working: stuck first, then newest session (`created`, so live activity does not reshuffle).
   Handled: active in the last 24h, newest first, then "N more → Projects". Cards
   (`agent-card.tsx`) are minimal: marker (red for a failed run), project · worktree (`boardRow`;
-  the global project's sessions by their directory), the `blocked` badge (board only), age and title, flags for `retrying (n×, …)`
+  the global project's sessions by their directory), the `blocked` badge, age and title, flags for `retrying (n×, …)`
   / `quiet Nm` and "folder deleted", Handled (finished) or Reopen (handled, not for "folder
   deleted"). Asks, answers and live activity are left to the chat. `?project=<projectKey>`
   (`other` = the global project) narrows every column: a select (`/` focuses it) and a chip with ×
@@ -174,7 +175,7 @@ Handled` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait fir
   launch is just its session, listed like any other (working, so on the board, not in focus mode's
   list). Cards shaped like `AgentCard` (`pending-launches.tsx`: pulsing dashed marker,
   repo · branch, a ticking clock, the task as title, `provisioning…` / `starting the session…`;
-  failures red with what was kept and ×): focus mode's **Provisioning** above Blocked (compact),
+  failures red with what was kept and ×): focus mode's **Provisioning** above its list (compact),
   the board at the top of Working. In memory on the server: lost on restart; ready ones stay in the
   registry 10 minutes (the page's auto-open, the plugin) but no longer show on the web.
 - **Projects worktrees**: a card for a launcher repo shows each worktree section under its branch
@@ -194,7 +195,7 @@ Handled` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait fir
   `?` the tab's keys (`shortcuts-dialog.tsx`, `keyHints`; also the header's `?`; no hints line),
   `Escape` closes the session (the palette closes itself). Focus: `j`/`k` (`↓`/`↑`) through
   the list, `Enter` opens the focused session on the right, `h` handled (the cursor's finished
-  session, else the open one; the next opens), `u` undo (reopens and opens it), `/` filter; no
+  session, else the open one; the next opens), `u` undo (reopens and opens it); no
   cursor until `j`/`k`, which start from the open session's row. Agents (board): `j`/`k` (`↓`/`↑`) within a
   column, `←`/`→` between columns, `h` handled + next card, `u` undo, `Enter` opens,
   `/` filter; focus starts on the first needs-me card and follows clicks. No key answers asks:

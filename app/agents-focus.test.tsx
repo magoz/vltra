@@ -124,11 +124,11 @@ describe('focus mode', () => {
     renderFocus()
 
     expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'])
-    expect(
-      within(list())
-        .getAllByRole('heading')
-        .map(heading => heading.textContent)
-    ).toEqual(['Blocked2', 'Finished2'])
+    // One list: no headings, no filter; blocked rows carry the badge.
+    expect(within(list()).queryAllByRole('heading')).toEqual([])
+    expect(within(list()).queryByRole('combobox', { name: 'Project' })).toBeNull()
+    expect(within(row('ses_wait_old')).getByText('blocked')).toBeTruthy()
+    expect(within(row('ses_done_old')).queryByText('blocked')).toBeNull()
     // Rows are titles (and Handled when finished); asks and run facts are in the chat.
     expect(row('ses_wait_old').textContent).not.toContain('pnpm test per_old')
     expect(within(row('ses_wait_old')).queryByRole('button')).toBeNull()
@@ -141,12 +141,11 @@ describe('focus mode', () => {
     )
   })
 
-  it('honours the project filter', () => {
+  it("ignores Agents' project filter: everything that needs me", () => {
     renderFocus({ project: 'other' })
 
-    expect(rowIDs(list())).toEqual([])
-    expect(screen.getByRole('button', { name: 'Clear the Other filter' })).toBeTruthy()
-    expect(within(pane()).getByText('Nothing needs you')).toBeTruthy()
+    expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'])
+    expect(screen.queryByRole('button', { name: 'Clear the Other filter' })).toBeNull()
   })
 
   it('opens a clicked row inline: its OpenCode chat, no Summary tab', () => {
@@ -430,13 +429,5 @@ describe('keyboard', () => {
     )
     // The last one: the one before it opens.
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
-  })
-
-  it('/ focuses the project filter', () => {
-    renderFocus()
-
-    press('/')
-
-    expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Project' }))
   })
 })

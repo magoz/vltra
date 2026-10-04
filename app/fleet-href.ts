@@ -1,6 +1,6 @@
 // The dashboard is one page, `/`: the tab in `?view=` (Focus, the default, so no param; `agents`;
-// `projects`), the open session (`?session=<id>`, kept across tabs) and Focus' and Agents' project
-// filter (`?project=<id>`). One route on purpose: Cache Components keeps up to three visited
+// `projects`), the open session (`?session=<id>`, kept across tabs) and Agents' project filter
+// (`?project=<id>`, kept while Focus shows, which ignores it). One route on purpose: Cache Components keeps up to three visited
 // routes mounted in hidden `<Activity>` boundaries, so a second route kept a hidden copy of the
 // other page (with its own OpenCode chat) alive and restored its stale state on return.
 // Pure, so links, keys and history writes agree.
@@ -24,7 +24,7 @@ export const screenOf = (value: string | null | undefined): FleetScreen => {
   return value === 'agents' || value === 'projects' ? value : 'focus'
 }
 
-/** A tab and its filter (Focus and Agents only). */
+/** A tab and Agents' filter (kept on Focus, which ignores it). */
 export type FleetPlace = { readonly screen: FleetScreen; readonly project: string | undefined }
 
 /**

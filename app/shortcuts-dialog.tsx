@@ -18,7 +18,6 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: 'u', label: 'undo' },
     { keys: 'b', label: 'agents' },
     { keys: 'n ⌘K', label: 'new' },
-    { keys: '/', label: 'filter' },
     { keys: '1 2 3', label: 'tabs' },
     { keys: 'esc', label: 'close the session' },
     { keys: '?', label: 'shortcuts' }

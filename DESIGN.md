@@ -144,8 +144,9 @@ header; a bottom tab bar `Focus | Agents | Projects | +`, plus a slim `reconnect
 only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
 - **Two views of the sessions** (`?view=agents` for the board; Focus is the default, so plain `/`
   is Focus):
-  - **Focus (default)**: a left sidebar with only the needs-me list (blocked first, oldest wait
-    first; then finished, oldest first, with Handled; rows are just project · worktree, title and
+  - **Focus (default)**: a left sidebar with only the needs-me list, one list with no headings
+    and no project filter (blocked first, oldest wait first, each badged `blocked`; then
+    finished, oldest first, with Handled; rows are just project · worktree, title and
     age, no asks or answer excerpts, since the chat has them), and the selected session open
     inline in the rest of the page: its chat, the same panel as the splits. Nothing selected: a
     quiet empty state. Handling the open session opens the next needs-me session, so triage is

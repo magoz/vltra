@@ -277,7 +277,7 @@ describe('pending launches', () => {
     updatedAt: now
   })
 
-  it('show in focus mode as Provisioning above Blocked, shaped like cards; failures red with dismiss', () => {
+  it('show in focus mode as Provisioning above the list, shaped like cards; failures red with dismiss', () => {
     const { calls } = renderDashboard({ live: withLaunches([launch(), failed]) })
 
     const sidebar = screen.getByRole('region', { name: 'Need you' })
@@ -286,7 +286,9 @@ describe('pending launches', () => {
       within(sidebar)
         .getAllByRole('heading')
         .map(heading => heading.textContent)
-    ).toEqual(['Provisioning2', 'Blocked2', 'Finished2'])
+    ).toEqual(['Provisioning2'])
+    // Above the sessions that need me.
+    expect(within(sidebar).getByRole('list', { name: 'Sessions' })).toBeTruthy()
 
     const provisioning = within(sidebar).getByRole('region', { name: 'Provisioning' })
     const [first, second] = within(provisioning).getAllByRole('listitem')
