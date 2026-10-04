@@ -7,8 +7,9 @@ type KeyHint = { readonly keys: string; readonly label: string }
 
 /**
  * Each tab's keys (`agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`), plus the
- * shell's: `n` (the launcher, also `⌘/`), `1` / `2` / `3` and `⌘⌥1`–`⌘⌥3`
- * (the tabs), `⌘1`–`⌘9` (Focus' Nth session), `Escape` (close the session) and `?` (this list).
+ * shell's: `n` (the launcher, also `⌘K`), `1` / `2` / `3` and `⌘⌥1`–`⌘⌥3`
+ * (the tabs), `⌘1`–`⌘9` (Focus' Nth session), `Escape` (close the session) and `?` / `⌘/` (this list), plus OpenCode's
+ * own palette in the chat (`⌘P`).
  */
 export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
   focus: [
@@ -16,12 +17,13 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: '↵', label: 'open' },
     { keys: 'h ⌘D', label: 'done' },
     { keys: 'u ⌘U', label: 'undo' },
-    { keys: 'n ⌘/', label: 'new' },
+    { keys: 'n ⌘K', label: 'new' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
     { keys: '1 2 3 ⌘⌥1–3', label: 'tabs' },
     { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
-    { keys: '?', label: 'shortcuts' }
+    { keys: '⌘P', label: "OpenCode's palette (in the chat)" },
+    { keys: '? ⌘/', label: 'shortcuts' }
   ],
   agents: [
     { keys: 'j k', label: 'move' },
@@ -29,24 +31,26 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: '↵', label: 'open' },
     { keys: 'h ⌘D', label: 'done' },
     { keys: 'u ⌘U', label: 'undo' },
-    { keys: 'n ⌘/', label: 'new' },
+    { keys: 'n ⌘K', label: 'new' },
     { keys: '/', label: 'filter' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
     { keys: '1 2 3 ⌘⌥1–3', label: 'tabs' },
     { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
-    { keys: '?', label: 'shortcuts' }
+    { keys: '⌘P', label: "OpenCode's palette (in the chat)" },
+    { keys: '? ⌘/', label: 'shortcuts' }
   ],
   projects: [
     { keys: '← → ↑ ↓', label: 'card' },
     { keys: 'j k', label: 'session' },
     { keys: '↵', label: 'open' },
-    { keys: 'n ⌘/', label: 'new' },
+    { keys: 'n ⌘K', label: 'new' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
     { keys: '1 2 3 ⌘⌥1–3', label: 'tabs' },
     { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
-    { keys: '?', label: 'shortcuts' }
+    { keys: '⌘P', label: "OpenCode's palette (in the chat)" },
+    { keys: '? ⌘/', label: 'shortcuts' }
   ]
 }
 

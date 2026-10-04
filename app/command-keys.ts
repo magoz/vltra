@@ -52,14 +52,29 @@ export const inDialog = (event: Pick<KeyboardEvent, 'target'>): boolean =>
   event.target instanceof Element &&
   event.target.closest('[role="dialog"], [role="alertdialog"]') !== null
 
+type ShellKeyEvent = Pick<
+  KeyboardEvent,
+  'key' | 'code' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'
+>
+
 /**
- * `⌘/` (`Ctrl+/` off the Mac) opens the launcher, from anywhere, in the chat too. Either the
- * physical `/` key (`code`, whatever the layout prints there) or whatever key types `/` on this
- * layout (`key`). Never `⌘K`: that is OpenCode's command palette in the chat.
+ * `⌘K` (`Ctrl+K` off the Mac) opens the launcher, from anywhere, in the chat too. Taking it from
+ * the chat costs OpenCode nothing: on a session page its palette keys (`⌘K`, `⌘⇧P`) only run its
+ * "open file" command, the same dialog as `⌘P`, which stays OpenCode's (v2.0.20
+ * `session/composer/region.tsx`, `use-session-commands.tsx`).
  */
-export const isLauncherKey = (
-  event: Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>
-): boolean =>
+export const isLauncherKey = (event: ShellKeyEvent): boolean =>
+  (event.metaKey || event.ctrlKey) &&
+  !event.altKey &&
+  !event.shiftKey &&
+  (event.code === 'KeyK' || event.key.toLowerCase() === 'k')
+
+/**
+ * `⌘/` (`Ctrl+/` off the Mac) opens the tab's keys, like `?`, but also while typing in the chat
+ * (Slack's and Discord's key for it; OpenCode binds none). Either the physical `/` key (`code`)
+ * or whatever key types `/` on this layout (`key`; Spanish: `⇧7`).
+ */
+export const isHelpKey = (event: ShellKeyEvent): boolean =>
   (event.metaKey || event.ctrlKey) &&
   !event.altKey &&
   (event.key === '/' || (event.code === 'Slash' && !event.shiftKey))

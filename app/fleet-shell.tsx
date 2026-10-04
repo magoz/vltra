@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
-import { CommandKey, commandKey, inDialog, isLauncherKey } from '@/app/command-keys'
+import { CommandKey, commandKey, inDialog, isHelpKey, isLauncherKey } from '@/app/command-keys'
 import { useFleetActions } from '@/app/fleet-actions'
 import { FleetProvider } from '@/app/fleet-context'
 import type { FleetNav, SessionSelection } from '@/app/fleet-context'
@@ -83,20 +83,29 @@ function useLaunchAutoOpen(
   )
 }
 
-/** `⌘/` (`isLauncherKey`) opens the launcher from anywhere (in the OpenCode chat too: `forwardChatKeys`). */
-function useLauncherShortcut(open: () => void) {
-  const latest = useRef(open)
+/**
+ * `⌘K` opens the launcher (`isLauncherKey`) and `⌘/` the tab's keys (`isHelpKey`), from anywhere
+ * (in the OpenCode chat too: `forwardChatKeys`).
+ */
+function useShellShortcuts(launcher: () => void, help: () => void) {
+  const latest = useRef({ launcher, help })
 
   useEffect(() => {
-    latest.current = open
+    latest.current = { launcher, help }
   })
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (!isLauncherKey(event)) return
+      const run = isLauncherKey(event)
+        ? latest.current.launcher
+        : isHelpKey(event)
+          ? latest.current.help
+          : undefined
+
+      if (run === undefined) return
 
       event.preventDefault()
-      latest.current()
+      run()
     }
 
     document.addEventListener('keydown', onKey)
@@ -140,7 +149,7 @@ function useCommandKeys(run: (chord: CommandKey) => void) {
  * whose only other chrome is a reconnecting line when the link is down) and Handled / Undo /
  * Reopen. Each tab shows the open session (`?session=`) itself: Focus' pane, the board's and
  * Projects' split (`SessionSplit`). Keys: `1` / `2` / `3` the tabs, `Escape`
- * closes the session, `n` / `⌘/` open the launcher (its palette, its list for the Projects cards,
+ * closes the session, `n` / `⌘K` open the launcher (its palette, its list for the Projects cards,
  * and the auto-open of a launch started here).
  */
 export function FleetShell({
@@ -189,7 +198,7 @@ export function FleetShell({
   const awaitLaunch = useLaunchAutoOpen(live.launches, selection, nav, reload)
 
   useFavicon(counts)
-  useLauncherShortcut(openLauncher)
+  useShellShortcuts(openLauncher, () => setShortcutsOpen(true))
 
   useCommandKeys(
     CommandKey.$match({

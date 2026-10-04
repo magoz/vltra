@@ -197,7 +197,7 @@ prompt and subagents are all in the chat):
   (`app/src/shell/routes/session.ts`; server key = page origin). Fleet proxies OpenCode's web UI
   and API (its root paths, `/api/*` except `/api/fleet/*`) to the loopback service, so the chat is
   same-origin with Fleet: Fleet's keys work while the chat has focus (keys the chat does not own:
-  not while typing, `⌘/` and Fleet's `⌘` chords always (`⌘K` stays OpenCode's palette), `Esc` leaves the chat). OpenCode's own auth stays: a one-time
+  not while typing, `⌘K`, `⌘/` and Fleet's `⌘` chords always (OpenCode's palette is `⌘P`), `Esc` leaves the chat). OpenCode's own auth stays: a one-time
   `opencode pair --url https://fleet.oox.sh` per browser (30-day cookie); Fleet never adds the
   password.
 - **Toolbar**: only what Fleet adds: ✔ Done (phone only; on desktop the card beside it has it) / Reopen, open the chat in a new tab, and
@@ -209,7 +209,7 @@ prompt and subagents are all in the chat):
 **Launcher and worktrees (web; the terminal plugin uses the same Fleet routes):** a
 sessionizer for agents. Everything that touches disk runs on Box; clients only call Fleet and
 OpenCode.
-- **Open it**: header **New** + `n` / `⌘/` (palette), phone **+** in the tab bar, **+** on each
+- **Open it**: header **New** + `n` / `⌘K` (palette), phone **+** in the tab bar, **+** on each
   Projects card (repo preselected). Type to fuzzy-match repos and their worktrees, most recent
   agent activity first. The highlighted row spells out what it starts: `↵ New session in <repo ·
   branch>` and `⇧↵ New worktree in <repo>…` (on the phone: tap a row, then an action).

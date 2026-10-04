@@ -159,8 +159,9 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first,
   also with the folder gone) for good, and the card leaves with their `session.deleted`. OpenCode
   has no project delete; files, worktrees and branches are untouched.
 - **Launcher** (DESIGN.md "Launcher and worktrees"; `launcher-dialog.tsx`, state in the shell,
-  `launcher-context.tsx`): header **New**, `n` and `⌘/`/`Ctrl+/` on any page (not `⌘K`:
-  OpenCode's palette in the chat), the phone tab bar's
+  `launcher-context.tsx`): header **New**, `n` and `⌘K`/`Ctrl+K` on any page (in the chat too;
+  OpenCode's palette stays on `⌘P` / `⌘⇧P`, which on a session page is the same dialog as its
+  `⌘K`), the phone tab bar's
   **+** (full screen), and each Projects card's **+** (new-worktree step, repo preselected). The list
   is `GET /api/fleet/launcher` (`use-launcher-list.ts`: on mount, on open, after a launch or a
   retirement, again while PR lookups are still `unknown`, every 5 minutes): repos under
@@ -201,9 +202,10 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first,
   and drop. Phone: swipe a finished card left (`use-swipe.ts`); the `✔ Done` button stays.
 - Keys (`use-keys.ts`, desktop; ignored while typing (except `Escape`), with modifiers and in
   dialogs; in the chat, `chat-keys.ts` hands Fleet the keys the chat does not own, see the
-  session panel): shell `1` / `2` / `3` the tabs, `n` the launcher (and `⌘/` / `Ctrl+/`,
+  session panel): shell `1` / `2` / `3` the tabs, `n` the launcher (and `⌘K` / `Ctrl+K`,
   `isLauncherKey`, its own listener, also while typing),
-  `?` the tab's keys (`shortcuts-dialog.tsx`, `keyHints`; also the header's `?`; no hints line),
+  `?` / `⌘/` (`isHelpKey`, also while typing) the tab's keys (`shortcuts-dialog.tsx`,
+  `keyHints`; also the header's `?`; no hints line),
   `Escape` closes the session (the palette closes itself). `⌘1`–`⌘9` open Focus' Nth session
   (in Focus from another tab) and `⌘⌥1`–`⌘⌥3` pick a tab, `⌘U` is the tab's `u` (`useKeys`),
   `⌘I` / `i` put the caret in the chat's composer (`useInsertKeys`; `chat-composer.ts`, which also
@@ -233,8 +235,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first,
   (`opencode pair --url https://fleet.oox.sh`, once per browser). Same-origin lets Fleet take the
   chat's keys (`useChatFrame` / `forwardChatKeys` in `chat-keys.ts`: a capture listener on the
   frame's window replays each key on Fleet's document unless the chat owns it: typing, its
-  overlays, scroll keys, `Enter` on a control; `⌘/` and the `⌘` chords are always Fleet's,
-  `⌘K` OpenCode's; `Escape` goes to the chat
+  overlays, scroll keys, `Enter` on a control; `⌘K`, `⌘/` and the `⌘` chords are always Fleet's,
+  `⌘P` OpenCode's; `Escape` goes to the chat
   first and an unused one moves focus to Fleet, where the next closes the session). Its
   slim toolbar has only what Fleet adds: the phone's back button, state and title, `✔ Done`
   (finished; phone only, the desktop card has its own) / Reopen (handled; neither for "folder deleted"), open in the terminal (`ocb://`,

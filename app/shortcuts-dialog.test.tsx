@@ -40,18 +40,31 @@ describe('shortcuts', () => {
       '↵ open',
       'h ⌘D done',
       'u ⌘U undo',
-      'n ⌘/ new',
+      'n ⌘K new',
       '/ filter',
       '⌘1–9 Nth session (Focus)',
       '1 2 3 ⌘⌥1–3 tabs',
       'i ⌘I type in the chat',
       'esc close the session',
-      '? shortcuts'
+      "⌘P OpenCode's palette (in the chat)",
+      '? ⌘/ shortcuts'
     ])
 
     fireEvent.keyDown(dialog, { key: 'Escape' })
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('⌘/ opens them too, even from a field (the chat, while typing)', async () => {
+    renderDashboard('focus')
+
+    const field = document.createElement('textarea')
+
+    document.body.append(field)
+    fireEvent.keyDown(field, { key: '/', code: 'Slash', metaKey: true })
+    field.remove()
+
+    expect(await screen.findByRole('dialog', { name: 'Keys · Focus' })).toBeTruthy()
   })
 
   it("the header's ? opens them too", async () => {

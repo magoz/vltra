@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { RefObject } from 'react'
 import { autoFocusComposer } from '@/app/chat-composer'
-import { commandKey, isLauncherKey } from '@/app/command-keys'
+import { commandKey, isHelpKey, isLauncherKey } from '@/app/command-keys'
 
 /** Typing in a field of the chat (OpenCode's composer, a search box). */
 const typingSelector = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])'
@@ -26,12 +26,13 @@ const scrollKeys: ReadonlyArray<string> = [
 ]
 
 /**
- * Fleet's chords, which win even while typing in the chat: `⌘/` (the launcher, `isLauncherKey`)
- * and `commandKey`'s (OpenCode's own `⌘1`–`⌘9` pick its tab strip's tabs, which Fleet's
- * one-session chat has no use for). `⌘K` stays OpenCode's (its command palette).
+ * Fleet's chords, which win even while typing in the chat: `⌘K` (the launcher, `isLauncherKey`;
+ * OpenCode's palette stays on `⌘P` / `⌘⇧P`), `⌘/` (Fleet's keys, `isHelpKey`) and
+ * `commandKey`'s (OpenCode's own `⌘1`–`⌘9` pick its tab strip's tabs, which Fleet's one-session
+ * chat has no use for).
  */
 const isFleetChord = (event: KeyboardEvent) =>
-  isLauncherKey(event) || commandKey(event) !== undefined
+  isLauncherKey(event) || isHelpKey(event) || commandKey(event) !== undefined
 
 /**
  * Whether a key pressed in the chat stays with it: while typing or in one of its overlays, the
