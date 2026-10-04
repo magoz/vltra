@@ -10,6 +10,7 @@ import { SessionPanel } from '@/app/session-panel'
 import { HandledProvider, useHandled } from '@/app/use-handled'
 import type { HandledFlow } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
+import { usePanelSession } from '@/app/use-panel-session'
 import { boardRow, buildNeedsMe, needsMeOrder, nextNeedsMe } from '@/lib/data/fleet/board'
 import type { BoardRow } from '@/lib/data/fleet/board'
 import { cn } from '@/lib/utils'
@@ -100,7 +101,10 @@ function Focus({ project }: { readonly project: string | undefined }) {
   const index = resolve(list, cursor, selected)
   const focused = list[index]
   const selectedRow = selected === undefined ? undefined : view.rows.get(selected)
-  const selectedItem = selectedRow === undefined ? undefined : boardRow(view, selectedRow)
+  // The pane follows the selection a paint behind when switching sessions (`usePanelSession`).
+  const shown = usePanelSession(selected)
+  const shownRow = shown === undefined ? undefined : view.rows.get(shown)
+  const shownItem = shownRow === undefined ? undefined : boardRow(view, shownRow)
 
   const focus = (item: BoardRow | undefined) => {
     if (item !== undefined) setCursor({ id: item.row.id, index: list.indexOf(item) })
@@ -203,16 +207,16 @@ function Focus({ project }: { readonly project: string | undefined }) {
           aria-label="Session"
           className={cn(
             'bg-background flex min-h-0 min-w-0 flex-1 flex-col',
-            selected === undefined ? 'max-lg:hidden' : 'max-lg:fixed max-lg:inset-0 max-lg:z-30'
+            shown === undefined ? 'max-lg:hidden' : 'max-lg:fixed max-lg:inset-0 max-lg:z-30'
           )}
         >
-          {selected === undefined ? (
+          {shown === undefined ? (
             <EmptyPane empty={list.length === 0} />
           ) : (
             <SessionPanel
-              key={selected}
-              sessionID={selected}
-              item={selectedItem}
+              key={shown}
+              sessionID={shown}
+              item={shownItem}
               onClose={selection.close}
             />
           )}

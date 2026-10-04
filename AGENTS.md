@@ -182,7 +182,9 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first. Finish
   slim toolbar has only what Fleet adds: the phone's back button, state and title, Handled
   (finished) / Reopen (handled; neither for "folder deleted"), open in the terminal (`ocb://`,
   fine pointers only) or a new tab, close (desktop). Messages, asks, follow-ups and Stop happen in
-  the chat.
+  the chat. Being same-site, the iframe runs on Fleet's main thread, so switching sessions swaps it
+  after the next paint (`usePanelSession`: the list shows the click first; opening and closing
+  are immediate). Tests wait for the swap with `afterPaint()`.
 - Mutations go through `FleetActions` (`app/fleet-actions.tsx`): the dashboard provides the server
   actions (the launcher's `launch`, `openCheckout`, `retireWorktree`, `dismissLaunch` and
   `suggestBranch` return `FleetActionValue`s when they carry a value), component tests provide

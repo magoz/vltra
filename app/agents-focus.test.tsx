@@ -1,6 +1,11 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fakeActions, TestDashboard, testLocation } from '@/app/testing/dashboard-fixtures'
+import {
+  afterPaint,
+  fakeActions,
+  TestDashboard,
+  testLocation
+} from '@/app/testing/dashboard-fixtures'
 import type { NavCall } from '@/app/testing/dashboard-fixtures'
 import { fleetLive, now, rowIDs } from '@/app/testing/fleet-scenario'
 import type { LiveFleet } from '@/lib/data/fleet/board'
@@ -160,6 +165,20 @@ describe('focus mode', () => {
     open('Wait old')
 
     expect(within(pane()).getByRole('heading', { name: 'Wait old' })).toBeTruthy()
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_wait_old'))
+  })
+
+  it('marks a newly picked session at once and swaps the chat after the paint', async () => {
+    const { live } = renderFocus({ session: 'ses_done_old' })
+
+    open('Wait old')
+
+    // The click shows in the list right away; the heavy chat swap waits for that paint.
+    expect(row('ses_wait_old').querySelector('[data-selected="true"]')).not.toBeNull()
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
+
+    await afterPaint()
+
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_wait_old'))
   })
 
@@ -396,6 +415,7 @@ describe('keyboard', () => {
     await waitFor(() =>
       expect(calls()).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_done_new' } }])
     )
+    await afterPaint()
     // The last one: the one before it opens.
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
   })

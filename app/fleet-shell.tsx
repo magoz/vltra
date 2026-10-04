@@ -16,6 +16,7 @@ import type { StreamStatus } from '@/app/use-fleet-live'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
 import { useLauncherList } from '@/app/use-launcher-list'
+import { usePanelSession } from '@/app/use-panel-session'
 import { boardRow, withOverrides } from '@/lib/data/fleet/board'
 import type { LiveFleet } from '@/lib/data/fleet/board'
 import { countRows } from '@/lib/data/fleet/state'
@@ -147,8 +148,10 @@ export function FleetShell({
   const counts = useMemo(() => countRows(Array.from(view.rows.values()), now), [view, now])
   const fleet = useMemo(() => ({ view, now, selection, nav }), [view, now, selection, nav])
   const { selected } = selection
-  const selectedRow = selected === undefined ? undefined : view.rows.get(selected)
-  const selectedItem = selectedRow === undefined ? undefined : boardRow(view, selectedRow)
+  // The drawer follows the selection a paint behind when switching sessions (`usePanelSession`).
+  const shown = usePanelSession(selected)
+  const shownRow = shown === undefined ? undefined : view.rows.get(shown)
+  const shownItem = shownRow === undefined ? undefined : boardRow(view, shownRow)
   const screen = screenOf(nav.page, nav.view)
   const agents = nav.page === 'agents'
   // Focus mode shows the open session inline, so there is no drawer.
@@ -210,11 +213,11 @@ export function FleetShell({
                 toast(`Provisioning ${branch}…`)
               }}
             />
-            {selected === undefined || inline ? null : (
+            {shown === undefined || inline ? null : (
               <SessionDrawer
-                key={selected}
-                sessionID={selected}
-                item={selectedItem}
+                key={shown}
+                sessionID={shown}
+                item={shownItem}
                 onClose={selection.close}
               />
             )}

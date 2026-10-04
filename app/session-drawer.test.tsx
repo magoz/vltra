@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fakeActions, TestDashboard } from '@/app/testing/dashboard-fixtures'
+import { afterPaint, fakeActions, TestDashboard } from '@/app/testing/dashboard-fixtures'
 import { fleetLive, now } from '@/app/testing/fleet-scenario'
 
 const live = fleetLive()
@@ -94,6 +94,30 @@ describe('session drawer', () => {
 
     expect(screen.queryByRole('complementary', { name: 'Session' })).toBeNull()
     expect(document.querySelector('iframe')).toBeNull()
+  })
+
+  it('keeps the open chat until the next paint when switching sessions', async () => {
+    render(
+      <TestDashboard
+        live={live}
+        now={now}
+        actions={fakeActions().actions}
+        view="board"
+        session="ses_wait_old"
+      />
+    )
+
+    const first = iframe()
+
+    open('Done new')
+
+    // Tearing down OpenCode waits until the click has shown on screen.
+    expect(first?.isConnected).toBe(true)
+
+    await afterPaint()
+
+    expect(first?.isConnected).toBe(false)
+    expect(iframe()?.getAttribute('src')).toBe(webLink('ses_done_new'))
   })
 
   it('keeps the phone back button above the iframe', () => {

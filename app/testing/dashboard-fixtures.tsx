@@ -1,3 +1,4 @@
+import { act } from '@testing-library/react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Agents } from '@/app/agents'
@@ -339,3 +340,7 @@ export function TestDashboard({
 /** The URL a rendered `TestDashboard` stands for. */
 export const testLocation = () =>
   document.querySelector('output[data-location]')?.getAttribute('data-location')
+
+/** Waits out a session switch: the panel swaps after the next paint (`use-panel-session.ts`). */
+export const afterPaint = () =>
+  act(() => new Promise<void>(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))))
