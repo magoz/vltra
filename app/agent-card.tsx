@@ -31,12 +31,12 @@ function Flags({ row, now }: { readonly row: FleetRow; readonly now: number }) {
 
 /**
  * A session's card, on the Agents board and in focus mode's list: marker (red for a failed run),
- * project · worktree, a "blocked" badge (both lists hold blocked and finished alike), age and
- * title, the stuck / "folder deleted" flags, then Fleet's own action:
- * `✔ Done` when finished (swipe left on a phone does the same), Reopen when done. Asks,
- * answers and activity are left to the chat. `cursor` is the keyboard focus. `compact` is focus
- * mode's list row: no box of its own, a hairline under it, tighter spacing, and the open session
- * tinted.
+ * project · worktree, a "blocked" badge (both lists hold blocked and finished alike), `✔ Done`
+ * left of the age when finished (with a mouse only on hover, the open session and the keyboard
+ * cursor; always on touch; swipe left on a phone does the same), age and title, the stuck /
+ * "folder deleted" flags, then Reopen when done. Asks, answers and activity are left to the
+ * chat. `cursor` is the keyboard focus. `compact` is focus mode's list row: no box of its own, a
+ * hairline under it, tighter spacing, and the open session tinted.
  */
 export function AgentCard({
   item,
@@ -80,7 +80,7 @@ export function AgentCard({
         data-selected={row.id === selection.selected}
         data-cursor={cursor}
         className={cn(
-          'bg-background data-[selected=true]:border-l-attention lg:data-[cursor=true]:outline-attention relative flex flex-col lg:data-[cursor=true]:outline lg:data-[cursor=true]:-outline-offset-1',
+          'group/card bg-background data-[selected=true]:border-l-attention lg:data-[cursor=true]:outline-attention relative flex flex-col lg:data-[cursor=true]:outline lg:data-[cursor=true]:-outline-offset-1',
           compact
             ? 'hover:bg-accent/40 data-[selected=true]:bg-accent/60 gap-1 border-b border-l-2 border-l-transparent py-2 pr-3 pl-2.5'
             : 'hover:border-foreground/40 gap-1.5 border px-3 py-2.5 data-[selected=true]:border-l-2 data-[selected=true]:pl-[11px]',
@@ -101,6 +101,17 @@ export function AgentCard({
           {row.state === 'blocked' ? (
             <span className="border-attention text-attention shrink-0 border px-1">blocked</span>
           ) : null}
+          {finished ? (
+            <HandledButton
+              sessionID={row.id}
+              size="sm"
+              className={cn(
+                'relative z-10 -my-1 self-center',
+                // Mouse: only on hover, on the open session and on the keyboard cursor.
+                'pointer-fine:hidden pointer-fine:group-hover/card:inline-flex pointer-fine:group-data-[cursor=true]/card:inline-flex pointer-fine:group-data-[selected=true]/card:inline-flex'
+              )}
+            />
+          ) : null}
           <Age row={row} now={now} />
         </div>
         <RowLink
@@ -110,11 +121,6 @@ export function AgentCard({
           {sessionTitle(row)}
         </RowLink>
         <Flags row={row} now={now} />
-        {finished ? (
-          <div className="relative z-10 mt-0.5 flex flex-wrap gap-2">
-            <HandledButton sessionID={row.id} />
-          </div>
-        ) : null}
         {isReopenable(row) ? (
           <div className="flex">
             <ReopenButton sessionID={row.id} size="sm" />

@@ -133,8 +133,9 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first,
   badged `blocked`), then finished (oldest first). Working: stuck first, then newest session (`created`, so live activity does not reshuffle).
   Done (handled): active in the last 24h, newest first, then "N more → Projects". Cards
   (`agent-card.tsx`) are minimal: marker (red for a failed run), project · worktree (`boardRow`;
-  the global project's sessions by their directory), the `blocked` badge, age and title, flags for `retrying (n×, …)`
-  / `quiet Nm` and "folder deleted", `✔ Done` (finished) or Reopen (handled, not for "folder
+  the global project's sessions by their directory), the `blocked` badge, `✔ Done` left of the age (finished; with a mouse
+  only on hover, the open session and the cursor; always on touch), age and title, flags for
+  `retrying (n×, …)` / `quiet Nm` and "folder deleted", Reopen (handled, not for "folder
   deleted"). Asks, answers and live activity are left to the chat. `?project=<projectKey>`
   (`other` = the global project) narrows every column: a select (`/` focuses it) and a chip with ×
   (`setProject` replaces the history entry). An open session (`?session=`) splits the board
