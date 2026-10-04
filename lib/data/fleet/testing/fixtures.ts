@@ -33,4 +33,4 @@ export const trackedSession = (
   ...overrides
 })
 
-export const webUrl = new URL('https://box.tail129a86.ts.net:9446')
+export const webUrl = new URL('https://fleet.oox.sh')

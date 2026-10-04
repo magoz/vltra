@@ -170,7 +170,7 @@ describe('grouping and ordering', () => {
     const row = snapshotRows(snapshot)[0]
 
     expect(row?.links).toEqual({
-      web: 'https://box.tail129a86.ts.net:9446/server/aHR0cHM6Ly9ib3gudGFpbDEyOWE4Ni50cy5uZXQ6OTQ0Ng/session/ses_d',
+      web: 'https://fleet.oox.sh/server/aHR0cHM6Ly9mbGVldC5vb3guc2g/session/ses_d',
       terminal: 'ocb://session/ses_d',
       command: 'ocb -s ses_d'
     })

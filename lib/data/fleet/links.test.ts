@@ -3,8 +3,8 @@ import { openCodeWebSessionUrl, sessionLinks } from '@/lib/data/fleet/links'
 
 describe('OpenCode web deep link', () => {
   it('encodes the page origin as unpadded base64url (verified live on Box)', () => {
-    expect(openCodeWebSessionUrl(new URL('https://box.tail129a86.ts.net:9446'), 'ses_abc')).toBe(
-      'https://box.tail129a86.ts.net:9446/server/aHR0cHM6Ly9ib3gudGFpbDEyOWE4Ni50cy5uZXQ6OTQ0Ng/session/ses_abc'
+    expect(openCodeWebSessionUrl(new URL('https://fleet.oox.sh'), 'ses_abc')).toBe(
+      'https://fleet.oox.sh/server/aHR0cHM6Ly9mbGVldC5vb3guc2g/session/ses_abc'
     )
   })
 
