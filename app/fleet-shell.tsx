@@ -12,6 +12,7 @@ import type { Launcher, LauncherRequest } from '@/app/launcher-context'
 import { LauncherDialog } from '@/app/launcher-dialog'
 import type { StreamStatus } from '@/app/use-fleet-live'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
+import { useFavicon } from '@/app/use-favicon'
 import { useKeys } from '@/app/use-keys'
 import { useLauncherList } from '@/app/use-launcher-list'
 import { withOverrides } from '@/lib/data/fleet/board'
@@ -156,6 +157,7 @@ export function FleetShell({
 
   const awaitLaunch = useLaunchAutoOpen(live.launches, selection, nav, reload)
 
+  useFavicon(counts)
   useLauncherShortcut(openLauncher)
 
   useKeys({
