@@ -101,9 +101,9 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 - **Agents focus mode** (`agents-focus.tsx`, default): a sidebar (26rem, hairline right border,
   scrolls on its own) with only the needs-me sessions (`buildNeedsMe` / `needsMeOrder` in
   `board.ts`: blocked, longest wait first, then finished, oldest first; the board's two left
-  columns are the same lists), as compact `AgentCard`s (`compact`: title, Handled and swipe only;
-  no inline answers or finished facts, the chat has them) under `Blocked N` / `Finished N`
-  headings, narrowed by the same project filter (`project-filter.tsx`). The rest of the page
+  columns are the same lists), as compact `AgentCard`s (the board's minimal cards without a box
+  of their own) under `Blocked N` / `Finished N` headings, narrowed by the same project filter
+  (`project-filter.tsx`). The rest of the page
   shows the open session (`?session=`, also one not in the list, e.g. a working session opened
   from Projects) inline: the same `SessionPanel` (its chat) as the drawer, filling the pane (the
   iframe's absolute fill; no page scroll on desktop). Nothing open: "Pick a session on the left",
@@ -113,13 +113,13 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   the list full width; a session opens full screen (the pane becomes `fixed inset-0`), its back
   button returns to the list.
 - **Agents board** (`?view=board`, `agents-board.tsx`): columns `Blocked | Finished | Working |
-Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first, inline answers incl.
-  `subagent <agent> asks:`. Finished: oldest first, answer excerpt, change totals, failed /
-  "stopped by OpenCode" labels, Handled. Working: stuck first, then newest session (`created`, so
-  live activity does not reshuffle), activity and `retrying (n×, …)` / `quiet Nm`. Handled: active
-  in the last 24h, newest first, Reopen (not for "folder deleted"), then "N more → Projects".
-  Cards (`agent-card.tsx`) show project · worktree (`boardRow`; the global project's sessions by
-  their directory). `?project=<projectKey>` (`other` = the global project) narrows every column:
+Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first. Finished: oldest first.
+  Working: stuck first, then newest session (`created`, so live activity does not reshuffle).
+  Handled: active in the last 24h, newest first, then "N more → Projects". Cards
+  (`agent-card.tsx`) are minimal: marker (red for a failed run), project · worktree (`boardRow`;
+  the global project's sessions by their directory), age and title, flags for `retrying (n×, …)`
+  / `quiet Nm` and "folder deleted", Handled (finished) or Reopen (handled, not for "folder
+  deleted"). Asks, answers and live activity are left to the chat. `?project=<projectKey>` (`other` = the global project) narrows every column:
   a select (`/` focuses it) and a chip with × (`setProject` replaces the history entry). Phone: one
   column via a segmented control, opening on the first non-empty needs-me column
   (`initialColumn`, else Working); a new filter remounts the board (fresh column and focus).
@@ -162,11 +162,11 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first, inline
   Agents mode, `n` the launcher (and `⌘K` / `Ctrl+K`, its own listener, also while typing),
   `Escape` closes the session (drawer or inline; the palette closes itself). Focus: `j`/`k` (`↓`/`↑`) through
   the list, `Enter` opens the focused session on the right, `h` handled (the focused finished
-  session, else the open one; the next opens), `u` undo (reopens and opens it), `/` filter (no
-  `a`/`d`: the list shows no asks); focus starts on the open session, else the first row. Board: `j`/`k` (`↓`/`↑`) within a
-  column, `←`/`→` between columns, `h` handled + next finished card, `u` undo, `a`/`d` allow once
-  / deny the focused card's first permission, `Enter` opens, `/` filter; focus starts on the first
-  needs-me card and follows clicks. Projects: arrows between cards (up/down by grid row), `j`/`k`
+  session, else the open one; the next opens), `u` undo (reopens and opens it), `/` filter;
+  focus starts on the open session, else the first row. Board: `j`/`k` (`↓`/`↑`) within a
+  column, `←`/`→` between columns, `h` handled + next finished card, `u` undo, `Enter` opens,
+  `/` filter; focus starts on the first needs-me card and follows clicks. No key answers asks:
+  they are answered in the chat. Projects: arrows between cards (up/down by grid row), `j`/`k`
   within a card (fold rows when open), `Enter` opens the focused session, else the card's board.
 - The open session lives in the URL (`?session=<id>`, kept across page switches): inline in focus
   mode, else a right-side drawer (`SessionDrawer`) over the page from `lg`; full screen below it
@@ -184,10 +184,11 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first, inline
   recording fakes (`app/testing/dashboard-fixtures.tsx`:
   `WithFleet` for one card, `TestDashboard` for the whole dashboard with the URL in state, read
   back with `testLocation()`; `fleet-scenario.ts` is the shared fleet).
-- Finished board cards load `GET /api/fleet/sessions/:id/summary?idle=` (answer excerpt + change
-  totals, cached in the runtime by `(id, idle)`; see `patterns/LONG_LIVED_WATCHER.md`). Opening
-  a session's panel marks its latest run viewed in OpenCode when it is unread there (`viewed`
-  missing or `< idle`; its unread dots only, never Fleet state).
+- Opening a session's panel marks its latest run viewed in OpenCode when it is unread there
+  (`viewed` missing or `< idle`; its unread dots only, never Fleet state). The web shows no
+  answer excerpts; `GET /api/fleet/sessions/:id/summary?idle=` (answer excerpt + change totals,
+  cached in the runtime by `(id, idle)`; see `patterns/LONG_LIVED_WATCHER.md`) serves the
+  terminal plugin's page.
 - Look: the approved paper-and-ink mock (`app/globals.css` tokens, mono type, `attention` green
   and `destructive` red only, hairline borders, no shadows); light/dark follow the system
   (`prefers-color-scheme`), no toggle.

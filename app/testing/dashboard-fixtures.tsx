@@ -89,8 +89,6 @@ export type ActionCall =
   | { readonly action: 'markHandled'; readonly input: Input<'markHandled'> }
   | { readonly action: 'reopen'; readonly input: Input<'reopen'> }
   | { readonly action: 'markViewed'; readonly input: Input<'markViewed'> }
-  | { readonly action: 'replyPermission'; readonly input: Input<'replyPermission'> }
-  | { readonly action: 'replyForm'; readonly input: Input<'replyForm'> }
   | { readonly action: 'launch'; readonly input: Input<'launch'> }
   | { readonly action: 'dismissLaunch'; readonly input: Input<'dismissLaunch'> }
   | { readonly action: 'openCheckout'; readonly input: Input<'openCheckout'> }
@@ -148,8 +146,6 @@ export const fakeActions = (failWith?: string, values: Partial<FakeValues> = {})
     markHandled: input => record({ action: 'markHandled', input }),
     reopen: input => record({ action: 'reopen', input }),
     markViewed: input => record({ action: 'markViewed', input }),
-    replyPermission: input => record({ action: 'replyPermission', input }),
-    replyForm: input => record({ action: 'replyForm', input }),
     launch: input => recordValue({ action: 'launch', input }, { launchID: answers.launchID }),
     dismissLaunch: input => record({ action: 'dismissLaunch', input }),
     openCheckout: input => recordValue({ action: 'openCheckout', input }, answers.opened),

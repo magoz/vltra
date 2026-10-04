@@ -48,7 +48,7 @@ const press = (key: string, target: Element = document.body) => fireEvent.keyDow
 const drawer = () => screen.queryByRole('complementary', { name: 'Session' })
 
 beforeEach(() => {
-  // Finished cards load their summary and the drawer its detail; answer with nothing.
+  // The launcher loads its list; answer with nothing.
   vi.stubGlobal(
     'fetch',
     vi.fn(() => Promise.resolve(new Response('{}', { status: 404 })))
@@ -83,6 +83,18 @@ describe('columns', () => {
     expect(within(card('ses_tmp')).getByText('scratch')).toBeTruthy()
     expect(within(card('ses_retry')).getByText('retrying (2×, rate limited)')).toBeTruthy()
     expect(within(card('ses_run')).getByText('quiet 15m')).toBeTruthy()
+  })
+
+  it('keeps cards minimal: no asks, answer excerpts or live activity', () => {
+    renderBoard()
+
+    expect(within(card('ses_wait_old')).queryByText('pnpm test per_old')).toBeNull()
+    expect(within(card('ses_wait_old')).queryByRole('button')).toBeNull()
+    expect(within(card('ses_busy')).queryByText('thinking…')).toBeNull()
+    expect(within(card('ses_done_old')).queryByText('run failed')).toBeNull()
+    expect(vi.mocked(fetch).mock.calls.map(([input]) => String(input))).toEqual([
+      '/api/fleet/launcher'
+    ])
   })
 
   it('moves a card to Handled with a toast, and Undo brings it back', async () => {
@@ -233,35 +245,13 @@ describe('keyboard', () => {
     expect(cursorID()).toBe('ses_done_old')
   })
 
-  it('leaves blocked cards to their answers: h does nothing there', () => {
+  it('leaves blocked cards to the chat: h does nothing there', () => {
     const { calls } = renderBoard()
 
     press('h')
 
     expect(calls).toEqual([])
     expect(cursorID()).toBe('ses_wait_old')
-  })
-
-  it("approves or denies the focused card's first permission with a / d", async () => {
-    const { calls } = renderBoard()
-
-    press('a')
-    press('a')
-    press('j')
-    press('d')
-
-    await waitFor(() =>
-      expect(calls).toEqual([
-        {
-          action: 'replyPermission',
-          input: { sessionID: 'ses_wait_old', requestID: 'per_old', decision: 'once' }
-        },
-        {
-          action: 'replyPermission',
-          input: { sessionID: 'ses_wait_new', requestID: 'per_new', decision: 'reject' }
-        }
-      ])
-    )
   })
 
   it('ignores the keys while typing and with modifiers', () => {

@@ -103,7 +103,6 @@ export const keyHints: Readonly<Record<KeyHintSet, ReadonlyArray<KeyHint>>> = {
     { keys: '↵', label: 'open' },
     { keys: 'h', label: 'handled' },
     { keys: 'u', label: 'undo' },
-    { keys: 'a d', label: 'allow/deny' },
     { keys: 'b', label: 'focus' },
     { keys: 'n ⌘K', label: 'new' },
     { keys: '/', label: 'filter' },

@@ -78,7 +78,7 @@ const press = (key: string, target: Element = document.body) => fireEvent.keyDow
 const toggle = () => screen.getByRole('group', { name: 'Agents view' })
 
 beforeEach(() => {
-  // Finished rows load their summary and the panel its detail; answer with nothing.
+  // The launcher loads its list; answer with nothing.
   vi.stubGlobal(
     'fetch',
     vi.fn(() => Promise.resolve(new Response('{}', { status: 404 })))
@@ -88,7 +88,6 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
-  window.localStorage.clear()
 })
 
 describe('focus mode', () => {
@@ -348,17 +347,6 @@ describe('keyboard', () => {
     )
     // The last one: the one before it opens.
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
-  })
-
-  it('a / d answer nothing unseen', () => {
-    const { calls } = renderFocus()
-
-    // The list shows no asks, so the keys must not answer them blind.
-    press('a')
-    press('j')
-    press('d')
-
-    expect(calls()).toEqual([])
   })
 
   it('/ focuses the project filter', () => {

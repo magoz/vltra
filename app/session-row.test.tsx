@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ProjectRow } from '@/app/session-row'
 import { fakeActions, itemFor, rowFrom, WithFleet } from '@/app/testing/dashboard-fixtures'
 import { baseTime, sessionRecord } from '@/lib/data/fleet/testing/fixtures'
@@ -33,17 +33,8 @@ const permission = {
   resources: ['pnpm test --run']
 }
 
-beforeEach(() => {
-  // Finished rows load their summary; answer with nothing unless a test says otherwise.
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(() => Promise.resolve(new Response('{}', { status: 404 })))
-  )
-})
-
 afterEach(() => {
   cleanup()
-  vi.unstubAllGlobals()
 })
 
 describe('project rows', () => {

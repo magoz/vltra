@@ -6,12 +6,10 @@ import type { MouseEvent } from 'react'
 import { AgentCard } from '@/app/agent-card'
 import { useFleet } from '@/app/fleet-context'
 import { NavLink } from '@/app/nav-link'
-import { firstPermission } from '@/app/pending-asks'
 import { PendingLaunches } from '@/app/pending-launches'
 import { ProjectFilter } from '@/app/project-filter'
 import { useHandled } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
-import { usePermissionReply } from '@/app/use-permission-reply'
 import { boardColumns, buildAgentsBoard, initialColumn } from '@/lib/data/fleet/board'
 import type { AgentsBoard as Board, BoardColumn, BoardRow } from '@/lib/data/fleet/board'
 import type { Launch } from '@/lib/data/fleet/types'
@@ -218,7 +216,6 @@ function Segments({
 function Board({ project }: { readonly project: string | undefined }) {
   const { view, now, selection } = useFleet()
   const flow = useHandled()
-  const replyPermission = usePermissionReply()
   const board = useMemo(() => buildAgentsBoard(view, now, project), [view, now, project])
   const [segment, setSegment] = useState<BoardColumn>(() => initialColumn(board))
   const [cursor, setCursor] = useState<Cursor>()
@@ -248,12 +245,6 @@ function Board({ project }: { readonly project: string | undefined }) {
   const horizontal = (direction: 1 | -1) =>
     focus(position === undefined ? firstCard(board) : sideways(board, position, direction))
 
-  const reply = (decision: 'once' | 'reject') =>
-    replyPermission(
-      position === undefined ? undefined : firstPermission(position.item.row),
-      decision
-    )
-
   const handled = () => {
     if (position === undefined || position.item.row.state !== 'finished') return
 
@@ -280,8 +271,6 @@ function Board({ project }: { readonly project: string | undefined }) {
 
       if (id !== undefined) setCursor({ column: 'finished', id, index: 0 })
     },
-    a: () => reply('once'),
-    d: () => reply('reject'),
     '/': () => filterRef.current?.focus()
   })
 
@@ -317,11 +306,12 @@ function Board({ project }: { readonly project: string | undefined }) {
 
 /**
  * The Agents page's board mode (`?view=board`, DESIGN.md "Clients" → Web): a kanban board by
- * state across all projects, or one project (`?project=`), with the session drawer. Columns `Blocked | Finished | Working | Handled` (the launcher's launches top
- * Working) on desktop, one at a
- * time on the phone. Keys: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns, `h`
- * handled (and next finished card), `u` undo, `a`/`d` allow once / deny, `Enter` opens the
- * drawer, `/` focuses the project filter (`b`, focus mode, is the shell's).
+ * state across all projects, or one project (`?project=`), with the session drawer. Columns
+ * `Blocked | Finished | Working | Handled` (the launcher's launches top Working) on desktop, one
+ * at a time on the phone. Cards are minimal (`agent-card.tsx`); asks are answered in the chat.
+ * Keys: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and next
+ * finished card), `u` undo, `Enter` opens the drawer, `/` focuses the project filter (`b`, focus
+ * mode, is the shell's).
  */
 export function AgentsBoard() {
   const { nav } = useFleet()

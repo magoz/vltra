@@ -104,15 +104,16 @@ the snapshot already reads, so nothing needs invalidation yet.
 
 ## Stage 2: no `'use cache'`; finished-run summaries in an Effect `Cache`
 
-The dashboard's only slow-changing OpenCode read is a finished run's answer excerpt and change
-totals (finished rows). It lives in `SessionSummaries` (`lib/data/fleet/session-detail.ts`), an Effect
-`Cache` in the runtime keyed by `(sessionID, idle)`:
+Fleet's only slow-changing OpenCode read is a finished run's answer excerpt and change totals
+(`GET /api/fleet/sessions/:id/summary`, for the terminal plugin's page; the web shows none). It
+lives in `SessionSummaries` (`lib/data/fleet/session-detail.ts`), an Effect `Cache` in the runtime
+keyed by `(sessionID, idle)`:
 
 - A run's answer and files are fixed once it is idle, and the next run gets a new `idle`, so
   entries never need invalidation (nothing for the watcher to call).
 - Failures get a zero TTL, so an unreachable OpenCode is never cached. (It is unclear whether a
   `'use cache'` function that throws stores its error; the Effect `Cache` makes it explicit.)
-- Capacity 500, TTL 1 day. The browser may also keep a summary (`private, max-age=3600`).
+- Capacity 500, TTL 1 day. A client may also keep a summary (`private, max-age=3600`).
 
 The session panel's transcript tail and files (`GET /api/fleet/sessions/:id`) are live data for a
 possibly running session, so they are never cached. Projects and worktrees still come from the

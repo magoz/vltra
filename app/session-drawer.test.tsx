@@ -38,7 +38,7 @@ const iframe = () => drawer().querySelector('iframe')
 const press = (key: string, target: Element = document.body) => fireEvent.keyDown(target, { key })
 
 beforeEach(() => {
-  // Finished cards load their summary; answer with nothing.
+  // The launcher loads its list; answer with nothing.
   vi.stubGlobal(
     'fetch',
     vi.fn(() => Promise.resolve(new Response('{}', { status: 404 })))

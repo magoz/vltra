@@ -1,13 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  activityText,
-  elapsedText,
-  endText,
-  formatCost,
-  modelName,
-  pendingText,
-  relativeTime
-} from '@/app/fleet-format'
+import { activityText, elapsedText, endText, pendingText, relativeTime } from '@/app/fleet-format'
 
 describe('formatting', () => {
   it('ages compactly', () => {
@@ -23,14 +15,6 @@ describe('formatting', () => {
     expect(elapsedText(185_000)).toBe('3:05')
     expect(elapsedText(3_730_000)).toBe('1:02:10')
     expect(elapsedText(-5)).toBe('0:00')
-  })
-
-  it('shortens models and hides free sessions’ cost', () => {
-    expect(modelName('openai/gpt-6-astra')).toBe('gpt-6-astra')
-    expect(modelName(undefined)).toBeUndefined()
-    expect(formatCost(0)).toBeUndefined()
-    expect(formatCost(0.004)).toBe('<$0.01')
-    expect(formatCost(0.842)).toBe('$0.84')
   })
 
   it('describes live activity', () => {

@@ -1,10 +1,5 @@
 import { isQuiet, lastActivityAt, pendingRetry } from '@/lib/data/fleet/state'
-import type {
-  FleetChildRow,
-  FleetRow,
-  PendingPermission,
-  SessionActivity
-} from '@/lib/data/fleet/types'
+import type { FleetRow, SessionActivity } from '@/lib/data/fleet/types'
 
 // Display formatting for the dashboard. Pure; times are epoch milliseconds.
 
@@ -39,19 +34,6 @@ export const elapsedText = (ms: number): string => {
     : `${minutes}:${seconds}`
 }
 
-/** `openai/gpt-6-astra` → `gpt-6-astra`. */
-export const modelName = (model: string | undefined): string | undefined =>
-  model === undefined ? undefined : (model.split('/').at(-1) ?? model)
-
-/** Cost so far; nothing for free sessions. */
-export const formatCost = (cost: number): string | undefined => {
-  if (cost <= 0) return undefined
-
-  if (cost < 0.01) return '<$0.01'
-
-  return `$${cost.toFixed(2)}`
-}
-
 export const activityText = (activity: SessionActivity): string => {
   switch (activity.kind) {
     case 'thinking':
@@ -67,10 +49,6 @@ export const activityText = (activity: SessionActivity): string => {
 }
 
 export const sessionTitle = (row: Pick<FleetRow, 'title' | 'id'>) => row.title ?? row.id
-
-/** How a subagent's requests are attributed on its parent's row: its agent, else its title. */
-export const subagentName = (child: Pick<FleetChildRow, 'agent' | 'title' | 'id'>) =>
-  child.agent ?? sessionTitle(child)
 
 /** What a blocked row waits on: `1 permission · 2 questions` (whole subtree). */
 export const pendingText = (row: Pick<FleetRow, 'pending'>): string =>
@@ -96,7 +74,7 @@ export const stuckText = (row: FleetRow, now: number): string | undefined => {
   return undefined
 }
 
-/** How the latest run ended, for finished rows without an answer excerpt. */
+/** How the latest run ended (a Projects row's label). */
 export const endText = (row: Pick<FleetRow, 'outcome' | 'interrupt'>): string => {
   switch (row.outcome) {
     case 'failed':
@@ -108,10 +86,6 @@ export const endText = (row: Pick<FleetRow, 'outcome' | 'interrupt'>): string =>
       return 'finished'
   }
 }
-
-/** What the permission is for: the resources, or the action alone when there are none. */
-export const permissionTarget = (permission: PendingPermission): string =>
-  permission.resources.length === 0 ? permission.action : permission.resources.join(', ')
 
 export const plural = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`

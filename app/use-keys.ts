@@ -14,8 +14,6 @@ export type FleetKey =
   | 'k'
   | 'h'
   | 'u'
-  | 'a'
-  | 'd'
   | '1'
   | '2'
   | '/'
@@ -36,8 +34,6 @@ const fleetKeys: ReadonlyArray<string> = [
   'k',
   'h',
   'u',
-  'a',
-  'd',
   '1',
   '2',
   '/',

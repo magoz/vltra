@@ -102,8 +102,8 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
 - `GET /api/fleet/events` → SSE: `fleet.changed` with changed rows (clients refetch on
   reconnect).
 - Actions for the web UI are server actions (typed inputs, per 10x conventions): mark handled,
-  reopen, mark viewed, reply to permission, answer form (proxied to OpenCode). Follow-ups and Stop
-  happen in OpenCode's own chat.
+  reopen, mark viewed (OpenCode's unread marker). Asks, follow-ups and Stop happen in OpenCode's
+  own chat.
 - The terminal plugin (runs on the Mac, talks to Fleet over HTTPS) uses the GET routes for
   states (it never recomputes them) and Fleet's JSON mutation routes for handled / reopen /
   launch / dismiss (`POST /api/fleet/sessions/:id/handled`, `.../reopen`, `/api/fleet/launches`,
@@ -148,12 +148,11 @@ count line (`6 need you · 17 working · 2 stuck`) on both pages.
   - **Board**: the four-column kanban below, with the drawer. A header button toggles the modes
     (`b`); the choice lives in the URL so links and the back button keep it.
 - **Agents board = a kanban by state** across all projects, columns `Blocked | Finished |
-  Working | Handled` (the two left columns are "needs me"). Blocked cards (oldest wait first)
-  answer in place: approve/deny, form answers, subagent requests on the parent's card. Finished
-  cards (oldest first): answer excerpt, change totals, red mark for failures, "stopped by
-  OpenCode" for inactivity, **Handled** (undo toast). Working cards: live activity and stuck
-  labels. Handled column: last 24h only, then "N more → Projects"; cards offer Reopen. Cards
-  show project · worktree. No drag and drop (columns show state; actions are buttons and
+  Working | Handled` (the two left columns are "needs me"). Cards are minimal, like focus mode's
+  rows: project · worktree, title and age, a red mark for failures; asks, answers and live
+  activity are left to the chat. Blocked: oldest wait first. Finished: oldest first, **Handled**
+  (undo toast). Working: stuck first, with the stuck label. Handled column: last 24h only, then
+  "N more → Projects"; cards offer Reopen. No drag and drop (columns show state; actions are buttons and
   keys). No "handle all". A project filter (`?project=`, chip with ×) narrows the board to one
   project.
 - **Projects = a grid of project cards** (2–3 columns desktop, 1 on the phone), ordered by
@@ -168,10 +167,10 @@ count line (`6 need you · 17 working · 2 stuck`) on both pages.
   finished card marks it handled (no horizontal column scrolling, so the gesture stays
   unambiguous).
 - **Keyboard (Mac)**: Focus: `j`/`k` move through the list, `Enter` opens the session on the
-  right, `h` handled (the next needs-me session opens), `u` undo, `b` board (asks are answered
-  in the chat). Board: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns,
-  `h` handled (and next finished card), `u` undo, `a`/`d` approve/deny, `Enter` opens the
-  drawer, `Esc` closes, `/` focuses the project filter; focus starts on the first needs-me card.
+  right, `h` handled (the next needs-me session opens), `u` undo, `b` board. Board: `j`/`k`
+  (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and next finished card), `u`
+  undo, `Enter` opens the drawer, `Esc` closes, `/` focuses the project filter; focus starts on
+  the first needs-me card. No key answers asks: that happens in the chat.
   Projects: arrows move between cards, `j`/`k` within a card, `Enter` on a card opens its
   filtered board.
 

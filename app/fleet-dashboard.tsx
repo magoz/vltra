@@ -9,8 +9,6 @@ import { launchAction } from '@/app/launch-action'
 import { markHandledAction } from '@/app/mark-handled-action'
 import { markViewedAction } from '@/app/mark-viewed-action'
 import { openCheckoutAction } from '@/app/open-checkout-action'
-import { replyFormAction } from '@/app/reply-form-action'
-import { replyPermissionAction } from '@/app/reply-permission-action'
 import { reopenAction } from '@/app/reopen-action'
 import { retireWorktreeAction } from '@/app/retire-worktree-action'
 import { suggestBranchAction } from '@/app/suggest-branch-action'
@@ -25,8 +23,6 @@ const serverActions: FleetActions = {
   markHandled: markHandledAction,
   reopen: reopenAction,
   markViewed: markViewedAction,
-  replyPermission: replyPermissionAction,
-  replyForm: replyFormAction,
   launch: launchAction,
   dismissLaunch: dismissLaunchAction,
   openCheckout: openCheckoutAction,

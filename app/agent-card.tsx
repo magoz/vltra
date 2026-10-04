@@ -1,33 +1,41 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { sessionTitle } from '@/app/fleet-format'
+import { sessionTitle, stuckText } from '@/app/fleet-format'
 import { useFleet } from '@/app/fleet-context'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
-import { PendingAsks } from '@/app/pending-asks'
-import {
-  Age,
-  FactLine,
-  FinishedFacts,
-  GoneLabel,
-  isReopenable,
-  RowLink,
-  WorkingFacts
-} from '@/app/session-row'
+import { Age, FactLine, GoneLabel, isReopenable, RowLink } from '@/app/session-row'
 import { StateMarker } from '@/app/state-marker'
 import { useHandled } from '@/app/use-handled'
 import { useSwipeLeft } from '@/app/use-swipe'
 import type { BoardRow } from '@/lib/data/fleet/board'
+import type { FleetRow } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
 /**
- * A card on the Agents board: marker, project · worktree, title and age, then what its state calls
- * for. Blocked: inline answers (subagents' requests included). Finished: answer excerpt, change
- * totals, failed / stopped-by-OpenCode labels and Handled (swipe left on a phone does the same).
- * Working: live activity and stuck labels. Handled: Reopen, or "folder deleted". `cursor` is the
- * keyboard focus. `compact` is focus mode's list row: no box of its own, a hairline under it,
- * tighter spacing, the open session tinted, and no asks or finished facts (the chat has them), so
- * a row is its title, plus Handled when finished.
+ * What a card says beyond its title, if anything: why a working run looks stuck
+ * (`retrying (n×, …)`, `quiet Nm`), and a deleted folder.
+ */
+function Flags({ row, now }: { readonly row: FleetRow; readonly now: number }) {
+  const stuck = row.state === 'working' ? stuckText(row, now) : undefined
+
+  if (stuck === undefined && !row.gone) return null
+
+  return (
+    <FactLine>
+      {stuck === undefined ? null : <span className="text-destructive">{stuck}</span>}
+      {row.gone ? <GoneLabel /> : null}
+    </FactLine>
+  )
+}
+
+/**
+ * A session's card, on the Agents board and in focus mode's list: marker (red for a failed run),
+ * project · worktree, age and title, the stuck / "folder deleted" flags, then Fleet's own action:
+ * Handled when finished (swipe left on a phone does the same), Reopen when handled. Asks,
+ * answers and activity are left to the chat. `cursor` is the keyboard focus. `compact` is focus
+ * mode's list row: no box of its own, a hairline under it, tighter spacing, and the open session
+ * tinted.
  */
 export function AgentCard({
   item,
@@ -97,22 +105,11 @@ export function AgentCard({
         >
           {sessionTitle(row)}
         </RowLink>
-        {row.state === 'blocked' && !compact ? (
-          <div className="relative z-10 mt-1">
-            <PendingAsks row={row} />
-          </div>
-        ) : null}
-        {finished && !compact ? <FinishedFacts row={row} /> : null}
+        <Flags row={row} now={now} />
         {finished ? (
           <div className="relative z-10 mt-0.5 flex flex-wrap gap-2">
             <HandledButton sessionID={row.id} />
           </div>
-        ) : null}
-        {row.state === 'working' ? <WorkingFacts row={row} now={now} /> : null}
-        {row.gone && row.state !== 'working' ? (
-          <FactLine>
-            <GoneLabel />
-          </FactLine>
         ) : null}
         {isReopenable(row) ? (
           <div className="flex">

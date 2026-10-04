@@ -32,7 +32,7 @@ Permissions and forms are **per location** in 2.0.20 (each loaded location has i
 map), so the DESIGN's `GET /api/permission/request` and `GET /api/form` are called once per
 loaded location. Querying only loaded locations avoids booting new ones. Forms keep their fields
 (Fleet's `FormField`, minus validation details; `hidden` fields are dropped, OpenCode applies their
-default) so the dashboard can answer them inline; OpenCode validates the answer. Forms with the
+default) on the wire rows; Fleet itself never answers them (OpenCode's chat does). Forms with the
 temporary MCP `sessionID: "global"` owner are kept in the model but not attached to any row.
 
 ## Launcher calls
