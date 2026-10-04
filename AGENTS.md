@@ -185,7 +185,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first,
   The repo's other branch worktrees follow as sections without sessions (`cardSections`).
 - Rows order by `activeAt` (run times), never OpenCode's `time.updated`, which handled-marker
   writes bump.
-- The web says **Done** for handled: the filled `✔ Done` button (`handled-button.tsx`, "Mark done
+- The web says **Done** for handled: the outlined `✔ Done` button (`handled-button.tsx`, "Mark done
   (h)"), the board's Done column, the "Done" toast, "N done · last 2h" in Projects, the `done`
   state label. Code, the stored marker (`metadata.fleet.handled`), the API and the plugin keep
   "handled".

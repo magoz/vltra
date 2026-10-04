@@ -6,11 +6,11 @@ import { cn } from '@/lib/utils'
 
 /**
  * `✔ Done`: marks a finished session's latest run handled (shown as "Done"); the toast that
- * follows offers Undo. Filled, so it reads as a button next to the cards' outlined tags.
+ * follows offers Undo. Outlined; the check and the verb make it read as a button.
  */
 export function HandledButton({
   sessionID,
-  variant = 'solid',
+  variant = 'outline',
   size = 'default',
   className
 }: {
