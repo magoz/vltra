@@ -68,7 +68,7 @@ describe('session panel', () => {
     expect(screen.queryByRole('tab')).toBeNull()
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Interrupt' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Handled' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Done' })).toBeNull()
   })
 
   it('offers Handled, not Reopen, for a finished run', async () => {
@@ -76,7 +76,7 @@ describe('session panel', () => {
 
     expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Handled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
 
     await vi.waitFor(() =>
       expect(calls).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_1' } }])
@@ -86,7 +86,7 @@ describe('session panel', () => {
   it('offers Reopen for a handled run', async () => {
     const { calls } = renderPanel(doneRow({ handled: baseTime + 1 }))
 
-    expect(screen.queryByRole('button', { name: 'Handled' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Done' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Reopen' }))
 
@@ -122,7 +122,7 @@ describe('session panel', () => {
       renderPanel(row)
 
       expect(row.state).toBe('handled')
-      expect(screen.queryByRole('button', { name: 'Handled' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Done' })).toBeNull()
       expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull()
     }
   )

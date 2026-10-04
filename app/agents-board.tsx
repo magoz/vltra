@@ -24,13 +24,13 @@ import { cn } from '@/lib/utils'
 const columnNames: Readonly<Record<BoardColumn, string>> = {
   needsYou: 'Need you',
   working: 'Working',
-  handled: 'Handled'
+  handled: 'Done'
 }
 
 const emptyText: Readonly<Record<BoardColumn, string>> = {
   needsYou: 'Nothing needs you.',
   working: 'Nothing running.',
-  handled: 'Nothing handled in the last 24h.'
+  handled: 'Nothing done in the last 24h.'
 }
 
 const needsMe = (column: BoardColumn) => column === 'needsYou'
@@ -171,7 +171,7 @@ function Column({
   )
 }
 
-/** The phone's column picker: `Need you 6 · Working 5 · Handled`. */
+/** The phone's column picker: `Need you 6 · Working 5 · Done`. */
 function Segments({
   board,
   current,
@@ -311,12 +311,12 @@ function Board({ project }: { readonly project: string | undefined }) {
 
 /**
  * The Agents tab (`?view=agents`, DESIGN.md "Clients" → Web): a kanban board by state across all
- * projects, or one project (`?project=`). Columns `Need you | Working | Handled` (Need you is
+ * projects, or one project (`?project=`). Columns `Need you | Working | Done` (Need you is
  * blocked then finished, blocked cards badged; the launcher's launches top Working) on desktop,
  * one at a time on the phone. Cards are minimal (`agent-card.tsx`); asks are answered in the
  * chat. The open session (`?session=`) is a split: its chat docks on the right and the columns
  * narrow beside it, so cards stay clickable; the phone shows it full screen. Keys: `j`/`k`
- * (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and the next card), `u` undo,
+ * (`↓`/`↑`) within a column, `←`/`→` between columns, `h` done (and the next card), `u` undo,
  * `Enter` opens the focused card's chat, `/` focuses the project filter (`b`, Focus, and
  * `Escape`, closing the chat, are the shell's).
  */

@@ -79,7 +79,7 @@ export type FleetActionError =
 
 /** User-facing words for the OpenCode calls that write; reads keep the generic message. */
 const requestFailures = new Map([
-  ['session.update', 'OpenCode could not save the handled marker'],
+  ['session.update', 'OpenCode could not mark it done'],
   ['session.prompt', 'OpenCode could not send the prompt'],
   ['session.interrupt', 'OpenCode could not interrupt the session'],
   ['permission.reply', 'OpenCode could not record the reply'],
@@ -101,7 +101,7 @@ export const failureMessage = (error: FleetActionError): string =>
       SchemaError: () => 'Invalid input',
       OpenCodeInvalidInputError: invalid => invalid.message,
       SessionNotFoundError: () => 'Session not found',
-      SessionNotFinishedError: () => 'Only a finished session can be marked handled',
+      SessionNotFinishedError: () => 'Only a finished session can be marked done',
       SessionFolderGoneError: () => "The session's folder no longer exists",
       OpenCodeUnavailableError: () => 'OpenCode is not reachable',
       // OpenCode's own words (sanitized), e.g. the worktree plugin's refusals.

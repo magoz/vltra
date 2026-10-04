@@ -28,7 +28,7 @@ const renderBoard = (
 const column = (name: string) => screen.getByRole('region', { name })
 
 const columnIDs = () =>
-  Object.fromEntries(['Need you', 'Working', 'Handled'].map(name => [name, rowIDs(column(name))]))
+  Object.fromEntries(['Need you', 'Working', 'Done'].map(name => [name, rowIDs(column(name))]))
 
 const card = (id: string) => {
   const found = document.querySelector(`main li[data-session="${id}"]`)
@@ -65,7 +65,7 @@ describe('columns', () => {
     expect(columnIDs()).toEqual({
       'Need you': ['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'],
       Working: ['ses_run', 'ses_retry', 'ses_busy'],
-      Handled: ['ses_tmp', 'ses_handled', 'ses_box']
+      Done: ['ses_tmp', 'ses_handled', 'ses_box']
     })
     // Blocked cards say so; finished ones do not.
     expect(within(card('ses_wait_old')).getByText('blocked')).toBeTruthy()
@@ -102,10 +102,10 @@ describe('columns', () => {
   it('moves a card to Handled with a toast, and Undo brings it back', async () => {
     const { calls } = renderBoard()
 
-    fireEvent.click(within(card('ses_done_new')).getByRole('button', { name: 'Handled' }))
+    fireEvent.click(within(card('ses_done_new')).getByRole('button', { name: 'Done' }))
 
     expect(rowIDs(column('Need you'))).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_old'])
-    expect(rowIDs(column('Handled'))).toEqual(['ses_tmp', 'ses_done_new', 'ses_handled', 'ses_box'])
+    expect(rowIDs(column('Done'))).toEqual(['ses_tmp', 'ses_done_new', 'ses_handled', 'ses_box'])
 
     fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
 
@@ -126,11 +126,9 @@ describe('columns', () => {
   it('puts a card back and says why when marking handled fails', async () => {
     renderBoard({ failWith: 'OpenCode is not reachable' })
 
-    fireEvent.click(within(card('ses_done_new')).getByRole('button', { name: 'Handled' }))
+    fireEvent.click(within(card('ses_done_new')).getByRole('button', { name: 'Done' }))
 
-    expect(
-      await screen.findByText('Could not mark handled: OpenCode is not reachable')
-    ).toBeTruthy()
+    expect(await screen.findByText('Could not mark done: OpenCode is not reachable')).toBeTruthy()
     expect(rowIDs(column('Need you'))).toContain('ses_done_new')
   })
 
@@ -155,7 +153,7 @@ describe('columns', () => {
     const { navigations } = renderBoard()
 
     // ses_ancient (30 days) is left out.
-    const more = within(column('Handled')).getByRole('link', { name: '1 more → Projects' })
+    const more = within(column('Done')).getByRole('link', { name: '1 more → Projects' })
 
     expect(more.getAttribute('href')).toBe('/?view=projects')
 
@@ -173,7 +171,7 @@ describe('project filter', () => {
     expect(columnIDs()).toEqual({
       'Need you': ['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'],
       Working: ['ses_run', 'ses_retry', 'ses_busy'],
-      Handled: ['ses_handled']
+      Done: ['ses_handled']
     })
     expect(screen.getByRole('combobox', { name: 'Project' })).toHaveProperty('value', 'prj_fleet')
 
@@ -181,7 +179,7 @@ describe('project filter', () => {
 
     expect(navigations).toEqual([{ kind: 'filter', project: undefined }])
     expect(screen.queryByRole('button', { name: 'Clear the fleet filter' })).toBeNull()
-    expect(rowIDs(column('Handled'))).toEqual(['ses_tmp', 'ses_handled', 'ses_box'])
+    expect(rowIDs(column('Done'))).toEqual(['ses_tmp', 'ses_handled', 'ses_box'])
   })
 
   it('filters from the select, which / focuses', () => {
@@ -199,7 +197,7 @@ describe('project filter', () => {
 
     expect(navigations).toEqual([{ kind: 'filter', project: 'other' }])
     expect(screen.getByRole('button', { name: 'Clear the Other filter' })).toBeTruthy()
-    expect(columnIDs()).toEqual({ 'Need you': [], Working: [], Handled: ['ses_tmp'] })
+    expect(columnIDs()).toEqual({ 'Need you': [], Working: [], Done: ['ses_tmp'] })
   })
 })
 
@@ -341,7 +339,7 @@ describe('phone', () => {
       within(tabs)
         .getAllByRole('tab')
         .map(tab => tab.textContent)
-    ).toEqual(['Need you 4', 'Working 3', 'Handled'])
+    ).toEqual(['Need you 4', 'Working 3', 'Done'])
     expect(
       within(tabs).getByRole('tab', { name: 'Need you 4' }).getAttribute('aria-selected')
     ).toBe('true')

@@ -4,15 +4,18 @@ import { useHandled } from '@/app/use-handled'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-/** Marks a finished session's latest run handled; the toast that follows offers Undo. */
+/**
+ * `✔ Done`: marks a finished session's latest run handled (shown as "Done"); the toast that
+ * follows offers Undo. Filled, so it reads as a button next to the cards' outlined tags.
+ */
 export function HandledButton({
   sessionID,
-  variant = 'outline',
+  variant = 'solid',
   size = 'default',
   className
 }: {
   readonly sessionID: string
-  readonly variant?: 'outline' | 'default'
+  readonly variant?: 'solid' | 'outline'
   readonly size?: 'default' | 'sm'
   readonly className?: string
 }) {
@@ -23,9 +26,11 @@ export function HandledButton({
       variant={variant}
       size={size}
       className={className}
+      title="Mark done (h)"
       onClick={() => markHandled(sessionID)}
     >
-      Handled
+      <span aria-hidden="true">✔</span>
+      Done
     </Button>
   )
 }

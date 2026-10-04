@@ -96,13 +96,13 @@ describe('project cards', () => {
     expect(navigations).toEqual([{ kind: 'show', screen: 'agents', project: 'prj_fleet' }])
     expect(testLocation()).toBe('/?view=agents&project=prj_fleet')
     expect(screen.getByRole('button', { name: 'Clear the fleet filter' })).toBeTruthy()
-    expect(rowIDs(screen.getByRole('region', { name: 'Handled' }))).toEqual(['ses_handled'])
+    expect(rowIDs(screen.getByRole('region', { name: 'Done' }))).toEqual(['ses_handled'])
   })
 
-  it('folds handled sessions into "N handled · last 2h", expandable in place, with Reopen', async () => {
+  it('folds handled sessions into "N done · last 2h", expandable in place, with Reopen', async () => {
     const { calls } = renderGrid()
     const fleet = projectCard('fleet')
-    const fold = within(fleet).getByRole('button', { name: '··· 2 handled · last 2h' })
+    const fold = within(fleet).getByRole('button', { name: '··· 2 done · last 2h' })
 
     expect(fold.getAttribute('aria-expanded')).toBe('false')
     expect(rowIDs(fleet)).not.toContain('ses_handled')
@@ -111,7 +111,7 @@ describe('project cards', () => {
 
     expect(fold.getAttribute('aria-expanded')).toBe('true')
 
-    const handled = within(fleet).getByRole('list', { name: 'fleet handled' })
+    const handled = within(fleet).getByRole('list', { name: 'fleet done' })
 
     // No time limit: the 30-day-old one is there too.
     expect(rowIDs(handled)).toEqual(['ses_handled', 'ses_ancient'])
@@ -155,7 +155,7 @@ describe('project cards', () => {
 
     const other = projectCard('Other')
 
-    fireEvent.click(within(other).getByRole('button', { name: '··· 1 handled · last 10m' }))
+    fireEvent.click(within(other).getByRole('button', { name: '··· 1 done · last 10m' }))
 
     expect(within(other).getByText('/tmp/scratch ·', { exact: false })).toBeTruthy()
   })

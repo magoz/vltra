@@ -50,7 +50,7 @@ and forms pause a run, they do not end it.
 
 Priority: blocked > working > finished > handled.
 
-- **Handled is mine and per run**: `metadata.fleet.handled = <time.idle of the handled run>`
+- **Handled is mine and per run** (the web calls it **Done**: a `✔ Done` button, a Done column): `metadata.fleet.handled = <time.idle of the handled run>`
   on the OpenCode session; the latest run is handled while `handled >= idle`. A new run that
   ends puts the session back in `finished` without any un-handle step. Fleet owns only the
   `fleet` key: read the session, replace `metadata.fleet`, write the whole object back
@@ -155,11 +155,11 @@ only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
     until another session opens, so nothing else ever looks selected.
   - **Agents**: the three-column kanban below, split with the open session's chat. Its own tab
     (`b` toggles Focus ↔ Agents); the view lives in the URL so links and the back button keep it.
-- **Agents = a kanban by state** across all projects, columns `Need you | Working | Handled`.
+- **Agents = a kanban by state** across all projects, columns `Need you | Working | Done`.
   Cards are minimal, like Focus' rows: project · worktree, title and age, a red mark for
   failures; asks, answers and live activity are left to the chat. Need you: blocked first
-  (oldest wait first, each with a `blocked` badge), then finished (oldest first, **Handled**, undo
-  toast). Working: stuck first, with the stuck label. Handled column: last 24h only, then
+  (oldest wait first, each with a `blocked` badge), then finished (oldest first, **✔ Done**, undo
+  toast). Working: stuck first, with the stuck label. Done column: last 24h only, then
   "N more → Projects"; cards offer Reopen. No drag and drop (columns show state; actions are buttons and
   keys). No "handle all". A project filter (`?project=`, chip with ×) narrows the board to one
   project. Opening a session splits the screen: its chat docks on the right (at most 52rem) and the
@@ -176,8 +176,8 @@ only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
   card goes with its last session), to clear out old projects: disabled while any session there
   is working or blocked, behind a confirmation with the count; files and branches stay.
 - **Phone**: focus mode is the needs-me list; tapping a session opens its chat full screen
-  (Handled in its toolbar opens the next needs-me session), back returns to the list. Agents
-  shows one column at a time via a segmented control (`Need you 6 · Working 5 · Handled`),
+  (✔ Done in its toolbar opens the next needs-me session), back returns to the list. Agents
+  shows one column at a time via a segmented control (`Need you 6 · Working 5 · Done`),
   opening on Need you when it has cards. Swipe left on a finished card marks
   it handled (no horizontal column scrolling, so the gesture stays unambiguous).
 - **Keyboard (Mac)**: `1` / `2` / `3` the tabs. Focus: `j`/`k` move through the list, `Enter`
@@ -195,7 +195,7 @@ prompt and subagents are all in the chat):
   `https://box.tail129a86.ts.net:9446/server/<base64url(origin)>/session/<id>`
   (`app/src/shell/routes/session.ts`; server key = page origin). Works on Mac and phone after a
   one-time `opencode pair` per browser (30-day cookie).
-- **Toolbar**: only what Fleet adds: Handled / Reopen, open the chat in a new tab, and
+- **Toolbar**: only what Fleet adds: ✔ Done / Reopen, open the chat in a new tab, and
   **Open in terminal** (Mac only) → `ocb://session/<id>`, handled by a tiny URL-scheme app that
   `macos/setup-box` installs and that opens a new Ghostty window running `ocb -s <id>`.
   The OpenCode desktop app registers no URL scheme, so it cannot be targeted.

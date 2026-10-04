@@ -10,7 +10,7 @@ import type { FleetActions } from '@/app/fleet-actions'
 import type { RowOverride } from '@/lib/data/fleet/board'
 import type { FleetRow } from '@/lib/data/fleet/types'
 
-/** How long the Handled toast (and its Undo) stays up. */
+/** How long the Done toast (and its Undo) stays up. */
 const undoWindow = 6000
 
 /**
@@ -140,7 +140,7 @@ export function useHandledFlow(
       handling.current.set(sessionID, call)
       last.current = sessionID
 
-      toast('Handled', {
+      toast('Done', {
         id: toastID(sessionID),
         description: base?.title ?? sessionID,
         duration: undoWindow,
@@ -156,7 +156,7 @@ export function useHandledFlow(
 
         drop(sessionID, 'handled')
         toast.dismiss(toastID(sessionID))
-        toast.error(`Could not mark handled: ${result.message}`)
+        toast.error(`Could not mark done: ${result.message}`)
       })
     },
     [actions, override, drop, undo]

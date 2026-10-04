@@ -23,7 +23,7 @@ describe('toActionResult', () => {
         resultOf(new OpenCodeRequestError({ operation, message: 'HTTP 500' }))
 
       expect(yield* failed('session.update')).toEqual(
-        FleetActionResult.Error({ message: 'OpenCode could not save the handled marker' })
+        FleetActionResult.Error({ message: 'OpenCode could not mark it done' })
       )
       expect(yield* failed('session.get')).toEqual(
         FleetActionResult.Error({ message: 'OpenCode request failed' })

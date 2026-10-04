@@ -38,7 +38,7 @@ describe('shortcuts', () => {
       'j k move',
       '← → column',
       '↵ open',
-      'h handled',
+      'h done',
       'u undo',
       'b focus',
       'n ⌘K new',

@@ -5,7 +5,7 @@ const stateNames: Readonly<Record<FleetState, string>> = {
   blocked: 'Blocked',
   working: 'Working',
   finished: 'Finished',
-  handled: 'Handled'
+  handled: 'Done'
 }
 
 /**

@@ -132,7 +132,7 @@ describe('focus mode', () => {
     // Rows are titles (and Handled when finished); asks and run facts are in the chat.
     expect(row('ses_wait_old').textContent).not.toContain('pnpm test per_old')
     expect(within(row('ses_wait_old')).queryByRole('button')).toBeNull()
-    expect(within(row('ses_done_old')).getByRole('button', { name: 'Handled' })).toBeTruthy()
+    expect(within(row('ses_done_old')).getByRole('button', { name: 'Done' })).toBeTruthy()
     expect(within(row('ses_done_old')).getByRole('img', { name: 'Finished · failed' })).toBeTruthy()
     expect(within(row('ses_done_old')).queryByText('run failed')).toBeNull()
     // Working and handled sessions are not listed, but the count line still has them.
@@ -181,13 +181,13 @@ describe('focus mode', () => {
     expect(within(pane()).getByText('Pick a session on the left')).toBeTruthy()
 
     open('Done old')
-    fireEvent.click(within(row('ses_done_old')).getByRole('button', { name: 'Handled' }))
+    fireEvent.click(within(row('ses_done_old')).getByRole('button', { name: 'Done' }))
 
     expect(rowIDs(list())).toEqual(['ses_done_new'])
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
     expect(testLocation()).toBe('/?session=ses_done_new')
 
-    fireEvent.click(within(row('ses_done_new')).getByRole('button', { name: 'Handled' }))
+    fireEvent.click(within(row('ses_done_new')).getByRole('button', { name: 'Done' }))
 
     expect(rowIDs(list())).toEqual([])
     expect(iframe()).toBeNull()
@@ -206,7 +206,7 @@ describe('focus mode', () => {
     const { live } = renderFocus()
 
     open('Done new')
-    fireEvent.click(within(row('ses_done_old')).getByRole('button', { name: 'Handled' }))
+    fireEvent.click(within(row('ses_done_old')).getByRole('button', { name: 'Done' }))
 
     expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_new'])
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
@@ -239,7 +239,7 @@ describe('focus mode', () => {
     const { live, calls } = renderFocus({ live: finishedOnly() })
 
     open('Done old')
-    fireEvent.click(within(pane()).getByRole('button', { name: 'Handled' }))
+    fireEvent.click(within(pane()).getByRole('button', { name: 'Done' }))
 
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
     expect(testLocation()).toBe('/?session=ses_done_new')

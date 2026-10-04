@@ -129,12 +129,12 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   the list full width; a session opens full screen (the pane becomes `fixed inset-0`), its back
   button returns to the list.
 - **Agents**, the board (`?view=agents`, `agents-board.tsx`): columns `Need you | Working |
-Handled` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first, each card
+Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first, each card
   badged `blocked`), then finished (oldest first). Working: stuck first, then newest session (`created`, so live activity does not reshuffle).
-  Handled: active in the last 24h, newest first, then "N more → Projects". Cards
+  Done (handled): active in the last 24h, newest first, then "N more → Projects". Cards
   (`agent-card.tsx`) are minimal: marker (red for a failed run), project · worktree (`boardRow`;
   the global project's sessions by their directory), the `blocked` badge, age and title, flags for `retrying (n×, …)`
-  / `quiet Nm` and "folder deleted", Handled (finished) or Reopen (handled, not for "folder
+  / `quiet Nm` and "folder deleted", `✔ Done` (finished) or Reopen (handled, not for "folder
   deleted"). Asks, answers and live activity are left to the chat. `?project=<projectKey>`
   (`other` = the global project) narrows every column: a select (`/` focuses it) and a chip with ×
   (`setProject` replaces the history entry). An open session (`?session=`) splits the board
@@ -185,10 +185,14 @@ Handled` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait fir
   The repo's other branch worktrees follow as sections without sessions (`cardSections`).
 - Rows order by `activeAt` (run times), never OpenCode's `time.updated`, which handled-marker
   writes bump.
+- The web says **Done** for handled: the filled `✔ Done` button (`handled-button.tsx`, "Mark done
+  (h)"), the board's Done column, the "Done" toast, "N done · last 2h" in Projects, the `done`
+  state label. Code, the stored marker (`metadata.fleet.handled`), the API and the plugin keep
+  "handled".
 - Handled / Undo / Reopen (`use-handled.tsx`, provided by the shell): applied at once as
   optimistic overrides (until the server's next word on that row, `withOverrides`), Handled
   raises a sonner toast with Undo (= reopen, after the handled write). No "handle all", no drag
-  and drop. Phone: swipe a finished card left (`use-swipe.ts`); the Handled button stays.
+  and drop. Phone: swipe a finished card left (`use-swipe.ts`); the `✔ Done` button stays.
 - Keys (`use-keys.ts`, desktop; ignored while typing (except `Escape`), with modifiers and in
   dialogs; keys typed inside the OpenCode iframe stay there): shell `1` / `2` / `3` the tabs, `b`
   Focus ↔ Agents, `n` the launcher (and `⌘K` / `Ctrl+K`, its own listener, also while typing),
@@ -209,7 +213,7 @@ Handled` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait fir
 - The session panel (`session-panel.tsx`, the same on every tab) is the session's chat alone,
   no Summary tab: an iframe of OpenCode's web UI (`row.links.web`), signed in by its same-site
   pairing cookie (`opencode pair`), with full app chrome since upstream has no embed mode. Its
-  slim toolbar has only what Fleet adds: the phone's back button, state and title, Handled
+  slim toolbar has only what Fleet adds: the phone's back button, state and title, `✔ Done`
   (finished) / Reopen (handled; neither for "folder deleted"), open in the terminal (`ocb://`,
   fine pointers only) or a new tab, close (desktop). Messages, asks, follow-ups and Stop happen in
   the chat. Being same-site, the iframe runs on Fleet's main thread: keep one chat mounted at a

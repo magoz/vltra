@@ -107,7 +107,7 @@ export function RetireWorktree({
               <li>
                 {sessions === 0
                   ? 'No sessions ran there.'
-                  : `${plural(sessions, 'session', 'sessions')} there ${sessions === 1 ? 'becomes' : 'become'} “folder deleted” (handled).`}
+                  : `${plural(sessions, 'session', 'sessions')} there ${sessions === 1 ? 'becomes' : 'become'} “folder deleted” (done).`}
               </li>
             </ul>
           </AlertDialogDescription>

@@ -109,7 +109,7 @@ function StateLabel({ row, now }: { readonly row: FleetRow; readonly now: number
     case 'finished':
       return <EndLabel row={row} />
     case 'handled':
-      return row.gone ? <GoneLabel /> : <span>handled</span>
+      return row.gone ? <GoneLabel /> : <span>done</span>
   }
 }
 

@@ -115,7 +115,7 @@ describe('finished cards', () => {
     expect(screen.queryByText('run failed')).toBeNull()
     expect(fetch).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Handled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
 
     await waitFor(() =>
       expect(calls).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_1' } }])
@@ -246,7 +246,7 @@ describe('handled cards', () => {
     expect(row.state).toBe('handled')
     expect(screen.getByText('folder deleted').className).toContain('text-muted-foreground')
     expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Handled' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Done' })).toBeNull()
   })
 
   it('has no Reopen for a session that never ran', () => {

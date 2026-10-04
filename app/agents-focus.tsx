@@ -199,7 +199,7 @@ function Focus() {
  * one opened from elsewhere) inline in the rest of the page: its chat. Handling the open session
  * opens the next one in list order. The list marks the open session only; `j` / `k` add a cursor
  * until another session opens. Phone: the list; a session opens full screen. Keys: `j`/`k`
- * (`↓`/`↑`) move, `Enter` opens, `h` handled (the cursor's finished session, else the open one;
+ * (`↓`/`↑`) move, `Enter` opens, `h` done (the cursor's finished session, else the open one;
  * the next opens), `u` undo (the shell adds the tabs, `b` board and `Escape` closes).
  */
 export function AgentsFocus() {

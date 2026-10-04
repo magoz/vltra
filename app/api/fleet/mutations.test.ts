@@ -182,7 +182,7 @@ describe('POST /api/fleet/sessions/:id/handled', () => {
         expect(yield* answer('ses_finished', 'null')).toEqual(failure(400, 'Invalid input'))
         expect(yield* answer('ses_missing')).toEqual(failure(404, 'Session not found'))
         expect(yield* answer('ses_working')).toEqual(
-          failure(409, 'Only a finished session can be marked handled')
+          failure(409, 'Only a finished session can be marked done')
         )
       }).pipe(Effect.provide(layer))
 
@@ -482,7 +482,7 @@ describe('failure statuses', () => {
       [
         new SessionNotFinishedError({ sessionID: 'ses_1', state: 'working' }),
         409,
-        'Only a finished session can be marked handled'
+        'Only a finished session can be marked done'
       ],
       [
         new SessionFolderGoneError({ sessionID: 'ses_1', directory: '/x' }),
@@ -499,7 +499,7 @@ describe('failure statuses', () => {
       [
         new OpenCodeRequestError({ operation: 'session.update', message: 'HTTP 500' }),
         502,
-        'OpenCode could not save the handled marker'
+        'OpenCode could not mark it done'
       ],
       [new OpenCodeUnavailableError({ message: 'x' }), 503, 'OpenCode is not reachable']
     ]

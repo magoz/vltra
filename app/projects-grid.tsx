@@ -65,11 +65,11 @@ function HandledFold({
         onClick={onToggle}
         className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 w-full px-3 py-1.5 text-left text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
       >
-        ··· {card.handled.length} handled · last {relativeTime(newest.row.activeAt, now)}
+        ··· {card.handled.length} done · last {relativeTime(newest.row.activeAt, now)}
         {expanded ? ' ×' : null}
       </button>
       {expanded ? (
-        <ul aria-label={`${card.name} handled`}>
+        <ul aria-label={`${card.name} done`}>
           {card.handled.map(item => (
             <ProjectRow
               key={item.row.id}

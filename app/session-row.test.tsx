@@ -44,8 +44,8 @@ describe('project rows', () => {
     const link = screen.getByRole('link', { name: 'Fleet watcher' })
 
     expect(link.getAttribute('href')).toBe('/?session=ses_1')
-    expect(screen.getByRole('img', { name: 'Handled' })).toBeTruthy()
-    expect(screen.getByText('handled')).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Done' })).toBeTruthy()
+    expect(screen.getByText('done')).toBeTruthy()
     expect(screen.getByText('5m')).toBeTruthy()
 
     fireEvent.click(link)
@@ -180,7 +180,7 @@ describe('project rows', () => {
     renderRow(row, fakeActions(), '/tmp/scratch')
 
     expect(screen.getByText('/tmp/scratch ·', { exact: false }).textContent).toBe(
-      '/tmp/scratch · handled'
+      '/tmp/scratch · done'
     )
   })
 })
