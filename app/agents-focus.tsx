@@ -7,7 +7,6 @@ import { useFleet } from '@/app/fleet-context'
 import { PendingLaunches } from '@/app/pending-launches'
 import { ProjectFilter } from '@/app/project-filter'
 import { SessionPanel } from '@/app/session-panel'
-import type { DrawerTab } from '@/app/use-drawer-tab'
 import { HandledProvider, useHandled } from '@/app/use-handled'
 import type { HandledFlow } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
@@ -90,16 +89,8 @@ function EmptyPane({ empty }: { readonly empty: boolean }) {
   )
 }
 
-function Focus({
-  project,
-  tab,
-  onTab
-}: {
-  readonly project: string | undefined
-  readonly tab: DrawerTab
-  readonly onTab: (tab: DrawerTab) => void
-}) {
-  const { view, now, selection } = useFleet()
+function Focus({ project }: { readonly project: string | undefined }) {
+  const { view, selection } = useFleet()
   const flow = useHandled()
   const needsMe = useMemo(() => buildNeedsMe(view, project), [view, project])
   const list = useMemo(() => needsMeOrder(needsMe), [needsMe])
@@ -173,7 +164,6 @@ function Focus({
       setCursor({ id, index: 0 })
       selection.select(id)
     },
-    c: selected === undefined ? undefined : () => onTab(tab === 'chat' ? 'summary' : 'chat'),
     '/': () => filterRef.current?.focus()
   })
 
@@ -211,7 +201,6 @@ function Focus({
         </section>
         <section
           aria-label="Session"
-          data-tab={selected === undefined ? undefined : tab}
           className={cn(
             'bg-background flex min-h-0 min-w-0 flex-1 flex-col',
             selected === undefined ? 'max-lg:hidden' : 'max-lg:fixed max-lg:inset-0 max-lg:z-30'
@@ -224,9 +213,6 @@ function Focus({
               key={selected}
               sessionID={selected}
               item={selectedItem}
-              now={now}
-              tab={tab}
-              onTab={onTab}
               onClose={selection.close}
             />
           )}
@@ -240,18 +226,15 @@ function Focus({
  * The Agents page's focus mode (the default, DESIGN.md "Clients" → Web): a sidebar listing the
  * launcher's launches ("Provisioning", unfiltered) and the sessions that need me (blocked,
  * longest wait first; then finished, oldest first, with Handled; rows are titles only, asks are
- * answered in the chat), narrowed by `?project=`, and the open session (`?session=`, also
- * one opened from elsewhere) inline in the rest of the page, Chat first. Handling the open
- * session opens the next one in list order. Phone: the list; a session opens full screen. Keys:
- * `j`/`k` (`↓`/`↑`) move, `Enter` opens, `h` handled (the focused or open finished session; the
- * next opens), `u` undo, `c` Summary / Chat, `/` filter (the shell adds `b` board and `Escape`
- * closes).
+ * answered in the chat), narrowed by `?project=`, and the open session's chat (`?session=`, also
+ * one opened from elsewhere) inline in the rest of the page. Handling the open session opens the
+ * next one in list order. Phone: the list; a session opens full screen. Keys: `j`/`k` (`↓`/`↑`)
+ * move, `Enter` opens, `h` handled (the focused or open finished session; the next opens), `u`
+ * undo, `/` filter (the shell adds `b` board and `Escape` closes).
  */
 export function AgentsFocus() {
   const { nav } = useFleet()
-  // Chat first here, whatever the drawer remembers; kept while the page shows.
-  const [tab, setTab] = useState<DrawerTab>('chat')
 
   // A new filter is a new list: the keyboard focus starts over.
-  return <Focus key={nav.project ?? ''} project={nav.project} tab={tab} onTab={setTab} />
+  return <Focus key={nav.project ?? ''} project={nav.project} />
 }

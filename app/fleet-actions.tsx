@@ -5,13 +5,11 @@ import type { ReactNode } from 'react'
 import { FleetActionResult } from '@/app/fleet-action-result'
 import type { FleetActionFailure, FleetActionValue } from '@/app/fleet-action-result'
 import type {
-  InterruptSessionInput,
   MarkHandledInput,
   MarkViewedInput,
   ReopenInput,
   ReplyFormInput,
-  ReplyPermissionInput,
-  SendPromptInput
+  ReplyPermissionInput
 } from '@/lib/data/fleet/actions'
 import type {
   DismissLaunchInput,
@@ -29,8 +27,6 @@ export type FleetActions = {
   readonly markViewed: (input: MarkViewedInput) => Promise<FleetActionResult>
   readonly replyPermission: (input: ReplyPermissionInput) => Promise<FleetActionResult>
   readonly replyForm: (input: ReplyFormInput) => Promise<FleetActionResult>
-  readonly sendPrompt: (input: SendPromptInput) => Promise<FleetActionResult>
-  readonly interrupt: (input: InterruptSessionInput) => Promise<FleetActionResult>
   /** Start a new worktree + session (returns at once; progress comes with the fleet). */
   readonly launch: (input: LaunchInput) => Promise<FleetActionValue<{ readonly launchID: string }>>
   readonly dismissLaunch: (input: DismissLaunchInput) => Promise<FleetActionResult>

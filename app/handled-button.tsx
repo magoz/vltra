@@ -8,16 +8,23 @@ import { cn } from '@/lib/utils'
 export function HandledButton({
   sessionID,
   variant = 'outline',
+  size = 'default',
   className
 }: {
   readonly sessionID: string
   readonly variant?: 'outline' | 'default'
+  readonly size?: 'default' | 'sm'
   readonly className?: string
 }) {
   const { markHandled } = useHandled()
 
   return (
-    <Button variant={variant} className={className} onClick={() => markHandled(sessionID)}>
+    <Button
+      variant={variant}
+      size={size}
+      className={className}
+      onClick={() => markHandled(sessionID)}
+    >
       Handled
     </Button>
   )

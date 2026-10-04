@@ -11,7 +11,6 @@ import { LauncherProvider } from '@/app/launcher-context'
 import type { Launcher, LauncherRequest } from '@/app/launcher-context'
 import { LauncherDialog } from '@/app/launcher-dialog'
 import { SessionDrawer } from '@/app/session-panel'
-import { useDrawerTab } from '@/app/use-drawer-tab'
 import type { StreamStatus } from '@/app/use-fleet-live'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
@@ -119,12 +118,11 @@ function useLauncherShortcut(open: () => void) {
 /**
  * Around both pages (DESIGN.md "Clients" → Web): the header (tabs, the Agents mode toggle, count
  * line, key hint, connection), the phone's bottom tab bar, Handled / Undo / Reopen, and the
- * session drawer (`?session=`, right side on desktop, full screen on the phone) over Projects and
- * the Agents board, with its Summary | Chat tabs (the last choice remembered per browser; wider
- * on desktop for Chat). Focus mode shows the session inline instead (`agents-focus.tsx`, which
- * also owns its `c`). Keys: `1` / `2` switch pages, `b` the Agents mode, `Escape` closes the
- * session, `c` toggles the drawer's Summary / Chat, `n` / `⌘K` open the launcher (its palette,
- * its list for the Projects cards, and the auto-open of a launch started here).
+ * session drawer (`?session=`, the session's chat: right side on desktop, full screen on the
+ * phone) over Projects and the Agents board. Focus mode shows the session inline instead
+ * (`agents-focus.tsx`). Keys: `1` / `2` switch pages, `b` the Agents mode, `Escape` closes the
+ * session, `n` / `⌘K` open the launcher (its palette, its list for the Projects cards, and the
+ * auto-open of a launch started here).
  */
 export function FleetShell({
   live,
@@ -149,7 +147,6 @@ export function FleetShell({
   const { selected } = selection
   const selectedRow = selected === undefined ? undefined : view.rows.get(selected)
   const selectedItem = selectedRow === undefined ? undefined : boardRow(view, selectedRow)
-  const drawer = useDrawerTab()
   const agents = nav.page === 'agents'
   // Focus mode shows the open session inline, so there is no drawer.
   const inline = agents && nav.view === 'focus'
@@ -181,11 +178,7 @@ export function FleetShell({
     '1': agents ? undefined : () => nav.go('agents'),
     '2': nav.page === 'projects' ? undefined : () => nav.go('projects'),
     b: agents ? () => nav.setView(nav.view === 'board' ? 'focus' : 'board') : undefined,
-    Escape: selected === undefined ? undefined : selection.close,
-    c:
-      selected === undefined || inline
-        ? undefined
-        : () => drawer.choose(drawer.tab === 'chat' ? 'summary' : 'chat')
+    Escape: selected === undefined ? undefined : selection.close
   })
 
   return (
@@ -218,9 +211,6 @@ export function FleetShell({
                 key={selected}
                 sessionID={selected}
                 item={selectedItem}
-                now={now}
-                tab={drawer.tab}
-                onTab={drawer.choose}
                 onClose={selection.close}
               />
             )}

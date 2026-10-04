@@ -83,8 +83,8 @@ export const keyHintSet = (page: FleetPage, view: AgentsView): KeyHintSet =>
 
 /**
  * Each page's keys (`agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`), plus the
- * shell's: `n` (the launcher, also `⌘K`), `c` (Summary / Chat), `b` (the other Agents mode),
- * `1` / `2`. Most needed first: on narrower desktops the last ones drop.
+ * shell's: `n` (the launcher, also `⌘K`), `b` (the other Agents mode), `1` / `2`. Most needed
+ * first: on narrower desktops the last ones drop.
  */
 export const keyHints: Readonly<Record<KeyHintSet, ReadonlyArray<KeyHint>>> = {
   focus: [
@@ -92,7 +92,6 @@ export const keyHints: Readonly<Record<KeyHintSet, ReadonlyArray<KeyHint>>> = {
     { keys: '↵', label: 'open' },
     { keys: 'h', label: 'handled' },
     { keys: 'u', label: 'undo' },
-    { keys: 'c', label: 'chat' },
     { keys: 'b', label: 'board' },
     { keys: 'n ⌘K', label: 'new' },
     { keys: '/', label: 'filter' },
@@ -108,7 +107,6 @@ export const keyHints: Readonly<Record<KeyHintSet, ReadonlyArray<KeyHint>>> = {
     { keys: 'b', label: 'focus' },
     { keys: 'n ⌘K', label: 'new' },
     { keys: '/', label: 'filter' },
-    { keys: 'c', label: 'chat' },
     { keys: '1 2', label: 'pages' }
   ],
   projects: [
@@ -116,7 +114,6 @@ export const keyHints: Readonly<Record<KeyHintSet, ReadonlyArray<KeyHint>>> = {
     { keys: 'j k', label: 'session' },
     { keys: '↵', label: 'open' },
     { keys: 'n ⌘K', label: 'new' },
-    { keys: 'c', label: 'chat' },
     { keys: '1 2', label: 'pages' }
   ]
 }

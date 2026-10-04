@@ -62,21 +62,21 @@ describe('header', () => {
     renderHeader('agents')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ↵ open · h handled · u undo · c chat · b board · n ⌘K new · / filter · 1 2 pages'
+      'j k move · ↵ open · h handled · u undo · b board · n ⌘K new · / filter · 1 2 pages'
     )
 
     cleanup()
     renderHeader('agents', 'board')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      'j k move · ← → column · ↵ open · h handled · u undo · a d allow/deny · b focus · n ⌘K new · / filter · c chat · 1 2 pages'
+      'j k move · ← → column · ↵ open · h handled · u undo · a d allow/deny · b focus · n ⌘K new · / filter · 1 2 pages'
     )
 
     cleanup()
     renderHeader('projects')
 
     expect(screen.getByLabelText('Keyboard shortcuts').textContent).toBe(
-      '← → ↑ ↓ card · j k session · ↵ open · n ⌘K new · c chat · 1 2 pages'
+      '← → ↑ ↓ card · j k session · ↵ open · n ⌘K new · 1 2 pages'
     )
   })
 })

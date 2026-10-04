@@ -105,10 +105,9 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   no inline answers or finished facts, the chat has them) under `Blocked N` / `Finished N`
   headings, narrowed by the same project filter (`project-filter.tsx`). The rest of the page
   shows the open session (`?session=`, also one not in the list, e.g. a working session opened
-  from Projects) inline: the same `SessionPanel` as the drawer, filling the pane (the iframe's
-  absolute fill; no page scroll on desktop), Chat first (page state, independent of the drawer's
-  stored tab). Nothing open: "Pick a session on the left", or "Nothing needs you" when the list
-  is empty. Handling the open session
+  from Projects) inline: the same `SessionPanel` (its chat) as the drawer, filling the pane (the
+  iframe's absolute fill; no page scroll on desktop). Nothing open: "Pick a session on the left",
+  or "Nothing needs you" when the list is empty. Handling the open session
   (button, `h`, swipe; focus mode wraps `useHandled` so all three go through it) opens the next one
   in list order (`nextNeedsMe`: the one after it, else the one before), or the empty state. Phone:
   the list full width; a session opens full screen (the pane becomes `fixed inset-0`), its back
@@ -163,9 +162,8 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first, inline
   Agents mode, `n` the launcher (and `⌘K` / `Ctrl+K`, its own listener, also while typing),
   `Escape` closes the session (drawer or inline; the palette closes itself). Focus: `j`/`k` (`↓`/`↑`) through
   the list, `Enter` opens the focused session on the right, `h` handled (the focused finished
-  session, else the open one; the next opens), `u` undo (reopens and opens it), `c` Summary /
-  Chat, `/` filter (no `a`/`d`: the list shows no asks); focus starts on the open session, else
-  the first row. Board: `j`/`k` (`↓`/`↑`) within a
+  session, else the open one; the next opens), `u` undo (reopens and opens it), `/` filter (no
+  `a`/`d`: the list shows no asks); focus starts on the open session, else the first row. Board: `j`/`k` (`↓`/`↑`) within a
   column, `←`/`→` between columns, `h` handled + next finished card, `u` undo, `a`/`d` allow once
   / deny the focused card's first permission, `Enter` opens, `/` filter; focus starts on the first
   needs-me card and follows clicks. Projects: arrows between cards (up/down by grid row), `j`/`k`
@@ -174,22 +172,22 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first, inline
   mode, else a right-side drawer (`SessionDrawer`) over the page from `lg`; full screen below it
   either way, so the phone's back button closes it (closing goes back only when Fleet pushed the
   entry on this page and mode).
-- Drawer tabs Summary | Chat (`c` toggles; last choice in `localStorage`, `use-drawer-tab.ts`;
-  focus mode's inline panel starts on Chat and keeps its own choice while the page shows):
-  Chat is an iframe of OpenCode's web UI (`row.links.web`), signed in by its same-site pairing
-  cookie (`opencode pair`), with full app chrome since upstream has no embed mode.
+- The session panel (`session-panel.tsx`) is the session's chat and nothing else: an iframe of
+  OpenCode's web UI (`row.links.web`), signed in by its same-site pairing cookie
+  (`opencode pair`), with full app chrome since upstream has no embed mode, under one slim
+  toolbar (phone back button, state and title, Handled when finished / Reopen when handled, `>_`
+  open in the terminal (`ocb://`, fine pointers only), `↗` new tab, ×). Messages, asks,
+  follow-ups and Stop happen in the chat.
 - Mutations go through `FleetActions` (`app/fleet-actions.tsx`): the dashboard provides the server
   actions (the launcher's `launch`, `openCheckout`, `retireWorktree`, `dismissLaunch` and
   `suggestBranch` return `FleetActionValue`s when they carry a value), component tests provide
   recording fakes (`app/testing/dashboard-fixtures.tsx`:
   `WithFleet` for one card, `TestDashboard` for the whole dashboard with the URL in state, read
   back with `testLocation()`; `fleet-scenario.ts` is the shared fleet).
-- Panel data: `GET /api/fleet/sessions/:id` (transcript tail + latest turn's files, uncached) and,
-  for finished cards, `GET /api/fleet/sessions/:id/summary?idle=` (answer excerpt + change
+- Finished board cards load `GET /api/fleet/sessions/:id/summary?idle=` (answer excerpt + change
   totals, cached in the runtime by `(id, idle)`; see `patterns/LONG_LIVED_WATCHER.md`). Opening
-  the drawer marks the latest run viewed in OpenCode when it is unread there (`viewed` missing or
-  `< idle`; its unread dots only, never Fleet state). The drawer offers Handled (finished), Reopen
-  (handled), Interrupt (running) and the subagent tree with each child's state.
+  a session's panel marks its latest run viewed in OpenCode when it is unread there (`viewed`
+  missing or `< idle`; its unread dots only, never Fleet state).
 - Look: the approved paper-and-ink mock (`app/globals.css` tokens, mono type, `attention` green
   and `destructive` red only, hairline borders, no shadows); light/dark follow the system
   (`prefers-color-scheme`), no toggle.

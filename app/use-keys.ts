@@ -3,8 +3,9 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * The dashboard's keys (desktop). Each page binds its own; the shell binds `1`, `2`, `b`, `n`,
- * `Escape`, and the drawer's `c` (`⌘K` is the launcher's own listener). Keys typed inside the OpenCode iframe stay in the iframe.
+ * The dashboard's keys (desktop). Each page binds its own; the shell binds `1`, `2`, `b`, `n` and
+ * `Escape` (`⌘K` is the launcher's own listener). Keys typed inside the OpenCode iframe stay in
+ * the iframe.
  */
 export type FleetKey =
   | 'n'
@@ -15,7 +16,6 @@ export type FleetKey =
   | 'u'
   | 'a'
   | 'd'
-  | 'c'
   | '1'
   | '2'
   | '/'
@@ -38,7 +38,6 @@ const fleetKeys: ReadonlyArray<string> = [
   'u',
   'a',
   'd',
-  'c',
   '1',
   '2',
   '/',

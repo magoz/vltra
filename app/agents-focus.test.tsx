@@ -68,11 +68,6 @@ const row = (id: string) => {
 
 const open = (title: string) => fireEvent.click(within(list()).getByRole('link', { name: title }))
 
-const selectedTab = () =>
-  within(pane())
-    .getAllByRole('tab')
-    .find(candidate => candidate.getAttribute('aria-selected') === 'true')?.textContent
-
 const iframe = () => pane().querySelector('iframe')
 
 const cursorID = () =>
@@ -138,13 +133,13 @@ describe('focus mode', () => {
     expect(within(pane()).getByText('Nothing needs you')).toBeTruthy()
   })
 
-  it('opens a clicked row inline (no drawer), on Chat, framing its OpenCode link', () => {
+  it('opens a clicked row inline (no drawer), framing its OpenCode chat', () => {
     const { live, calls } = renderFocus()
 
     open('Done old')
 
     expect(drawer()).toBeNull()
-    expect(selectedTab()).toBe('Chat')
+    expect(within(pane()).getByRole('heading', { name: 'Done old' })).toBeTruthy()
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
     expect(row('ses_done_old').querySelector('[data-selected="true"]')).not.toBeNull()
     expect(testLocation()).toBe('/?session=ses_done_old')
@@ -152,24 +147,10 @@ describe('focus mode', () => {
     expect(pane().className).toContain('max-lg:fixed')
     expect(calls()).toEqual([])
 
-    fireEvent.click(within(pane()).getByRole('tab', { name: 'Summary' }))
-
-    expect(within(pane()).getByRole('heading', { name: /Done old/ })).toBeTruthy()
-
-    // Another session keeps the page's tab.
     open('Wait old')
 
-    expect(selectedTab()).toBe('Summary')
-    expect(within(pane()).getByRole('heading', { name: /Wait old/ })).toBeTruthy()
-  })
-
-  it('starts on Chat whatever the drawer remembers', () => {
-    window.localStorage.setItem('fleet:drawer-tab', 'summary')
-    renderFocus()
-
-    open('Wait new')
-
-    expect(selectedTab()).toBe('Chat')
+    expect(within(pane()).getByRole('heading', { name: 'Wait old' })).toBeTruthy()
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_wait_old'))
   })
 
   it('shows a session opened from elsewhere inline, even when it is not listed', () => {
@@ -369,20 +350,10 @@ describe('keyboard', () => {
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
   })
 
-  it('c toggles Summary / Chat of the open session; a / d answer nothing unseen', () => {
+  it('a / d answer nothing unseen', () => {
     const { calls } = renderFocus()
 
-    press('c')
-    press('Enter')
-    expect(selectedTab()).toBe('Chat')
-
-    press('c')
-    expect(selectedTab()).toBe('Summary')
-
-    press('c')
-    expect(selectedTab()).toBe('Chat')
-
-    // The list no longer shows asks, so the keys must not answer them blind.
+    // The list shows no asks, so the keys must not answer them blind.
     press('a')
     press('j')
     press('d')

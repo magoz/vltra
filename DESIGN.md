@@ -102,8 +102,8 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
 - `GET /api/fleet/events` → SSE: `fleet.changed` with changed rows (clients refetch on
   reconnect).
 - Actions for the web UI are server actions (typed inputs, per 10x conventions): mark handled,
-  reopen, mark viewed, reply to permission, answer form, send prompt, interrupt (proxied to
-  OpenCode).
+  reopen, mark viewed, reply to permission, answer form (proxied to OpenCode). Follow-ups and Stop
+  happen in OpenCode's own chat.
 - The terminal plugin (runs on the Mac, talks to Fleet over HTTPS) uses the GET routes for
   states (it never recomputes them) and Fleet's JSON mutation routes for handled / reopen /
   launch / dismiss (`POST /api/fleet/sessions/:id/handled`, `.../reopen`, `/api/fleet/launches`,
@@ -140,9 +140,9 @@ count line (`6 need you · 17 working · 2 stuck`) on both pages.
   focus):
   - **Focus (default)**: a left sidebar with only the needs-me list (blocked first, oldest wait
     first; then finished, oldest first, with Handled; rows are just project · worktree, title and
-    age, no asks or answer excerpts, since the chat has them), and the selected session
-    open inline in the rest of the page: the same Summary | Chat tabs as the drawer, Chat (OpenCode
-    web) by default here. Nothing selected: a quiet empty state. Handling the open session opens
+    age, no asks or answer excerpts, since the chat has them), and the selected session's chat
+    (OpenCode web, as in the drawer) open inline in the rest of the page. Nothing selected: a quiet
+    empty state. Handling the open session opens
     the next needs-me session, so triage is `h`, `h`, `h`. Working and handled sessions are not
     listed (the header count line still shows them).
   - **Board**: the four-column kanban below, with the drawer. A header button toggles the modes
@@ -162,21 +162,22 @@ count line (`6 need you · 17 working · 2 stuck`) on both pages.
   worktrees are sections listing needs-me and working sessions; handled ones fold into
   "N handled · last 2h", expandable in place (Reopen there). No time limit yet (maybe 30 days
   later).
-- **Phone**: focus mode is the needs-me list; tapping a session opens it full screen (Chat by
-  default), back returns to the list. Board mode shows one column at a time via a segmented control (`Blocked 2 · Finished
+- **Phone**: focus mode is the needs-me list; tapping a session opens its chat full screen, back
+  returns to the list. Board mode shows one column at a time via a segmented control (`Blocked 2 · Finished
   4 · Working 5 · Handled`), opening on the first non-empty needs-me column. Swipe left on a
   finished card marks it handled (no horizontal column scrolling, so the gesture stays
   unambiguous).
 - **Keyboard (Mac)**: Focus: `j`/`k` move through the list, `Enter` opens the session on the
-  right, `h` handled (the next needs-me session opens), `u` undo, `c` Summary / Chat, `b` board
-  (asks are answered in the chat). Board: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns,
+  right, `h` handled (the next needs-me session opens), `u` undo, `b` board (asks are answered
+  in the chat). Board: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns,
   `h` handled (and next finished card), `u` undo, `a`/`d` approve/deny, `Enter` opens the
   drawer, `Esc` closes, `/` focuses the project filter; focus starts on the first needs-me card.
   Projects: arrows move between cards, `j`/`k` within a card, `Enter` on a card opens its
   filtered board.
 
-Tap a session for its panel (a right-side drawer over either page, full screen on the phone): last messages, changed files, prompt
-box, Interrupt, Handled / Reopen, subagent tree, and two ways out:
+Tap a session for its panel (a right-side drawer over either page, full screen on the phone):
+OpenCode's chat, framed (messages, asks, follow-ups and Stop all happen there), under a slim
+toolbar with Handled / Reopen and two ways out:
 - **Open in OpenCode** → OpenCode's own web UI on the same server, verified deep link
   `https://box.tail129a86.ts.net:9446/server/<base64url(origin)>/session/<id>`
   (`app/src/shell/routes/session.ts`; server key = page origin). Works on Mac and phone after a
@@ -184,7 +185,8 @@ box, Interrupt, Handled / Reopen, subagent tree, and two ways out:
 - **Open in terminal** (Mac only) → `ocb://session/<id>`, handled by a tiny URL-scheme app that
   `macos/setup-box` installs and that opens a new Ghostty window running `ocb -s <id>`.
   The OpenCode desktop app registers no URL scheme, so it cannot be targeted.
-- Copy `ocb -s <id>` as the always-works fallback. Live via SSE. Installable to the phone home screen.
+
+Live via SSE. Installable to the phone home screen.
 
 **Launcher and worktrees (web; the terminal plugin uses the same Fleet routes):** a
 sessionizer for agents. Everything that touches disk runs on Box; clients only call Fleet and
