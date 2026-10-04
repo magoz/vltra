@@ -18,6 +18,7 @@ import {
   worktreeLabel
 } from '@/lib/data/fleet/board'
 import type { AgentsBoard, BoardRow, LiveFleet } from '@/lib/data/fleet/board'
+import { worktreeAt } from '@/lib/data/fleet/checkouts'
 import { fromSnapshot as modelFromSnapshot } from '@/lib/data/fleet/model'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
 import { buildSnapshot } from '@/lib/data/fleet/snapshot'
@@ -28,6 +29,8 @@ import type {
   FleetRow,
   Launch,
   LauncherEntry,
+  LauncherList,
+  PullRequest,
   SessionRecord
 } from '@/lib/data/fleet/types'
 import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
@@ -455,6 +458,50 @@ describe('worktree labels', () => {
     expect(
       worktreeLabel(withSubdirectory, { projectID: 'prj_fleet', directory: `${fleet}/packages/ui` })
     ).toBe('packages/ui')
+  })
+
+  it("drops the repository's name a sibling worktree folder repeats", () => {
+    expect(
+      worktreeLabel(live, {
+        projectID: 'prj_fleet',
+        directory: '/home/magoz/dev/repos/fleet-feat-x'
+      })
+    ).toBe('feat-x')
+    // Only a real prefix: a folder that merely starts with the name keeps it all.
+    expect(
+      worktreeLabel(live, { projectID: 'prj_fleet', directory: '/home/magoz/dev/repos/fleetwood' })
+    ).toBe('fleetwood')
+  })
+})
+
+describe('worktree lookup', () => {
+  const pr: PullRequest = { state: 'open', number: 3, url: 'https://github.com/o/fleet/pull/3' }
+
+  const list: LauncherList = {
+    generatedAt: baseTime,
+    entries: [
+      {
+        name: 'fleet',
+        directory: fleet,
+        sessions: { blocked: 0, working: 0, finished: 0, handled: 0 },
+        worktrees: [
+          {
+            directory: worktree,
+            branch: 'feat/panel',
+            owner: 'dotfiles',
+            pr,
+            sessions: { blocked: 0, working: 0, finished: 0, handled: 0 }
+          }
+        ]
+      }
+    ]
+  }
+
+  it('finds the worktree a session runs in (or below), none for the primary or before load', () => {
+    expect(worktreeAt(list, worktree)?.pr).toEqual(pr)
+    expect(worktreeAt(list, `${worktree}/packages/ui`)?.branch).toBe('feat/panel')
+    expect(worktreeAt(list, fleet)).toBeUndefined()
+    expect(worktreeAt(undefined, worktree)).toBeUndefined()
   })
 })
 

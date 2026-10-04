@@ -75,10 +75,11 @@ describe('columns', () => {
     )
   })
 
-  it('shows project · worktree on every card, Other sessions by their directory', () => {
+  it('shows the project on every card, the worktree under the title, Other sessions by their directory', () => {
     renderBoard()
 
-    expect(within(card('ses_retry')).getByText('fleet · feat-x')).toBeTruthy()
+    expect(within(card('ses_retry')).getByText('fleet')).toBeTruthy()
+    expect(within(card('ses_retry')).getByText('feat-x')).toBeTruthy()
     expect(within(card('ses_run')).getByText('fleet')).toBeTruthy()
     expect(within(card('ses_tmp')).getByText('scratch')).toBeTruthy()
     expect(within(card('ses_retry')).getByText('retrying (2×, rate limited)')).toBeTruthy()

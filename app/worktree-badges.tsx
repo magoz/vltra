@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import type { PullRequest, WorktreeOwner } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
@@ -42,8 +43,9 @@ const prText = (pr: PullRequest): string | undefined => {
 }
 
 /**
- * `#123 open`, `merged · retire` (green: done, time to retire), `closed · retire` (red); nothing
- * without a PR or while unknown. A link to the PR when `link` (not inside a clickable row).
+ * `#123 open`, `merged · retire` (green: done, time to retire), `closed · retire` (red), then the
+ * issues it closes (`· closes #98`); nothing without a PR or while unknown. Links to the PR and
+ * the issues when `link` (not inside a clickable row).
  */
 export function PrBadge({
   pr,
@@ -59,28 +61,54 @@ export function PrBadge({
   if (text === undefined) return null
 
   const classes = cn(
-    'whitespace-nowrap',
     pr.state === 'merged' && 'text-attention',
     pr.state === 'closed' && 'text-destructive',
-    pr.state === 'open' && 'text-muted-foreground',
-    className
+    pr.state === 'open' && 'text-muted-foreground'
   )
 
   const title = pr.number === undefined ? undefined : `Pull request #${pr.number} (${pr.state})`
+  const issues = pr.issues ?? []
 
-  return link && pr.url !== undefined ? (
-    <a
-      href={pr.url}
-      target="_blank"
-      rel="noreferrer"
-      title={title}
-      className={cn(classes, 'hover:underline')}
-    >
-      {text}
-    </a>
-  ) : (
-    <span title={title} className={classes}>
-      {text}
+  return (
+    <span className={cn('whitespace-nowrap', className)}>
+      {link && pr.url !== undefined ? (
+        <a
+          href={pr.url}
+          target="_blank"
+          rel="noreferrer"
+          title={title}
+          className={cn(classes, 'hover:underline')}
+        >
+          {text}
+        </a>
+      ) : (
+        <span title={title} className={classes}>
+          {text}
+        </span>
+      )}
+      {issues.length === 0 ? null : (
+        <span className="text-muted-foreground">
+          {' · closes '}
+          {issues.map((issue, index) => (
+            <Fragment key={issue.number}>
+              {index === 0 ? null : ', '}
+              {link ? (
+                <a
+                  href={issue.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={`Issue #${issue.number}`}
+                  className="hover:underline"
+                >
+                  #{issue.number}
+                </a>
+              ) : (
+                `#${issue.number}`
+              )}
+            </Fragment>
+          ))}
+        </span>
+      )}
     </span>
   )
 }

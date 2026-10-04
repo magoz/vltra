@@ -102,7 +102,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 case "$branch" in
-  feat/x) echo '[{"number":12,"state":"MERGED","url":"https://github.com/o/alpha/pull/12"}]' ;;
+  feat/x) echo '[{"number":12,"state":"MERGED","url":"https://github.com/o/alpha/pull/12","closingIssuesReferences":[{"id":"I_1","number":9,"url":"https://github.com/o/alpha/issues/9","repository":{"name":"alpha"}}]}]' ;;
   fix/y) echo '[]' ;;
   slow/z) sleep 1; echo '[{"number":7,"state":"OPEN","url":"https://github.com/o/alpha/pull/7"}]' ;;
   *) echo 'HTTP 502' >&2; exit 1 ;;
@@ -212,7 +212,8 @@ describe('ReposLive', () => {
       expect(yield* repos.pullRequest({ repo: alpha, branch: 'feat/x' })).toEqual({
         state: 'merged',
         number: 12,
-        url: 'https://github.com/o/alpha/pull/12'
+        url: 'https://github.com/o/alpha/pull/12',
+        issues: [{ number: 9, url: 'https://github.com/o/alpha/issues/9' }]
       })
       expect(yield* repos.pullRequest({ repo: alpha, branch: 'fix/y' })).toEqual({ state: 'none' })
       expect(yield* repos.pullRequest({ repo: alpha, branch: 'feat/broken' })).toEqual({
@@ -221,7 +222,7 @@ describe('ReposLive', () => {
 
       // Run in the repository, exactly as specified.
       expect(readFileSync(ghLog, 'utf8').split('\n')[0]).toBe(
-        `${alpha} pr list --head feat/x --state all --json number,state,url --limit 1`
+        `${alpha} pr list --head feat/x --state all --json number,state,url,closingIssuesReferences --limit 1`
       )
 
       const calls = ghCalls()

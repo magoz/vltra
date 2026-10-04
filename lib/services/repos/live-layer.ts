@@ -274,7 +274,7 @@ export const makeRepos = (options: ReposOptions) =>
             '--state',
             'all',
             '--json',
-            'number,state,url',
+            'number,state,url,closingIssuesReferences',
             '--limit',
             '1'
           ],

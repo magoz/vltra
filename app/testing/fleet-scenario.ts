@@ -122,7 +122,12 @@ export const launcherList = (): LauncherList => ({
           directory: worktree,
           branch: 'feat/x',
           owner: 'dotfiles',
-          pr: { state: 'open', number: 7, url: 'https://github.com/o/fleet/pull/7' },
+          pr: {
+            state: 'open',
+            number: 7,
+            url: 'https://github.com/o/fleet/pull/7',
+            issues: [{ number: 4, url: 'https://github.com/o/fleet/issues/4' }]
+          },
           sessions: tally({ working: 1 }),
           latestSession: 'ses_retry',
           activeAt: now - 3 * hour

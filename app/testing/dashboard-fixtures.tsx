@@ -1,3 +1,5 @@
+import { LauncherProvider } from '@/app/launcher-context'
+import type { Launcher } from '@/app/launcher-context'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { CurrentTab } from '@/app/current-tab'
@@ -194,6 +196,9 @@ export function WithActions({
 }
 
 /** A tab-and-session stand-in for card tests: the Agents tab, nothing open. */
+/** No launcher list (as before it loads): cards show no branch or PR. */
+const noLauncher: Launcher = { list: undefined, open: () => undefined, reload: () => undefined }
+
 const staticNav: FleetNav = {
   screen: 'focus',
   project: undefined,
@@ -237,7 +242,9 @@ export function WithFleet({
 
   return (
     <WithActions actions={actions} rows={rows}>
-      <FleetProvider fleet={fleet}>{children}</FleetProvider>
+      <FleetProvider fleet={fleet}>
+        <LauncherProvider launcher={noLauncher}>{children}</LauncherProvider>
+      </FleetProvider>
     </WithActions>
   )
 }

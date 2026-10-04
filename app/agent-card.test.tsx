@@ -55,13 +55,14 @@ afterEach(() => {
 })
 
 describe('card header', () => {
-  it('shows project · worktree, title and age, and opens the session on click', () => {
+  it('shows the project, title and age, the worktree under the title, and opens the session on click', () => {
     const row = rowFrom({ sessions: [sessionRecord('ses_1', { title: 'Fleet watcher' })] }, 'ses_1')
     const { onSelect } = renderCard(row)
     const link = screen.getByRole('link', { name: 'Fleet watcher' })
 
     expect(link.getAttribute('href')).toBe('/?session=ses_1')
-    expect(screen.getByText('fleet · feat-panel')).toBeTruthy()
+    expect(screen.getByText('fleet')).toBeTruthy()
+    expect(screen.getByText('feat-panel')).toBeTruthy()
     expect(screen.getByText('5m')).toBeTruthy()
 
     fireEvent.click(link)

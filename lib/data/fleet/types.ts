@@ -446,10 +446,17 @@ export type RepoCheckout = typeof RepoCheckout.Type
  * A worktree branch's pull request, from `gh` on Box: `unknown` when the lookup failed (or is
  * still running), `none` when the branch has no PR.
  */
+/** An issue a pull request closes (GitHub's closing references: "Closes #12", linked issues). */
+export const ClosingIssue = Schema.Struct({ number: Schema.Number, url: Schema.String })
+
+export type ClosingIssue = typeof ClosingIssue.Type
+
 export const PullRequest = Schema.Struct({
   state: Schema.Literals(['unknown', 'none', 'open', 'merged', 'closed']),
   number: Schema.optional(Schema.Number),
-  url: Schema.optional(Schema.String)
+  url: Schema.optional(Schema.String),
+  /** The issues it closes, when it has any. */
+  issues: Schema.optional(Schema.Array(ClosingIssue))
 })
 
 export type PullRequest = typeof PullRequest.Type

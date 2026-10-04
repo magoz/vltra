@@ -141,7 +141,13 @@ export const worktreeLabel = (
     if (row.directory.startsWith(prefix)) return row.directory.slice(prefix.length)
   }
 
-  return lastSegment(row.directory)
+  // A worktree's folder repeats its repository's (`speldosa-feat-x`): the rest is enough.
+  const folder = lastSegment(row.directory)
+  const prefix = project === undefined ? undefined : `${lastSegment(project.directory)}-`
+
+  return prefix !== undefined && folder.startsWith(prefix) && folder.length > prefix.length
+    ? folder.slice(prefix.length)
+    : folder
 }
 
 /** OpenCode's `global` project (sessions outside any repository) has `/` as its directory. */

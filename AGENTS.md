@@ -132,9 +132,12 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first, each card
   badged `blocked`), then finished (oldest first). Working: stuck first, then newest session (`created`, so live activity does not reshuffle).
   Done (handled): active in the last 24h, newest first, then "N more → Projects". Cards
-  (`agent-card.tsx`) are minimal: marker (red for a failed run), project · worktree (`boardRow`;
-  the global project's sessions by their directory), the `blocked` badge, `✔ Done` left of the age (finished; with a mouse
-  only on hover, the project name giving way; on touch always), age, title, flags for
+  (`agent-card.tsx`) are minimal: marker (red for a failed run), the project (`boardRow`; the
+  global project's sessions by their directory), the `blocked` badge, `✔ Done` left of the age
+  (finished; with a mouse only on hover, the project name giving way; on touch always), age,
+  title, then for worktree sessions a line with the worktree (`worktreeLabel`: its folder minus
+  the repo's `<name>-` prefix) left and its PR plus the issues it closes right, linked
+  (`worktreeAt` in the launcher list; none before it loads or for the primary checkout), flags for
   `retrying (n×, …)` / `quiet Nm` and "folder deleted", Reopen (handled, not for "folder
   deleted"). Asks, answers and live activity are left to the chat. `?project=<projectKey>`
   (`other` = the global project) narrows every column: a select (`/` focuses it) and a chip with ×
@@ -180,7 +183,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first,
   the board at the top of Working. In memory on the server: lost on restart; ready ones stay in the
   registry 10 minutes (the page's auto-open, the plugin) but no longer show on the web.
 - **Projects worktrees**: a card for a launcher repo shows each worktree section under its branch
-  with `pi` / `detached`, the PR (`#123 open`, `merged · retire`, `closed · retire`, linked) and,
+  with `pi` / `detached`, the PR (`#123 open`, `merged · retire`, `closed · retire`, then `· closes #98` from
+  GitHub's closing references, same `gh pr list` call; linked) and,
   for dotfiles-owned worktrees, **Retire** (`retire-worktree.tsx`: disabled with "N sessions there
   are working or blocked" while busy; a confirmation listing what happens; `retireWorktree`, toast).
   The repo's other branch worktrees follow as sections without sessions (`cardSections`).

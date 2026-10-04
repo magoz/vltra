@@ -146,7 +146,7 @@ only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
   is Focus):
   - **Focus (default)**: a left sidebar with only the needs-me list, one list with no headings
     and no project filter (blocked first, oldest wait first, each badged `blocked`; then
-    finished, oldest first, with Handled; rows are just project · worktree, title and
+    finished, oldest first, with Handled; rows are just project, title, the worktree with its PR (and the issues it closes) and
     age, no asks or answer excerpts, since the chat has them), and the selected session open
     inline in the rest of the page: its chat, the same panel as the splits. Nothing selected: a
     quiet empty state. Handling the open session opens the next needs-me session, so triage is
@@ -156,7 +156,7 @@ only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
   - **Agents**: the three-column kanban below, split with the open session's chat. Its own tab
     (`b` toggles Focus ↔ Agents); the view lives in the URL so links and the back button keep it.
 - **Agents = a kanban by state** across all projects, columns `Need you | Working | Done`.
-  Cards are minimal, like Focus' rows: project · worktree, title and age, a red mark for
+  Cards are minimal, like Focus' rows: project, title and age, the worktree with its PR, a red mark for
   failures; asks, answers and live activity are left to the chat. Need you: blocked first
   (oldest wait first, each with a `blocked` badge), then finished (oldest first, **✔ Done**, undo
   toast). Working: stuck first, with the stuck label. Done column: last 24h only, then

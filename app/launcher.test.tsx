@@ -112,7 +112,7 @@ describe('launcher palette', () => {
       'repo anvil'
     ])
     // Under their repository, worktrees go by branch alone.
-    expect(rows()[1]).toBe('worktree └ feat/x#7 open1 working3h')
+    expect(rows()[1]).toBe('worktree └ feat/x#7 open · closes #41 working3h')
     expect(rows()[3]).toContain('pi/thing')
     expect(rows()[3]).toContain('pi')
     // Only the highlighted row shows what it starts; no open-latest, no separate New row.
@@ -376,6 +376,31 @@ describe('pending launches', () => {
     expect(navigations).toEqual([])
     expect(testLocation()).toBe('/?session=ses_done_old')
     expect(screen.queryByRole('list', { name: 'Launches' })).toBeNull()
+  })
+})
+
+describe('cards', () => {
+  it("link a worktree session's PR and the issues it closes, right of the worktree", async () => {
+    renderDashboard({ screen: 'agents' })
+
+    const retry = document.querySelector('li[data-session="ses_retry"]')
+
+    if (!(retry instanceof HTMLElement)) throw new Error('missing ses_retry')
+
+    expect(within(retry).getByText('feat-x').getAttribute('title')).toBe(
+      '/home/magoz/.local/share/opencode/worktree/fleet/feat-x'
+    )
+
+    const pr = await within(retry).findByRole('link', { name: '#7 open' })
+
+    expect(pr.getAttribute('href')).toBe('https://github.com/o/fleet/pull/7')
+    expect(within(retry).getByRole('link', { name: '#4' }).getAttribute('href')).toBe(
+      'https://github.com/o/fleet/issues/4'
+    )
+    // A primary-checkout session has no worktree line.
+    const run = document.querySelector('li[data-session="ses_run"]')
+
+    expect(run?.textContent).not.toContain('#7')
   })
 })
 

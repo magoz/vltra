@@ -90,7 +90,10 @@ const PullRequestList = Schema.fromJsonString(
     Schema.Struct({
       number: Schema.Number,
       state: Schema.Literals(['OPEN', 'CLOSED', 'MERGED']),
-      url: Schema.String
+      url: Schema.String,
+      closingIssuesReferences: Schema.optional(
+        Schema.Array(Schema.Struct({ number: Schema.Number, url: Schema.String }))
+      )
     })
   )
 )
@@ -102,8 +105,9 @@ const prStates = { OPEN: 'open', CLOSED: 'closed', MERGED: 'merged' } as const
 export const unknownPullRequest: PullRequest = { state: 'unknown' }
 
 /**
- * `gh pr list --head <branch> --state all --json number,state,url --limit 1`: the newest PR, `none`
- * for an empty list, `unknown` for anything unreadable.
+ * `gh pr list --head <branch> --state all --json number,state,url,closingIssuesReferences --limit 1`:
+ * the newest PR with the issues it closes, `none` for an empty list, `unknown` for anything
+ * unreadable.
  */
 export const parsePullRequests = (output: string): PullRequest =>
   Option.match(decodePullRequests(output), {
@@ -111,9 +115,20 @@ export const parsePullRequests = (output: string): PullRequest =>
     onSome: (list): PullRequest => {
       const latest = list[0]
 
-      return latest === undefined
-        ? { state: 'none' }
-        : { state: prStates[latest.state], number: latest.number, url: latest.url }
+      if (latest === undefined) return { state: 'none' }
+
+      const pr: PullRequest = {
+        state: prStates[latest.state],
+        number: latest.number,
+        url: latest.url
+      }
+
+      const issues = (latest.closingIssuesReferences ?? []).map(issue => ({
+        number: issue.number,
+        url: issue.url
+      }))
+
+      return issues.length === 0 ? pr : { ...pr, issues }
     }
   })
 

@@ -3,12 +3,15 @@
 import { useEffect, useRef } from 'react'
 import { sessionTitle, stuckText } from '@/app/fleet-format'
 import { useFleet } from '@/app/fleet-context'
+import { useLauncher } from '@/app/launcher-context'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
 import { Age, FactLine, GoneLabel, isReopenable, RowLink } from '@/app/session-row'
 import { StateMarker } from '@/app/state-marker'
 import { useHandled } from '@/app/use-handled'
+import { PrBadge } from '@/app/worktree-badges'
 import { useSwipeLeft } from '@/app/use-swipe'
 import type { BoardRow } from '@/lib/data/fleet/board'
+import { worktreeAt } from '@/lib/data/fleet/checkouts'
 import type { FleetRow } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
@@ -30,10 +33,32 @@ function Flags({ row, now }: { readonly row: FleetRow; readonly now: number }) {
 }
 
 /**
+ * Where a worktree session runs, under its title: the worktree (its folder without the
+ * repository's name) on the left, its PR and the issues that closes on the right, linked (from
+ * the launcher's list, once loaded). Nothing for a repository's primary checkout.
+ */
+function WorktreeLine({ item }: { readonly item: BoardRow }) {
+  const { list } = useLauncher()
+
+  if (item.worktree === undefined) return null
+
+  const pr = worktreeAt(list, item.row.directory)?.pr
+
+  return (
+    <div className="text-muted-foreground flex items-baseline gap-3 text-xs">
+      <span title={item.row.directory} className="min-w-0 flex-1 truncate">
+        {item.worktree}
+      </span>
+      {pr === undefined ? null : <PrBadge pr={pr} link className="relative z-10 shrink-0" />}
+    </div>
+  )
+}
+
+/**
  * A session's card, on the Agents board and in focus mode's list: marker (red for a failed run),
- * project · worktree, a "blocked" badge (both lists hold blocked and finished alike), `✔ Done`
+ * project, a "blocked" badge (both lists hold blocked and finished alike), `✔ Done`
  * left of the age when finished (with a mouse only on hover, the project name giving way; on
- * touch always, and swiping left does the same), age, title, the stuck /
+ * touch always, and swiping left does the same), age, title, the worktree line (`WorktreeLine`), the stuck /
  * "folder deleted" flags, then Reopen when done. Asks, answers and activity are left to the
  * chat. `cursor` is the keyboard focus. `compact` is focus mode's list row: no box of its own, a
  * hairline under it, tighter spacing, and the open session tinted.
@@ -94,10 +119,7 @@ export function AgentCard({
             failed={row.outcome === 'failed'}
             className="shrink-0 translate-y-px self-center"
           />
-          <span className="min-w-0 flex-1 truncate">
-            {item.project}
-            {item.worktree === undefined ? null : ` · ${item.worktree}`}
-          </span>
+          <span className="min-w-0 flex-1 truncate">{item.project}</span>
           {row.state === 'blocked' ? (
             <span className="border-attention text-attention shrink-0 border px-1">blocked</span>
           ) : null}
@@ -120,6 +142,7 @@ export function AgentCard({
         >
           {sessionTitle(row)}
         </RowLink>
+        <WorktreeLine item={item} />
         <Flags row={row} now={now} />
         {isReopenable(row) ? (
           <div className="flex">

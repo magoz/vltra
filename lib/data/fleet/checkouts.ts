@@ -1,4 +1,9 @@
-import type { FleetChildRow, FleetRow } from '@/lib/data/fleet/types'
+import type {
+  FleetChildRow,
+  FleetRow,
+  LauncherList,
+  LauncherWorktree
+} from '@/lib/data/fleet/types'
 
 // Which sessions belong to a checkout (a repository's primary or a worktree), for the launcher
 // and the Projects page. Pure and free of Node APIs, so the browser uses it too.
@@ -30,3 +35,20 @@ export const busySessions = (
   rows
     .flatMap((row): ReadonlyArray<FleetRow | FleetChildRow> => [row, ...row.children])
     .filter(row => isWithin(row.directory, directory) && busyStates.includes(row.ownState))
+
+/**
+ * The launcher's linked worktree a session runs in (`directory` or below it; the deepest match),
+ * for its branch and PR; none for a repository's primary checkout or before the list loads.
+ */
+export const worktreeAt = (
+  list: LauncherList | undefined,
+  directory: string
+): LauncherWorktree | undefined =>
+  (list?.entries ?? [])
+    .flatMap(entry => entry.worktrees)
+    .filter(worktree => isWithin(directory, worktree.directory))
+    .reduce<LauncherWorktree | undefined>(
+      (best, worktree) =>
+        best === undefined || worktree.directory.length > best.directory.length ? worktree : best,
+      undefined
+    )
