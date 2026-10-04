@@ -6,7 +6,6 @@ import { toast } from 'sonner'
 import { settled, useFleetActions } from '@/app/fleet-actions'
 import { useFleet } from '@/app/fleet-context'
 import { elapsedText } from '@/app/fleet-format'
-import { FactLine } from '@/app/session-row'
 import { Button } from '@/components/ui/button'
 import type { Launch } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
@@ -64,7 +63,7 @@ function DismissButton({ launch }: { readonly launch: Launch }) {
   )
 }
 
-/** Setting up: an outlined square, pulsing; failed: filled red. */
+/** Setting up: a dashed square, pulsing (no session marker looks like it); failed: filled red. */
 function LaunchMarker({ failed }: { readonly failed: boolean }) {
   return (
     <span
@@ -74,7 +73,7 @@ function LaunchMarker({ failed }: { readonly failed: boolean }) {
         'inline-block size-2.5 shrink-0 translate-y-px self-center border',
         failed
           ? 'border-destructive bg-destructive'
-          : 'border-foreground animate-pulse motion-reduce:animate-none'
+          : 'border-foreground animate-pulse border-dashed motion-reduce:animate-none'
       )}
     />
   )
@@ -112,14 +111,14 @@ function LaunchCard({ launch, compact }: { readonly launch: Launch; readonly com
           {failed ? <DismissButton launch={launch} /> : null}
         </div>
         <p className="line-clamp-2 font-semibold break-words">{launch.task}</p>
-        <FactLine>
+        <div className="text-muted-foreground flex flex-wrap gap-x-3.5 gap-y-0.5 text-xs break-words">
           {failed ? (
             <span className="text-destructive">{launch.error ?? 'Launch failed'}</span>
           ) : (
             <span>{statusText[launch.status]}</span>
           )}
           {failed && launch.preserved !== undefined ? <span>{launch.preserved}</span> : null}
-        </FactLine>
+        </div>
       </div>
     </li>
   )

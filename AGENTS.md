@@ -172,7 +172,7 @@ Handled` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait fir
 - **Launches** (`live.launches`, from the snapshot and `fleet.changed`) show only while they have
   no session of their own (`pendingLaunches` in `board.ts`): setting up, or failed. Once ready, a
   launch is just its session, listed like any other (working, so on the board, not in focus mode's
-  list). Cards shaped like `AgentCard` (`pending-launches.tsx`: pulsing outlined marker,
+  list). Cards shaped like `AgentCard` (`pending-launches.tsx`: pulsing dashed marker,
   repo · branch, a ticking clock, the task as title, `provisioning…` / `starting the session…`;
   failures red with what was kept and ×): focus mode's **Provisioning** above Blocked (compact),
   the board at the top of Working. In memory on the server: lost on restart; ready ones stay in the
