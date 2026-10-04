@@ -45,6 +45,7 @@ describe('shortcuts', () => {
       '/ filter',
       '⌘1–9 Nth session (Focus)',
       '1 2 3 ⌘⌥1–3 tabs',
+      'i ⌘I type in the chat',
       'esc close the session',
       '? shortcuts'
     ])

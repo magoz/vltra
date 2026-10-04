@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import type { RefObject } from 'react'
+import { focusComposer } from '@/app/chat-composer'
 import { useChatFrame } from '@/app/chat-keys'
 import { CommandKey, commandKey, inDialog } from '@/app/command-keys'
 import { useFleet } from '@/app/fleet-context'
@@ -10,6 +12,7 @@ import { HandledButton, ReopenButton } from '@/app/handled-button'
 import { isReopenable } from '@/app/session-row'
 import { StateMarker } from '@/app/state-marker'
 import { useHandled } from '@/app/use-handled'
+import { useKeys } from '@/app/use-keys'
 import { Button } from '@/components/ui/button'
 import { boardRow } from '@/lib/data/fleet/board'
 import type { BoardRow } from '@/lib/data/fleet/board'
@@ -64,6 +67,32 @@ function useDoneKey(row: BoardRow['row'] | undefined) {
 }
 
 /**
+ * `i` and `⌘I` put the caret in the chat's composer (back after `Escape`); `⌘I` also from a Fleet
+ * field. Not in dialogs.
+ */
+function useInsertKeys(frame: RefObject<HTMLIFrameElement | null>) {
+  const insert = () => {
+    if (frame.current !== null) focusComposer(frame.current)
+  }
+
+  useKeys({ i: insert })
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const chord = commandKey(event)
+
+      if (chord === undefined || !CommandKey.$is('Insert')(chord) || inDialog(event)) return
+
+      if (frame.current !== null) focusComposer(frame.current)
+    }
+
+    document.addEventListener('keydown', onKey)
+
+    return () => document.removeEventListener('keydown', onKey)
+  }, [frame])
+}
+
+/**
  * OpenCode's own web UI for the session (`row.links.web`), framed. Served from Fleet's origin
  * (`proxy.ts`), so a browser paired once there (`opencode pair`) stays signed in and the keys
  * pressed in the chat that it does not own reach Fleet (`useChatFrame`). OpenCode has no embed
@@ -72,6 +101,8 @@ function useDoneKey(row: BoardRow['row'] | undefined) {
 function OpenCodeChat({ url, title }: { readonly url: string; readonly title: string }) {
   const frame = useRef<HTMLIFrameElement>(null)
   const loaded = useChatFrame(frame)
+
+  useInsertKeys(frame)
 
   return (
     <div className="relative min-h-0 flex-1">

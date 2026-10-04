@@ -3,7 +3,7 @@ import type { FleetScreen } from '@/app/fleet-href'
 
 /**
  * Fleet's `⌘` chords: `⌘1`–`⌘9` the Nth session of Focus' list, `⌘⌥1`–`⌘⌥3` a tab, `⌘D` the open
- * session done, `⌘U` undo (the tab's `u`). They work everywhere but dialogs, in the OpenCode chat
+ * session done, `⌘U` undo (the tab's `u`), `⌘I` into the chat's composer. They work everywhere but dialogs, in the OpenCode chat
  * too, even while typing.
  */
 export type CommandKey = Data.TaggedEnum<{
@@ -11,6 +11,7 @@ export type CommandKey = Data.TaggedEnum<{
   Tab: { readonly screen: FleetScreen }
   Done: Record<never, never>
   Undo: Record<never, never>
+  Insert: Record<never, never>
 }>
 
 export const CommandKey = Data.taggedEnum<CommandKey>()
@@ -30,6 +31,8 @@ export const commandKey = (event: ChordEvent): CommandKey | undefined => {
   if (event.code === 'KeyD') return event.altKey ? undefined : CommandKey.Done()
 
   if (event.code === 'KeyU') return event.altKey ? undefined : CommandKey.Undo()
+
+  if (event.code === 'KeyI') return event.altKey ? undefined : CommandKey.Insert()
 
   const digit = /^Digit([1-9])$/.exec(event.code)?.[1]
 

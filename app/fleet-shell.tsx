@@ -109,7 +109,7 @@ function useLauncherShortcut(open: () => void) {
  * Fleet's `⌘` chords (`commandKey`) from anywhere, in the OpenCode chat too (`forwardChatKeys`),
  * even while typing; not in a dialog. Always taken, so the browser never acts instead (switching
  * tabs, `⌘D`'s bookmark); `⌘D` itself is the open session panel's (`useDoneKey`), `⌘U` the tab's
- * `u` (`useKeys`).
+ * `u` (`useKeys`), `⌘I` the chat's (`useInsertKeys`).
  */
 function useCommandKeys(run: (chord: CommandKey) => void) {
   const latest = useRef(run)
@@ -207,7 +207,8 @@ export function FleetShell({
         }
       },
       Done: () => undefined,
-      Undo: () => undefined
+      Undo: () => undefined,
+      Insert: () => undefined
     })
   )
 

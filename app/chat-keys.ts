@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { RefObject } from 'react'
+import { autoFocusComposer } from '@/app/chat-composer'
 import { commandKey, isLauncherKey } from '@/app/command-keys'
 
 /** Typing in a field of the chat (OpenCode's composer, a search box). */
@@ -123,9 +124,9 @@ const hasLoaded = (frame: HTMLIFrameElement) => {
 
 /**
  * Whether the chat frame has loaded, with its keys forwarded to Fleet (`forwardChatKeys`) for
- * each document it loads. A native `load` listener, plus a check at mount: the frame comes in the
- * server-rendered HTML and can finish loading before hydration, so React's `onLoad` would miss
- * it.
+ * each document it loads, and its composer focused once, on the first (`autoFocusComposer`). A
+ * native `load` listener, plus a check at mount: the frame comes in the server-rendered HTML and
+ * can finish loading before hydration, so React's `onLoad` would miss it.
  */
 export function useChatFrame(frame: RefObject<HTMLIFrameElement | null>): boolean {
   const [loaded, setLoaded] = useState(false)
@@ -136,11 +137,13 @@ export function useChatFrame(frame: RefObject<HTMLIFrameElement | null>): boolea
     if (element === null) return
 
     let detach: (() => void) | undefined
+    let stopFocus: (() => void) | undefined
 
     const attach = () => {
       setLoaded(true)
       detach?.()
       detach = forwardChatKeys(element)
+      stopFocus ??= autoFocusComposer(element)
     }
 
     element.addEventListener('load', attach)
@@ -150,6 +153,7 @@ export function useChatFrame(frame: RefObject<HTMLIFrameElement | null>): boolea
     return () => {
       element.removeEventListener('load', attach)
       detach?.()
+      stopFocus?.()
     }
   }, [frame])
 

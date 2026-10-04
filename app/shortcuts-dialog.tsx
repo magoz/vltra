@@ -20,6 +20,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: 'n ⌘/', label: 'new' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
     { keys: '1 2 3 ⌘⌥1–3', label: 'tabs' },
+    { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
     { keys: '?', label: 'shortcuts' }
   ],
@@ -34,6 +35,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: '/', label: 'filter' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
     { keys: '1 2 3 ⌘⌥1–3', label: 'tabs' },
+    { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
     { keys: '?', label: 'shortcuts' }
   ],
@@ -44,6 +46,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: 'n ⌘/', label: 'new' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
     { keys: '1 2 3 ⌘⌥1–3', label: 'tabs' },
+    { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
     { keys: '?', label: 'shortcuts' }
   ]

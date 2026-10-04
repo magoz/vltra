@@ -9,6 +9,7 @@ import { CommandKey, commandKey } from '@/app/command-keys'
  * OpenCode chat that it does not own reach here too (`forwardChatKeys`).
  */
 export type FleetKey =
+  | 'i'
   | 'n'
   | 'b'
   | 'j'
@@ -31,6 +32,7 @@ export type FleetKey =
 export type KeyBindings = { readonly [Key in FleetKey]?: (() => void) | undefined }
 
 const fleetKeys: ReadonlyArray<string> = [
+  'i',
   'n',
   'b',
   'j',

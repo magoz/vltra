@@ -30,8 +30,9 @@ describe('commandKey', () => {
     expect(commandKey(chord('KeyD', { shift: true }))).toBeUndefined()
   })
 
-  it('⌘U undoes', () => {
+  it('⌘U undoes, ⌘I goes into the composer', () => {
     expect(commandKey(chord('KeyU'))).toEqual(CommandKey.Undo())
+    expect(commandKey(chord('KeyI'))).toEqual(CommandKey.Insert())
     expect(commandKey(chord('KeyU', { alt: true }))).toBeUndefined()
   })
 

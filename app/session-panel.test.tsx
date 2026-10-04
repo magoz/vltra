@@ -49,6 +49,7 @@ const doneRow = (fields: Partial<SessionRecord> = {}) =>
 
 afterEach(() => {
   cleanup()
+  vi.unstubAllGlobals()
 })
 
 describe('session panel', () => {
@@ -69,6 +70,43 @@ describe('session panel', () => {
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Interrupt' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Done' })).toBeNull()
+  })
+
+  it("i and ⌘I put the caret in the chat's composer", () => {
+    // A phone pointer: no auto-focus on load, only the keys.
+    vi.stubGlobal('matchMedia', () => ({ matches: false }))
+    renderPanel(workingRow())
+
+    const frameDocument = document.querySelector('iframe')?.contentDocument
+
+    if (frameDocument === null || frameDocument === undefined) throw new Error('no frame document')
+
+    // jsdom loads no remote document: write OpenCode's composer in by hand.
+    frameDocument.open()
+    frameDocument.write(
+      '<!doctype html><body><div data-component="composer-editor" contenteditable="true"></div></body>'
+    )
+    frameDocument.close()
+
+    const editor = frameDocument.querySelector<HTMLElement>('[data-component="composer-editor"]')
+
+    if (editor === null) throw new Error('no editor')
+
+    fireEvent.keyDown(document.body, { key: 'i' })
+
+    expect(frameDocument.activeElement).toBe(editor)
+
+    editor.blur()
+    expect(frameDocument.activeElement).not.toBe(editor)
+
+    // ⌘I also from a Fleet field.
+    const field = document.createElement('input')
+
+    document.body.append(field)
+    fireEvent.keyDown(field, { key: 'i', code: 'KeyI', metaKey: true })
+    field.remove()
+
+    expect(frameDocument.activeElement).toBe(editor)
   })
 
   it('offers Done (phone only; desktop has the card), not Reopen, for a finished run', async () => {
