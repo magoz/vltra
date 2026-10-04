@@ -240,10 +240,13 @@ OpenCode.
 
 **Later (not part of the redesign):** Web Push for blocked agents only (debounced, one
 summary for bursts; subscriptions in a small file next to the app), mute for sessions to
-ignore forever, and a "handle this batch" action per worktree. Video attachments: OpenCode drops anything but images/PDF/text (`to-llm-message.ts`),
-so a terminal-plugin "Attach video" command would upload to Fleet, which stores the file in the
-session's worktree (`.fleet/media/`, git-excluded) and extracts key frames with `ffmpeg` on Box
-for the agent to `read`.
+ignore forever, and a "handle this batch" action per worktree. Video attachments (deferred): OpenCode forwards only images/PDF/text to the model
+(`core/src/session/runner/to-llm-message.ts`) and the TUI composer only attaches images/PDF
+(`tui/src/component/prompt/local-attachment.ts`; no plugin can extend it). Plan: a dotfiles
+server plugin on the documented `session.prompt` hook that saves a video on Box and replaces it
+with `ffmpeg` key frames (as image attachments) plus a note with the saved path; inputs via a
+terminal-plugin "Attach video" command (inline, ≤20 MB) and/or Taildrop (`tailscale file get`
+into `~/Taildrop`) with video paths in the prompt text resolved there.
 
 ## Stack and repo
 
