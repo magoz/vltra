@@ -196,7 +196,7 @@ const allRows = (live: LiveFleet) => Array.from(live.rows.values(), row => board
 const projectRows = (live: LiveFleet, project: string | undefined) =>
   allRows(live).filter(item => project === undefined || projectKey(live, item.row) === project)
 
-/** The sessions that need me: the board's Needs you column, and focus mode's list. */
+/** The sessions that need me: the board's Need you column, and focus mode's list. */
 export type NeedsMe = {
   readonly blocked: ReadonlyArray<BoardRow>
   readonly finished: ReadonlyArray<BoardRow>
@@ -215,7 +215,7 @@ const needsMeOf = (rows: ReadonlyArray<BoardRow>): NeedsMe => ({
 export const buildNeedsMe = (live: LiveFleet, project: string | undefined): NeedsMe =>
   needsMeOf(projectRows(live, project))
 
-/** Needs-me order (focus mode's list, the board's Needs you column): blocked, then finished. */
+/** Needs-me order (focus mode's list, the board's Need you column): blocked, then finished. */
 export const needsMeOrder = (needsMe: NeedsMe): ReadonlyArray<BoardRow> => [
   ...needsMe.blocked,
   ...needsMe.finished
@@ -265,7 +265,7 @@ export const buildAgentsBoard = (
   }
 }
 
-/** The phone shows one column: Needs you when it has cards, else Working. */
+/** The phone shows one column: Need you when it has cards, else Working. */
 export const initialColumn = (board: AgentsBoard): BoardColumn =>
   board.columns.needsYou.length > 0 ? 'needsYou' : 'working'
 

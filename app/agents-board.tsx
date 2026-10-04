@@ -17,7 +17,7 @@ import type { Launch } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
 const columnNames: Readonly<Record<BoardColumn, string>> = {
-  needsYou: 'Needs you',
+  needsYou: 'Need you',
   working: 'Working',
   handled: 'Handled'
 }
@@ -169,7 +169,7 @@ function Column({
   )
 }
 
-/** The phone's column picker: `Needs you 6 · Working 5 · Handled`. */
+/** The phone's column picker: `Need you 6 · Working 5 · Handled`. */
 function Segments({
   board,
   current,
@@ -309,7 +309,7 @@ function Board({ project }: { readonly project: string | undefined }) {
 
 /**
  * The Agents tab (`?view=agents`, DESIGN.md "Clients" → Web): a kanban board by state across all
- * projects, or one project (`?project=`). Columns `Needs you | Working | Handled` (Needs you is
+ * projects, or one project (`?project=`). Columns `Need you | Working | Handled` (Need you is
  * blocked then finished, blocked cards badged; the launcher's launches top Working) on desktop,
  * one at a time on the phone. Cards are minimal (`agent-card.tsx`); asks are answered in the
  * chat. The open session (`?session=`) is a split: its chat docks on the right and the columns

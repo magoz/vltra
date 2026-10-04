@@ -159,7 +159,7 @@ function Focus({ project }: { readonly project: string | undefined }) {
     <HandledProvider flow={advancing}>
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <section
-          aria-label="Needs you"
+          aria-label="Need you"
           className="flex flex-col lg:w-[26rem] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain lg:border-r"
         >
           <ProjectFilter filterRef={filterRef} className="px-3 pt-3" />

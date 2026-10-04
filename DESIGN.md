@@ -152,9 +152,9 @@ only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
     until another session opens, so nothing else ever looks selected.
   - **Agents**: the three-column kanban below, split with the open session's chat. Its own tab
     (`b` toggles Focus ↔ Agents); the view lives in the URL so links and the back button keep it.
-- **Agents = a kanban by state** across all projects, columns `Needs you | Working | Handled`.
+- **Agents = a kanban by state** across all projects, columns `Need you | Working | Handled`.
   Cards are minimal, like Focus' rows: project · worktree, title and age, a red mark for
-  failures; asks, answers and live activity are left to the chat. Needs you: blocked first
+  failures; asks, answers and live activity are left to the chat. Need you: blocked first
   (oldest wait first, each with a `blocked` badge), then finished (oldest first, **Handled**, undo
   toast). Working: stuck first, with the stuck label. Handled column: last 24h only, then
   "N more → Projects"; cards offer Reopen. No drag and drop (columns show state; actions are buttons and
@@ -171,8 +171,8 @@ only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
   grid drops a column when it gets too narrow, its cards still clickable.
 - **Phone**: focus mode is the needs-me list; tapping a session opens its chat full screen
   (Handled in its toolbar opens the next needs-me session), back returns to the list. Agents
-  shows one column at a time via a segmented control (`Needs you 6 · Working 5 · Handled`),
-  opening on Needs you when it has cards. Swipe left on a finished card marks
+  shows one column at a time via a segmented control (`Need you 6 · Working 5 · Handled`),
+  opening on Need you when it has cards. Swipe left on a finished card marks
   it handled (no horizontal column scrolling, so the gesture stays unambiguous).
 - **Keyboard (Mac)**: `1` / `2` / `3` the tabs. Focus: `j`/`k` move through the list, `Enter`
   opens the session on the right, `h` handled (the next needs-me session opens), `u` undo, `b`

@@ -61,7 +61,7 @@ const webLink = (live: LiveFleet, id: string) => {
   return row.links.web
 }
 
-const list = () => screen.getByRole('region', { name: 'Needs you' })
+const list = () => screen.getByRole('region', { name: 'Need you' })
 
 const pane = () => screen.getByRole('region', { name: 'Session' })
 

@@ -31,7 +31,7 @@ function Flags({ row, now }: { readonly row: FleetRow; readonly now: number }) {
 
 /**
  * A session's card, on the Agents board and in focus mode's list: marker (red for a failed run),
- * project · worktree, a "blocked" badge on the board (its Needs you column holds blocked and
+ * project · worktree, a "blocked" badge on the board (its Need you column holds blocked and
  * finished alike), age and title, the stuck / "folder deleted" flags, then Fleet's own action:
  * Handled when finished (swipe left on a phone does the same), Reopen when handled. Asks,
  * answers and activity are left to the chat. `cursor` is the keyboard focus. `compact` is focus

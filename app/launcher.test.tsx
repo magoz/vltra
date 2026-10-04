@@ -251,7 +251,7 @@ describe('pending launches', () => {
   it('show in focus mode as Provisioning above Blocked, failures red with dismiss', () => {
     const { calls } = renderDashboard({ live: withLaunches([launch(), failed]) })
 
-    const sidebar = screen.getByRole('region', { name: 'Needs you' })
+    const sidebar = screen.getByRole('region', { name: 'Need you' })
 
     expect(
       within(sidebar)

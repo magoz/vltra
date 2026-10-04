@@ -28,7 +28,7 @@ const renderBoard = (
 const column = (name: string) => screen.getByRole('region', { name })
 
 const columnIDs = () =>
-  Object.fromEntries(['Needs you', 'Working', 'Handled'].map(name => [name, rowIDs(column(name))]))
+  Object.fromEntries(['Need you', 'Working', 'Handled'].map(name => [name, rowIDs(column(name))]))
 
 const card = (id: string) => {
   const found = document.querySelector(`main li[data-session="${id}"]`)
@@ -63,7 +63,7 @@ describe('columns', () => {
     renderBoard()
 
     expect(columnIDs()).toEqual({
-      'Needs you': ['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'],
+      'Need you': ['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'],
       Working: ['ses_run', 'ses_retry', 'ses_busy'],
       Handled: ['ses_tmp', 'ses_handled', 'ses_box']
     })
@@ -102,7 +102,7 @@ describe('columns', () => {
 
     fireEvent.click(within(card('ses_done_new')).getByRole('button', { name: 'Handled' }))
 
-    expect(rowIDs(column('Needs you'))).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_old'])
+    expect(rowIDs(column('Need you'))).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_old'])
     expect(rowIDs(column('Handled'))).toEqual(['ses_tmp', 'ses_done_new', 'ses_handled', 'ses_box'])
 
     fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
@@ -113,7 +113,7 @@ describe('columns', () => {
         { action: 'reopen', input: { sessionID: 'ses_done_new' } }
       ])
     )
-    expect(rowIDs(column('Needs you'))).toEqual([
+    expect(rowIDs(column('Need you'))).toEqual([
       'ses_wait_old',
       'ses_wait_new',
       'ses_done_old',
@@ -129,15 +129,15 @@ describe('columns', () => {
     expect(
       await screen.findByText('Could not mark handled: OpenCode is not reachable')
     ).toBeTruthy()
-    expect(rowIDs(column('Needs you'))).toContain('ses_done_new')
+    expect(rowIDs(column('Need you'))).toContain('ses_done_new')
   })
 
-  it('reopens a handled card into Needs you', async () => {
+  it('reopens a handled card into Need you', async () => {
     const { calls } = renderBoard()
 
     fireEvent.click(within(card('ses_handled')).getByRole('button', { name: 'Reopen' }))
 
-    expect(rowIDs(column('Needs you'))).toEqual([
+    expect(rowIDs(column('Need you'))).toEqual([
       'ses_wait_old',
       'ses_wait_new',
       'ses_done_old',
@@ -169,7 +169,7 @@ describe('project filter', () => {
     const { navigations } = renderBoard({ project: 'prj_fleet' })
 
     expect(columnIDs()).toEqual({
-      'Needs you': ['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'],
+      'Need you': ['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'],
       Working: ['ses_run', 'ses_retry', 'ses_busy'],
       Handled: ['ses_handled']
     })
@@ -197,7 +197,7 @@ describe('project filter', () => {
 
     expect(navigations).toEqual([{ kind: 'filter', project: 'other' }])
     expect(screen.getByRole('button', { name: 'Clear the Other filter' })).toBeTruthy()
-    expect(columnIDs()).toEqual({ 'Needs you': [], Working: [], Handled: ['ses_tmp'] })
+    expect(columnIDs()).toEqual({ 'Need you': [], Working: [], Handled: ['ses_tmp'] })
   })
 })
 
@@ -239,7 +239,7 @@ describe('keyboard', () => {
 
     press('h')
 
-    expect(rowIDs(column('Needs you'))).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_new'])
+    expect(rowIDs(column('Need you'))).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_new'])
     expect(cursorID()).toBe('ses_done_new')
 
     press('u')
@@ -250,7 +250,7 @@ describe('keyboard', () => {
         { action: 'reopen', input: { sessionID: 'ses_done_old' } }
       ])
     )
-    expect(rowIDs(column('Needs you'))).toEqual([
+    expect(rowIDs(column('Need you'))).toEqual([
       'ses_wait_old',
       'ses_wait_new',
       'ses_done_old',
@@ -293,7 +293,7 @@ describe('keyboard', () => {
     expect(screen.getByRole('region', { name: 'Other' })).toBeTruthy()
 
     press('2')
-    expect(column('Needs you')).toBeTruthy()
+    expect(column('Need you')).toBeTruthy()
 
     press('1')
     expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
@@ -330,7 +330,7 @@ describe('split view', () => {
 })
 
 describe('phone', () => {
-  it('shows one column, opening on Needs you', () => {
+  it('shows one column, opening on Need you', () => {
     renderBoard()
 
     const tabs = screen.getByRole('tablist', { name: 'Columns' })
@@ -339,17 +339,17 @@ describe('phone', () => {
       within(tabs)
         .getAllByRole('tab')
         .map(tab => tab.textContent)
-    ).toEqual(['Needs you 4', 'Working 3', 'Handled'])
+    ).toEqual(['Need you 4', 'Working 3', 'Handled'])
     expect(
-      within(tabs).getByRole('tab', { name: 'Needs you 4' }).getAttribute('aria-selected')
+      within(tabs).getByRole('tab', { name: 'Need you 4' }).getAttribute('aria-selected')
     ).toBe('true')
-    expect(column('Needs you').className).not.toContain('max-lg:hidden')
+    expect(column('Need you').className).not.toContain('max-lg:hidden')
     expect(column('Working').className).toContain('max-lg:hidden')
 
     act(() => within(tabs).getByRole('tab', { name: 'Working 3' }).click())
 
     expect(column('Working').className).not.toContain('max-lg:hidden')
-    expect(column('Needs you').className).toContain('max-lg:hidden')
+    expect(column('Need you').className).toContain('max-lg:hidden')
   })
 
   it('opens on Working when nothing needs me', () => {
@@ -363,7 +363,7 @@ describe('phone', () => {
       target: { value: '' }
     })
 
-    expect(screen.getByRole('tab', { name: 'Needs you 4' }).getAttribute('aria-selected')).toBe(
+    expect(screen.getByRole('tab', { name: 'Need you 4' }).getAttribute('aria-selected')).toBe(
       'true'
     )
   })

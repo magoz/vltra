@@ -103,7 +103,7 @@ const columnIDs = (agents: AgentsBoard) =>
   Object.fromEntries(boardColumns.map(column => [column, ids(agents.columns[column])]))
 
 describe('agents board', () => {
-  it('puts every root session in its column: Needs you is blocked, then finished', () => {
+  it('puts every root session in its column: Need you is blocked, then finished', () => {
     expect(columnIDs(board)).toEqual({
       needsYou: [
         'ses_wait_long',
@@ -196,7 +196,7 @@ describe('agents board', () => {
     expect(projectName(live, 'prj_box')).toBe('box')
   })
 
-  it('opens the phone on Needs you when it has cards, else Working', () => {
+  it('opens the phone on Need you when it has cards, else Working', () => {
     expect(initialColumn(board)).toBe('needsYou')
     expect(initialColumn(buildAgentsBoard(live, now, 'prj_box'))).toBe('working')
     expect(initialColumn(buildAgentsBoard(live, now, otherProjectID))).toBe('needsYou')
@@ -217,7 +217,7 @@ describe('needs me (focus mode)', () => {
       'ses_fail',
       'ses_tmp'
     ])
-    // The board's Needs you column is the same list.
+    // The board's Need you column is the same list.
     expect(board.columns.needsYou).toEqual(needsMeOrder(needsMe))
   })
 
