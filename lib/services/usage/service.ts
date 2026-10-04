@@ -1,0 +1,40 @@
+import { Context, Schema } from 'effect'
+import type { Effect } from 'effect'
+
+/** One quota window of an account, as the usage dashboard reports it. */
+export type QuotaWindow = {
+  /** `five-hour`, `weekly`, `weekly-scoped-<model>` (binds one model only), ... */
+  readonly id: string
+  readonly label: string
+  readonly remainingPercent: number
+  /** Epoch milliseconds; absent when the provider does not say. */
+  readonly resetsAt: number | undefined
+}
+
+/** One subscription account (a pool may have several, e.g. Codex). */
+export type QuotaAccount = {
+  /** `anthropic`, `codex`, `zai`, `opencode-go`, ... */
+  readonly provider: string
+  readonly providerName: string
+  readonly account: string
+  /** Whether the reading is current; a failed refresh keeps the last one (stale). */
+  readonly fresh: boolean
+  readonly windows: ReadonlyArray<QuotaWindow>
+}
+
+/** The usage dashboard is down, unreachable, or answered something Fleet cannot read. */
+export class UsageUnavailableError extends Schema.TaggedError<UsageUnavailableError>()(
+  'UsageUnavailableError',
+  { message: Schema.String }
+) {}
+
+export type UsageOperations = {
+  /** Every account's quota windows (`GET /api/usage`; the dashboard caches its own readings). */
+  readonly accounts: Effect.Effect<ReadonlyArray<QuotaAccount>, UsageUnavailableError>
+}
+
+/**
+ * The subscription quotas behind the model proxy, read from the `usage` dashboard (`~/usage`) on
+ * this machine. Read-only.
+ */
+export class Usage extends Context.Service<Usage, UsageOperations>()('@fleet/Usage') {}

@@ -92,8 +92,10 @@ describe('columns', () => {
     expect(within(card('ses_wait_old')).queryByRole('button')).toBeNull()
     expect(within(card('ses_busy')).queryByText('thinking…')).toBeNull()
     expect(within(card('ses_done_old')).queryByText('run failed')).toBeNull()
+    // Only the shell's own loads (the launcher list, the usage line): cards fetch nothing.
     expect(vi.mocked(fetch).mock.calls.map(([input]) => String(input))).toEqual([
-      '/api/fleet/launcher'
+      '/api/fleet/launcher',
+      '/api/fleet/usage'
     ])
   })
 

@@ -1,11 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { relativeTime } from '@/app/fleet-format'
 import type { FleetScreen } from '@/app/fleet-href'
 import { NavLink } from '@/app/nav-link'
 import type { StreamStatus } from '@/app/use-fleet-live'
 import { Button } from '@/components/ui/button'
-import type { FleetConnection, FleetCounts } from '@/lib/data/fleet/types'
+import type {
+  FleetConnection,
+  FleetCounts,
+  UsagePool,
+  UsageSummary,
+  UsageWindow
+} from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
 type LinkStatus = { readonly label: string; readonly detail: string; readonly healthy: boolean }
@@ -133,6 +140,73 @@ export function CountLine({ counts }: { readonly counts: FleetCounts }) {
       >
         {counts.stuck} stuck
       </span>
+    </p>
+  )
+}
+
+/** `45`, `<1`: a percentage without its sign. */
+const percentText = (value: number) => (value > 0 && value < 1 ? '<1' : `${Math.round(value)}`)
+
+/** A pool this low is about to stop the agents that use it. */
+const lowUsage = 10
+
+const windowText = (window: UsageWindow, now: number) =>
+  window.resetsAt === undefined || window.resetsAt <= now
+    ? `${window.label} ${percentText(window.left)}%`
+    : `${window.label} ${percentText(window.left)}% (resets in ${relativeTime(now, window.resetsAt)})`
+
+/**
+ * The usage line's hover text, a pool per line: `Claude 45% left`, then each account's windows
+ * (`me@x.com: 5-hour 89% (resets in 3h) · Weekly 45% (resets in 5d)`).
+ */
+export const usageDetail = (pools: ReadonlyArray<UsagePool>, now: number): string =>
+  pools
+    .map(pool => {
+      const accounts = Map.groupBy(pool.windows, window => window.account)
+      const head = `${pool.name} ${pool.left === undefined ? 'unavailable' : `${percentText(pool.left)}% left`}${pool.stale ? ' (last reading)' : ''}`
+
+      return [
+        head,
+        ...Array.from(
+          accounts,
+          ([account, windows]) =>
+            `  ${account}: ${windows.map(window => windowText(window, now)).join(' · ')}`
+        )
+      ].join('\n')
+    })
+    .join('\n')
+
+/**
+ * The subscription quotas, condensed: `Claude 45% · Codex 96% · Z.AI 100% · Go 34% left`, each the
+ * window that runs out first (red at 10% or less); every window and reset on hover. It keeps its
+ * width (the key hints drop first) and leaves desktops under 70rem, where it would push the
+ * connection off.
+ */
+export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readonly now: number }) {
+  if (usage.pools.length === 0) return null
+
+  return (
+    <p
+      aria-label="Usage left"
+      title={usageDetail(usage.pools, now)}
+      className="text-muted-foreground text-xs max-[70rem]:hidden"
+    >
+      {usage.pools.map((pool, index) => (
+        <span key={pool.provider}>
+          {index === 0 ? null : ' · '}
+          {pool.name}{' '}
+          <span
+            className={cn(
+              pool.left !== undefined && pool.left <= lowUsage
+                ? 'text-destructive'
+                : !pool.stale && 'text-foreground'
+            )}
+          >
+            {pool.left === undefined ? '–' : `${percentText(pool.left)}%`}
+          </span>
+        </span>
+      ))}{' '}
+      left
     </p>
   )
 }
@@ -266,19 +340,24 @@ export function BottomTabs({
 
 /**
  * Desktop only (the phone has the tab bar and `ConnectionLine`): title, the tabs, the count line,
- * the launcher's New, the tab's key hint, the connection.
+ * the usage line, the launcher's New, the tab's key hint, the connection.
  */
 export function FleetHeader({
   screen,
   counts,
   stream,
   connection,
+  usage,
+  now,
   onNew
 }: {
   readonly screen: FleetScreen
   readonly counts: FleetCounts
   readonly stream: StreamStatus
   readonly connection: FleetConnection
+  /** The subscription quotas, once loaded. */
+  readonly usage?: UsageSummary | undefined
+  readonly now?: number
   readonly onNew?: () => void
 }) {
   const link = linkStatus(stream, connection)
@@ -287,8 +366,9 @@ export function FleetHeader({
     <header className="bg-background/95 supports-backdrop-filter:bg-background/80 sticky top-0 z-20 flex h-12 items-center gap-x-4 border-b px-4 backdrop-blur-sm max-lg:hidden">
       <h1 className="text-base font-semibold">Fleet</h1>
       <HeaderTabs screen={screen} />
-      <div className="flex-1 text-sm whitespace-nowrap">
+      <div className="flex flex-1 items-baseline gap-x-6 text-sm whitespace-nowrap">
         <CountLine counts={counts} />
+        {usage === undefined || now === undefined ? null : <UsageLine usage={usage} now={now} />}
       </div>
       <div className="flex min-w-0 items-center gap-x-5">
         {onNew === undefined ? null : (

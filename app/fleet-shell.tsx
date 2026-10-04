@@ -15,6 +15,7 @@ import { HandledProvider, useHandledFlow } from '@/app/use-handled'
 import { useFavicon } from '@/app/use-favicon'
 import { useKeys } from '@/app/use-keys'
 import { useLauncherList } from '@/app/use-launcher-list'
+import { useUsage } from '@/app/use-usage'
 import { withOverrides } from '@/lib/data/fleet/board'
 import type { LiveFleet } from '@/lib/data/fleet/board'
 import { countRows } from '@/lib/data/fleet/state'
@@ -137,6 +138,7 @@ export function FleetShell({
   const { screen } = nav
   const agents = screen !== 'projects'
   const launcherList = useLauncherList()
+  const usage = useUsage()
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [request, setRequest] = useState<LauncherRequest>({ step: 'pick' })
   const { reload } = launcherList
@@ -179,6 +181,8 @@ export function FleetShell({
               counts={counts}
               stream={stream}
               connection={live.connection}
+              usage={usage}
+              now={now}
               onNew={() => openLauncher()}
             />
             <ConnectionLine stream={stream} connection={live.connection} />

@@ -1,9 +1,16 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { BottomTabs, ConnectionLine, CountLine, FleetHeader, linkStatus } from '@/app/fleet-header'
+import {
+  BottomTabs,
+  ConnectionLine,
+  CountLine,
+  FleetHeader,
+  linkStatus,
+  UsageLine
+} from '@/app/fleet-header'
 import type { FleetScreen } from '@/app/fleet-href'
 import { fakeActions, WithFleet } from '@/app/testing/dashboard-fixtures'
-import type { FleetConnection, FleetCounts } from '@/lib/data/fleet/types'
+import type { FleetConnection, FleetCounts, UsageSummary } from '@/lib/data/fleet/types'
 
 const connected: FleetConnection = { status: 'connected', since: 0, failures: 0, version: '2.0.20' }
 
@@ -166,6 +173,72 @@ describe('count line', () => {
     expect(screen.getByLabelText('Session counts').textContent).toBe(
       '1 needs you · 0 working · 0 stuck'
     )
+  })
+})
+
+describe('usage line', () => {
+  const hour = 60 * 60 * 1000
+
+  const usage: UsageSummary = {
+    pools: [
+      {
+        provider: 'anthropic',
+        name: 'Claude',
+        left: 45,
+        stale: false,
+        windows: [
+          { account: 'me@x.com', label: '5-hour', left: 89, resetsAt: 3 * hour },
+          { account: 'me@x.com', label: 'Weekly', left: 45, resetsAt: 5 * 24 * hour }
+        ]
+      },
+      {
+        provider: 'codex',
+        name: 'Codex',
+        left: 8.4,
+        stale: false,
+        windows: [
+          { account: 'a@x.com', label: 'Weekly', left: 7 },
+          { account: 'b@x.com', label: 'Weekly', left: 9.8 }
+        ]
+      },
+      { provider: 'zai', name: 'Z.AI', left: undefined, stale: true, windows: [] }
+    ]
+  }
+
+  it("reads each pool's % left condensed, a low one in red, every window on hover", () => {
+    render(<UsageLine usage={usage} now={0} />)
+
+    const line = screen.getByLabelText('Usage left')
+
+    expect(line.textContent).toBe('Claude 45% · Codex 8% · Z.AI – left')
+    expect(within(line).getByText('8%').className).toContain('text-destructive')
+    expect(line.title).toBe(
+      [
+        'Claude 45% left',
+        '  me@x.com: 5-hour 89% (resets in 3h) · Weekly 45% (resets in 5d)',
+        'Codex 8% left',
+        '  a@x.com: Weekly 7%',
+        '  b@x.com: Weekly 10%',
+        'Z.AI unavailable (last reading)'
+      ].join('\n')
+    )
+  })
+
+  it('shows in the header once loaded', () => {
+    render(
+      <WithFleet actions={fakeActions().actions} now={0}>
+        <FleetHeader
+          screen="focus"
+          counts={counts}
+          stream="live"
+          connection={connected}
+          usage={usage}
+          now={0}
+        />
+      </WithFleet>
+    )
+
+    expect(screen.getByLabelText('Usage left')).toBeTruthy()
   })
 })
 

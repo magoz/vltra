@@ -11,6 +11,8 @@ import type { OpenCodeUnavailableError } from '@/lib/services/opencode/errors'
 import type { OpenCode } from '@/lib/services/opencode/service'
 import { ReposLive } from '@/lib/services/repos/live-layer'
 import type { Repos } from '@/lib/services/repos/service'
+import { UsageLive } from '@/lib/services/usage/live-layer'
+import type { Usage } from '@/lib/services/usage/service'
 
 export type FleetServices =
   | FleetStore
@@ -19,10 +21,11 @@ export type FleetServices =
   | Directories
   | Repos
   | Launches
+  | Usage
 
 /**
  * Store + OpenCode client + session folder checks + finished-run summary cache + the launcher's
- * repositories and launch registry, with the watcher (and any running launch) forked for the
+ * repositories and launch registry + the subscription quotas, with the watcher (and any running launch) forked for the
  * lifetime of the runtime.
  */
 export const FleetLayer = Layer.mergeAll(
@@ -33,7 +36,8 @@ export const FleetLayer = Layer.mergeAll(
   Layer.provideMerge(FleetStoreLive),
   Layer.provideMerge(OpenCodeLive),
   Layer.provideMerge(DirectoriesLive),
-  Layer.provideMerge(ReposLive)
+  Layer.provideMerge(ReposLive),
+  Layer.provideMerge(UsageLive)
 )
 
 // Fails to build only on invalid configuration (e.g. a malformed OPENCODE_URL).

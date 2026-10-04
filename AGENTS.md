@@ -44,6 +44,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | Launches (worktree + session)    | `lib/data/fleet/launches.ts`                                    | Registry in the runtime, background fibers, in store     |
 | Branch names / palette rows      | `lib/data/fleet/branch.ts`, `palette.ts`                        | `--` encoding, suggestion check, fallback, fuzzy         |
 | Repos on Box (git, gh)           | `lib/services/repos/`                                           | Roots scan, worktrees + marker owner, cached PR status   |
+| Subscription usage (header)      | `lib/services/usage/`, `lib/data/fleet/usage.ts`                | Reads `~/usage`'s `/api/usage`; one pool per provider    |
 | Test doubles                     | `lib/**/testing/`                                               | Fake OpenCode / Repos layers, throwaway `opencode serve` |
 | Conventions                      | `patterns/`, then `../10x/patterns/`                            | Fleet notes only where it differs from 10x               |
 
@@ -90,13 +91,19 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 - `FleetDashboard` wires server actions, the clock and the URL (`use-fleet-nav.ts`: the tab and
   the filter; `use-selected-session.ts`: `?session=`; `fleet-href.ts` builds every URL) around
   `FleetShell` (`fleet-shell.tsx`): the tabs `Focus | Agents | Projects` (`fleet-header.tsx`), in
-  the desktop header (with the count line `N need you · N working · N stuck`, the tab's key hint
-  and the connection) or the phone's bottom tab bar (`BottomTabs`, with `+`; no header there, only
+  the desktop header (with the count line `N need you · N working · N stuck`, the usage line, the
+  tab's key hint and the connection) or the phone's bottom tab bar (`BottomTabs`, with `+`; no header there, only
   `ConnectionLine`: a slim `reconnecting…` line on top once a reconnect lasts 3s, the wait starting
   over when the page shows again), and each tab shows the open session itself (Focus' pane,
   Agents' and Projects' split). Every tab reads `useFleet()` (`fleet-context.tsx`: live fleet with
   overrides, clock, selection, nav). Tab links are `nav-link.tsx` (plain links; a plain click goes through
   `nav.show`).
+- Usage line (desktop header, `UsageLine`): the subscription quotas from the `usage` dashboard
+  (`~/usage`, `GET /api/usage` on loopback; `lib/services/usage/`, projected by `usage.ts` into
+  `GET /api/fleet/usage`, polled by `use-usage.ts` every minute while the page shows):
+  `Claude 45% · Codex 96% · Z.AI 100% · Go 34% left`, each the % left of the window that runs
+  out first (model-scoped weekly limits excluded; a pool's accounts averaged), red at 10% or less,
+  every account's windows and resets on hover. Hidden until it loads; a failed load keeps the last.
 - Every move is a history write that Next syncs into `useSearchParams` (no router navigation, no
   fetch, no remount): `nav.show` pushes an entry (Back returns), `setProject` replaces it,
   `openSession` (the launcher) pushes Focus with the session. `moveTo` in `fleet-href.ts` decides
@@ -255,3 +262,4 @@ pnpm fleet:import-handled [--dry-run]  # one-off rollout: viewed root runs → h
 | `FLEET_SESSION_LIMIT`               | unset → every session                           | Optional cap on sessions loaded                                      |
 | `FLEET_LAUNCHER_ROOTS`              | `~/dev/repos:~/.dotfiles:~/aha:~/collie:~/subs` | Launcher roots (`:` list, `~` ok): each a repo, or a folder of repos |
 | `FLEET_BRANCH_MODEL`                | `subs-codex/gpt-5.6-sol`                        | Launcher branch suggestions (`generate.text` model)                  |
+| `FLEET_USAGE_URL`                   | `http://127.0.0.1:8320`                         | The `usage` dashboard (`~/usage`) for the header's usage line        |

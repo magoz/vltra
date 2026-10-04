@@ -22,10 +22,10 @@ export const faviconStatus = (counts: FleetCounts): FaviconStatus => {
 
 /**
  * `app/icon.svg` with the dot in the status' color (idle is the file as is): the mark cropped to
- * fill the icon, on a transparent background, its ink following the browser's light/dark scheme.
+ * nearly fill the icon (a slim margin), on a transparent background, its ink following the browser's light/dark scheme.
  */
 export const faviconSvg = (status: FaviconStatus): string =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="112 112 288 288">
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="88 88 336 336">
   <style>path{fill:#141312}@media (prefers-color-scheme:dark){path{fill:#eeebe6}}</style>
   <path d="M112 400V131A269 269 0 0 1 381 400Z"/>
   <circle cx="360.55" cy="151.45" r="39.45" fill="${dotColors[status]}"/>

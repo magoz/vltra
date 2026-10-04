@@ -567,3 +567,34 @@ export type LaunchDismissed = typeof LaunchDismissed.Type
 export const OpenedCheckout = Schema.Struct({ sessionID: Schema.String, created: Schema.Boolean })
 
 export type OpenedCheckout = typeof OpenedCheckout.Type
+
+/** One account's quota window in a usage pool. */
+export const UsageWindow = Schema.Struct({
+  account: Schema.String,
+  label: Schema.String,
+  left: Schema.Number,
+  resetsAt: Schema.optional(Schema.Number)
+})
+
+export type UsageWindow = typeof UsageWindow.Type
+
+/** A provider's subscription quota: Claude, Codex (pooled accounts), Z.AI, Go. */
+export const UsagePool = Schema.Struct({
+  provider: Schema.String,
+  name: Schema.String,
+  /**
+   * Percent left of the tightest window (the one that runs out first), averaged over the pool's
+   * accounts; absent when none reports.
+   */
+  left: Schema.optional(Schema.Number),
+  /** Some reading is the last good one (a refresh failed). */
+  stale: Schema.Boolean,
+  windows: Schema.Array(UsageWindow)
+})
+
+export type UsagePool = typeof UsagePool.Type
+
+/** `GET /api/fleet/usage`: the subscription quotas, one pool per provider. */
+export const UsageSummary = Schema.Struct({ pools: Schema.Array(UsagePool) })
+
+export type UsageSummary = typeof UsageSummary.Type
