@@ -399,3 +399,10 @@ export const cardSections = (
 
   return [...sections, ...idle]
 }
+
+/**
+ * The launches to show: setting up (no session yet) or failed. A ready launch is its session now,
+ * listed like any other (the registry keeps it a while so the page can open it).
+ */
+export const pendingLaunches = (launches: ReadonlyArray<Launch>): ReadonlyArray<Launch> =>
+  launches.filter(launch => launch.status !== 'ready')

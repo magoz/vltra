@@ -277,7 +277,7 @@ describe('pending launches', () => {
     updatedAt: now
   })
 
-  it('show in focus mode as Provisioning above Blocked, failures red with dismiss', () => {
+  it('show in focus mode as Provisioning above Blocked, shaped like cards; failures red with dismiss', () => {
     const { calls } = renderDashboard({ live: withLaunches([launch(), failed]) })
 
     const sidebar = screen.getByRole('region', { name: 'Need you' })
@@ -291,7 +291,8 @@ describe('pending launches', () => {
     const provisioning = within(sidebar).getByRole('region', { name: 'Provisioning' })
     const [first, second] = within(provisioning).getAllByRole('listitem')
 
-    expect(first?.textContent).toContain('feat/palette · fleet')
+    expect(first?.textContent).toContain('fleet · feat/palette')
+    expect(within(first ?? provisioning).getByText('Add the launcher palette')).toBeTruthy()
     expect(first?.textContent).toContain('0:42')
     expect(first?.textContent).toContain('provisioning…')
     expect(within(first ?? provisioning).queryByRole('button', { name: /Dismiss/ })).toBeNull()
@@ -308,8 +309,17 @@ describe('pending launches', () => {
     const working = screen.getByRole('region', { name: 'Working' })
 
     expect(within(working).getByRole('list', { name: 'Launches' }).textContent).toContain(
-      'feat/palette · fleet'
+      'fleet · feat/palette'
     )
+  })
+
+  it('leave once ready: the launch is its session now, listed like any other', () => {
+    renderDashboard({
+      live: withLaunches([launch({ status: 'ready', sessionID: 'ses_new', updatedAt: now })])
+    })
+
+    expect(screen.queryByRole('region', { name: 'Provisioning' })).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Launches' })).toBeNull()
   })
 
   it('auto-opens a launch started here once ready', async () => {
@@ -339,7 +349,7 @@ describe('pending launches', () => {
     expect(navigations).toEqual([{ kind: 'open', session: 'ses_new' }])
   })
 
-  it('stays listed instead when something else was opened meanwhile', async () => {
+  it('does not open when something else was opened meanwhile', async () => {
     const { rerender, navigations } = renderDashboard()
 
     await openPalette()
@@ -363,9 +373,7 @@ describe('pending launches', () => {
 
     expect(navigations).toEqual([])
     expect(testLocation()).toBe('/?session=ses_done_old')
-
-    fireEvent.click(screen.getByRole('button', { name: 'ready · open session' }))
-    expect(testLocation()).toBe('/?session=ses_new')
+    expect(screen.queryByRole('list', { name: 'Launches' })).toBeNull()
   })
 })
 

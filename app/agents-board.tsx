@@ -11,7 +11,12 @@ import { ProjectFilter } from '@/app/project-filter'
 import { SessionSplit } from '@/app/session-panel'
 import { useHandled } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
-import { boardColumns, buildAgentsBoard, initialColumn } from '@/lib/data/fleet/board'
+import {
+  boardColumns,
+  buildAgentsBoard,
+  initialColumn,
+  pendingLaunches
+} from '@/lib/data/fleet/board'
 import type { AgentsBoard as Board, BoardColumn, BoardRow } from '@/lib/data/fleet/board'
 import type { Launch } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
@@ -134,10 +139,7 @@ function Column({
         </span>
       </h2>
       {launches.length === 0 ? null : (
-        <PendingLaunches
-          launches={launches}
-          className="bg-background mx-2 mb-2 border max-lg:mt-2"
-        />
+        <PendingLaunches launches={launches} className="gap-2 px-2 pb-2 max-lg:pt-2" />
       )}
       {rows.length === 0 ? (
         launches.length === 0 ? (
@@ -287,7 +289,7 @@ function Board({ project }: { readonly project: string | undefined }) {
               key={column}
               column={column}
               rows={board.columns[column]}
-              launches={column === 'working' ? view.launches : []}
+              launches={column === 'working' ? pendingLaunches(view.launches) : []}
               cursor={cursorID}
               olderHandled={board.olderHandled}
               shown={column === segment}

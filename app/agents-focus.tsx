@@ -9,7 +9,13 @@ import { SessionPanel } from '@/app/session-panel'
 import { HandledProvider, useHandled } from '@/app/use-handled'
 import type { HandledFlow } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
-import { boardRow, buildNeedsMe, needsMeOrder, nextNeedsMe } from '@/lib/data/fleet/board'
+import {
+  boardRow,
+  buildNeedsMe,
+  needsMeOrder,
+  nextNeedsMe,
+  pendingLaunches
+} from '@/lib/data/fleet/board'
 import type { BoardRow } from '@/lib/data/fleet/board'
 import { cn } from '@/lib/utils'
 
@@ -83,6 +89,7 @@ function Focus({ project }: { readonly project: string | undefined }) {
   const flow = useHandled()
   const needsMe = useMemo(() => buildNeedsMe(view, project), [view, project])
   const list = useMemo(() => needsMeOrder(needsMe), [needsMe])
+  const launches = useMemo(() => pendingLaunches(view.launches), [view.launches])
   const [moved, setMoved] = useState<Cursor>()
   const filterRef = useRef<HTMLSelectElement>(null)
   const { selected } = selection
@@ -163,13 +170,13 @@ function Focus({ project }: { readonly project: string | undefined }) {
           className="flex flex-col lg:w-[26rem] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain lg:border-r"
         >
           <ProjectFilter filterRef={filterRef} className="px-3 pt-3" />
-          {view.launches.length === 0 ? null : (
+          {launches.length === 0 ? null : (
             <section aria-label="Provisioning" className="pt-3">
               <h2 className="text-muted-foreground flex items-baseline justify-between px-3 pb-1.5 text-xs tracking-widest uppercase">
                 <span>Provisioning</span>
-                <span className="tabular-nums">{view.launches.length}</span>
+                <span className="tabular-nums">{launches.length}</span>
               </h2>
-              <PendingLaunches launches={view.launches} className="border-t" />
+              <PendingLaunches launches={launches} compact className="border-t" />
             </section>
           )}
           <Section name="Blocked" rows={needsMe.blocked} cursor={focused?.row.id} />

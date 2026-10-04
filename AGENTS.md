@@ -169,11 +169,14 @@ Handled` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait fir
   editing it stops the suggestions; `⌘↵` creates). Create calls `launch` (returns at once), closes
   the palette and toasts; the launch's session opens when it is ready if the user is still on the
   same page and mode and has not opened anything else meanwhile.
-- **Launches** (`live.launches`, from the snapshot and `fleet.changed`): focus mode's sidebar lists
-  them as **Provisioning** above Blocked (branch · repo, a ticking elapsed clock, the task; failures
-  red with what was kept and ×; ready ones "ready · open session" and ×), the board at the top of
-  Working (`pending-launches.tsx`). In memory on the server: lost on restart; ready ones go after 10
-  minutes.
+- **Launches** (`live.launches`, from the snapshot and `fleet.changed`) show only while they have
+  no session of their own (`pendingLaunches` in `board.ts`): setting up, or failed. Once ready, a
+  launch is just its session, listed like any other (working, so on the board, not in focus mode's
+  list). Cards shaped like `AgentCard` (`pending-launches.tsx`: pulsing outlined marker,
+  repo · branch, a ticking clock, the task as title, `provisioning…` / `starting the session…`;
+  failures red with what was kept and ×): focus mode's **Provisioning** above Blocked (compact),
+  the board at the top of Working. In memory on the server: lost on restart; ready ones stay in the
+  registry 10 minutes (the page's auto-open, the plugin) but no longer show on the web.
 - **Projects worktrees**: a card for a launcher repo shows each worktree section under its branch
   with `pi` / `detached`, the PR (`#123 open`, `merged · retire`, `closed · retire`, linked) and,
   for dotfiles-owned worktrees, **Retire** (`retire-worktree.tsx`: disabled with "N sessions there
