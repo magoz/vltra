@@ -469,7 +469,7 @@ describe('keyboard', () => {
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
   })
 
-  it('⌘D marks the open session done and opens the next; not a blocked one', async () => {
+  it('⌘D marks the open session done and opens the next, not a blocked one; ⌘U undoes', async () => {
     const { live, calls } = renderFocus({ session: 'ses_done_old' })
 
     // `fireEvent` is false once the default is prevented.
@@ -488,5 +488,20 @@ describe('keyboard', () => {
       expect(calls()).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_done_old' } }])
     )
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_wait_old'))
+
+    // ⌘U undoes it, even from a field, and reopens it.
+    const field = document.createElement('textarea')
+
+    document.body.append(field)
+    expect(fireEvent.keyDown(field, { key: 'u', code: 'KeyU', metaKey: true })).toBe(false)
+    field.remove()
+
+    await waitFor(() =>
+      expect(calls()).toEqual([
+        { action: 'markHandled', input: { sessionID: 'ses_done_old' } },
+        { action: 'reopen', input: { sessionID: 'ses_done_old' } }
+      ])
+    )
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
   })
 })

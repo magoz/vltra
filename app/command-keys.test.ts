@@ -30,6 +30,11 @@ describe('commandKey', () => {
     expect(commandKey(chord('KeyD', { shift: true }))).toBeUndefined()
   })
 
+  it('⌘U undoes', () => {
+    expect(commandKey(chord('KeyU'))).toEqual(CommandKey.Undo())
+    expect(commandKey(chord('KeyU', { alt: true }))).toBeUndefined()
+  })
+
   it('leaves everything else alone: no ⌘, Ctrl or ⇧ too (⌘⇧3 is a screenshot), 0, letters', () => {
     expect(commandKey({ ...chord('Digit1'), metaKey: false })).toBeUndefined()
     expect(commandKey(chord('Digit1', { ctrl: true }))).toBeUndefined()
