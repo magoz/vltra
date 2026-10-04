@@ -61,8 +61,6 @@ const list = () => screen.getByRole('region', { name: 'Needs you' })
 
 const pane = () => screen.getByRole('region', { name: 'Session' })
 
-const drawer = () => screen.queryByRole('complementary', { name: 'Session' })
-
 const row = (id: string) => {
   const found = list().querySelector(`li[data-session="${id}"]`)
 
@@ -147,12 +145,11 @@ describe('focus mode', () => {
     expect(within(pane()).getByText('Nothing needs you')).toBeTruthy()
   })
 
-  it('opens a clicked row inline (no drawer): its OpenCode chat, no Summary tab', () => {
+  it('opens a clicked row inline: its OpenCode chat, no Summary tab', () => {
     const { live, calls } = renderFocus()
 
     open('Done old')
 
-    expect(drawer()).toBeNull()
     expect(within(pane()).getByRole('heading', { name: 'Done old' })).toBeTruthy()
     expect(within(pane()).queryByRole('tab')).toBeNull()
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
@@ -185,7 +182,6 @@ describe('focus mode', () => {
   it('shows a session opened from elsewhere inline, even when it is not listed', () => {
     const { live } = renderFocus({ session: 'ses_busy' })
 
-    expect(drawer()).toBeNull()
     expect(rowIDs(list())).not.toContain('ses_busy')
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_busy'))
   })
@@ -258,22 +254,18 @@ describe('tabs', () => {
   it('switches Agents ↔ Board in place, keeping the filter and the open session', () => {
     const { navigations } = renderFocus({ project: 'prj_fleet', session: 'ses_done_old' })
 
-    expect(drawer()).toBeNull()
-
     fireEvent.click(headerTab('Board'))
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
     expect(screen.queryByRole('region', { name: 'Needs you' })).toBeNull()
     expect(testLocation()).toBe('/?view=board&project=prj_fleet&session=ses_done_old')
-    // On the board, the session is the split's chat beside the columns, not a drawer.
-    expect(drawer()).toBeNull()
+    // On the board, the session is the split's chat beside the columns.
     expect(within(pane()).getByRole('heading', { name: 'Done old' })).toBeTruthy()
     expect(headerTab('Board').getAttribute('aria-current')).toBe('page')
 
     press('b')
 
     expect(list()).toBeTruthy()
-    expect(drawer()).toBeNull()
     expect(testLocation()).toBe('/?project=prj_fleet&session=ses_done_old')
 
     press('b')
@@ -362,7 +354,6 @@ describe('keyboard', () => {
 
     press('Enter')
 
-    expect(drawer()).toBeNull()
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
 
     press('Escape')

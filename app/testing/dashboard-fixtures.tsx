@@ -207,7 +207,7 @@ const staticNav: FleetNav = {
 
 /**
  * The dashboard's providers for one card or row: `actions`, Handled / Undo / Reopen over `rows`,
- * and the fleet context (`onSelect` records drawer opens).
+ * and the fleet context (`onSelect` records session opens).
  */
 export function WithFleet({
   actions,

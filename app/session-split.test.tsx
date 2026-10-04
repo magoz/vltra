@@ -13,14 +13,14 @@ const webLink = (id: string) => {
   return row.links.web
 }
 
-// The drawer opens over Projects; the Agents page shows sessions inline (focus pane, board split).
+// Every page shows the open session itself; Projects' split here (the board's: agents-board.test).
 const renderDashboard = () =>
   render(<TestDashboard live={live} now={now} actions={fakeActions().actions} page="projects" />)
 
-const drawer = () => {
-  const found = screen.queryByRole('complementary', { name: 'Session' })
+const pane = () => {
+  const found = screen.queryByRole('region', { name: 'Session' })
 
-  if (found === null) throw new Error('drawer closed')
+  if (found === null) throw new Error('no session open')
 
   return found
 }
@@ -33,7 +33,7 @@ const open = (title: string) => {
   fireEvent.click(card)
 }
 
-const iframe = () => drawer().querySelector('iframe')
+const iframe = () => pane().querySelector('iframe')
 
 const press = (key: string, target: Element = document.body) => fireEvent.keyDown(target, { key })
 
@@ -50,7 +50,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('session drawer', () => {
+describe('session split', () => {
   it("frames the session's OpenCode chat, with a pairing hint until it loads", () => {
     renderDashboard()
     open('Wait old')
@@ -61,23 +61,23 @@ describe('session drawer', () => {
     expect(frame?.getAttribute('title')).toBe('Wait old')
     expect(frame?.getAttribute('allow')).toBe('clipboard-read; clipboard-write')
     expect(frame?.getAttribute('referrerpolicy')).toBe('no-referrer')
-    expect(within(drawer()).getByText('Loading OpenCode…')).toBeTruthy()
-    expect(drawer().textContent).toContain(
+    expect(within(pane()).getByText('Loading OpenCode…')).toBeTruthy()
+    expect(pane().textContent).toContain(
       `Not signed in? Pair this browser once: opencode pair --url ${new URL(webLink('ses_wait_old')).origin}`
     )
-    expect(
-      within(drawer()).getByRole('link', { name: 'Open in new tab' }).getAttribute('href')
-    ).toBe(webLink('ses_wait_old'))
+    expect(within(pane()).getByRole('link', { name: 'Open in new tab' }).getAttribute('href')).toBe(
+      webLink('ses_wait_old')
+    )
 
     if (frame === null) throw new Error('no iframe')
 
     fireEvent.load(frame)
 
-    expect(within(drawer()).queryByText('Loading OpenCode…')).toBeNull()
-    expect(drawer().textContent).not.toContain('Not signed in?')
+    expect(within(pane()).queryByText('Loading OpenCode…')).toBeNull()
+    expect(pane().textContent).not.toContain('Not signed in?')
   })
 
-  it('drops the iframe when the session changes or the drawer closes', () => {
+  it('drops the iframe when the session changes or the split closes', () => {
     renderDashboard()
     open('Wait old')
 
@@ -92,7 +92,7 @@ describe('session drawer', () => {
 
     press('Escape')
 
-    expect(screen.queryByRole('complementary', { name: 'Session' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Session' })).toBeNull()
     expect(document.querySelector('iframe')).toBeNull()
   })
 
@@ -124,7 +124,7 @@ describe('session drawer', () => {
     renderDashboard()
     open('Wait old')
 
-    const back = within(drawer()).getByRole('button', { name: 'Back to Fleet' })
+    const back = within(pane()).getByRole('button', { name: 'Back to Fleet' })
     const frame = iframe()
 
     if (frame === null) throw new Error('no iframe')

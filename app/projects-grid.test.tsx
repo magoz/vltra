@@ -36,7 +36,7 @@ const cursorRow = () =>
 
 const press = (key: string) => fireEvent.keyDown(document.body, { key })
 
-const drawer = () => screen.queryByRole('complementary', { name: 'Session' })
+const pane = () => screen.queryByRole('region', { name: 'Session' })
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -141,15 +141,16 @@ describe('project cards', () => {
     expect(within(other).getByText('/tmp/scratch ·', { exact: false })).toBeTruthy()
   })
 
-  it('opens the drawer from a session', () => {
+  it('opens a session beside the grid, whose cards stay', () => {
     renderGrid()
 
     fireEvent.click(within(projectCard('fleet')).getByRole('link', { name: 'Busy run' }))
 
-    expect(drawer()?.querySelector('iframe')?.getAttribute('title')).toBe('Busy run')
+    expect(pane()?.querySelector('iframe')?.getAttribute('title')).toBe('Busy run')
+    expect(within(projectCard('fleet')).getByRole('link', { name: 'Wait old' })).toBeTruthy()
 
     press('Escape')
-    expect(drawer()).toBeNull()
+    expect(pane()).toBeNull()
   })
 })
 
@@ -187,7 +188,7 @@ describe('keyboard', () => {
     press('j')
     press('Enter')
 
-    expect(drawer()?.querySelector('iframe')?.getAttribute('title')).toBe('Retry run')
+    expect(pane()?.querySelector('iframe')?.getAttribute('title')).toBe('Retry run')
 
     press('Escape')
     press('ArrowRight')

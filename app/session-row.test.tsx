@@ -38,7 +38,7 @@ afterEach(() => {
 })
 
 describe('project rows', () => {
-  it('shows marker, title, state label and age, and opens the drawer on click', () => {
+  it('shows marker, title, state label and age, and opens the session on click', () => {
     const row = rowFrom({ sessions: [sessionRecord('ses_1', { title: 'Fleet watcher' })] }, 'ses_1')
     const { onSelect } = renderRow(row)
     const link = screen.getByRole('link', { name: 'Fleet watcher' })
@@ -53,7 +53,7 @@ describe('project rows', () => {
     expect(onSelect).toHaveBeenCalledWith('ses_1')
   })
 
-  it('lets modified clicks follow the link (new tab) instead of opening the drawer', () => {
+  it('lets modified clicks follow the link (new tab) instead of opening the session here', () => {
     const { onSelect } = renderRow(rowFrom({ sessions: [sessionRecord('ses_1')] }, 'ses_1'))
 
     fireEvent.click(screen.getByRole('link'), { metaKey: true })

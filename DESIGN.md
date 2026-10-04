@@ -144,7 +144,7 @@ quiet).
   - **Focus (default)**: a left sidebar with only the needs-me list (blocked first, oldest wait
     first; then finished, oldest first, with Handled; rows are just project · worktree, title and
     age, no asks or answer excerpts, since the chat has them), and the selected session open
-    inline in the rest of the page: its chat, the same panel as the drawer. Nothing selected: a
+    inline in the rest of the page: its chat, the same panel as the splits. Nothing selected: a
     quiet empty state. Handling the open session opens the next needs-me session, so triage is
     `h`, `h`, `h`. Working and handled sessions are not listed (they are on Board; the desktop
     count line still counts them).
@@ -157,15 +157,16 @@ quiet).
   (undo toast). Working: stuck first, with the stuck label. Handled column: last 24h only, then
   "N more → Projects"; cards offer Reopen. No drag and drop (columns show state; actions are buttons and
   keys). No "handle all". A project filter (`?project=`, chip with ×) narrows the board to one
-  project. Opening a session splits the screen: its chat docks on the right, a bit narrower than
-  the old drawer, and the four columns narrow beside it, still clickable, so you can keep clicking
-  cards and watching the chat.
+  project. Opening a session splits the screen: its chat docks on the right (at most 52rem) and the
+  four columns narrow beside it, still clickable, so you can keep clicking cards and watching the
+  chat.
 - **Projects = a grid of project cards** (2–3 columns desktop, 1 on the phone), ordered by
   latest activity, "Other" (sessions outside any repository, each showing its directory)
   last. Card header: name + counts; clicking it opens Agents filtered to that project. Inside,
   worktrees are sections listing needs-me and working sessions; handled ones fold into
   "N handled · last 2h", expandable in place (Reopen there). No time limit yet (maybe 30 days
-  later).
+  later). Opening a session splits the page like the board: its chat docks on the right and the
+  grid drops a column when it gets too narrow, its cards still clickable.
 - **Phone**: focus mode is the needs-me list; tapping a session opens its chat full screen
   (Handled in its toolbar opens the next needs-me session), back returns to the list. Board mode
   shows one column at a time via a segmented control (`Blocked 2 · Finished 4 · Working 5 ·
@@ -179,9 +180,9 @@ quiet).
   within a card, `Enter` on a card opens its filtered board. No key answers asks: that happens in
   the chat.
 
-Tap a session for its panel (inline on the Agents page: focus mode's pane, the board's split; a
-right-side drawer over Projects; full screen on the phone): the session's chat, nothing else (no
-Summary tab; messages, changes, the prompt and subagents are all in the chat):
+Tap a session for its panel (next to the page: focus mode's pane, a split on the board and
+Projects; full screen on the phone): the session's chat, nothing else (no Summary tab; messages,
+changes, the prompt and subagents are all in the chat):
 - **The chat** → OpenCode's own web UI on the same server, framed, verified deep link
   `https://box.tail129a86.ts.net:9446/server/<base64url(origin)>/session/<id>`
   (`app/src/shell/routes/session.ts`; server key = page origin). Works on Mac and phone after a

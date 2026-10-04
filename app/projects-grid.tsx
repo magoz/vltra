@@ -6,6 +6,7 @@ import { relativeTime } from '@/app/fleet-format'
 import { entryForProject, useLauncher } from '@/app/launcher-context'
 import { NavLink } from '@/app/nav-link'
 import { RetireWorktree } from '@/app/retire-worktree'
+import { SessionSplit } from '@/app/session-panel'
 import { ProjectRow } from '@/app/session-row'
 import { useKeys } from '@/app/use-keys'
 import { OwnerBadge, PrBadge } from '@/app/worktree-badges'
@@ -211,8 +212,9 @@ const gridColumns = (grid: HTMLElement | null) => {
  * the launcher's new-worktree step for the repository; worktree sections list needs-me and working
  * sessions under the branch, owner (`pi`), PR state and Retire (Fleet/OpenCode worktrees), and the
  * repository's other branch worktrees follow without sessions; handled ones fold into "N handled ·
- * last 2h". Keys: arrows move between cards, `j` / `k` within one, `Enter` opens the session or, on
- * the card, its board.
+ * last 2h". An open session (`?session=`) docks its chat on the right (`SessionSplit`) and the grid
+ * loses a column when it gets too narrow. Keys: arrows move between cards, `j` / `k` within one,
+ * `Enter` opens the session or, on the card, its board.
  */
 export function ProjectsGrid() {
   const { view, selection, nav } = useFleet()
@@ -277,25 +279,32 @@ export function ProjectsGrid() {
   }
 
   return (
-    <div className="min-h-0 flex-1 lg:overflow-y-auto">
-      <h2 className="sr-only">Projects</h2>
-      <div ref={grid} className="grid items-start gap-3 p-3 md:grid-cols-2 lg:p-4 xl:grid-cols-3">
-        {cards.map((card, index) => (
-          <Card
-            key={card.id}
-            card={card}
-            entry={
-              card.other
-                ? undefined
-                : entryForProject(launcher.list, card.id, view.projects.get(card.id)?.directory)
-            }
-            cursor={index === cardIndex}
-            rowCursor={index === cardIndex ? rowCursor : undefined}
-            expanded={expanded.has(card.id)}
-            onToggle={() => toggle(card.id)}
-          />
-        ))}
+    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      {/* Columns by the grid's own width, so an open chat beside it takes one away. */}
+      <div className="@container min-h-0 min-w-0 flex-1 lg:overflow-y-auto">
+        <h2 className="sr-only">Projects</h2>
+        <div
+          ref={grid}
+          className="grid items-start gap-3 p-3 lg:p-4 @3xl:grid-cols-2 @7xl:grid-cols-3"
+        >
+          {cards.map((card, index) => (
+            <Card
+              key={card.id}
+              card={card}
+              entry={
+                card.other
+                  ? undefined
+                  : entryForProject(launcher.list, card.id, view.projects.get(card.id)?.directory)
+              }
+              cursor={index === cardIndex}
+              rowCursor={index === cardIndex ? rowCursor : undefined}
+              expanded={expanded.has(card.id)}
+              onToggle={() => toggle(card.id)}
+            />
+          ))}
+        </div>
       </div>
+      <SessionSplit />
     </div>
   )
 }

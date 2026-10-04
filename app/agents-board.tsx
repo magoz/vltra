@@ -8,11 +8,10 @@ import { useFleet } from '@/app/fleet-context'
 import { NavLink } from '@/app/nav-link'
 import { PendingLaunches } from '@/app/pending-launches'
 import { ProjectFilter } from '@/app/project-filter'
-import { SessionPanel } from '@/app/session-panel'
+import { SessionSplit } from '@/app/session-panel'
 import { useHandled } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
-import { usePanelSession } from '@/app/use-panel-session'
-import { boardColumns, boardRow, buildAgentsBoard, initialColumn } from '@/lib/data/fleet/board'
+import { boardColumns, buildAgentsBoard, initialColumn } from '@/lib/data/fleet/board'
 import type { AgentsBoard as Board, BoardColumn, BoardRow } from '@/lib/data/fleet/board'
 import type { Launch } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
@@ -277,10 +276,6 @@ function Board({ project }: { readonly project: string | undefined }) {
   })
 
   const cursorID = position?.item.row.id
-  // The chat follows the selection a paint behind when switching sessions (`usePanelSession`).
-  const shownSession = usePanelSession(selection.selected)
-  const shownRow = shownSession === undefined ? undefined : view.rows.get(shownSession)
-  const shownItem = shownRow === undefined ? undefined : boardRow(view, shownRow)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
@@ -309,19 +304,7 @@ function Board({ project }: { readonly project: string | undefined }) {
           ))}
         </div>
       </div>
-      {shownSession === undefined ? null : (
-        <section
-          aria-label="Session"
-          className="bg-background flex min-h-0 min-w-0 flex-col max-lg:fixed max-lg:inset-0 max-lg:z-30 lg:w-[min(52rem,42vw)] lg:shrink-0 lg:border-l"
-        >
-          <SessionPanel
-            key={shownSession}
-            sessionID={shownSession}
-            item={shownItem}
-            onClose={selection.close}
-          />
-        </section>
-      )}
+      <SessionSplit />
     </div>
   )
 }

@@ -55,7 +55,7 @@ afterEach(() => {
 })
 
 describe('card header', () => {
-  it('shows project · worktree, title and age, and opens the drawer on click', () => {
+  it('shows project · worktree, title and age, and opens the session on click', () => {
     const row = rowFrom({ sessions: [sessionRecord('ses_1', { title: 'Fleet watcher' })] }, 'ses_1')
     const { onSelect } = renderCard(row)
     const link = screen.getByRole('link', { name: 'Fleet watcher' })
@@ -69,7 +69,7 @@ describe('card header', () => {
     expect(onSelect).toHaveBeenCalledWith('ses_1')
   })
 
-  it('lets modified clicks follow the link (new tab) instead of opening the drawer', () => {
+  it('lets modified clicks follow the link (new tab) instead of opening the session here', () => {
     const row = rowFrom({ sessions: [sessionRecord('ses_1')] }, 'ses_1')
     const { onSelect } = renderCard(row)
 

@@ -11,13 +11,11 @@ import { screenOf } from '@/app/fleet-href'
 import { LauncherProvider } from '@/app/launcher-context'
 import type { Launcher, LauncherRequest } from '@/app/launcher-context'
 import { LauncherDialog } from '@/app/launcher-dialog'
-import { SessionDrawer } from '@/app/session-panel'
 import type { StreamStatus } from '@/app/use-fleet-live'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
 import { useLauncherList } from '@/app/use-launcher-list'
-import { usePanelSession } from '@/app/use-panel-session'
-import { boardRow, withOverrides } from '@/lib/data/fleet/board'
+import { withOverrides } from '@/lib/data/fleet/board'
 import type { LiveFleet } from '@/lib/data/fleet/board'
 import { countRows } from '@/lib/data/fleet/state'
 import type { Launch } from '@/lib/data/fleet/types'
@@ -120,12 +118,11 @@ function useLauncherShortcut(open: () => void) {
 /**
  * Around both pages (DESIGN.md "Clients" → Web): the tabs (Agents | Board | Projects; in the
  * desktop header with the count line, key hint and connection, or the phone's bottom tab bar,
- * whose only other chrome is a reconnecting line when the link is down), Handled / Undo / Reopen,
- * and the session drawer (`?session=`, the session's chat: right side on desktop, full screen on
- * the phone) over Projects. The Agents page shows the session inline instead (focus mode's pane,
- * the board's split). Keys: `1` / `2` / `3` the tabs, `b` Agents ↔ Board, `Escape` closes the
- * session, `n` / `⌘K` open the launcher (its palette, its list for the Projects cards, and the
- * auto-open of a launch started here).
+ * whose only other chrome is a reconnecting line when the link is down) and Handled / Undo /
+ * Reopen. Each page shows the open session (`?session=`) itself: focus mode's pane, the board's and
+ * Projects' split (`SessionSplit`). Keys: `1` / `2` / `3` the tabs, `b` Agents ↔ Board, `Escape`
+ * closes the session, `n` / `⌘K` open the launcher (its palette, its list for the Projects cards,
+ * and the auto-open of a launch started here).
  */
 export function FleetShell({
   live,
@@ -148,15 +145,8 @@ export function FleetShell({
   const counts = useMemo(() => countRows(Array.from(view.rows.values()), now), [view, now])
   const fleet = useMemo(() => ({ view, now, selection, nav }), [view, now, selection, nav])
   const { selected } = selection
-  // The drawer follows the selection a paint behind when switching sessions (`usePanelSession`).
-  const shown = usePanelSession(selected)
-  const shownRow = shown === undefined ? undefined : view.rows.get(shown)
-  const shownItem = shownRow === undefined ? undefined : boardRow(view, shownRow)
   const screen = screenOf(nav.page, nav.view)
   const agents = nav.page === 'agents'
-  // The Agents page shows the open session inline (focus mode's pane, the board's split), so the
-  // drawer is only for Projects.
-  const inline = agents
   const launcherList = useLauncherList()
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [request, setRequest] = useState<LauncherRequest>({ step: 'pick' })
@@ -214,14 +204,6 @@ export function FleetShell({
                 toast(`Provisioning ${branch}…`)
               }}
             />
-            {shown === undefined || inline ? null : (
-              <SessionDrawer
-                key={shown}
-                sessionID={shown}
-                item={shownItem}
-                onClose={selection.close}
-              />
-            )}
           </div>
         </HandledProvider>
       </LauncherProvider>

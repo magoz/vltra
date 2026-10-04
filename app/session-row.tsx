@@ -24,7 +24,7 @@ export const isPlainClick = (event: MouseEvent) =>
   event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
 
 /**
- * The session's link: opens the drawer (`?session=`) over the current page; covers its whole
+ * The session's link: opens its chat (`?session=`) beside the current page; covers its whole
  * card or row (`relative` parent), below the inline controls (`relative z-10`).
  */
 export function RowLink({

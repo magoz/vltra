@@ -63,7 +63,7 @@ export function useFleet(): Fleet {
   return fleet
 }
 
-/** A session's URL on the current page (inline in focus mode, else the drawer over the page). */
+/** A session's URL on the current page (its chat opens beside the page). */
 export const sessionHref = (nav: FleetNav, sessionID: string) =>
   fleetHref(nav.page, { project: nav.project, session: sessionID, view: nav.view })
 

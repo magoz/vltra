@@ -1,12 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useFleet } from '@/app/fleet-context'
 import { sessionTitle } from '@/app/fleet-format'
 import { useFleetActions } from '@/app/fleet-actions'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
 import { isReopenable } from '@/app/session-row'
 import { StateMarker } from '@/app/state-marker'
+import { usePanelSession } from '@/app/use-panel-session'
 import { Button } from '@/components/ui/button'
+import { boardRow } from '@/lib/data/fleet/board'
 import type { BoardRow } from '@/lib/data/fleet/board'
 
 /**
@@ -99,9 +102,9 @@ type SessionPanelProps = {
 /**
  * A session's panel: OpenCode's chat (its web UI in an iframe) under one slim toolbar (phone back
  * button, state and title, Handled or Reopen, open in the terminal or a new tab, close). Messages,
- * asks, follow-ups and Stop all happen in the chat. It fills its container: the drawer
- * (`SessionDrawer`) over the board and Projects, or focus mode's inline pane (full screen on the
- * phone either way). Callers key it by session, so a new session or closing drops the iframe.
+ * asks, follow-ups and Stop all happen in the chat. It fills its container: the split beside the
+ * board and Projects (`SessionSplit`), or focus mode's pane (full screen on the phone either way).
+ * Callers key it by session, so a new session or closing drops the iframe.
  */
 export function SessionPanel({ sessionID, item, onClose }: SessionPanelProps) {
   const row = item?.row
@@ -152,16 +155,30 @@ export function SessionPanel({ sessionID, item, onClose }: SessionPanelProps) {
 }
 
 /**
- * The session drawer over the board and Projects (`?session=`): right side from `lg`, full screen
- * below it.
+ * The open session (`?session=`) docked beside a page (the board, Projects): its chat on the right
+ * from `lg`, `min(52rem, 42vw)` wide, while the page narrows beside it and stays clickable; full
+ * screen below `lg`. Nothing when no session is open. A switch to another session lands after the
+ * next paint (`usePanelSession`).
  */
-export function SessionDrawer(props: SessionPanelProps) {
+export function SessionSplit() {
+  const { view, selection } = useFleet()
+  const shown = usePanelSession(selection.selected)
+
+  if (shown === undefined) return null
+
+  const row = view.rows.get(shown)
+
   return (
-    <aside
+    <section
       aria-label="Session"
-      className="bg-background fixed z-30 flex flex-col overflow-hidden max-lg:inset-0 lg:top-12 lg:right-0 lg:bottom-0 lg:w-[min(64rem,70vw)] lg:border-l"
+      className="bg-background flex min-h-0 min-w-0 flex-col max-lg:fixed max-lg:inset-0 max-lg:z-30 lg:w-[min(52rem,42vw)] lg:shrink-0 lg:border-l"
     >
-      <SessionPanel {...props} />
-    </aside>
+      <SessionPanel
+        key={shown}
+        sessionID={shown}
+        item={row === undefined ? undefined : boardRow(view, row)}
+        onClose={selection.close}
+      />
+    </section>
   )
 }

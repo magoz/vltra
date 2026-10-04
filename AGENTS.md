@@ -90,8 +90,8 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   `Agents | Board | Projects` (`fleet-header.tsx`), in the desktop header (with the count line
   `N need you · N working · N stuck`, the tab's key hint and the connection) or the phone's bottom
   tab bar (`BottomTabs`, with `+`; no header there, only `ConnectionLine`: a slim `reconnecting…`
-  line on top once a reconnect lasts 3s, the wait starting over when the page shows again), and
-  the session drawer (Projects; the Agents page shows the session inline). Both pages
+  line on top once a reconnect lasts 3s, the wait starting over when the page shows again); each
+  page shows the open session itself (focus mode's pane, the board's and Projects' split). Both pages
   read `useFleet()` (`fleet-context.tsx`: live fleet with overrides, clock, selection, nav). Page
   links are `nav-link.tsx` (`next/link`, prefetched; plain clicks go through `nav.go`).
 - **Agents** has two modes (DESIGN.md "Clients" → Web), in the URL: focus is the absence of
@@ -107,8 +107,8 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   columns are the same lists), as compact `AgentCard`s (the board's minimal cards without a box
   of their own) under `Blocked N` / `Finished N` headings, narrowed by the same project filter
   (`project-filter.tsx`). The rest of the page shows the open session (`?session=`, also one not
-  in the list, e.g. a working session opened from Projects) inline: the same `SessionPanel` as the
-  drawer (its chat), filling the pane (the iframe's absolute fill; no page scroll on desktop).
+  in the list, e.g. a working session opened from Projects) inline: the same `SessionPanel` (its
+  chat) as the splits, filling the pane (the iframe's absolute fill; no page scroll on desktop).
   Nothing open: "Pick a session on the left", or "Nothing needs you" when the list is empty.
   Handling the open session (the row's or the chat toolbar's button, `h`, swipe; focus mode wraps
   `useHandled` so all go through it) opens the next one in list order (`nextNeedsMe`: the one
@@ -124,16 +124,18 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first. Finish
   / `quiet Nm` and "folder deleted", Handled (finished) or Reopen (handled, not for "folder
   deleted"). Asks, answers and live activity are left to the chat. `?project=<projectKey>`
   (`other` = the global project) narrows every column: a select (`/` focuses it) and a chip with ×
-  (`setProject` replaces the history entry). An open session (`?session=`) splits the board: its
-  chat docks on the right (`min(52rem, 42vw)`, the same `SessionPanel`) and the four columns narrow
-  beside it (down to 11rem, then they scroll), still clickable to switch the chat. Phone: one
+  (`setProject` replaces the history entry). An open session (`?session=`) splits the board
+  (`SessionSplit`): the four columns narrow beside its chat (down to 11rem, then they scroll),
+  still clickable to switch it. Phone: one
   column via a segmented control, opening on the first non-empty needs-me column
   (`initialColumn`, else Working), a session full screen; a new filter remounts the board (fresh
   column and focus).
 - **Projects**: cards (`buildProjectCards`) by latest activity, "Other" last, 1 / 2 / 3 columns.
   The header links to the board, `/?view=board&project=<id>`; worktree sections list needs-me and working sessions
   (`ProjectRow`: marker, title, state label, age); handled sessions fold into
-  "N handled · last 2h" per card (no time limit), expandable in place, with Reopen.
+  "N handled · last 2h" per card (no time limit), expandable in place, with Reopen. An open session
+  splits the page (`SessionSplit`); the grid takes its columns from its own width (`@container`:
+  2 from 48rem, 3 from 80rem), so it loses one beside the chat.
 - **Launcher** (DESIGN.md "Launcher and worktrees"; `launcher-dialog.tsx`, state in the shell,
   `launcher-context.tsx`): header **New**, `n` and `⌘K`/`Ctrl+K` on any page, the phone tab bar's
   **+** (full screen), and each Projects card's **+** (new-worktree step, repo preselected). The list
@@ -167,7 +169,7 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first. Finish
 - Keys (`use-keys.ts`, desktop; ignored while typing (except `Escape`), with modifiers and in
   dialogs; keys typed inside the OpenCode iframe stay there): shell `1` / `2` / `3` the tabs, `b`
   Agents ↔ Board, `n` the launcher (and `⌘K` / `Ctrl+K`, its own listener, also while typing),
-  `Escape` closes the session (drawer or inline; the palette closes itself). Focus: `j`/`k` (`↓`/`↑`) through
+  `Escape` closes the session (the palette closes itself). Focus: `j`/`k` (`↓`/`↑`) through
   the list, `Enter` opens the focused session on the right, `h` handled (the focused finished
   session, else the open one; the next opens), `u` undo (reopens and opens it), `/` filter;
   focus starts on the open session, else the first row. Board: `j`/`k` (`↓`/`↑`) within a
@@ -175,11 +177,12 @@ Handled` (`buildAgentsBoard` in `board.ts`). Blocked: longest wait first. Finish
   `/` filter; focus starts on the first needs-me card and follows clicks. No key answers asks:
   they are answered in the chat. Projects: arrows between cards (up/down by grid row), `j`/`k`
   within a card (fold rows when open), `Enter` opens the focused session, else the card's board.
-- The open session lives in the URL (`?session=<id>`, kept across page switches): inline on the
-  Agents page (focus mode's pane, the board's split), a right-side drawer (`SessionDrawer`) over
-  Projects from `lg`; full screen below it either way, so the phone's back button closes it
-  (closing goes back only when Fleet pushed the entry on this page and mode).
-- The session panel (`session-panel.tsx`, drawer and inline alike) is the session's chat alone,
+- The open session lives in the URL (`?session=<id>`, kept across page switches), next to the page
+  from `lg`: focus mode's pane, and on the board and Projects a split (`SessionSplit` in
+  `session-panel.tsx`: the chat docks on the right, `min(52rem, 42vw)`, and the page narrows beside
+  it, still clickable); full screen below `lg`, so the phone's back button closes it (closing goes
+  back only when Fleet pushed the entry on this page and mode).
+- The session panel (`session-panel.tsx`, the same on every page) is the session's chat alone,
   no Summary tab: an iframe of OpenCode's web UI (`row.links.web`), signed in by its same-site
   pairing cookie (`opencode pair`), with full app chrome since upstream has no embed mode. Its
   slim toolbar has only what Fleet adds: the phone's back button, state and title, Handled

@@ -45,8 +45,6 @@ const cursorID = () =>
 
 const press = (key: string, target: Element = document.body) => fireEvent.keyDown(target, { key })
 
-const drawer = () => screen.queryByRole('complementary', { name: 'Session' })
-
 const pane = () => screen.queryByRole('region', { name: 'Session' })
 
 beforeEach(() => {
@@ -301,8 +299,7 @@ describe('split view', () => {
     press('Enter')
 
     expect(pane()?.querySelector('iframe')?.getAttribute('title')).toBe('Wait old')
-    // Beside the columns, not over them: no drawer, and every column still lists its cards.
-    expect(drawer()).toBeNull()
+    // Beside the columns: every column still lists its cards.
     expect(columnIDs().Working).toEqual(['ses_run', 'ses_retry', 'ses_busy'])
 
     fireEvent.click(within(card('ses_busy')).getByRole('link', { name: 'Busy run' }))
