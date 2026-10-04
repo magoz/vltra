@@ -16,9 +16,15 @@ describe('commandDigit', () => {
   })
 
   it('⌘⇧1–⌘⇧3 pick a tab, by physical key whatever the layout prints', () => {
-    expect(commandDigit(chord('Digit1', { shift: true }))).toEqual(CommandDigit.Tab({ screen: 'focus' }))
-    expect(commandDigit(chord('Digit2', { shift: true }))).toEqual(CommandDigit.Tab({ screen: 'agents' }))
-    expect(commandDigit(chord('Digit3', { shift: true }))).toEqual(CommandDigit.Tab({ screen: 'projects' }))
+    expect(commandDigit(chord('Digit1', { shift: true }))).toEqual(
+      CommandDigit.Tab({ screen: 'focus' })
+    )
+    expect(commandDigit(chord('Digit2', { shift: true }))).toEqual(
+      CommandDigit.Tab({ screen: 'agents' })
+    )
+    expect(commandDigit(chord('Digit3', { shift: true }))).toEqual(
+      CommandDigit.Tab({ screen: 'projects' })
+    )
     expect(commandDigit(chord('Digit4', { shift: true }))).toBeUndefined()
   })
 
