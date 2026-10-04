@@ -54,7 +54,12 @@ const renderDashboard = (
 
 const press = (
   key: string,
-  init: { readonly metaKey?: boolean; readonly ctrlKey?: boolean } = {}
+  init: {
+    readonly code?: string
+    readonly metaKey?: boolean
+    readonly ctrlKey?: boolean
+    readonly shiftKey?: boolean
+  } = {}
 ) => fireEvent.keyDown(document.body, { key, ...init })
 
 const palette = () => screen.getByRole('dialog')
@@ -120,16 +125,26 @@ describe('launcher palette', () => {
     expect(document.activeElement).toBe(filter())
   })
 
-  it('opens on ⌘K and Ctrl+K from anywhere, and closes on Escape', async () => {
+  it("opens on ⌘/ and Ctrl+/ from anywhere (not ⌘K, OpenCode's), and closes on Escape", async () => {
     renderDashboard({ screen: 'projects' })
 
-    press('k', { metaKey: true })
+    press('k', { code: 'KeyK', metaKey: true })
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    press('/', { code: 'Slash', metaKey: true })
     await loaded()
 
     fireEvent.keyDown(filter(), { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 
-    press('k', { ctrlKey: true })
+    // A layout that types `/` with Shift elsewhere (Spanish: ⇧7).
+    press('/', { code: 'Digit7', metaKey: true, shiftKey: true })
+    await loaded()
+
+    fireEvent.keyDown(filter(), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    press('/', { code: 'Slash', ctrlKey: true })
     await loaded()
   })
 

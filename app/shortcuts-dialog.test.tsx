@@ -41,7 +41,7 @@ describe('shortcuts', () => {
       'h ⌘D done',
       'u undo',
       'b focus',
-      'n ⌘K new',
+      'n ⌘/ new',
       '/ filter',
       '⌘1–9 Nth session (Focus)',
       '1 2 3 ⌘⌥1–3 tabs',

@@ -320,7 +320,7 @@ export function FleetHeader({
             variant="outline"
             size="sm"
             onClick={onNew}
-            title="New: open a repo or start a worktree (n, ⌘K)"
+            title="New: open a repo or start a worktree (n, ⌘/)"
           >
             New
           </Button>

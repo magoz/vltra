@@ -17,11 +17,11 @@ const setup = () => {
   const fleet: Array<string> = []
   const chat: Array<string> = []
 
-  // Fleet takes `j` and `⌘K` (as `useKeys` and the launcher do) and leaves the rest.
+  // Fleet takes `j` and `⌘/` (as `useKeys` and the launcher do) and leaves the rest.
   const onFleetKey = (event: KeyboardEvent) => {
     fleet.push(event.key)
 
-    if (event.key === 'j' || (event.key === 'k' && event.metaKey)) event.preventDefault()
+    if (event.key === 'j' || (event.key === '/' && event.metaKey)) event.preventDefault()
   }
 
   document.addEventListener('keydown', onFleetKey)
@@ -108,15 +108,16 @@ describe('forwardChatKeys', () => {
     expect(document.activeElement).not.toBe(chatFrame.frame)
   })
 
-  it('gives Fleet ⌘K even while typing in the chat', () => {
+  it("gives Fleet ⌘/ even while typing in the chat, and leaves ⌘K (OpenCode's palette) to it", () => {
     const textarea = chatFrame.frameDocument.querySelector('textarea')
 
     if (textarea === null) throw new Error('missing fixture')
 
-    chatFrame.press('k', textarea, { metaKey: true })
+    chatFrame.press('/', textarea, { code: 'Slash', metaKey: true })
+    chatFrame.press('k', textarea, { code: 'KeyK', metaKey: true })
 
-    expect(chatFrame.fleet).toEqual(['k'])
-    expect(chatFrame.chat).toEqual([])
+    expect(chatFrame.fleet).toEqual(['/'])
+    expect(chatFrame.chat).toEqual(['k'])
   })
 
   it("gives Fleet ⌘ + digits even while typing (OpenCode's tab keys never see them)", () => {

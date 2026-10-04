@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
-import { CommandKey, commandKey, inDialog } from '@/app/command-keys'
+import { CommandKey, commandKey, inDialog, isLauncherKey } from '@/app/command-keys'
 import { useFleetActions } from '@/app/fleet-actions'
 import { FleetProvider } from '@/app/fleet-context'
 import type { FleetNav, SessionSelection } from '@/app/fleet-context'
@@ -83,7 +83,7 @@ function useLaunchAutoOpen(
   )
 }
 
-/** `⌘K` / `Ctrl+K` opens the launcher from anywhere (in the OpenCode chat too: `forwardChatKeys`). */
+/** `⌘/` (`isLauncherKey`) opens the launcher from anywhere (in the OpenCode chat too: `forwardChatKeys`). */
 function useLauncherShortcut(open: () => void) {
   const latest = useRef(open)
 
@@ -93,9 +93,7 @@ function useLauncherShortcut(open: () => void) {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== 'k' || !(event.metaKey || event.ctrlKey) || event.altKey) {
-        return
-      }
+      if (!isLauncherKey(event)) return
 
       event.preventDefault()
       latest.current()
@@ -141,7 +139,7 @@ function useCommandKeys(run: (chord: CommandKey) => void) {
  * whose only other chrome is a reconnecting line when the link is down) and Handled / Undo /
  * Reopen. Each tab shows the open session (`?session=`) itself: Focus' pane, the board's and
  * Projects' split (`SessionSplit`). Keys: `1` / `2` / `3` the tabs, `b` Focus ↔ Agents, `Escape`
- * closes the session, `n` / `⌘K` open the launcher (its palette, its list for the Projects cards,
+ * closes the session, `n` / `⌘/` open the launcher (its palette, its list for the Projects cards,
  * and the auto-open of a launch started here).
  */
 export function FleetShell({

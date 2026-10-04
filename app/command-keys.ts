@@ -44,3 +44,15 @@ export const commandKey = (event: ChordEvent): CommandKey | undefined => {
 export const inDialog = (event: Pick<KeyboardEvent, 'target'>): boolean =>
   event.target instanceof Element &&
   event.target.closest('[role="dialog"], [role="alertdialog"]') !== null
+
+/**
+ * `⌘/` (`Ctrl+/` off the Mac) opens the launcher, from anywhere, in the chat too. Either the
+ * physical `/` key (`code`, whatever the layout prints there) or whatever key types `/` on this
+ * layout (`key`). Never `⌘K`: that is OpenCode's command palette in the chat.
+ */
+export const isLauncherKey = (
+  event: Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>
+): boolean =>
+  (event.metaKey || event.ctrlKey) &&
+  !event.altKey &&
+  (event.key === '/' || (event.code === 'Slash' && !event.shiftKey))
