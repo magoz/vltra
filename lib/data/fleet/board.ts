@@ -193,8 +193,6 @@ export type AgentsBoard = {
   readonly olderHandled: number
 }
 
-const oldestFirst = (left: BoardRow, right: BoardRow) => left.row.activeAt - right.row.activeAt
-
 const newestFirst = (left: BoardRow, right: BoardRow) => right.row.activeAt - left.row.activeAt
 
 const allRows = (live: LiveFleet) => Array.from(live.rows.values(), row => boardRow(live, row))
@@ -209,14 +207,14 @@ export type NeedsMe = {
 }
 
 const needsMeOf = (rows: ReadonlyArray<BoardRow>): NeedsMe => ({
-  blocked: rows.filter(item => item.row.state === 'blocked').toSorted(oldestFirst),
-  finished: rows.filter(item => item.row.state === 'finished').toSorted(oldestFirst)
+  blocked: rows.filter(item => item.row.state === 'blocked').toSorted(newestFirst),
+  finished: rows.filter(item => item.row.state === 'finished').toSorted(newestFirst)
 })
 
 /**
- * The needs-me sessions, narrowed to `project` (a `projectKey`) when given: blocked, longest wait
+ * The needs-me sessions, narrowed to `project` (a `projectKey`) when given: blocked, newest wait
  * first (a blocked run stopped moving when it asked, so its `activeAt` is when the wait began);
- * finished, oldest first.
+ * finished, newest first.
  */
 export const buildNeedsMe = (live: LiveFleet, project: string | undefined): NeedsMe =>
   needsMeOf(projectRows(live, project))
@@ -246,7 +244,7 @@ export const nextNeedsMe = (list: ReadonlyArray<BoardRow>, id: string): BoardRow
 
 /**
  * The Agents board as of `now`, narrowed to `project` (a `projectKey`) when given:
- * - needs you: `buildNeedsMe` in `needsMeOrder` (blocked, longest wait first, then finished);
+ * - needs you: `buildNeedsMe` in `needsMeOrder` (blocked, then finished, newest first);
  * - working: stuck first, then the newest session first (`created`, which never moves, so live
  *   activity does not reshuffle the column);
  * - handled: active within `handledWindow`, newest first; the rest only counted.

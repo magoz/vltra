@@ -109,12 +109,12 @@ describe('agents board', () => {
   it('puts every root session in its column: Need you is blocked, then finished', () => {
     expect(columnIDs(board)).toEqual({
       needsYou: [
-        'ses_wait_long',
         'ses_wait_short',
-        'ses_done_old',
-        'ses_done',
+        'ses_wait_long',
+        'ses_tmp',
         'ses_fail',
-        'ses_tmp'
+        'ses_done',
+        'ses_done_old'
       ],
       working: ['ses_run'],
       handled: ['ses_handled_recent', 'ses_handled_wt', 'ses_box']
@@ -176,7 +176,7 @@ describe('agents board', () => {
     const fleetOnly = buildAgentsBoard(live, now, 'prj_fleet')
 
     expect(columnIDs(fleetOnly)).toEqual({
-      needsYou: ['ses_wait_long', 'ses_wait_short', 'ses_done_old', 'ses_done', 'ses_fail'],
+      needsYou: ['ses_wait_short', 'ses_wait_long', 'ses_fail', 'ses_done', 'ses_done_old'],
       working: ['ses_run'],
       handled: ['ses_handled_recent', 'ses_handled_wt']
     })
@@ -207,18 +207,18 @@ describe('agents board', () => {
 })
 
 describe('needs me (focus mode)', () => {
-  it('lists blocked (longest wait first), then finished (oldest first), nothing else', () => {
+  it('lists blocked (newest wait first), then finished (newest first), nothing else', () => {
     const needsMe = buildNeedsMe(live, undefined)
 
-    expect(ids(needsMe.blocked)).toEqual(['ses_wait_long', 'ses_wait_short'])
-    expect(ids(needsMe.finished)).toEqual(['ses_done_old', 'ses_done', 'ses_fail', 'ses_tmp'])
+    expect(ids(needsMe.blocked)).toEqual(['ses_wait_short', 'ses_wait_long'])
+    expect(ids(needsMe.finished)).toEqual(['ses_tmp', 'ses_fail', 'ses_done', 'ses_done_old'])
     expect(ids(needsMeOrder(needsMe))).toEqual([
-      'ses_wait_long',
       'ses_wait_short',
-      'ses_done_old',
-      'ses_done',
+      'ses_wait_long',
+      'ses_tmp',
       'ses_fail',
-      'ses_tmp'
+      'ses_done',
+      'ses_done_old'
     ])
     // The board's Need you column is the same list.
     expect(board.columns.needsYou).toEqual(needsMeOrder(needsMe))
@@ -226,11 +226,11 @@ describe('needs me (focus mode)', () => {
 
   it('narrows to one project', () => {
     expect(ids(needsMeOrder(buildNeedsMe(live, 'prj_fleet')))).toEqual([
-      'ses_wait_long',
       'ses_wait_short',
-      'ses_done_old',
+      'ses_wait_long',
+      'ses_fail',
       'ses_done',
-      'ses_fail'
+      'ses_done_old'
     ])
     expect(ids(needsMeOrder(buildNeedsMe(live, otherProjectID)))).toEqual(['ses_tmp'])
     expect(ids(needsMeOrder(buildNeedsMe(live, 'prj_box')))).toEqual([])
@@ -240,14 +240,14 @@ describe('needs me (focus mode)', () => {
     const list = needsMeOrder(buildNeedsMe(live, undefined))
     const next = (id: string, from = list) => nextNeedsMe(from, id)?.row.id
 
-    expect(next('ses_done_old')).toBe('ses_done')
-    expect(next('ses_done')).toBe('ses_fail')
-    // From the last blocked session on to the first finished one.
-    expect(next('ses_wait_short')).toBe('ses_done_old')
-    // The last one: the one before it.
     expect(next('ses_tmp')).toBe('ses_fail')
+    expect(next('ses_fail')).toBe('ses_done')
+    // From the last blocked session on to the first finished one.
+    expect(next('ses_wait_long')).toBe('ses_tmp')
+    // The last one: the one before it.
+    expect(next('ses_done_old')).toBe('ses_done')
     // Not in the list (opened from elsewhere): the first.
-    expect(next('ses_run')).toBe('ses_wait_long')
+    expect(next('ses_run')).toBe('ses_wait_short')
 
     const only = list.filter(item => item.row.id === 'ses_tmp')
 

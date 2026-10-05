@@ -113,7 +113,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   unfiltered. `1` / `2` / `3` pick a tab.
 - **Focus** (`agents-focus.tsx`, default): a sidebar (26rem, hairline right border,
   scrolls on its own) with only the needs-me sessions (`buildNeedsMe` / `needsMeOrder` in
-  `board.ts`: blocked, longest wait first, then finished, oldest first; the board's Need you
+  `board.ts`: blocked, then finished, each newest first; the board's Need you
   column is the same list), as compact `AgentCard`s (the board's minimal cards without a box
   of their own) in one list: no headings and no project filter (it ignores Agents' `?project=`,
   which stays in the URL for the way back); blocked rows carry the `blocked` badge. The rest of the page shows the open session (`?session=`, also one not
@@ -129,8 +129,8 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   the list full width; a session opens full screen (the pane becomes `fixed inset-0`), its back
   button returns to the list.
 - **Agents**, the board (`?view=agents`, `agents-board.tsx`): columns `Need you | Working |
-Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (longest wait first, each card
-  badged `blocked`), then finished (oldest first). Working: stuck first, then newest session (`created`, so live activity does not reshuffle).
+Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, each card
+  badged `blocked`), then finished (newest first). Working: stuck first, then newest session (`created`, so live activity does not reshuffle).
   Done (handled): active in the last 24h, newest first, then "N more → Projects". Cards
   (`agent-card.tsx`) are minimal: marker (red for a failed run), the project (`boardRow`; the
   global project's sessions by their directory), the `blocked` badge, `✔ Done` left of the age

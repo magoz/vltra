@@ -63,7 +63,7 @@ describe('columns', () => {
     renderBoard()
 
     expect(columnIDs()).toEqual({
-      'Need you': ['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'],
+      'Need you': ['ses_wait_new', 'ses_wait_old', 'ses_done_new', 'ses_done_old'],
       Working: ['ses_run', 'ses_retry', 'ses_busy'],
       Done: ['ses_tmp', 'ses_handled', 'ses_box']
     })
@@ -105,7 +105,7 @@ describe('columns', () => {
 
     fireEvent.click(within(card('ses_done_new')).getByRole('button', { name: 'Done' }))
 
-    expect(rowIDs(column('Need you'))).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_old'])
+    expect(rowIDs(column('Need you'))).toEqual(['ses_wait_new', 'ses_wait_old', 'ses_done_old'])
     expect(rowIDs(column('Done'))).toEqual(['ses_tmp', 'ses_done_new', 'ses_handled', 'ses_box'])
 
     fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
@@ -117,10 +117,10 @@ describe('columns', () => {
       ])
     )
     expect(rowIDs(column('Need you'))).toEqual([
-      'ses_wait_old',
       'ses_wait_new',
-      'ses_done_old',
-      'ses_done_new'
+      'ses_wait_old',
+      'ses_done_new',
+      'ses_done_old'
     ])
   })
 
@@ -139,11 +139,11 @@ describe('columns', () => {
     fireEvent.click(within(card('ses_handled')).getByRole('button', { name: 'Reopen' }))
 
     expect(rowIDs(column('Need you'))).toEqual([
-      'ses_wait_old',
       'ses_wait_new',
-      'ses_done_old',
+      'ses_wait_old',
+      'ses_done_new',
       'ses_handled',
-      'ses_done_new'
+      'ses_done_old'
     ])
     await waitFor(() =>
       expect(calls).toEqual([{ action: 'reopen', input: { sessionID: 'ses_handled' } }])
@@ -170,7 +170,7 @@ describe('project filter', () => {
     const { navigations } = renderBoard({ project: 'prj_fleet' })
 
     expect(columnIDs()).toEqual({
-      'Need you': ['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'],
+      'Need you': ['ses_wait_new', 'ses_wait_old', 'ses_done_new', 'ses_done_old'],
       Working: ['ses_run', 'ses_retry', 'ses_busy'],
       Done: ['ses_handled']
     })
@@ -192,7 +192,7 @@ describe('project filter', () => {
     expect(document.activeElement).toBe(select)
     // Typing in the filter leaves the board's keys alone.
     press('j', select)
-    expect(cursorID()).toBe('ses_wait_old')
+    expect(cursorID()).toBe('ses_wait_new')
 
     fireEvent.change(select, { target: { value: 'other' } })
 
@@ -206,15 +206,15 @@ describe('keyboard', () => {
   it('starts on the first needs-me card; j / k within a column, ← / → between columns', () => {
     renderBoard()
 
-    expect(cursorID()).toBe('ses_wait_old')
-
-    press('j')
     expect(cursorID()).toBe('ses_wait_new')
 
     press('j')
+    expect(cursorID()).toBe('ses_wait_old')
+
+    press('j')
     press('ArrowDown')
     press('ArrowDown')
-    expect(cursorID()).toBe('ses_done_new')
+    expect(cursorID()).toBe('ses_done_old')
 
     press('ArrowRight')
     expect(cursorID()).toBe('ses_busy')
@@ -228,7 +228,7 @@ describe('keyboard', () => {
 
     press('ArrowLeft')
     press('ArrowUp')
-    expect(cursorID()).toBe('ses_wait_old')
+    expect(cursorID()).toBe('ses_wait_new')
   })
 
   it('marks the focused card handled with h, moves to the next card, u undoes', async () => {
@@ -236,28 +236,28 @@ describe('keyboard', () => {
 
     press('j')
     press('j')
-    expect(cursorID()).toBe('ses_done_old')
+    expect(cursorID()).toBe('ses_done_new')
 
     press('h')
 
-    expect(rowIDs(column('Need you'))).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_new'])
-    expect(cursorID()).toBe('ses_done_new')
+    expect(rowIDs(column('Need you'))).toEqual(['ses_wait_new', 'ses_wait_old', 'ses_done_old'])
+    expect(cursorID()).toBe('ses_done_old')
 
     press('u')
 
     await waitFor(() =>
       expect(calls).toEqual([
-        { action: 'markHandled', input: { sessionID: 'ses_done_old' } },
-        { action: 'reopen', input: { sessionID: 'ses_done_old' } }
+        { action: 'markHandled', input: { sessionID: 'ses_done_new' } },
+        { action: 'reopen', input: { sessionID: 'ses_done_new' } }
       ])
     )
     expect(rowIDs(column('Need you'))).toEqual([
-      'ses_wait_old',
       'ses_wait_new',
-      'ses_done_old',
-      'ses_done_new'
+      'ses_wait_old',
+      'ses_done_new',
+      'ses_done_old'
     ])
-    expect(cursorID()).toBe('ses_done_old')
+    expect(cursorID()).toBe('ses_done_new')
   })
 
   it('leaves blocked cards to the chat: h does nothing there', () => {
@@ -266,7 +266,7 @@ describe('keyboard', () => {
     press('h')
 
     expect(calls).toEqual([])
-    expect(cursorID()).toBe('ses_wait_old')
+    expect(cursorID()).toBe('ses_wait_new')
   })
 
   it('ignores the keys while typing and with modifiers', () => {
@@ -280,7 +280,7 @@ describe('keyboard', () => {
       press('h', input)
       fireEvent.keyDown(document.body, { key: 'j', metaKey: true })
 
-      expect(cursorID()).toBe('ses_wait_old')
+      expect(cursorID()).toBe('ses_wait_new')
       expect(calls).toEqual([])
     } finally {
       input.remove()
@@ -314,7 +314,7 @@ describe('split view', () => {
 
     press('Enter')
 
-    expect(pane()?.querySelector('iframe')?.getAttribute('title')).toBe('Wait old')
+    expect(pane()?.querySelector('iframe')?.getAttribute('title')).toBe('Wait new')
     // Beside the columns: every column still lists its cards.
     expect(columnIDs().Working).toEqual(['ses_run', 'ses_retry', 'ses_busy'])
 

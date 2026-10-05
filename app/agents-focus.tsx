@@ -187,7 +187,7 @@ function Focus() {
 /**
  * Focus (the default tab, DESIGN.md "Clients" → Web): a sidebar listing the launcher's launches
  * ("Provisioning") and, in one list without headings or a filter, the sessions that need me
- * (blocked, longest wait first, badged; then finished, oldest first, with Handled; asks are
+ * (blocked, newest first, badged; then finished, newest first, with Handled; asks are
  * answered in the chat), and the open session (`?session=`, also
  * one opened from elsewhere) inline in the rest of the page: its chat. Handling the open session
  * opens the next one in list order. The list marks the open session only; `j` / `k` add a cursor

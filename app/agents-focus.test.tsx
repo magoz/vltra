@@ -120,10 +120,10 @@ describe('focus mode', () => {
     expect(testLocation()).toBe('/')
   })
 
-  it('lists only blocked (longest wait first), then finished (oldest first)', () => {
+  it('lists only blocked, then finished, each newest first', () => {
     renderFocus()
 
-    expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'])
+    expect(rowIDs(list())).toEqual(['ses_wait_new', 'ses_wait_old', 'ses_done_new', 'ses_done_old'])
     // One list: no headings, no filter; blocked rows carry the badge.
     expect(within(list()).queryAllByRole('heading')).toEqual([])
     expect(within(list()).queryByRole('combobox', { name: 'Project' })).toBeNull()
@@ -144,7 +144,7 @@ describe('focus mode', () => {
   it("ignores Agents' project filter: everything that needs me", () => {
     renderFocus({ project: 'other' })
 
-    expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'])
+    expect(rowIDs(list())).toEqual(['ses_wait_new', 'ses_wait_old', 'ses_done_new', 'ses_done_old'])
     expect(screen.queryByRole('button', { name: 'Clear the Other filter' })).toBeNull()
   })
 
@@ -208,7 +208,7 @@ describe('focus mode', () => {
     open('Done new')
     fireEvent.click(within(row('ses_done_old')).getByRole('button', { name: 'Done' }))
 
-    expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_new'])
+    expect(rowIDs(list())).toEqual(['ses_wait_new', 'ses_wait_old', 'ses_done_new'])
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
   })
 
@@ -228,7 +228,7 @@ describe('focus mode', () => {
       <TestDashboard live={working(live, 'ses_done_old')} now={now} actions={actions} />
     )
 
-    expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_new'])
+    expect(rowIDs(list())).toEqual(['ses_wait_new', 'ses_wait_old', 'ses_done_new'])
     expect(cursorID()).toBeUndefined()
     expect(list().querySelector('[data-selected="true"]')).toBeNull()
     // The chat stays open.
@@ -331,20 +331,20 @@ describe('tabs', () => {
 
     chord('Digit3')
 
-    expect(testLocation()).toBe('/?session=ses_done_old')
+    expect(testLocation()).toBe('/?session=ses_done_new')
 
     chord('Digit2', true)
 
-    expect(testLocation()).toBe('/?view=agents&session=ses_done_old')
+    expect(testLocation()).toBe('/?view=agents&session=ses_done_new')
 
     // From another tab, the Nth session opens in Focus.
     chord('Digit1')
 
-    expect(testLocation()).toBe('/?session=ses_wait_old')
+    expect(testLocation()).toBe('/?session=ses_wait_new')
 
     chord('Digit3', true)
 
-    expect(testLocation()).toBe('/?view=projects&session=ses_wait_old')
+    expect(testLocation()).toBe('/?view=projects&session=ses_wait_new')
 
     // Past the end of the list, nothing happens (and the browser still does not get it).
     const past = new KeyboardEvent('keydown', {
@@ -358,7 +358,7 @@ describe('tabs', () => {
     document.body.dispatchEvent(past)
 
     expect(past.defaultPrevented).toBe(true)
-    expect(testLocation()).toBe('/?view=projects&session=ses_wait_old')
+    expect(testLocation()).toBe('/?view=projects&session=ses_wait_new')
   })
 
   it("switches with the phone's tabs, keeping the filter between Focus and Agents", () => {
@@ -398,20 +398,20 @@ describe('keyboard', () => {
     expect(cursorID()).toBeUndefined()
 
     press('j')
-    expect(cursorID()).toBe('ses_wait_old')
+    expect(cursorID()).toBe('ses_wait_new')
 
     press('ArrowDown')
     press('j')
     press('j')
     press('k')
-    expect(cursorID()).toBe('ses_done_old')
+    expect(cursorID()).toBe('ses_done_new')
 
     press('Enter')
 
-    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
     // Only the open session is marked now.
     expect(cursorID()).toBeUndefined()
-    expect(row('ses_done_old').querySelector('[data-selected="true"]')).not.toBeNull()
+    expect(row('ses_done_new').querySelector('[data-selected="true"]')).not.toBeNull()
 
     press('Escape')
 
@@ -432,25 +432,25 @@ describe('keyboard', () => {
     press('j')
     press('h')
 
-    expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_new'])
-    expect(row('ses_done_new').querySelector('[data-selected="true"]')).not.toBeNull()
-    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
+    expect(rowIDs(list())).toEqual(['ses_wait_new', 'ses_wait_old', 'ses_done_old'])
+    expect(row('ses_done_old').querySelector('[data-selected="true"]')).not.toBeNull()
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
 
     press('u')
 
     await waitFor(() =>
       expect(calls()).toEqual([
-        { action: 'markHandled', input: { sessionID: 'ses_done_old' } },
-        { action: 'reopen', input: { sessionID: 'ses_done_old' } }
+        { action: 'markHandled', input: { sessionID: 'ses_done_new' } },
+        { action: 'reopen', input: { sessionID: 'ses_done_new' } }
       ])
     )
-    expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_old', 'ses_done_new'])
-    expect(row('ses_done_old').querySelector('[data-selected="true"]')).not.toBeNull()
-    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
+    expect(rowIDs(list())).toEqual(['ses_wait_new', 'ses_wait_old', 'ses_done_new', 'ses_done_old'])
+    expect(row('ses_done_new').querySelector('[data-selected="true"]')).not.toBeNull()
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
   })
 
   it('h handles the open session when the focused row is blocked', async () => {
-    const { live, calls } = renderFocus({ session: 'ses_done_new' })
+    const { live, calls } = renderFocus({ session: 'ses_done_old' })
 
     // Only the open session is marked; the keys start from it.
     expect(cursorID()).toBeUndefined()
@@ -458,19 +458,19 @@ describe('keyboard', () => {
     press('k')
     press('k')
     press('k')
-    expect(cursorID()).toBe('ses_wait_old')
+    expect(cursorID()).toBe('ses_wait_new')
 
     press('h')
 
     await waitFor(() =>
-      expect(calls()).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_done_new' } }])
+      expect(calls()).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_done_old' } }])
     )
     // The last one: the one before it opens.
-    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
   })
 
   it('⌘D marks the open session done and opens the next, not a blocked one; ⌘U undoes', async () => {
-    const { live, calls } = renderFocus({ session: 'ses_done_old' })
+    const { live, calls } = renderFocus({ session: 'ses_done_new' })
 
     // `fireEvent` is false once the default is prevented.
     const commandD = () =>
@@ -478,14 +478,14 @@ describe('keyboard', () => {
 
     // Taken from the browser (no bookmark), whatever it does.
     expect(commandD()).toBe(false)
-    expect(rowIDs(list())).toEqual(['ses_wait_old', 'ses_wait_new', 'ses_done_new'])
-    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
+    expect(rowIDs(list())).toEqual(['ses_wait_new', 'ses_wait_old', 'ses_done_old'])
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
 
     open('Wait old')
     commandD()
 
     await waitFor(() =>
-      expect(calls()).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_done_old' } }])
+      expect(calls()).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_done_new' } }])
     )
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_wait_old'))
 
@@ -498,10 +498,10 @@ describe('keyboard', () => {
 
     await waitFor(() =>
       expect(calls()).toEqual([
-        { action: 'markHandled', input: { sessionID: 'ses_done_old' } },
-        { action: 'reopen', input: { sessionID: 'ses_done_old' } }
+        { action: 'markHandled', input: { sessionID: 'ses_done_new' } },
+        { action: 'reopen', input: { sessionID: 'ses_done_new' } }
       ])
     )
-    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
   })
 })
