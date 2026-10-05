@@ -175,7 +175,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   `↵ New session in <repo · branch>` (`newSession`: always a new empty session there, opened in
   focus mode; no open-latest, `openCheckout` is the terminal plugin's) and `⇧↵ New worktree in <repo>…`, which
   switches to a task textarea and a branch field filled by `suggestBranch` 600ms after typing stops ("suggested";
-  editing it stops the suggestions; `⌘↵` creates). Create calls `launch` (returns at once), closes
+  editing it stops the suggestions; `↵` creates, `⇧↵` is a new line in the task; Create before a
+  suggestion asks for it at once and launches with it). Create calls `launch` (returns at once), closes
   the palette and toasts; the launch's session opens when it is ready if the user is still on the
   same page and mode and has not opened anything else meanwhile.
 - **Launches** (`live.launches`, from the snapshot and `fleet.changed`) show only while they have

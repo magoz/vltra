@@ -1,7 +1,7 @@
 'use client'
 
 import { Option, Predicate } from 'effect'
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import type { KeyboardEvent } from 'react'
 import { toast } from 'sonner'
 import { settled, useFleetActions } from '@/app/fleet-actions'
@@ -305,6 +305,30 @@ function NewStep({
   const valid = Option.isSome(branchToName(branch))
   const wanted = task.trim()
   const suggesting = typed === undefined && wanted !== '' && suggestion?.task !== wanted
+  // Without a hand-edited branch, Create waits for the suggestion (asking at once if needed).
+  const ready = wanted !== '' && (typed === undefined || valid)
+
+  const asked = useRef<{ readonly task: string; readonly answer: Promise<BranchSuggestion> }>(
+    undefined
+  )
+
+  /** One suggestion request per task, shared by the debounce and an early Create. */
+  const suggestFor = useCallback(
+    (task: string): Promise<BranchSuggestion> => {
+      if (asked.current?.task === task) return asked.current.answer
+
+      const answer = settled(actions.suggestBranch({ task })).then((result): BranchSuggestion =>
+        Predicate.isTagged(result, 'Success')
+          ? result.value
+          : { branch: fallbackBranch(task), source: 'fallback' }
+      )
+
+      asked.current = { task, answer }
+
+      return answer
+    },
+    [actions]
+  )
 
   // Suggest once typing pauses, unless the branch was edited by hand. Late answers for an older
   // task are dropped.
@@ -314,15 +338,9 @@ function NewStep({
     let current = true
 
     const timer = setTimeout(() => {
-      settled(actions.suggestBranch({ task: wanted }))
-        .then(result => {
-          if (!current) return
-
-          setSuggestion(
-            Predicate.isTagged(result, 'Success')
-              ? { ...result.value, task: wanted }
-              : { branch: fallbackBranch(wanted), source: 'fallback', task: wanted }
-          )
+      suggestFor(wanted)
+        .then(answer => {
+          if (current) setSuggestion({ ...answer, task: wanted })
         })
         .catch(() => undefined)
     }, suggestDelay)
@@ -331,16 +349,29 @@ function NewStep({
       current = false
       clearTimeout(timer)
     }
-  }, [actions, typed, wanted])
+  }, [suggestFor, typed, wanted])
 
   const create = () => {
-    if (pending || wanted === '' || !valid) return
+    if (pending || !ready) return
 
     setError(undefined)
 
     startTransition(async () => {
+      const chosen =
+        typed !== undefined
+          ? typed
+          : suggestion?.task === wanted
+            ? suggestion.branch
+            : (await suggestFor(wanted)).branch
+
+      if (Option.isNone(branchToName(chosen))) {
+        setError(`Not a valid branch name: ${chosen}`)
+
+        return
+      }
+
       const result = await settled(
-        actions.launch({ repoDir: entry.directory, branch, task: wanted })
+        actions.launch({ repoDir: entry.directory, branch: chosen, task: wanted })
       )
 
       if (Predicate.isTagged(result, 'Error')) {
@@ -349,13 +380,14 @@ function NewStep({
         return
       }
 
-      onLaunched(result.value.launchID, branch)
+      onLaunched(result.value.launchID, chosen)
       onClose()
     })
   }
 
-  const submitOnModEnter = (event: KeyboardEvent) => {
-    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+  // Enter creates; Shift+Enter is a new line in the task. Not while an IME is composing.
+  const submitOnEnter = (event: KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault()
       create()
     }
@@ -389,7 +421,7 @@ function NewStep({
           autoFocus
           value={task}
           onChange={event => setTask(event.target.value)}
-          onKeyDown={submitOnModEnter}
+          onKeyDown={submitOnEnter}
           placeholder="What should the agent do?"
           rows={5}
           aria-label="Task"
@@ -403,7 +435,7 @@ function NewStep({
         <Input
           value={branch}
           onChange={event => setTyped(event.target.value)}
-          onKeyDown={submitOnModEnter}
+          onKeyDown={submitOnEnter}
           placeholder="feat/short-name"
           aria-label="Branch"
           aria-invalid={branch !== '' && !valid}
@@ -424,9 +456,10 @@ function NewStep({
       )}
       <div className="flex items-center justify-between gap-3">
         <span className="text-muted-foreground text-xs max-lg:hidden">
-          <kbd className="text-foreground">⌘↵</kbd> create
+          <kbd className="text-foreground">↵</kbd> create ·{' '}
+          <kbd className="text-foreground">⇧↵</kbd> new line
         </span>
-        <Button type="submit" disabled={pending || wanted === '' || !valid}>
+        <Button type="submit" disabled={pending || !ready}>
           {pending ? 'Creating…' : 'Create'}
         </Button>
       </div>

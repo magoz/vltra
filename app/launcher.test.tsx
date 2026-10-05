@@ -253,6 +253,51 @@ describe('launcher palette', () => {
     expect(await screen.findByText('Provisioning feat/launcher-palette…')).toBeTruthy()
   })
 
+  it('Enter in the task creates at once, asking for the branch suggestion first', async () => {
+    const { calls } = renderDashboard()
+
+    await openPalette()
+
+    fireEvent.click(newWorktree('fleet'))
+
+    const task = within(palette()).getByRole('textbox', { name: 'Task' })
+
+    fireEvent.change(task, { target: { value: 'Add the launcher palette' } })
+
+    // Shift+Enter is a new line, not Create.
+    fireEvent.keyDown(task, { key: 'Enter', shiftKey: true })
+    expect(calls()).toEqual([])
+
+    // Before the debounce: Create asks for the suggestion itself, once, then launches with it.
+    fireEvent.keyDown(task, { key: 'Enter' })
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(calls()).toEqual([
+      { action: 'suggestBranch', input: { task: 'Add the launcher palette' } },
+      {
+        action: 'launch',
+        input: { repoDir: fleet, branch: 'feat/suggested-name', task: 'Add the launcher palette' }
+      }
+    ])
+  })
+
+  it('Enter after the debounced suggestion does not ask again', async () => {
+    const { calls } = renderDashboard()
+
+    await openPalette()
+
+    fireEvent.click(newWorktree('fleet'))
+
+    const task = within(palette()).getByRole('textbox', { name: 'Task' })
+
+    fireEvent.change(task, { target: { value: 'x' } })
+    await waitFor(() => expect(calls()).toHaveLength(1))
+    fireEvent.keyDown(task, { key: 'Enter' })
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(calls().map(call => call.action)).toEqual(['suggestBranch', 'launch'])
+  })
+
   it('keeps the step open with the reason when the launch is refused', async () => {
     renderDashboard({ failWith: 'Not a git checkout on Box' })
 
