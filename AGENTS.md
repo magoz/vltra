@@ -34,6 +34,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | Chat proxy, chat keys            | `proxy.ts`, `app/opencode-proxy.ts`, `app/chat-keys.ts`         | Same-origin OpenCode iframe; Fleet's keys inside it      |
 | Runtime (one per process)        | `lib/runtime/fleet-runtime.ts`                                  | `ManagedRuntime` on `globalThis`; `runFleet`             |
 | Watcher start                    | `instrumentation.ts`                                            | Node runtime only; skipped during `next build`           |
+| Shutdown (SIGTERM deadline)      | `lib/runtime/shutdown.ts`                                       | Exits 3s after the signal; `LONG_LIVED_WATCHER.md`       |
 | Page / API routes / actions      | `app/`                                                          | `(fleet)/` one page, `api/fleet`, `*-action.ts`          |
 | Plugin mutation routes (JSON)    | `app/api/fleet/mutations.ts`, `json-request.ts`                 | handled, reopen, launches, dismiss, checkouts/open       |
 | Dashboard UI                     | `app/fleet-shell.tsx` and siblings                              | Layout's live tree (`fleet-live.tsx`); see below         |

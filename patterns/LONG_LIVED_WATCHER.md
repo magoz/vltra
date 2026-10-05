@@ -134,8 +134,20 @@ a lookup still running when the launcher list answers keeps going and fills the 
 
 `instrumentation.ts` also registers `stopFleetOnSignals()`: on SIGTERM/SIGINT the runtime is
 disposed, which closes the store's `PubSub` and ends every open `GET /api/fleet/events` stream.
-Next's own handler closes the HTTP server and waits for open connections, so without this a
-connected dashboard kept `next start` (and `systemctl restart fleet`) waiting for the stop
-timeout. After `stopFleet` the runtime is never rebuilt; requests that race the shutdown (an
-EventSource reconnecting over a kept-alive connection) fail, and the process exits once those
-connections go idle (seconds).
+After `stopFleet` the runtime is never rebuilt; requests that race the shutdown (an EventSource
+reconnecting over a kept-alive connection) fail.
+
+Next's own handler closes the HTTP server and, in production, waits for every open connection
+(`server.close()`; only dev closes them). The chat's proxied OpenCode connections (`proxy.ts`: its
+`/api/event` stream, terminal WebSockets) never end on their own, and nothing in Fleet or Next can
+close them, so they kept `next start` (and `systemctl restart fleet`) alive until systemd's stop
+timeout: a 90s outage per deploy. `exitOnSignals` (`lib/runtime/shutdown.ts`) bounds it: the
+process exits `shutdownGraceMs` (3s) after the signal, with Next's exit codes (143 / 130), unless
+Next exits first. The deadline counts from the signal, not from `stopFleet`, since disposing can
+itself wait (interrupting a `gh` or `git` call), and it is an unref'd timer outside the runtime it
+disposes. Nothing that must finish runs at shutdown: actions run on the disposed runtime, launches
+in flight are lost by design, no `after()`. The unit's `TimeoutStopSec` is the backstop.
+
+To check by hand: `next start` the build on a spare port with `OPENCODE_URL` at a stub that serves
+an endless event stream, hold `/api/event` open through Fleet (`curl -N`), send SIGTERM: it exits
+in about 3s (without the deadline it never does).

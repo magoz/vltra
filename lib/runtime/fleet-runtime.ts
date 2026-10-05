@@ -4,6 +4,7 @@ import type { Launches } from '@/lib/data/fleet/launches'
 import { SessionSummaries, SessionSummariesLive } from '@/lib/data/fleet/session-detail'
 import { FleetStore, FleetStoreLive } from '@/lib/data/fleet/store'
 import { FleetWatcherLive } from '@/lib/data/fleet/watcher'
+import { exitOnSignals } from '@/lib/runtime/shutdown'
 import { DirectoriesLive } from '@/lib/services/directories/live-layer'
 import type { Directories } from '@/lib/services/directories/service'
 import { OpenCodeLive } from '@/lib/services/opencode/live-layer'
@@ -94,16 +95,16 @@ export const stopFleet = async (): Promise<void> => {
 
 /**
  * Next's own SIGTERM/SIGINT handler closes the HTTP server and waits for open connections;
- * stopping Fleet ends the event streams so it can finish (otherwise `systemctl restart fleet`
- * waits for systemd's stop timeout while a dashboard is open).
+ * stopping Fleet ends its event streams, and the deadline (`exitOnSignals`) ends the proxied
+ * OpenCode connections nothing else closes, so `systemctl restart fleet` takes seconds.
  */
-export const stopFleetOnSignals = () => {
-  for (const signal of ['SIGTERM', 'SIGINT'] as const) {
-    process.once(signal, () => {
-      stopFleet().catch((error: Error) => console.error('Fleet failed to stop', error))
-    })
-  }
-}
+export const stopFleetOnSignals = () =>
+  exitOnSignals({
+    on: (signal, listener) => process.once(signal, listener),
+    stop: stopFleet,
+    after: (ms, exit) => setTimeout(exit, ms).unref(),
+    exit: code => process.exit(code)
+  })
 
 export const runFleet = <A, E>(effect: Effect.Effect<A, E, FleetServices>): Promise<A> =>
   getFleetRuntime().runPromise(effect)
