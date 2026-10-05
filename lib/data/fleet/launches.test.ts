@@ -116,7 +116,7 @@ describe('launches', () => {
         expect(yield* launcherCalls(fake)).toEqual([
           { op: 'resolveLocation', directory: repo },
           { op: 'createWorktree', projectID: 'prj_fleet', name: 'feat--x' },
-          { op: 'createSession', directory: worktree, title: task },
+          { op: 'createSession', directory: worktree, title: undefined },
           { op: 'prompt', sessionID: 'ses_created_1', text: task }
         ])
 

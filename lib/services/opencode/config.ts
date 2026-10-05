@@ -31,10 +31,11 @@ export const serviceFile = Config.option(Config.string('OPENCODE_SERVICE_FILE'))
 export const sessionLimit = Config.option(Config.int('FLEET_SESSION_LIMIT'))
 
 /**
- * Model for launcher branch suggestions (`generate.text`), as `provider/model`. Default: a fast
- * model whose provider OpenCode can reach directly (`generate.text` does not pass through
- * request-shaping provider plugins, so the session default may refuse it).
+ * Model for launcher branch suggestions (`generate.text`), as `provider/model[#variant]`. Default:
+ * a fast model whose provider OpenCode can reach directly (`generate.text` does not pass through
+ * request-shaping provider plugins, so the session default may refuse it), without reasoning: it
+ * must answer within `suggestionTimeout`. Reasoning models took 6–13 s and always fell back.
  */
 export const branchModel = Config.string('FLEET_BRANCH_MODEL').pipe(
-  Config.withDefault('subs-codex/gpt-5.6-sol')
+  Config.withDefault('opencode-go/qwen3.8-flash#none')
 )

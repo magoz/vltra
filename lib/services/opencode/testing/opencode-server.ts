@@ -12,7 +12,7 @@ import { Effect, Predicate, Schedule } from 'effect'
 // scratch so no provider credentials leak in, and outbound HTTP(S) goes to a dead proxy so no
 // model can ever be called. It never touches ~/.local/share/opencode or the live service.
 
-export const requiredVersion = '2.0.20'
+export const requiredVersion = '2.0.22'
 
 /** A JSON request body or fixture. */
 export type JsonValue =

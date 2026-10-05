@@ -25,7 +25,7 @@ import type { OpenCodeServer } from '@/lib/services/opencode/testing/opencode-se
 import { makeRepos } from '@/lib/services/repos/live-layer'
 import { Repos } from '@/lib/services/repos/service'
 
-// The launcher against a real, isolated, throwaway `opencode serve` (v2.0.20) with OpenCode's
+// The launcher against a real, isolated, throwaway `opencode serve` (v2.0.22) with OpenCode's
 // DEFAULT git worktree strategy: the dotfiles plugin is not loaded there. Temp repositories only;
 // the default model is unavailable, so no prompt ever reaches a model.
 
@@ -184,12 +184,14 @@ describe.skipIf(!binary.available)('launcher against a real opencode serve', () 
 
           const session = yield* server.json<{
             readonly data: {
-              readonly title: string
+              readonly title?: string
               readonly location: { readonly directory: string }
             }
           }>('GET', `/api/session/${sessionID}`)
 
-          expect(session.data).toMatchObject({ title: task, location: { directory } })
+          // Untitled: OpenCode titles it from the task when the model runs (none answers here).
+          expect(session.data).toMatchObject({ location: { directory } })
+          expect(session.data.title).toBeUndefined()
 
           // The prompt was accepted (the model is unavailable, so nothing answers it).
           const messages = yield* server.json<Messages>(

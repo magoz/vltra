@@ -314,16 +314,23 @@ const makeSnapshot = (
     } satisfies OpenCodeSnapshot
   })
 
-/** `provider/model` (the model id may itself contain `/`) as OpenCode's model ref, if valid. */
-const decodeModelRef = (value: string) => {
-  const slash = value.indexOf('/')
+/**
+ * `provider/model[#variant]` (the model id may itself contain `/`; the same form as `opencode
+ * --model`) as OpenCode's model ref, if valid.
+ */
+export const decodeModelRef = (value: string) => {
+  const hash = value.indexOf('#')
+  const ref = hash === -1 ? value : value.slice(0, hash)
+  const variant = hash === -1 ? undefined : value.slice(hash + 1)
+  const slash = ref.indexOf('/')
 
-  if (slash <= 0 || slash === value.length - 1) return Option.none()
+  if (slash <= 0 || slash === ref.length - 1 || variant === '') return Option.none()
 
-  return Schema.decodeUnknownOption(Model.Ref)({
-    providerID: value.slice(0, slash),
-    id: value.slice(slash + 1)
-  })
+  const model = { providerID: ref.slice(0, slash), id: ref.slice(slash + 1) }
+
+  return Schema.decodeUnknownOption(Model.Ref)(
+    variant === undefined ? model : { ...model, variant }
+  )
 }
 
 const makeConnection = (

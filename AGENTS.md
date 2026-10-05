@@ -305,5 +305,5 @@ pnpm fleet:import-handled [--dry-run]  # one-off rollout: viewed root runs → h
 | `FLEET_OPENCODE_WEB_URL`            | `https://fleet.oox.sh`                          | OpenCode web UI base for deep links (Fleet's own origin, `proxy.ts`) |
 | `FLEET_SESSION_LIMIT`               | unset → every session                           | Optional cap on sessions loaded                                      |
 | `FLEET_LAUNCHER_ROOTS`              | `~/dev/repos:~/.dotfiles:~/aha:~/collie:~/subs` | Launcher roots (`:` list, `~` ok): each a repo, or a folder of repos |
-| `FLEET_BRANCH_MODEL`                | `subs-codex/gpt-5.6-sol`                        | Launcher branch suggestions (`generate.text` model)                  |
+| `FLEET_BRANCH_MODEL`                | `opencode-go/qwen3.8-flash#none`                | Launcher branch suggestions (`generate.text` model, `#variant` ok)   |
 | `FLEET_USAGE_URL`                   | `http://127.0.0.1:8320`                         | The `usage` dashboard (`~/usage`) for the header's usage line        |

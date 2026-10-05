@@ -134,7 +134,8 @@ export const makeLaunches = (options: LaunchesOptions) =>
 
         yield* update(launch.id, { status: 'creating-session', directory })
 
-        const session = yield* connection.createSession({ directory, title: launch.task }).pipe(
+        // Untitled, so OpenCode names the session from the task (it only titles untitled ones).
+        const session = yield* connection.createSession({ directory, title: undefined }).pipe(
           Effect.map(Option.some),
           Effect.catch(error =>
             Effect.as(fail(withDirectory, 'session', error), Option.none<{ id: string }>())

@@ -12,10 +12,14 @@ import type { WatcherOptions } from '@/lib/data/fleet/watcher'
 import { DirectoriesLive } from '@/lib/services/directories/live-layer'
 import { OpenCode } from '@/lib/services/opencode/service'
 import { OpenCodeLive } from '@/lib/services/opencode/live-layer'
-import { findOpenCode, startOpenCodeServer } from '@/lib/services/opencode/testing/opencode-server'
+import {
+  findOpenCode,
+  requiredVersion,
+  startOpenCodeServer
+} from '@/lib/services/opencode/testing/opencode-server'
 import type { JsonValue, OpenCodeServer } from '@/lib/services/opencode/testing/opencode-server'
 
-// Runs Fleet against a real, isolated, throwaway `opencode serve` (v2.0.20). No model is ever
+// Runs Fleet against a real, isolated, throwaway `opencode serve` (v2.0.22). No model is ever
 // called: sessions use an unavailable model so prompts fail fast, and outbound HTTP is blocked.
 
 const binary = findOpenCode()
@@ -144,7 +148,7 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
             'connection'
           )
 
-          expect(connected.version).toBe('2.0.20')
+          expect(connected.version).toBe(requiredVersion)
           expect(connected.url).toBe(server.url)
 
           // Actions run in this fiber, outside the layer: they must use the same endpoint.
