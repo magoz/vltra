@@ -42,7 +42,7 @@ describe('usage summary', () => {
     expect(summary.pools.map(pool => pool.name)).toEqual(['Claude', 'Codex', 'Go', 'Other AI'])
   })
 
-  it('shows the weekly window, even when a shorter one has less left, never a model-scoped one', () => {
+  it('shows the longest window, even when a shorter one has less left, never a model-scoped one', () => {
     const [claude] = usageSummary([
       account('anthropic', [
         window('five-hour', 30, 1000, 300),
@@ -60,9 +60,21 @@ describe('usage summary', () => {
     ])
   })
 
-  it('falls back to the first account-wide window when there is no weekly one', () => {
+  it("shows Go's monthly window, its longest, and that window's reset", () => {
     const [go] = usageSummary([
-      account('opencode-go', [window('rolling', 70, 1000, 300), window('monthly', 20, 2000)])
+      account('opencode-go', [
+        window('rolling', 100, 1000, 300),
+        window('weekly', 99, 2000, week),
+        window('monthly', 32, 3000, 30 * 24 * 60)
+      ])
+    ]).pools
+
+    expect(go).toMatchObject({ reading: { left: 32, capacity: 100 }, resetAt: 3000 })
+  })
+
+  it('falls back to the first account-wide window when none has a duration', () => {
+    const [go] = usageSummary([
+      account('opencode-go', [window('rolling', 70, 1000), window('monthly', 20, 2000)])
     ]).pools
 
     expect(go?.reading).toEqual({ left: 70, capacity: 100 })
@@ -84,7 +96,7 @@ describe('usage summary', () => {
     expect(codex).toMatchObject({ reading: { left: 106, capacity: 200 }, stale: true })
   })
 
-  it("carries the first of the accounts' weekly resets, never a 5-hour or model-scoped one", () => {
+  it("carries the first of the accounts' headline resets, never a 5-hour or model-scoped one", () => {
     const [claude] = usageSummary([
       account('anthropic', [window('five-hour', 90, 100, 300), window('weekly', 6, 3000, week)], {
         account: 'a@x.com'
@@ -96,7 +108,7 @@ describe('usage summary', () => {
       )
     ]).pools
 
-    expect(claude?.weeklyResetAt).toBe(3000)
+    expect(claude?.resetAt).toBe(3000)
   })
 
   it('has no figure when no account reports', () => {

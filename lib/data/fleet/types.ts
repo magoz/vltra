@@ -594,7 +594,7 @@ export type UsageWindow = typeof UsageWindow.Type
  * `{ left: 106, capacity: 200 }`.
  */
 export const UsageReading = Schema.Struct({
-  /** Sum over the reporting accounts of what each has left of its weekly window. */
+  /** Sum over the reporting accounts of what each has left of its longest window (weekly, Go's monthly). */
   left: Schema.Number,
   /** 100 per reporting account. */
   capacity: Schema.Number
@@ -608,8 +608,8 @@ export const UsagePool = Schema.Struct({
   name: Schema.String,
   /** Absent when no account reports. */
   reading: Schema.optional(UsageReading),
-  /** The first of the pool's accounts' weekly resets (epoch ms); absent when none says. */
-  weeklyResetAt: Schema.optional(Schema.Number),
+  /** The first reset of the pool's accounts' headline windows (epoch ms); absent when none says. */
+  resetAt: Schema.optional(Schema.Number),
   /** Some reading is the last good one (a refresh failed). */
   stale: Schema.Boolean,
   windows: Schema.Array(UsageWindow)

@@ -110,9 +110,9 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 - Usage line (desktop header, right side, `UsageLine`; under 84rem it leaves, so the centred count line keeps room): the subscription quotas from the `usage` dashboard
   (`~/usage`, `GET /api/usage` on loopback; `lib/services/usage/`, projected by `usage.ts` into
   `GET /api/fleet/usage`, polled by `use-usage.ts` every minute while the page shows):
-  `Claude 106% 2d · Codex 184% 4d · Go 32% 5d`, each the % left of the weekly window
-  (as `~/usage` shows it; model-scoped weekly limits excluded; a pool's accounts summed, 100% each), red at 10% of the pool or less,
-  then the time to the pool's first weekly reset; hovering a pool shows its accounts' windows as `~/usage`-style bars (`UsagePoolDetail`, in `components/ui/tooltip.tsx`). Hidden until it loads; a failed load keeps the last.
+  `Claude 106% 2d · Codex 184% 4d · Go 32% 5d`, each the % left of the longest window
+  (weekly, Go's monthly, as `~/usage` shows it; model-scoped weekly limits excluded; a pool's accounts summed, 100% each), red at 10% of the pool or less,
+  then the time to that window's first reset; hovering a pool shows its accounts' windows as `~/usage`-style bars (`UsagePoolDetail`, in `components/ui/tooltip.tsx`). Hidden until it loads; a failed load keeps the last.
 - Every move is a history write that Next syncs into `useSearchParams` (no router navigation, no
   fetch, no remount): `nav.show` pushes an entry (Back returns), `setProject` replaces it,
   `openSession` (the launcher) pushes Focus with the session. `moveTo` in `fleet-href.ts` decides

@@ -13,27 +13,33 @@ const knownProviders: ReadonlyArray<{ readonly provider: string; readonly name: 
 /** A weekly limit on one model only: it never stops the account, so it never drives `left`. */
 const isModelScoped = (window: QuotaWindow) => window.id.startsWith('weekly-scoped-')
 
-const week = 7 * 24 * 60
-
 /**
- * The account's headline: what is left of its weekly window (else its first account-wide one),
- * as the `usage` dashboard's `summaryWindow` picks it, so both show the same figure.
+ * The account's headline window: its longest account-wide one (weekly for Claude and Codex,
+ * monthly for Go), else its first, as the `usage` dashboard's `summaryWindow` picks it, so both
+ * show the same figure.
  */
-const weeklyLeft = (account: QuotaAccount) => {
+const headline = (account: QuotaAccount): QuotaWindow | undefined => {
   const binding = account.windows.filter(window => !isModelScoped(window))
 
-  return (binding.find(window => window.durationMinutes === week) ?? binding[0])?.remainingPercent
+  return (
+    binding.reduce<QuotaWindow | undefined>(
+      (best, window) =>
+        window.durationMinutes !== undefined &&
+        (best?.durationMinutes === undefined || window.durationMinutes > best.durationMinutes)
+          ? window
+          : best,
+      undefined
+    ) ?? binding[0]
+  )
 }
 
-/** The first weekly reset among the accounts, model-scoped weeks aside. */
-const firstWeeklyReset = (accounts: ReadonlyArray<QuotaAccount>) => {
-  const resets = accounts.flatMap(account =>
-    account.windows.flatMap(window =>
-      window.durationMinutes === week && !isModelScoped(window) && window.resetsAt !== undefined
-        ? [window.resetsAt]
-        : []
-    )
-  )
+/** The first reset among the accounts' headline windows. */
+const firstReset = (accounts: ReadonlyArray<QuotaAccount>) => {
+  const resets = accounts.flatMap(account => {
+    const resetsAt = headline(account)?.resetsAt
+
+    return resetsAt === undefined ? [] : [resetsAt]
+  })
 
   return resets.length === 0 ? undefined : Math.min(...resets)
 }
@@ -61,7 +67,7 @@ const toPool = (accounts: ReadonlyArray<QuotaAccount>, provider: string): UsageP
 
   const reading = pooled(
     accounts.flatMap(account => {
-      const value = weeklyLeft(account)
+      const value = headline(account)?.remainingPercent
 
       return value === undefined ? [] : [value]
     })
@@ -71,7 +77,7 @@ const toPool = (accounts: ReadonlyArray<QuotaAccount>, provider: string): UsageP
     provider,
     name,
     reading,
-    weeklyResetAt: firstWeeklyReset(accounts),
+    resetAt: firstReset(accounts),
     stale: accounts.some(account => !account.fresh),
     windows: accounts.flatMap(account =>
       account.windows.map(window => ({
@@ -85,9 +91,9 @@ const toPool = (accounts: ReadonlyArray<QuotaAccount>, provider: string): UsageP
 }
 
 /**
- * One pool per provider, Claude, Codex and Go first: how much is left of the weekly window
- * (summed over the pool's accounts, out of 100% each), the first weekly reset, and
- * every window for the details.
+ * One pool per provider, Claude, Codex and Go first: how much is left of the headline window
+ * (the longest: weekly, Go's monthly; summed over the pool's accounts, out of 100% each), its
+ * first reset, and every window for the details.
  */
 export const usageSummary = (accounts: ReadonlyArray<QuotaAccount>): UsageSummary => {
   const providers = Array.from(new Set(accounts.map(account => account.provider))).toSorted(

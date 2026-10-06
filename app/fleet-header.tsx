@@ -224,8 +224,8 @@ export function UsagePoolDetail({ pool, now }: { readonly pool: UsagePool; reado
 
 /**
  * The subscription quotas, condensed: `Claude 106% 2d · Codex 184% 4d · Go 32% 5d`,
- * each the % left of the weekly window, summed over a pool's accounts (red at 10% of
- * the capacity or less), then the time to the pool's first weekly reset; hovering (or focusing) a
+ * each the % left of the longest window (weekly, Go's monthly), summed over a pool's accounts (red
+ * at 10% of the capacity or less), then the time to that window's first reset; hovering (or focusing) a
  * pool shows its accounts' windows as bars (`UsagePoolDetail`). Desktops under 84rem leave it
  * out, where the count line could no longer sit centred beside it.
  */
@@ -255,9 +255,9 @@ export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readon
               >
                 {pool.reading === undefined ? '–' : `${percentText(pool.reading.left)}%`}
               </span>
-              {pool.weeklyResetAt === undefined || pool.weeklyResetAt <= now
+              {pool.resetAt === undefined || pool.resetAt <= now
                 ? null
-                : ` ${relativeTime(now, pool.weeklyResetAt)}`}
+                : ` ${relativeTime(now, pool.resetAt)}`}
             </TooltipTrigger>
             <TooltipContent className="w-72 p-3">
               <UsagePoolDetail pool={pool} now={now} />

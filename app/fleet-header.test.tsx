@@ -187,7 +187,7 @@ describe('usage line', () => {
         provider: 'anthropic',
         name: 'Claude',
         reading: { left: 45, capacity: 100 },
-        weeklyResetAt: 5 * 24 * hour,
+        resetAt: 5 * 24 * hour,
         stale: false,
         windows: [
           { account: 'me@x.com', label: '5-hour', left: 89, resetsAt: 3 * hour },
@@ -209,7 +209,7 @@ describe('usage line', () => {
     ]
   }
 
-  it("reads each pool's % left and first weekly reset, a low one in red", () => {
+  it("reads each pool's % left and first reset, a low one in red", () => {
     render(<UsageLine usage={usage} now={0} />)
 
     const line = screen.getByLabelText('Usage left')
