@@ -598,7 +598,7 @@ export const UsageReading = Schema.Struct({
 
 export type UsageReading = typeof UsageReading.Type
 
-/** A provider's subscription quota: Claude, Codex (pooled accounts), Z.AI, Go. */
+/** A provider's subscription quota: Claude, Codex (pooled accounts), Go. */
 export const UsagePool = Schema.Struct({
   provider: Schema.String,
   name: Schema.String,

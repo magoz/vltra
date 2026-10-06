@@ -103,7 +103,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 - Usage line (desktop header, right side, `UsageLine`; under 84rem it leaves, so the centred count line keeps room): the subscription quotas from the `usage` dashboard
   (`~/usage`, `GET /api/usage` on loopback; `lib/services/usage/`, projected by `usage.ts` into
   `GET /api/fleet/usage`, polled by `use-usage.ts` every minute while the page shows):
-  `Claude 106% 2d · Codex 184% 4d · Z.AI 100% 1d · Go 32% 5d`, each the % left of the window that runs
+  `Claude 106% 2d · Codex 184% 4d · Go 32% 5d`, each the % left of the window that runs
   out first (model-scoped weekly limits excluded; a pool's accounts summed, 100% each), red at 10% of the pool or less,
   then the time to the pool's first weekly reset; every account's windows and resets on hover. Hidden until it loads; a failed load keeps the last.
 - Every move is a history write that Next syncs into `useSearchParams` (no router navigation, no

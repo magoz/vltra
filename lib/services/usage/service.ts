@@ -15,7 +15,7 @@ export type QuotaWindow = {
 
 /** One subscription account (a pool may have several, e.g. Codex). */
 export type QuotaAccount = {
-  /** `anthropic`, `codex`, `zai`, `opencode-go`, ... */
+  /** `anthropic`, `codex`, `opencode-go`, ... */
   readonly provider: string
   readonly providerName: string
   readonly account: string

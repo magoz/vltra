@@ -31,22 +31,15 @@ const window = (
 const week = 7 * 24 * 60
 
 describe('usage summary', () => {
-  it('one pool per provider, Claude, Codex, Z.AI and Go first, the rest as reported', () => {
+  it('one pool per provider, Claude, Codex and Go first, the rest as reported', () => {
     const summary = usageSummary([
       account('other', [window('weekly', 50)], { providerName: 'Other AI' }),
       account('opencode-go', [window('weekly', 50)]),
       account('codex', [window('weekly', 50)]),
-      account('anthropic', [window('weekly', 50)]),
-      account('zai', [window('weekly', 50)])
+      account('anthropic', [window('weekly', 50)])
     ])
 
-    expect(summary.pools.map(pool => pool.name)).toEqual([
-      'Claude',
-      'Codex',
-      'Z.AI',
-      'Go',
-      'Other AI'
-    ])
+    expect(summary.pools.map(pool => pool.name)).toEqual(['Claude', 'Codex', 'Go', 'Other AI'])
   })
 
   it('shows the window that runs out first, never a model-scoped one', () => {
@@ -93,11 +86,11 @@ describe('usage summary', () => {
   })
 
   it('has no figure when no account reports', () => {
-    const [zai] = usageSummary([account('zai', [], { fresh: false })]).pools
+    const [go] = usageSummary([account('opencode-go', [], { fresh: false })]).pools
 
-    expect(zai).toEqual({
-      provider: 'zai',
-      name: 'Z.AI',
+    expect(go).toEqual({
+      provider: 'opencode-go',
+      name: 'Go',
       reading: undefined,
       stale: true,
       windows: []

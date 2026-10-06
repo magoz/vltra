@@ -7,7 +7,6 @@ import type { QuotaAccount, QuotaWindow } from '@/lib/services/usage/service'
 const knownProviders: ReadonlyArray<{ readonly provider: string; readonly name: string }> = [
   { provider: 'anthropic', name: 'Claude' },
   { provider: 'codex', name: 'Codex' },
-  { provider: 'zai', name: 'Z.AI' },
   { provider: 'opencode-go', name: 'Go' }
 ]
 
@@ -85,7 +84,7 @@ const toPool = (accounts: ReadonlyArray<QuotaAccount>, provider: string): UsageP
 }
 
 /**
- * One pool per provider, Claude, Codex, Z.AI and Go first: how much is left of the window that
+ * One pool per provider, Claude, Codex and Go first: how much is left of the window that
  * runs out first (summed over the pool's accounts, out of 100% each), the first weekly reset, and
  * every window for the details.
  */

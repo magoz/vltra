@@ -198,7 +198,7 @@ describe('usage line', () => {
           { account: 'b@x.com', label: 'Weekly', left: 15 }
         ]
       },
-      { provider: 'zai', name: 'Z.AI', reading: undefined, stale: true, windows: [] }
+      { provider: 'opencode-go', name: 'Go', reading: undefined, stale: true, windows: [] }
     ]
   }
 
@@ -207,7 +207,7 @@ describe('usage line', () => {
 
     const line = screen.getByLabelText('Usage left')
 
-    expect(line.textContent).toBe('Claude 45% 5d · Codex 15% · Z.AI –')
+    expect(line.textContent).toBe('Claude 45% 5d · Codex 15% · Go –')
     expect(within(line).getByText('45%').className).not.toContain('text-destructive')
     expect(within(line).getByText('15%').className).toContain('text-destructive')
     expect(line.title).toBe(
@@ -217,7 +217,7 @@ describe('usage line', () => {
         'Codex 15% of 200% left',
         '  a@x.com: Weekly 0%',
         '  b@x.com: Weekly 15%',
-        'Z.AI unavailable (last reading)'
+        'Go unavailable (last reading)'
       ].join('\n')
     )
   })

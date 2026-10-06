@@ -55,7 +55,13 @@ describe('UsageLive', () => {
                 { id: 'five-hour', label: '5-hour', remainingPercent: 100, resetsAt: null }
               ]
             },
-            { provider: 'zai', providerName: 'Z.AI', account: 'key', status: 'stale', windows: [] }
+            {
+              provider: 'opencode-go',
+              providerName: 'OpenCode Go',
+              account: 'key',
+              status: 'stale',
+              windows: []
+            }
           ],
           warnings: []
         })
@@ -84,7 +90,13 @@ describe('UsageLive', () => {
             }
           ]
         },
-        { provider: 'zai', providerName: 'Z.AI', account: 'key', fresh: false, windows: [] }
+        {
+          provider: 'opencode-go',
+          providerName: 'OpenCode Go',
+          account: 'key',
+          fresh: false,
+          windows: []
+        }
       ])
     })
   )
