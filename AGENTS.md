@@ -321,7 +321,17 @@ pnpm build             # next build
 pnpm verify            # format + typecheck + lint + test + build
 pnpm ship              # build + systemctl --user restart fleet (Box only)
 pnpm fleet:import-handled [--dry-run]  # one-off rollout: viewed root runs → handled (never auto-run)
+systemctl --user restart fleet  # serve the current .next again (~3s; Caddy holds requests)
 ```
+
+**This checkout is production.** `fleet.service` runs `next start` on `~/dev/repos/fleet/.next`
+(behind Caddy at `fleet.oox.sh`; runbook `~/.box/fleet.md`). `pnpm build` and `pnpm verify`
+rewrite `.next` under the running server: its HTML keeps pointing at hashed CSS/JS that no longer
+exist, they answer 500, and the live page renders unstyled until a restart (2026-10-06). So here:
+checks without the build (`pnpm format:check && pnpm typecheck && pnpm lint && pnpm test --run`),
+or `pnpm ship` to build and restart together; never a bare `pnpm build` / `pnpm verify`. Full
+`pnpm verify` belongs in a separate worktree. `pnpm dev` is safe (Next 16 writes `.next/dev`).
+Commit before shipping: the working tree at build time is what goes live.
 
 ## CONFIGURATION
 
