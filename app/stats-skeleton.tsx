@@ -6,7 +6,7 @@ import { cardGrid, StatsCard, wide } from '@/app/stats-card'
 import { CalendarHeatmap, HourHeatmap } from '@/app/stats-heatmaps'
 import { browserTimeZone } from '@/app/use-stats'
 import { Skeleton } from '@/components/ui/skeleton'
-import { emptyYear, hourGrid } from '@/lib/data/fleet/stats-view'
+import { hourGrid, yearWeeks } from '@/lib/data/fleet/stats-view'
 
 // The Stats tab before its numbers arrive: the same tiles and cards (titles, order, sizes) as the
 // loaded page, so nothing moves when they fill in. No chart library: the tab's lazy chunk shows it
@@ -42,7 +42,7 @@ export const skeletonCards: ReadonlyArray<CardSpec> = [
   { title: 'Prompts', detail: 'your messages, by project', body: bars(1) },
   {
     title: 'Last year',
-    detail: 'steps per day, whatever the range',
+    detail: 'sessions done per day, whatever the range',
     body: { kind: 'calendar' }
   },
   { title: 'Time of day', detail: 'by weekday and hour', body: { kind: 'heatmap' } },
@@ -87,12 +87,12 @@ export const skeletonCards: ReadonlyArray<CardSpec> = [
 export function CalendarPlaceholder() {
   const { now } = useFleet()
   const [timeZone] = useState(browserTimeZone)
-  const [weeks] = useState(() => emptyYear(now, timeZone))
+  const [weeks] = useState(() => yearWeeks(new Map(), now, timeZone))
 
   return (
     <div role="status" aria-label="Loading the year" className="pointer-events-none animate-pulse">
       <div aria-hidden="true">
-        <CalendarHeatmap weeks={weeks} noun="steps" />
+        <CalendarHeatmap weeks={weeks} noun="done" />
       </div>
     </div>
   )

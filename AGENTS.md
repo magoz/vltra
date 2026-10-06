@@ -173,16 +173,18 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   to OpenCode's project id, `other` → `global`). `GET /api/fleet/stats` (`stats.ts`) reads
   `session.stats` for the range (tools in detail), the as long range before (tiles' change) and
   per bucket (hours ≤ 48h, days ≤ 92, else weeks from Monday, in the browser's zone); buckets
-  settled 10 min are cached in the runtime (`Stats` service). Three more reads load apart so the
+  settled 10 min are cached in the runtime (`Stats` service). Two more reads load apart so the
   page never waits: `/api/fleet/stats/projects` (prompts by project: one `tools: none` call per
-  OpenCode project to rank them, then the top three's bars), `/hours` (prompts per hour, up to 31
-  days, else `TooLong`) and `/calendar` (steps per day for 53 weeks, one call). `use-stats.ts`
-  refetches each every minute while shown, keeping the last value. Top to bottom: 7 tiles (with
-  sparkline, its bar's date and value on hover, and change, `24×` past doubling), then cards in a grid by the page's width (1 column,
+  OpenCode project to rank them, then the top three's bars) and `/hours` (prompts per hour, up
+  to 31 days, else `TooLong`). `use-stats.ts`
+  refetches each every minute while shown, keeping the last value. Top to bottom: 7 tiles (Done, prompts, steps, tool calls, tokens,
+  cache reads, active days; Done: sessions done in the range with the subagents count under it; each with sparkline, its bar's
+  date and value on hover, and change, `24×` past doubling), then cards in a grid by the page's width (1 column,
   2 from 56rem, 3 from 80rem; the tools table takes 2 of 3): Done (root sessions marked
   done by project, the same projects as below, by their latest run's end, the `handled` marker's own time; when Done was pressed is not
   recorded), sessions started and prompts (both by the same top three
-  projects, so each keeps one ink), the year calendar (in a card under 36rem the last 26 weeks),
+  projects, so each keeps one ink), the year calendar (sessions done per day from the live fleet, whatever the
+  range, `doneByDay` / `yearWeeks`; in a card under 36rem the last 26 weeks),
   time of day (weekday × hour heatmap, hour bars; sessions started past 31
   days), steps and steps per prompt, tokens by model and model share, tool calls and failure
   rate, cache hits and run outcomes over time, session length and subagents per session (bins),

@@ -4,13 +4,11 @@ import { Option, Schema } from 'effect'
 import { useEffect, useState } from 'react'
 import { statsPeriodParams } from '@/lib/data/fleet/stats-period'
 import type { StatsPeriod } from '@/lib/data/fleet/stats-period'
-import { PromptsByProject, StatsCalendar, StatsHours, StatsReport } from '@/lib/data/fleet/types'
+import { PromptsByProject, StatsHours, StatsReport } from '@/lib/data/fleet/types'
 
 const decodeReport = Schema.decodeUnknownOption(Schema.fromJsonString(StatsReport))
 
 const decodeHours = Schema.decodeUnknownOption(Schema.fromJsonString(StatsHours))
-
-const decodeCalendar = Schema.decodeUnknownOption(Schema.fromJsonString(StatsCalendar))
 
 const decodeProjects = Schema.decodeUnknownOption(Schema.fromJsonString(PromptsByProject))
 
@@ -57,15 +55,6 @@ export const statsUrl = (period: StatsPeriod, project: string | undefined, timeZ
 /** `GET /api/fleet/stats/projects`'s URL (prompts per bar by project; every project). */
 export const statsProjectsUrl = (period: StatsPeriod, timeZone: string) =>
   `/api/fleet/stats/projects?${statsQuery(period, undefined, timeZone)}`
-
-/** `GET /api/fleet/stats/calendar`'s URL (a year of days; the range does not matter). */
-export const statsCalendarUrl = (project: string | undefined, timeZone: string) => {
-  const params = new URLSearchParams({ tz: timeZone })
-
-  if (project !== undefined) params.set('project', project)
-
-  return `/api/fleet/stats/calendar?${params.toString()}`
-}
 
 /** `GET /api/fleet/stats/hours`'s URL (prompts per hour). */
 export const statsHoursUrl = (period: StatsPeriod, project: string | undefined, timeZone: string) =>
@@ -165,7 +154,3 @@ export const useStatsHours = (url: string): StatsState<StatsHours> => useStatsRe
  */
 export const useStatsProjects = (url: string): StatsState<PromptsByProject> =>
   useStatsRead(url, decodeProjects)
-
-/** Steps per day over the last year (`GET /api/fleet/stats/calendar`), read apart from the report. */
-export const useStatsCalendar = (url: string): StatsState<StatsCalendar> =>
-  useStatsRead(url, decodeCalendar)

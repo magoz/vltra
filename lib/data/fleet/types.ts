@@ -684,11 +684,6 @@ export const ModelUsage = Schema.Struct({
 
 export type ModelUsage = typeof ModelUsage.Type
 
-/** Steps on one calendar day (`YYYY-MM-DD` in the query's time zone). */
-export const DayActivity = Schema.Struct({ date: Schema.String, steps: Schema.Number })
-
-export type DayActivity = typeof DayActivity.Type
-
 /**
  * OpenCode's activity in a time range (`GET /api/experimental/session/stats`), counted from the
  * messages created in it: sessions and subagents with any message, prompts (root sessions' user
@@ -708,9 +703,7 @@ export const SessionStats = Schema.Struct({
   streak: Schema.Number,
   toolTotals: ToolTotals,
   tools: Schema.Array(ToolUsage),
-  models: Schema.Array(ModelUsage),
-  /** Days with any step, in order. */
-  activity: Schema.Array(DayActivity)
+  models: Schema.Array(ModelUsage)
 })
 
 export type SessionStats = typeof SessionStats.Type
@@ -773,19 +766,6 @@ export const HoursTooLong = Schema.TaggedStruct('TooLong', {})
 export const StatsHours = Schema.Union([HoursRead, HoursTooLong])
 
 export type StatsHours = typeof StatsHours.Type
-
-/**
- * `GET /api/fleet/stats/calendar`: steps per day over the last 53 weeks (from a Monday), whatever
- * the range; days without any left out.
- */
-export const StatsCalendar = Schema.Struct({
-  from: Schema.Number,
-  to: Schema.Number,
-  timezone: Schema.String,
-  days: Schema.Array(DayActivity)
-})
-
-export type StatsCalendar = typeof StatsCalendar.Type
 
 /** One bar of all projects' prompts. */
 export const PromptBucket = Schema.Struct({

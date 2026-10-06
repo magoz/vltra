@@ -367,7 +367,6 @@ export const sessionStartPoints = (
 
 /** A tile's per-bucket values, for its sparkline. */
 export const tileSeries = (report: StatsReport) => ({
-  sessions: report.buckets.map(bucket => bucket.sessions),
   prompts: report.buckets.map(bucket => bucket.prompts),
   steps: report.buckets.map(bucket => bucket.steps),
   tokens: report.buckets.map(bucket => freshTokens(bucket.tokens)),
@@ -572,20 +571,19 @@ export const sessionPoints = (
         ]
   )
 
-/** One day of the year calendar: its steps, or none outside the calendar's span. */
-export type CalendarDay = { readonly date: string; readonly steps: number }
+/** One day of the year calendar and how many it counts. */
+export type CalendarDay = { readonly date: string; readonly count: number }
 
 /**
- * The calendar's columns: weeks from Monday, `weeks` of them ending with the current one; days
- * after today are left out of the last week. Dates are `YYYY-MM-DD` in `timeZone`.
+ * The calendar's columns: weeks from `from`'s day (a Monday), up to `to`'s day; days after it are
+ * left out of the last week. `counts` by `YYYY-MM-DD` in `timeZone`; days without one count 0.
  */
 export const calendarGrid = (
-  days: ReadonlyArray<{ readonly date: string; readonly steps: number }>,
+  counts: ReadonlyMap<string, number>,
   from: number,
   to: number,
   timeZone: string
 ): ReadonlyArray<ReadonlyArray<CalendarDay>> => {
-  const steps = new Map(days.map(day => [day.date, day.steps]))
   const format = new Intl.DateTimeFormat('en-CA', { timeZone })
   const last = format.format(to)
   const columns: Array<Array<CalendarDay>> = []
@@ -594,11 +592,11 @@ export const calendarGrid = (
   let date = format.format(at)
 
   while (date <= last) {
+    const day = { date, count: counts.get(date) ?? 0 }
     const week = columns.at(-1)
 
-    if (week === undefined || week.length === 7)
-      columns.push([{ date, steps: steps.get(date) ?? 0 }])
-    else week.push({ date, steps: steps.get(date) ?? 0 })
+    if (week === undefined || week.length === 7) columns.push([day])
+    else week.push(day)
 
     at += 24 * hourMs
     // A DST day is 23 or 25 hours: noon keeps the next day's date right.
@@ -615,10 +613,11 @@ export const inkLevel = (value: number, largest: number): number =>
   value <= 0 || largest <= 0 ? 0 : Math.min(5, Math.ceil((5 * value) / largest))
 
 /**
- * The year calendar's weeks with no steps, up to `now` in `timeZone`: what the skeleton draws
- * before the calendar loads, at its final size.
+ * The year calendar's weeks up to `now` in `timeZone`: 53 of them, from the Monday 52 weeks before
+ * this one, with `counts` by day.
  */
-export const emptyYear = (
+export const yearWeeks = (
+  counts: ReadonlyMap<string, number>,
   now: number,
   timeZone: string
 ): ReadonlyArray<ReadonlyArray<CalendarDay>> => {
@@ -626,5 +625,42 @@ export const emptyYear = (
   // `calendarGrid` steps from noon: this time of day, `weekday + 52 weeks` days back, is a Monday.
   const monday = now - (weekday + 52 * 7) * 24 * hourMs - 12 * hourMs
 
-  return calendarGrid([], monday, now, timeZone)
+  return calendarGrid(counts, monday, now, timeZone)
 }
+
+/**
+ * Root sessions done per day (`YYYY-MM-DD` in `timeZone`) of their latest run's end, as the Done
+ * chart counts them: marked done, or counting as done, their folder gone.
+ */
+export const doneByDay = (
+  live: LiveFleet,
+  filter: string | undefined,
+  timeZone: string
+): ReadonlyMap<string, number> => {
+  const format = new Intl.DateTimeFormat('en-CA', { timeZone })
+  const counts = new Map<string, number>()
+
+  for (const row of filteredRows(live, filter)) {
+    if (row.state !== 'handled' || row.idle === undefined) continue
+
+    const day = format.format(row.idle)
+
+    counts.set(day, (counts.get(day) ?? 0) + 1)
+  }
+
+  return counts
+}
+
+/** Root sessions done whose latest run ended in `[from, to)`. */
+export const doneCount = (
+  live: LiveFleet,
+  range: { readonly from: number; readonly to: number },
+  filter: string | undefined
+): number =>
+  filteredRows(live, filter).filter(
+    row =>
+      row.state === 'handled' &&
+      row.idle !== undefined &&
+      row.idle >= range.from &&
+      row.idle < range.to
+  ).length

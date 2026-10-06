@@ -8,6 +8,8 @@ import {
   cacheHitRatio,
   calendarGrid,
   changePercent,
+  doneByDay,
+  doneCount,
   doneOverTime,
   freshTokens,
   hourGrid,
@@ -29,6 +31,7 @@ import {
   subagentCounts,
   tileSeries,
   toolFailureRate,
+  yearWeeks,
   tokensByModel,
   toolCalls
 } from '@/lib/data/fleet/stats-view'
@@ -285,7 +288,7 @@ describe('stats charts', () => {
       ])
     )
 
-    expect(series.sessions).toEqual([2, 1])
+    expect(series.prompts).toEqual([3, 1])
     expect(series.steps).toEqual([30, 5])
     expect(series.toolCalls).toEqual([10, 4])
     expect(changePercent(150, 100)).toBe(50)
@@ -356,10 +359,10 @@ describe('stats charts', () => {
   it('lays a calendar out in weeks from Monday, up to today, across a DST change', () => {
     // Mon Oct 19 to Wed Oct 28 2026 in Madrid (summer time ends Sun Oct 25).
     const weeks = calendarGrid(
-      [
-        { date: '2026-10-25', steps: 7 },
-        { date: '2026-10-28', steps: 3 }
-      ],
+      new Map([
+        ['2026-10-25', 7],
+        ['2026-10-28', 3]
+      ]),
       Date.UTC(2026, 9, 18, 22),
       Date.UTC(2026, 9, 28, 10),
       'Europe/Madrid'
@@ -367,9 +370,9 @@ describe('stats charts', () => {
 
     expect(weeks.map(week => week.length)).toEqual([7, 3])
     expect(weeks[0]?.[0]?.date).toBe('2026-10-19')
-    expect(weeks[0]?.[6]).toEqual({ date: '2026-10-25', steps: 7 })
+    expect(weeks[0]?.[6]).toEqual({ date: '2026-10-25', count: 7 })
     expect(weeks[1]?.map(day => day.date)).toEqual(['2026-10-26', '2026-10-27', '2026-10-28'])
-    expect(weeks[1]?.[2]?.steps).toBe(3)
+    expect(weeks[1]?.[2]?.count).toBe(3)
   })
 
   it('grades heatmap cells in five even steps of the busiest', () => {
@@ -411,5 +414,43 @@ describe('stats charts', () => {
     expect(
       doneOverTime(doneLive, report, undefined, [otherProjectID]).series.map(series => series.key)
     ).toEqual([otherProjectID, restKey])
+  })
+
+  it('counts sessions done by day and in a range, for the year calendar and the Done tile', () => {
+    const doneLive = liveOf([
+      sessionRecord('ses_monday', {
+        idle: Date.UTC(2026, 9, 5, 21, 30),
+        outcome: 'succeeded',
+        handled: Date.UTC(2026, 9, 5, 21, 30)
+      }),
+      // 23:30 UTC is already Tuesday in Madrid.
+      sessionRecord('ses_late', {
+        idle: Date.UTC(2026, 9, 5, 22, 30),
+        outcome: 'succeeded',
+        handled: Date.UTC(2026, 9, 5, 22, 30)
+      }),
+      sessionRecord('ses_waiting', { idle: Date.UTC(2026, 9, 5, 12), outcome: 'succeeded' })
+    ])
+
+    expect(doneByDay(doneLive, undefined, 'Europe/Madrid')).toEqual(
+      new Map([
+        ['2026-10-05', 1],
+        ['2026-10-06', 1]
+      ])
+    )
+
+    expect(
+      doneCount(doneLive, { from: Date.UTC(2026, 9, 5), to: Date.UTC(2026, 9, 5, 22) }, undefined)
+    ).toBe(1)
+
+    // 53 weeks from a Monday, up to today (Tue Oct 6 2026): the last week has two days.
+    const weeks = yearWeeks(new Map([['2026-10-06', 4]]), Date.UTC(2026, 9, 6, 10), 'Europe/Madrid')
+
+    expect(weeks).toHaveLength(53)
+    expect(weeks[0]?.[0]?.date).toBe('2025-10-06')
+    expect(weeks.at(-1)).toEqual([
+      { date: '2026-10-05', count: 0 },
+      { date: '2026-10-06', count: 4 }
+    ])
   })
 })

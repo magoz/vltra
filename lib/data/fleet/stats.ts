@@ -9,7 +9,6 @@ import type {
   StatsBucket,
   StatsHours,
   PromptsByProject,
-  StatsCalendar,
   StatsReport,
   StatsUnit
 } from '@/lib/data/fleet/types'
@@ -149,8 +148,7 @@ export const noActivity = (from: number, to: number): SessionStats => ({
   streak: 0,
   toolTotals: { calls: 0, succeeded: 0, failed: 0, unfinished: 0 },
   tools: [],
-  models: [],
-  activity: []
+  models: []
 })
 
 const toBucket = (edges: BucketEdges, stats: SessionStats): StatsBucket => ({
@@ -201,19 +199,12 @@ export type StatsOperations = {
   readonly promptsByProject: (
     query: StatsQuery
   ) => Effect.Effect<PromptsByProject, StatsError | StatsRangeError>
-  /** Steps per day over the last 53 weeks; the query's period is ignored. */
-  readonly calendar: (
-    query: StatsQuery
-  ) => Effect.Effect<StatsCalendar, StatsError | StatsRangeError>
 }
 
 export class Stats extends Context.Service<Stats, StatsOperations>()('@fleet/Stats') {}
 
 /** Settled buckets kept: a month of hours and a year of days for a few projects. */
 export const bucketCapacity = 5000
-
-/** The calendar's weeks: a year and the current week. */
-export const calendarWeeks = 53
 
 /** Bucket reads in flight per report. */
 const bucketConcurrency = 4
@@ -448,46 +439,6 @@ export const StatsLive = Layer.effect(
         return result
       })
 
-    // One call for a year of days (OpenCode counts steps per day in the query's zone).
-    const calendar = (query: StatsQuery) =>
-      Effect.gen(function* () {
-        const now = yield* Clock.currentTimeMillis
-        const zone = DateTime.zoneMakeNamed(query.timezone)
-
-        if (Option.isNone(zone)) return yield* new StatsRangeError({ timezone: query.timezone })
-
-        const today = DateTime.startOf(zoned(now, zone.value), 'day')
-
-        const from = DateTime.toEpochMillis(
-          DateTime.startOf(DateTime.subtract(today, { weeks: calendarWeeks - 1 }), 'week', {
-            weekStartsOn: 1
-          })
-        )
-
-        const connection = yield* opencode.connect
-
-        const stats = yield* connection
-          .stats({
-            from,
-            to: now,
-            projectID: query.project,
-            timezone: query.timezone,
-            tools: 'none'
-          })
-          .pipe(
-            Effect.catchTag('OpenCodeRejectedError', () => Effect.succeed(noActivity(from, now)))
-          )
-
-        const result: StatsCalendar = {
-          from,
-          to: now,
-          timezone: query.timezone,
-          days: stats.activity
-        }
-
-        return result
-      })
-
-    return { report, hours, promptsByProject, calendar }
+    return { report, hours, promptsByProject }
   })
 )

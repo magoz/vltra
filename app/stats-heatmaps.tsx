@@ -167,7 +167,7 @@ export function CalendarHeatmap({
   readonly weeks: ReadonlyArray<ReadonlyArray<CalendarDay>>
   readonly noun: string
 }) {
-  const largest = Math.max(0, ...weeks.flat().map(day => day.steps))
+  const largest = Math.max(0, ...weeks.flat().map(day => day.count))
 
   return (
     <HeatTips>
@@ -223,10 +223,10 @@ export function CalendarHeatmap({
                   <span
                     key={day.date}
                     role="cell"
-                    data-tip={`${dayFormat(day.date)} · ${wholeNumber(day.steps)} ${noun}`}
-                    aria-label={`${day.date}: ${day.steps}`}
-                    className={cn('aspect-square', day.steps === 0 && 'bg-hairline/50')}
-                    style={heatCell(day.steps, largest)}
+                    data-tip={`${dayFormat(day.date)} · ${wholeNumber(day.count)} ${noun}`}
+                    aria-label={`${day.date}: ${day.count}`}
+                    className={cn('aspect-square', day.count === 0 && 'bg-hairline/50')}
+                    style={heatCell(day.count, largest)}
                   />
                 ))}
               </div>

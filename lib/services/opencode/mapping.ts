@@ -432,8 +432,7 @@ export const toSessionStats = (stats: StatsOutput): SessionStats => ({
     model: variantLabel(entry.model),
     steps: entry.steps,
     tokens: toTokenCounts(entry.tokens)
-  })),
-  activity: stats.activity.map(day => ({ date: day.date, steps: day.steps }))
+  }))
 })
 
 type SessionLogItem = Stream.Success<ReturnType<OpenCodeClient['session']['log']>>

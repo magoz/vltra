@@ -349,29 +349,4 @@ describe('stats reports', () => {
       expect(all.projects).toHaveLength(3)
     })
   )
-
-  statsTest('reads a year of days in one call, from a Monday 53 weeks back', fake =>
-    Effect.gen(function* () {
-      yield* fake.setStats(input =>
-        Effect.succeed({
-          ...noActivity(input.from ?? now, input.to),
-          activity: [{ date: '2026-10-05', steps: 12 }]
-        })
-      )
-
-      const calendar = yield* Effect.flatMap(Stats, stats =>
-        stats.calendar({ period: preset('7d'), timezone: 'Europe/Madrid', project: 'prj_fleet' })
-      )
-
-      // Tue Oct 6 2026: this week's Monday is Oct 5, 52 weeks before it Oct 6 2025 (UTC+2).
-      expect(calendar.from).toBe(Date.UTC(2025, 9, 5, 22))
-      expect(calendar.to).toBe(now)
-      expect(calendar.days).toEqual([{ date: '2026-10-05', steps: 12 }])
-
-      const calls = yield* statsCalls(fake)
-
-      expect(calls).toHaveLength(1)
-      expect(calls[0]).toMatchObject({ projectID: 'prj_fleet', tools: 'none' })
-    })
-  )
 })

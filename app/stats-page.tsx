@@ -10,12 +10,7 @@ import { cardGrid, StatsCard, Tile, wide } from '@/app/stats-card'
 import type { TrendLine } from '@/app/stats-card'
 import { CategoryBars, HourBars, SessionScatter, ShareTable, TimeBars } from '@/app/stats-charts'
 import { CalendarHeatmap, HourHeatmap } from '@/app/stats-heatmaps'
-import {
-  BarsPlaceholder,
-  CalendarPlaceholder,
-  HeatmapPlaceholder,
-  StatsSkeleton
-} from '@/app/stats-skeleton'
+import { BarsPlaceholder, HeatmapPlaceholder, StatsSkeleton } from '@/app/stats-skeleton'
 import {
   bucketTitle,
   calendarDay,
@@ -30,12 +25,10 @@ import { useKeys } from '@/app/use-keys'
 import {
   browserTimeZone,
   shownValue,
-  statsCalendarUrl,
   statsHoursUrl,
   statsProjectsUrl,
   statsUrl,
   useStats,
-  useStatsCalendar,
   useStatsHours,
   useStatsProjects
 } from '@/app/use-stats'
@@ -45,8 +38,9 @@ import { calendarDayParts, StatsPeriod, statsPresets } from '@/lib/data/fleet/st
 import type { StatsPreset } from '@/lib/data/fleet/stats-period'
 import {
   cacheHitRatio,
-  calendarGrid,
   changePercent,
+  doneByDay,
+  doneCount,
   doneOverTime,
   freshTokens,
   hourGrid,
@@ -67,18 +61,14 @@ import {
   stepsPerPrompt,
   subagentCounts,
   tileSeries,
+  yearWeeks,
   tokensByModel,
   toolCalls,
   toolFailureRate
 } from '@/lib/data/fleet/stats-view'
-import type { HourGrid } from '@/lib/data/fleet/stats-view'
+import type { HourGrid, SeriesChart } from '@/lib/data/fleet/stats-view'
 import { HoursRead } from '@/lib/data/fleet/types'
-import type {
-  PromptsByProject,
-  StatsCalendar,
-  StatsHours,
-  StatsReport
-} from '@/lib/data/fleet/types'
+import type { PromptsByProject, StatsHours, StatsReport } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
 
 const presetLabels: Readonly<Record<StatsPreset, string>> = {
@@ -205,8 +195,20 @@ function StatusLine({
   )
 }
 
-function Tiles({ report, started }: { readonly report: StatsReport; readonly started: number }) {
+function Tiles({
+  report,
+  started,
+  done
+}: {
+  readonly report: StatsReport
+  readonly started: number
+  /** The Done chart: its bars feed the Done tile's sparkline. */
+  readonly done: SeriesChart
+}) {
+  const { view, nav } = useFleet()
   const { totals, previous } = report
+  const doneNow = doneCount(view, report, nav.project)
+  const doneBefore = previous === undefined ? undefined : doneCount(view, previous, nav.project)
   const tokens = freshTokens(totals.tokens)
   const tools = totals.toolTotals
   const trend = tileSeries(report)
@@ -220,12 +222,12 @@ function Tiles({ report, started }: { readonly report: StatsReport; readonly sta
   return (
     <dl className="grid grid-cols-2 gap-2 @lg:grid-cols-4 @5xl:grid-cols-7">
       <Tile
-        label="Sessions"
-        value={compactNumber(totals.sessions)}
+        label="Done"
+        value={compactNumber(doneNow)}
         detail={`${compactNumber(totals.subagents)} subagents`}
-        title={`${wholeNumber(totals.sessions)} sessions and ${wholeNumber(totals.subagents)} subagents with activity; ${wholeNumber(started)} sessions started`}
-        change={changePercent(totals.sessions, previous?.sessions)}
-        trend={line(trend.sessions)}
+        title={`${wholeNumber(doneNow)} sessions done (their latest run ended in the range); ${wholeNumber(totals.sessions)} sessions and ${wholeNumber(totals.subagents)} subagents with activity; ${wholeNumber(started)} sessions started`}
+        change={changePercent(doneNow, doneBefore)}
+        trend={line(done.rows.map(row => row.values.reduce((sum, value) => sum + value, 0)))}
       />
       <Tile
         label="Prompts"
@@ -246,6 +248,18 @@ function Tiles({ report, started }: { readonly report: StatsReport; readonly sta
         title={`${wholeNumber(totals.steps)} steps (model calls)`}
         change={changePercent(totals.steps, previous?.steps)}
         trend={line(trend.steps)}
+      />
+      <Tile
+        label="Tool calls"
+        value={compactNumber(tools.calls)}
+        detail={
+          <span className={cn(tools.failed > 0 && 'text-destructive')}>
+            {percentText(tools.failed, tools.calls)} failed
+          </span>
+        }
+        title={`${wholeNumber(tools.succeeded)} succeeded, ${wholeNumber(tools.failed)} failed, ${wholeNumber(tools.unfinished)} unfinished`}
+        change={changePercent(tools.calls, previous?.toolTotals.calls)}
+        trend={line(trend.toolCalls)}
       />
       <Tile
         label="Tokens"
@@ -271,18 +285,6 @@ function Tiles({ report, started }: { readonly report: StatsReport; readonly sta
         title={`${wholeNumber(totals.tokens.cacheRead)} tokens read from cache`}
         change={changePercent(totals.tokens.cacheRead, previous?.tokens.cacheRead)}
         trend={line(trend.cacheReads)}
-      />
-      <Tile
-        label="Tool calls"
-        value={compactNumber(tools.calls)}
-        detail={
-          <span className={cn(tools.failed > 0 && 'text-destructive')}>
-            {percentText(tools.failed, tools.calls)} failed
-          </span>
-        }
-        title={`${wholeNumber(tools.succeeded)} succeeded, ${wholeNumber(tools.failed)} failed, ${wholeNumber(tools.unfinished)} unfinished`}
-        change={changePercent(tools.calls, previous?.toolTotals.calls)}
-        trend={line(trend.toolCalls)}
       />
       <Tile
         label="Active days"
@@ -395,25 +397,21 @@ function TimeOfDay({
   )
 }
 
-/** The last year's steps per day (its own read, whatever the range). */
-function YearCalendar({ calendar }: { readonly calendar: StatsState<StatsCalendar> }) {
-  const shown = shownValue(calendar)
+/**
+ * Sessions done per day over the last year, whatever the range (Fleet's list, like the Done
+ * chart), recounted as the list changes.
+ */
+function YearCalendar({ timeZone }: { readonly timeZone: string }) {
+  const { view, now, nav } = useFleet()
 
   const weeks = useMemo(
-    () =>
-      shown === undefined ? [] : calendarGrid(shown.days, shown.from, shown.to, shown.timezone),
-    [shown]
+    () => yearWeeks(doneByDay(view, nav.project, timeZone), now, timeZone),
+    [view, nav.project, now, timeZone]
   )
 
   return (
-    <StatsCard title="Last year" detail="steps per day, whatever the range">
-      {shown !== undefined ? (
-        <CalendarHeatmap weeks={weeks} noun="steps" />
-      ) : calendar.status === 'failed' ? (
-        <p className="text-destructive text-xs">{calendar.error}</p>
-      ) : (
-        <CalendarPlaceholder />
-      )}
+    <StatsCard title="Last year" detail="sessions done per day, whatever the range">
+      <CalendarHeatmap weeks={weeks} noun="done" />
     </StatsCard>
   )
 }
@@ -422,13 +420,11 @@ function StatsBody({
   report,
   hours,
   projects,
-  calendar,
   filter
 }: {
   readonly report: StatsReport
   readonly hours: StatsState<StatsHours>
   readonly projects: StatsState<PromptsByProject>
-  readonly calendar: StatsState<StatsCalendar>
   readonly filter: string | undefined
 }) {
   const { view } = useFleet()
@@ -483,7 +479,7 @@ function StatsBody({
 
   return (
     <>
-      <Tiles report={report} started={started} />
+      <Tiles report={report} started={started} done={charts.done} />
       <div className={cardGrid}>
         <StatsCard title="Done" detail="sessions marked done by project, by their last run's end">
           <TimeBars chart={charts.done} unit={unit} timeZone={timeZone} format={compactNumber} />
@@ -504,7 +500,7 @@ function StatsBody({
             format={compactNumber}
           />
         </StatsCard>
-        <YearCalendar calendar={calendar} />
+        <YearCalendar timeZone={timeZone} />
         <TimeOfDay report={report} hours={hours} filter={filter} />
         <StatsCard title="Steps" detail="model calls">
           <TimeBars chart={charts.steps} unit={unit} timeZone={timeZone} format={compactNumber} />
@@ -643,7 +639,6 @@ export function StatsPage() {
   const state = useStats(statsUrl(nav.period, project, timeZone))
   const hours = useStatsHours(statsHoursUrl(nav.period, project, timeZone))
   const projects = useStatsProjects(statsProjectsUrl(nav.period, timeZone))
-  const calendar = useStatsCalendar(statsCalendarUrl(project, timeZone))
   const report = shownValue(state)
 
   useKeys({
@@ -673,13 +668,7 @@ export function StatsPage() {
                 state.status === 'loading' && 'opacity-50'
               )}
             >
-              <StatsBody
-                report={report}
-                hours={hours}
-                projects={projects}
-                calendar={calendar}
-                filter={nav.project}
-              />
+              <StatsBody report={report} hours={hours} projects={projects} filter={nav.project} />
             </div>
           )}
         </div>

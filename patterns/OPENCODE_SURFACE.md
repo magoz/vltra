@@ -43,8 +43,8 @@ providers), tool calls (`summary` totals or `detail` per tool with median durati
 active days in `timezone`. Fleet reads the range in `detail` and each chart bucket in `summary`
 (`lib/data/fleet/stats.ts`), each hour in `summary` for the time-of-day charts (up to 31 days),
 and each project (`GET /api/project`) in `none` to rank them for the Prompts chart's split (then
-the top three's buckets in `summary`), the range before in `summary` for the tiles' change, and
-53 weeks in `none` for the year calendar (its per-day `activity`, steps only). 2.0.22 refuses an all-time range for a project without messages
+the top three's buckets in `summary`) and the range before in `summary` for the tiles' change
+(its per-day `activity` is not read). 2.0.22 refuses an all-time range for a project without messages
 (`InvalidRequestError`, "Stats range must end after it starts"); Fleet shows it as empty.
 
 ## Launcher calls

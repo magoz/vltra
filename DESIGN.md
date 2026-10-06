@@ -130,8 +130,8 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
   `GET /api/fleet/stats/hours` (same query) → `StatsHours`: prompts per hour for the time-of-day
   charts, or `TooLong` past 31 days and for all time.
   `GET /api/fleet/stats/projects` (same range) → `PromptsByProject`: prompts per bar, all
-  projects and the three with most (the Prompts chart's split). `GET /api/fleet/stats/calendar`
-  (`?tz=&project=`) → `StatsCalendar`: steps per day over the last 53 weeks.
+  projects and the three with most (the Prompts chart's split). The Done chart, the Done tile and
+  the year calendar (sessions done per day) come from Fleet's own session list, no call.
 - Notifications: `GET /api/fleet/notifications` → `PushSettings` (the VAPID public key and the
   subscribed devices, never their endpoints); the web turns a browser on or off, and tests it,
   with the server actions `savePushDevice`, `removePushDevice` and `testPush`.
