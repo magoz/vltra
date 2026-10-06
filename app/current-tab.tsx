@@ -5,6 +5,7 @@ import { AgentsBoard } from '@/app/agents-board'
 import { AgentsFocus } from '@/app/agents-focus'
 import { useFleet } from '@/app/fleet-context'
 import { ProjectsGrid } from '@/app/projects-grid'
+import { SettingsPage } from '@/app/settings-page'
 
 // Charts (Recharts) load with the Stats tab, not with the dashboard.
 const StatsPage = dynamic(() => import('@/app/stats-page').then(module => module.StatsPage), {
@@ -13,7 +14,7 @@ const StatsPage = dynamic(() => import('@/app/stats-page').then(module => module
 
 /**
  * The tab in `?view=` (DESIGN.md "Clients" → Web): Focus (plain `/`), Agents (`?view=agents`,
- * the board), Projects or Stats. Tabs switch in place on the one page, so each mounts fresh and
+ * the board), Projects, Stats or Settings. Tabs switch in place on the one page, so each mounts fresh and
  * none stays alive hidden.
  */
 export function CurrentTab() {
@@ -28,5 +29,7 @@ export function CurrentTab() {
       return <ProjectsGrid />
     case 'stats':
       return <StatsPage />
+    case 'settings':
+      return <SettingsPage />
   }
 }

@@ -5,6 +5,7 @@ import { useCallback, useMemo } from 'react'
 import type { FleetNav } from '@/app/fleet-context'
 import {
   fleetHref,
+  hasFilter,
   moveTo,
   projectParam,
   screenOf,
@@ -25,7 +26,7 @@ import type { StatsPeriod } from '@/lib/data/fleet/stats-period'
 export function useFleetNav(): FleetNav {
   const searchParams = useSearchParams()
   const screen = screenOf(searchParams.get(viewParam))
-  const project = screen === 'projects' ? undefined : (searchParams.get(projectParam) ?? undefined)
+  const project = hasFilter(screen) ? (searchParams.get(projectParam) ?? undefined) : undefined
   const session = searchParams.get(sessionParam) ?? undefined
   const stats = screen === 'stats'
   const range = stats ? searchParams.get(rangeParam) : null

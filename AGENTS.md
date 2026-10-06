@@ -16,8 +16,8 @@ Fleet is one view of every OpenCode session on Box, built around attention: whic
 (blocked on a permission/form, or finished and not yet handled), which are working (and which of
 those look stuck), grouped project → worktree. It is an OpenCode **API client** (never a server
 plugin), stateless (OpenCode owns all state; Fleet's only state is its handled marker,
-`metadata.fleet.handled`, stored on the OpenCode session), private and single-user (no auth, no
-database). `DESIGN.md` is the settled spec. Stack and conventions are 10x's (`../10x`): Next.js 16
+`metadata.fleet.handled`, stored on the OpenCode session, plus its Web Push file: keys and
+subscribed devices, never session state), private and single-user (no auth, no database). `DESIGN.md` is the settled spec. Stack and conventions are 10x's (`../10x`): Next.js 16
 App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
 ## WHERE TO LOOK
@@ -44,6 +44,9 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | Run summaries (plugin page)      | `lib/data/fleet/session-detail.ts`                              | Latest answer + diff totals, cached by `idle`            |
 | Stats tab (data)                 | `lib/data/fleet/stats.ts`, `stats-period.ts`, `stats-view.ts`   | OpenCode `session.stats` per range + bucket; projections |
 | Stats tab (UI)                   | `app/stats-page.tsx`, `stats-charts.tsx`, `use-stats.ts`        | Recharts (lazy), `components/ui/chart.tsx`               |
+| Notifications (what, when)       | `lib/data/fleet/notify.ts`, `notifier.ts`                       | Pure snapshot diff + grace recheck; forked in runtime    |
+| Web Push (keys, devices, send)   | `lib/services/push/`, `lib/data/fleet/push.ts`                  | `push.json` (0600), `web-push`; fake in `testing/`       |
+| Settings tab, service worker     | `app/settings-page.tsx`, `use-push.ts`, `public/sw.js`          | Turn on/off, test, devices; DESIGN.md "Notifications"    |
 | Launcher list / open / retire    | `lib/data/fleet/launcher.ts`, `checkouts.ts`                    | Pure projection + guards; `GET /api/fleet/launcher`      |
 | Launches (worktree + session)    | `lib/data/fleet/launches.ts`                                    | Registry in the runtime, background fibers, in store     |
 | Branch names / palette rows      | `lib/data/fleet/branch.ts`, `palette.ts`                        | `--` encoding, suggestion check, fallback, fuzzy         |
@@ -79,10 +82,10 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
 ## DASHBOARD
 
-- One page (`app/(fleet)/page.tsx` → `current-tab.tsx`) with four tabs in `?view=`: **Focus**
+- One page (`app/(fleet)/page.tsx` → `current-tab.tsx`) with five tabs in `?view=`: **Focus**
   (plain `/`, `agents-focus.tsx`), **Agents** (the board: `?view=agents`, `agents-board.tsx`; old
   `?view=board` links still open it), **Projects** (`?view=projects`, `projects-grid.tsx`; the old `/projects` redirects in
-  `next.config.ts`) and **Stats** (`?view=stats`, `stats-page.tsx`, loaded with `next/dynamic`). Keep it one route: Cache Components keeps up to three visited routes mounted
+  `next.config.ts`), **Stats** (`?view=stats`, `stats-page.tsx`, loaded with `next/dynamic`) and **Settings** (`?view=settings`, `settings-page.tsx`). Keep it one route: Cache Components keeps up to three visited routes mounted
   in hidden `<Activity>` boundaries (`MAX_BF_CACHE_ENTRIES` in Next's `bfcache-state-manager`), so
   a second route kept a hidden copy of the other page alive (with its own OpenCode iframe) and
   restored its stale state on return. The page is static; the layout's `<Suspense>` holds the live
@@ -94,8 +97,8 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   the clock and Handled's undo state.
 - `FleetDashboard` wires server actions, the clock and the URL (`use-fleet-nav.ts`: the tab and
   the filter, Stats' range; `use-selected-session.ts`: `?session=`; `fleet-href.ts` builds every
-  URL) around `FleetShell` (`fleet-shell.tsx`): the tabs `Focus | Agents | Projects | Stats`
-  (`fleet-header.tsx`), in
+  URL) around `FleetShell` (`fleet-shell.tsx`): the tabs `Focus | Agents | Projects | Stats | Settings`
+  (`fleet-header.tsx`; on the phone Settings is a `⚙`), in
   the desktop header (no visible title, the tabs first; the count line `N need you · N working · N stuck`, centred; on the right the usage
   line, New, `?` and the connection) or the phone's bottom tab bar (`BottomTabs`, with `+`; no header there, only
   `ConnectionLine`: a slim `reconnecting…` line on top once a reconnect lasts 3s, the wait starting
@@ -113,9 +116,9 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   fetch, no remount): `nav.show` pushes an entry (Back returns), `setProject` replaces it,
   `openSession` (the launcher) pushes Focus with the session. `moveTo` in `fleet-href.ts` decides
   the filter: given (Projects card headers, and `Enter` on a card, open the board filtered), else
-  kept between Focus (which ignores it), Agents and Stats; Projects has none, so from it they
-  start unfiltered. Stats' range (`?range=` / `?from=&to=`) lives only on Stats. `1`–`4` pick a
-  tab.
+  kept between Focus (which ignores it), Agents and Stats; Projects and Settings have none
+  (`hasFilter`), so from them they start unfiltered. Stats' range (`?range=` / `?from=&to=`) lives
+  only on Stats. `1`–`5` pick a tab.
 - **Focus** (`agents-focus.tsx`, default): a sidebar (26rem, hairline right border,
   scrolls on its own) with only the needs-me sessions (`buildNeedsMe` / `needsMeOrder` in
   `board.ts`: blocked, then finished, each newest first; the board's Need you
@@ -233,12 +236,12 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   and drop. Phone: swipe a finished card left (`use-swipe.ts`); the `✔ Done` button stays.
 - Keys (`use-keys.ts`, desktop; ignored while typing (except `Escape`), with modifiers and in
   dialogs; in the chat, `chat-keys.ts` hands Fleet the keys the chat does not own, see the
-  session panel): shell `1`–`4` the tabs, `n` the launcher (and `⌘K` / `Ctrl+K`,
+  session panel): shell `1`–`5` the tabs, `n` the launcher (and `⌘K` / `Ctrl+K`,
   `isLauncherKey`, its own listener, also while typing),
   `?` / `⌘/` (`isHelpKey`, also while typing) the tab's keys (`shortcuts-dialog.tsx`,
   `keyHints`; also the header's `?`; no hints line),
   `Escape` closes the session (the palette closes itself). `⌘1`–`⌘9` open Focus' Nth session
-  (in Focus from another tab) and `⌘⌥1`–`⌘⌥4` pick a tab, `⌘U` is the tab's `u` (`useKeys`),
+  (in Focus from another tab) and `⌘⌥1`–`⌘⌥5` pick a tab, `⌘U` is the tab's `u` (`useKeys`),
   `⌘I` / `i` put the caret in the chat's composer (`useInsertKeys`; `chat-composer.ts`, which also
   focuses it once when a chat loads, on a fine pointer, unless a Fleet field or dialog has focus),
   `⌘D` marks the open finished session done (`useDoneKey` in
@@ -289,6 +292,20 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   and `destructive` red only, hairline borders, no shadows); light/dark follow the system
   (`prefers-color-scheme`), no toggle.
 - PWA: `app/manifest.ts`, `app/icon.svg`, `app/apple-icon.png`, `public/icon-*.png` (no offline).
+- **Settings** (`?view=settings`, `settings-page.tsx`): notifications (DESIGN.md "Notifications").
+  `use-push.ts` owns this browser's side: the service worker (`public/sw.js` at `/sw.js`, push and
+  click only, never a `fetch` handler), its subscription and permission (`PushState`: on, off,
+  denied, unsupported or iPhone-Safari-needs-the-Home-Screen-app). Turn on asks from the click
+  (`Notification.requestPermission` before any `await`: Safari asks only within the gesture),
+  subscribes with the server's VAPID key (`GET /api/fleet/notifications`) and saves the device
+  (`savePushDevice`); Send a test (`testPush`); Turn off; other devices removable. The shell
+  re-saves the subscription on every app open (`usePushRefresh`) and moves to a tapped
+  notification's session without a reload (`useOpenFromNotification`, the worker's `fleet.open`
+  message). Server: the notifier (`notifier.ts`, forked in the runtime) diffs consecutive store
+  snapshots (`store.snapshots`) with `notify.ts` (blocked, or a new finished run, among rows in
+  both, so the first snapshot is the baseline), rechecks each after 45 s / 2 min (still blocked;
+  same run, not handled, not viewed), batches what comes due within 5 s, and broadcasts
+  (`Push`, `lib/services/push/`). It keeps no record of what it sent.
 - Deploys reload open pages (`use-reload-on-deploy.ts`): the live tree passes the build that
   rendered the page (`.next/BUILD_ID`, read once at boot: `lib/runtime/build-id.ts`, warmed in
   `instrumentation.ts`, since `pnpm ship` rewrites it under the running server); every time the
@@ -346,3 +363,4 @@ Commit before shipping: the working tree at build time is what goes live.
 | `FLEET_LAUNCHER_ROOTS`              | `~/dev/repos:~/.dotfiles:~/aha:~/collie:~/subs` | Launcher roots (`:` list, `~` ok): each a repo, or a folder of repos |
 | `FLEET_BRANCH_MODEL`                | `opencode-go/qwen3.8-flash#none`                | Launcher branch suggestions (`generate.text` model, `#variant` ok)   |
 | `FLEET_USAGE_URL`                   | `http://127.0.0.1:8320`                         | The `usage` dashboard (`~/usage`) for the header's usage line        |
+| `FLEET_PUSH_FILE`                   | `$XDG_STATE_HOME/fleet/push.json`               | Web Push keys + devices (`push.dev.json` under `next dev`)           |

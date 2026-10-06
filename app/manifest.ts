@@ -1,6 +1,9 @@
 import type { MetadataRoute } from 'next'
 
-/** Installable to the phone home screen (no offline support: Fleet is live data only). */
+/**
+ * Installable to the phone home screen (no offline support: Fleet is live data only); iPhone
+ * notifications need it (`public/sw.js`).
+ */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Fleet',

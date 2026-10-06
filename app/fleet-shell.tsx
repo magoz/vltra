@@ -17,6 +17,7 @@ import { HandledProvider, useHandledFlow } from '@/app/use-handled'
 import { useFavicon } from '@/app/use-favicon'
 import { useKeys } from '@/app/use-keys'
 import { useLauncherList } from '@/app/use-launcher-list'
+import { useOpenFromNotification, usePushRefresh } from '@/app/use-push'
 import { useUsage } from '@/app/use-usage'
 import { focusList, withOverrides } from '@/lib/data/fleet/board'
 import type { LiveFleet } from '@/lib/data/fleet/board'
@@ -198,6 +199,8 @@ export function FleetShell({
   const awaitLaunch = useLaunchAutoOpen(live.launches, selection, nav, reload)
 
   useFavicon(counts)
+  usePushRefresh()
+  useOpenFromNotification()
   useShellShortcuts(openLauncher, () => setShortcutsOpen(true))
 
   useCommandKeys(
@@ -227,6 +230,7 @@ export function FleetShell({
     '2': screen === 'agents' ? undefined : () => nav.show('agents'),
     '3': screen === 'projects' ? undefined : () => nav.show('projects'),
     '4': screen === 'stats' ? undefined : () => nav.show('stats'),
+    '5': screen === 'settings' ? undefined : () => nav.show('settings'),
     Escape: selected === undefined ? undefined : selection.close
   })
 

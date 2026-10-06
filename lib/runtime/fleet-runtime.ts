@@ -1,6 +1,7 @@
 import { Effect, Layer, ManagedRuntime } from 'effect'
 import { LaunchesLive } from '@/lib/data/fleet/launches'
 import type { Launches } from '@/lib/data/fleet/launches'
+import { NotifierLive } from '@/lib/data/fleet/notifier'
 import { SessionSummaries, SessionSummariesLive } from '@/lib/data/fleet/session-detail'
 import { StatsLive } from '@/lib/data/fleet/stats'
 import type { Stats } from '@/lib/data/fleet/stats'
@@ -12,6 +13,8 @@ import type { Directories } from '@/lib/services/directories/service'
 import { OpenCodeLive } from '@/lib/services/opencode/live-layer'
 import type { OpenCodeUnavailableError } from '@/lib/services/opencode/errors'
 import type { OpenCode } from '@/lib/services/opencode/service'
+import { PushLive } from '@/lib/services/push/live-layer'
+import type { Push } from '@/lib/services/push/service'
 import { ReposLive } from '@/lib/services/repos/live-layer'
 import type { Repos } from '@/lib/services/repos/service'
 import { UsageLive } from '@/lib/services/usage/live-layer'
@@ -26,19 +29,22 @@ export type FleetServices =
   | Repos
   | Launches
   | Usage
+  | Push
 
 /**
  * Store + OpenCode client + session folder checks + finished-run summary and stats caches + the
- * launcher's repositories and launch registry + the subscription quotas, with the watcher (and any
- * running launch) forked for the lifetime of the runtime.
+ * launcher's repositories and launch registry + the subscription quotas + Web Push, with the
+ * watcher, the notifier (and any running launch) forked for the lifetime of the runtime.
  */
 export const FleetLayer = Layer.mergeAll(
   FleetWatcherLive(),
+  NotifierLive,
   SessionSummariesLive,
   StatsLive,
   LaunchesLive()
 ).pipe(
   Layer.provideMerge(FleetStoreLive),
+  Layer.provideMerge(PushLive),
   Layer.provideMerge(OpenCodeLive),
   Layer.provideMerge(DirectoriesLive),
   Layer.provideMerge(ReposLive),

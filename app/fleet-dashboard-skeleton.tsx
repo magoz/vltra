@@ -2,13 +2,19 @@ import Link from 'next/link'
 import { fleetHref } from '@/app/fleet-href'
 import type { FleetScreen } from '@/app/fleet-href'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 
-/** The tabs (header and phone tab bar): Focus, Agents (the board), Projects, Stats. */
-const tabs: ReadonlyArray<{ readonly screen: FleetScreen; readonly label: string }> = [
+/** The tabs (header and phone tab bar): Focus, Agents (the board), Projects, Stats, Settings. */
+const tabs: ReadonlyArray<{
+  readonly screen: FleetScreen
+  readonly label: string
+  readonly mark?: string
+}> = [
   { screen: 'focus', label: 'Focus' },
   { screen: 'agents', label: 'Agents' },
   { screen: 'projects', label: 'Projects' },
-  { screen: 'stats', label: 'Stats' }
+  { screen: 'stats', label: 'Stats' },
+  { screen: 'settings', label: 'Settings', mark: '\u2699\uFE0E' }
 ]
 
 /** Focus mode's list: a few blocked rows, then finished ones. */
@@ -86,9 +92,19 @@ export function FleetDashboardSkeleton() {
             key={item.screen}
             href={fleetHref(item.screen, {})}
             aria-current={item.screen === 'focus' ? 'page' : undefined}
-            className="text-muted-foreground aria-[current=page]:border-t-foreground aria-[current=page]:text-foreground -mt-px flex h-12 flex-1 items-center justify-center border-t-2 border-t-transparent"
+            className={cn(
+              'text-muted-foreground aria-[current=page]:border-t-foreground aria-[current=page]:text-foreground -mt-px flex h-12 items-center justify-center border-t-2 border-t-transparent',
+              item.mark === undefined ? 'flex-1' : 'w-12 text-base'
+            )}
           >
-            {item.label}
+            {item.mark === undefined ? (
+              item.label
+            ) : (
+              <>
+                <span aria-hidden="true">{item.mark}</span>
+                <span className="sr-only">{item.label}</span>
+              </>
+            )}
           </Link>
         ))}
       </nav>

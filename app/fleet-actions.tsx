@@ -18,7 +18,8 @@ import type {
   RetireWorktreeInput,
   SuggestBranchInput
 } from '@/lib/data/fleet/launcher'
-import type { BranchSuggestion } from '@/lib/data/fleet/types'
+import type { PushDeviceInput, SavePushDeviceInput } from '@/lib/data/fleet/push'
+import type { BranchSuggestion, PushDevice } from '@/lib/data/fleet/types'
 
 /** The mutations the dashboard can run; the server actions in production, fakes in tests. */
 export type FleetActions = {
@@ -34,6 +35,10 @@ export type FleetActions = {
   /** Delete a Projects card's sessions in OpenCode, for good. */
   readonly deleteProject: (input: DeleteProjectInput) => Promise<FleetActionResult>
   readonly suggestBranch: (input: SuggestBranchInput) => Promise<FleetActionValue<BranchSuggestion>>
+  /** Turn this browser's notifications on (or refresh its subscription). */
+  readonly savePushDevice: (input: SavePushDeviceInput) => Promise<FleetActionValue<PushDevice>>
+  readonly removePushDevice: (input: PushDeviceInput) => Promise<FleetActionResult>
+  readonly testPush: (input: PushDeviceInput) => Promise<FleetActionResult>
 }
 
 /** The action's result; a rejected call (Fleet unreachable) becomes an Error result. */

@@ -74,8 +74,8 @@ Priority: blocked > working > finished > handled.
   marks every root session whose latest run was already viewed (`viewed >= idle`) as handled.
   It is never run automatically: after it, "viewed" means nothing to Fleet.
 
-Fleet stores nothing itself: OpenCode's session metadata is its database. (Exception, later:
-Web Push subscriptions.)
+Fleet stores nothing itself: OpenCode's session metadata is its database. (One exception: the
+Web Push key pair and the subscribed browsers, see "Notifications".)
 
 ## OpenCode surface used (verified in v2.0.20 source)
 
@@ -132,6 +132,9 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
   `GET /api/fleet/stats/projects` (same range) → `PromptsByProject`: prompts per bar, all
   projects and the three with most (the Prompts chart's split). `GET /api/fleet/stats/calendar`
   (`?tz=&project=`) → `StatsCalendar`: steps per day over the last 53 weeks.
+- Notifications: `GET /api/fleet/notifications` → `PushSettings` (the VAPID public key and the
+  subscribed devices, never their endpoints); the web turns a browser on or off, and tests it,
+  with the server actions `savePushDevice`, `removePushDevice` and `testPush`.
 - Launcher: `GET /api/fleet/launcher` → `LauncherList` (repos with worktrees, owner, PR, session
   tallies and latest root session, most recent activity first); `POST /api/fleet/launcher/branch`
   `{ task }` → `{ branch, source: 'model' | 'fallback' }` (JSON only, same-origin: a non-browser
@@ -141,14 +144,14 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
 
 ## Clients
 
-**Web (fleet.oox.sh, Mac + phone):** one full-width page with four tabs in the URL: **Focus**
+**Web (fleet.oox.sh, Mac + phone):** one full-width page with five tabs in the URL: **Focus**
 (plain `/`), **Agents** (the board, `?view=agents`), **Projects** (`?view=projects`; the old
-`/projects` redirects) and **Stats** (`?view=stats`), `1`–`4`. One page on purpose: tabs switch in place, instantly,
+`/projects` redirects), **Stats** (`?view=stats`) and **Settings** (`?view=settings`), `1`–`5`. One page on purpose: tabs switch in place, instantly,
 and Next's Cache Components never keeps a hidden copy of another page alive. Desktop: the tabs sit
 in the header, which also carries the count line (`6 need you · 17 working · 2 stuck`) and a
 condensed usage line from the `usage` dashboard (`Claude 45% · Codex 96% · Go 34% left`: each
 subscription's % left of the window that runs out first, red at 10% or less, details on hover). Phone: no
-header; a bottom tab bar `Focus | Agents | Projects | Stats | +`, plus a slim `reconnecting…` line on top
+header; a bottom tab bar `Focus | Agents | Projects | Stats | ⚙ | +` (⚙ is Settings), plus a slim `reconnecting…` line on top
 only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
 - **Two views of the sessions** (`?view=agents` for the board; Focus is the default, so plain `/`
   is Focus):
@@ -270,15 +273,49 @@ OpenCode.
 - Mac notification via `attention.notify({ when: "blurred" })` on → blocked (gaps only by
   default, as before).
 
-**Later (not part of the redesign):** Web Push for blocked agents only (debounced, one
-summary for bursts; subscriptions in a small file next to the app), mute for sessions to
-ignore forever, and a "handle this batch" action per worktree. Video attachments (deferred): OpenCode forwards only images/PDF/text to the model
+**Later (not part of the redesign):** mute for sessions to ignore forever, and a "handle this batch" action per worktree. Video attachments (deferred): OpenCode forwards only images/PDF/text to the model
 (`core/src/session/runner/to-llm-message.ts`) and the TUI composer only attaches images/PDF
 (`tui/src/component/prompt/local-attachment.ts`; no plugin can extend it). Plan: a dotfiles
 server plugin on the documented `session.prompt` hook that saves a video on Box and replaces it
 with `ffmpeg` key frames (as image attachments) plus a note with the saved path; inputs via a
 terminal-plugin "Attach video" command (inline, ≤20 MB) and/or Taildrop (`tailscale file get`
 into `~/Taildrop`) with video paths in the prompt text resolved there.
+
+## Notifications
+
+Web Push from Fleet to every browser that turned it on (the phone's Home Screen app, desktop
+browsers), so a session that needs me reaches me with no Fleet page open. OpenCode has no push of
+its own (its web UI notifies only while a tab of it is open), so Fleet sends them, decided from
+OpenCode's state as Fleet already projects it; no notification state of its own.
+
+- **What**: a root session that starts needing me: **blocked** (a permission or question, its own
+  or a subagent's), or a run that **finished** (a new `idle`; reopening a handled run is no news).
+  Taken from consecutive snapshots of the store (`notify.ts`), so subagent asks, auto-handled
+  stops and folders gone count as on the board.
+- **When**: after a grace period, checked again against the fleet of that moment: still blocked
+  after 45 s; the same run still finished, not handled and not opened (`viewed < idle`) after
+  2 min. Handling or opening it in front of me first means no push. What comes due within 5 s of
+  the first goes out as one summary (`3 sessions need you`, opening Focus); one session goes out
+  as itself (OpenCode's titles: `Permission required`, `Response ready`, `Session error`; body
+  `project · title`), tagged with its id so a later one replaces it, and opens it.
+- **No record of what was sent**: the notifier diffs snapshot pairs in memory (`notifier.ts`);
+  the first snapshot after a start is the baseline, so a restart can miss a few seconds, never
+  repeat. The push's tag dedupes on the device.
+- **Fleet's one file**: `$XDG_STATE_HOME/fleet/push.json` (`FLEET_PUSH_FILE`; `push.dev.json`
+  under `next dev`), mode 0600: the VAPID key pair (made on first start) and the devices
+  (endpoint, keys, label, when added). A device whose push service answers 404/410 is dropped;
+  each app open re-sends the browser's subscription (a renewed one keeps working). Losing the
+  file means turning each device on again.
+- **Service worker** `public/sw.js`, at `/sw.js`: the path OpenCode's web UI registers its own
+  at (the proxy keeps OpenCode's out), so the chat iframe's registration finds Fleet's and
+  changes nothing. Push and notification click only, no `fetch` handler (no offline, no
+  caching). Every push shows a notification (Safari revokes silent ones); a tap focuses an open
+  Fleet window and moves it there (`fleet.open` message, a history entry), else opens one.
+- **Settings tab** (`?view=settings`): this browser's state (on, off, blocked by the browser, or
+  "Home Screen app only" in iPhone Safari) with Turn on (asks from the click, as Safari requires),
+  Send a test and Turn off, and every device that gets them, the others removable.
+- OpenCode's own in-page notifications (its web UI in the chat iframe, while it is open and the
+  page is in the background) are untouched: turn them off in its settings to avoid doubles.
 
 ## Stack and repo
 
@@ -290,7 +327,8 @@ Node 24, `portless run next dev`, root-level `app/` `components/` `lib/` (no `sr
 
 Differences from 10x, on purpose:
 - **No auth** (private, single user).
-- **No database**: all state comes from OpenCode (including "seen"); fleet is stateless.
+- **No database**: all state comes from OpenCode (including "seen"); fleet is stateless (its
+  one file holds the Web Push keys and devices, "Notifications").
 - **Effect pinned to `4.0.0-rc.112`**, the exact version `@opencode/client@2.0.20` depends on,
   so there is one Effect runtime and no overrides (10x is on rc.115 because of Yolk).
 - **Long-lived watcher inside Next**: `instrumentation.ts` `register()` (Node runtime) starts

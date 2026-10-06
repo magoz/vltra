@@ -98,6 +98,9 @@ export type ActionCall =
   | { readonly action: 'retireWorktree'; readonly input: Input<'retireWorktree'> }
   | { readonly action: 'deleteProject'; readonly input: Input<'deleteProject'> }
   | { readonly action: 'suggestBranch'; readonly input: Input<'suggestBranch'> }
+  | { readonly action: 'savePushDevice'; readonly input: Input<'savePushDevice'> }
+  | { readonly action: 'removePushDevice'; readonly input: Input<'removePushDevice'> }
+  | { readonly action: 'testPush'; readonly input: Input<'testPush'> }
 
 /** What the fake value actions answer (a suggestion per task, else the fallback-like default). */
 export type FakeValues = {
@@ -156,7 +159,14 @@ export const fakeActions = (failWith?: string, values: Partial<FakeValues> = {})
     retireWorktree: input => record({ action: 'retireWorktree', input }),
     deleteProject: input => record({ action: 'deleteProject', input }),
     suggestBranch: input =>
-      recordValue({ action: 'suggestBranch', input }, answers.suggest(input.task))
+      recordValue({ action: 'suggestBranch', input }, answers.suggest(input.task)),
+    savePushDevice: input =>
+      recordValue(
+        { action: 'savePushDevice', input },
+        { id: 'device-1', label: input.label, createdAt: 0 }
+      ),
+    removePushDevice: input => record({ action: 'removePushDevice', input }),
+    testPush: input => record({ action: 'testPush', input })
   }
 
   return { actions, calls }

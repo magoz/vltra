@@ -7,7 +7,7 @@ type KeyHint = { readonly keys: string; readonly label: string }
 
 /**
  * Each tab's keys (`agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`, `stats-page.tsx`),
- * plus the shell's: `n` (the launcher, also `⌘K`), `1`–`4` and `⌘⌥1`–`⌘⌥4`
+ * plus the shell's: `n` (the launcher, also `⌘K`), `1`–`5` and `⌘⌥1`–`⌘⌥5`
  * (the tabs), `⌘1`–`⌘9` (Focus' Nth session), `Escape` (close the session) and `?` / `⌘/` (this list), plus OpenCode's
  * own palette in the chat (`⌘P`).
  */
@@ -19,7 +19,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: 'u ⌘U', label: 'undo' },
     { keys: 'n ⌘K', label: 'new' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
-    { keys: '1 2 3 4 ⌘⌥1–4', label: 'tabs' },
+    { keys: '1 2 3 4 5 ⌘⌥1–5', label: 'tabs' },
     { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
     { keys: '⌘P', label: "OpenCode's palette (in the chat)" },
@@ -34,7 +34,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: 'n ⌘K', label: 'new' },
     { keys: '/', label: 'filter' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
-    { keys: '1 2 3 4 ⌘⌥1–4', label: 'tabs' },
+    { keys: '1 2 3 4 5 ⌘⌥1–5', label: 'tabs' },
     { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
     { keys: '⌘P', label: "OpenCode's palette (in the chat)" },
@@ -46,7 +46,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: '↵', label: 'open' },
     { keys: 'n ⌘K', label: 'new' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
-    { keys: '1 2 3 4 ⌘⌥1–4', label: 'tabs' },
+    { keys: '1 2 3 4 5 ⌘⌥1–5', label: 'tabs' },
     { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
     { keys: '⌘P', label: "OpenCode's palette (in the chat)" },
@@ -57,8 +57,14 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: '/', label: 'filter' },
     { keys: 'n ⌘K', label: 'new' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
-    { keys: '1 2 3 4 ⌘⌥1–4', label: 'tabs' },
+    { keys: '1 2 3 4 5 ⌘⌥1–5', label: 'tabs' },
     { keys: 'esc', label: 'close the session' },
+    { keys: '? ⌘/', label: 'shortcuts' }
+  ],
+  settings: [
+    { keys: 'n ⌘K', label: 'new' },
+    { keys: '⌘1–9', label: 'Nth session (Focus)' },
+    { keys: '1 2 3 4 5 ⌘⌥1–5', label: 'tabs' },
     { keys: '? ⌘/', label: 'shortcuts' }
   ]
 }
@@ -67,7 +73,8 @@ const tabNames: Readonly<Record<FleetScreen, string>> = {
   focus: 'Focus',
   agents: 'Agents',
   projects: 'Projects',
-  stats: 'Stats'
+  stats: 'Stats',
+  settings: 'Settings'
 }
 
 /** The tab's keys (desktop), opened with `?` or the header's `?`; `Escape` closes it. */

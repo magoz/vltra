@@ -49,6 +49,8 @@ export type FleetStoreOperations = {
    * current counts, then every later change. Scoped to the stream's lifetime.
    */
   readonly changes: Stream.Stream<FleetChange>
+  /** The current snapshot, then every new one (`notifier.ts` diffs consecutive ones). */
+  readonly snapshots: Stream.Stream<FleetSnapshot>
 }
 
 export class FleetStore extends Context.Service<FleetStore, FleetStoreOperations>()(
@@ -148,7 +150,8 @@ export const makeFleetStore = (
       snapshot: Effect.map(SubscriptionRef.get(ref), view => view.snapshot),
       commit,
       updateLaunches,
-      changes
+      changes,
+      snapshots: Stream.map(SubscriptionRef.changes(ref), view => view.snapshot)
     }
   })
 

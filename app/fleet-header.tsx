@@ -221,18 +221,27 @@ export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readon
   )
 }
 
+type Tab = {
+  readonly screen: FleetScreen
+  readonly label: string
+  /** The phone's narrow tab bar shows this mark instead (the label stays for screen readers). */
+  readonly mark?: string
+}
+
 /**
  * The tabs, the same on desktop (header) and phone (bottom bar): Focus, Agents (the board),
- * Projects, Stats.
+ * Projects, Stats, Settings (a gear on the phone, where five words do not fit).
  */
-const tabs: ReadonlyArray<{ readonly screen: FleetScreen; readonly label: string }> = [
+const tabs: ReadonlyArray<Tab> = [
   { screen: 'focus', label: 'Focus' },
   { screen: 'agents', label: 'Agents' },
   { screen: 'projects', label: 'Projects' },
-  { screen: 'stats', label: 'Stats' }
+  { screen: 'stats', label: 'Stats' },
+  // U+FE0E keeps the gear a text glyph (iOS draws a bare U+2699 as an emoji).
+  { screen: 'settings', label: 'Settings', mark: '\u2699\uFE0E' }
 ]
 
-/** Focus | Agents | Projects | Stats: header tabs on desktop. */
+/** Focus | Agents | Projects | Stats | Settings: header tabs on desktop. */
 function HeaderTabs({ screen }: { readonly screen: FleetScreen }) {
   return (
     <nav aria-label="Pages" className="flex self-stretch">
@@ -251,7 +260,7 @@ function HeaderTabs({ screen }: { readonly screen: FleetScreen }) {
 }
 
 /**
- * Focus | Agents | Projects | Stats | +: the phone's bottom tab bar (no header there;
+ * Focus | Agents | Projects | Stats | ⚙ | +: the phone's bottom tab bar (no header there;
  * `ConnectionLine` shows only while reconnecting); + opens the launcher, full screen.
  */
 export function BottomTabs({
@@ -271,9 +280,19 @@ export function BottomTabs({
           key={tab.screen}
           screen={tab.screen}
           current={tab.screen === screen}
-          className="text-muted-foreground aria-[current=page]:border-t-foreground aria-[current=page]:text-foreground focus-visible:ring-ring/50 -mt-px flex h-12 flex-1 items-center justify-center border-t-2 border-t-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
+          className={cn(
+            'text-muted-foreground aria-[current=page]:border-t-foreground aria-[current=page]:text-foreground focus-visible:ring-ring/50 -mt-px flex h-12 items-center justify-center border-t-2 border-t-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-inset',
+            tab.mark === undefined ? 'flex-1' : 'w-12 text-base'
+          )}
         >
-          {tab.label}
+          {tab.mark === undefined ? (
+            tab.label
+          ) : (
+            <>
+              <span aria-hidden="true">{tab.mark}</span>
+              <span className="sr-only">{tab.label}</span>
+            </>
+          )}
         </NavLink>
       ))}
       {onNew === undefined ? null : (

@@ -58,7 +58,8 @@ describe('header', () => {
       ['Focus', '/'],
       ['Agents', '/?view=agents'],
       ['Projects', '/?view=projects'],
-      ['Stats', '/?view=stats']
+      ['Stats', '/?view=stats'],
+      ['Settings', '/?view=settings']
     ])
     expect(screen.getByLabelText('Session counts').textContent).toBe(
       '6 need you · 17 working · 2 stuck'
@@ -137,8 +138,11 @@ describe('tab bar', () => {
       ['Focus', '/'],
       ['Agents', '/?view=agents'],
       ['Projects', '/?view=projects'],
-      ['Stats', '/?view=stats']
+      ['Stats', '/?view=stats'],
+      // A gear where the word does not fit; the name stays for screen readers.
+      ['\u2699\uFE0ESettings', '/?view=settings']
     ])
+    expect(within(bar).getByRole('link', { name: 'Settings' })).toBeTruthy()
     expect(within(bar).getByRole('button', { name: 'New (launcher)' })).toBeTruthy()
   })
 

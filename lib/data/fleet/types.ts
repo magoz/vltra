@@ -622,6 +622,26 @@ export const UsageSummary = Schema.Struct({ pools: Schema.Array(UsagePool) })
 
 export type UsageSummary = typeof UsageSummary.Type
 
+/** A browser that gets Fleet's notifications (Web Push), as Settings lists it. */
+export const PushDevice = Schema.Struct({
+  /** Derived from its push endpoint, which never leaves the server. */
+  id: Schema.String,
+  /** `iPhone · app`, `Mac · Chrome`: the browser that turned them on says. */
+  label: Schema.String,
+  createdAt: Schema.Number
+})
+
+export type PushDevice = typeof PushDevice.Type
+
+/** `GET /api/fleet/notifications`: the key browsers subscribe with, and every subscribed device. */
+export const PushSettings = Schema.Struct({
+  /** The VAPID public key (URL-safe base64), `applicationServerKey` for `pushManager.subscribe`. */
+  publicKey: Schema.String,
+  devices: Schema.Array(PushDevice)
+})
+
+export type PushSettings = typeof PushSettings.Type
+
 /** Tokens as OpenCode records them per assistant step (cache reads dwarf the rest). */
 export const TokenCounts = Schema.Struct({
   input: Schema.Number,

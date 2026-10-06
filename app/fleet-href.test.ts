@@ -10,6 +10,7 @@ describe('fleet URLs', () => {
     expect(screenOf('board')).toBe('agents')
     expect(screenOf('projects')).toBe('projects')
     expect(screenOf('stats')).toBe('stats')
+    expect(screenOf('settings')).toBe('settings')
     expect(screenOf(null)).toBe('focus')
     expect(screenOf('focus')).toBe('focus')
     expect(screenOf('kanban')).toBe('focus')
@@ -38,6 +39,8 @@ describe('fleet URLs', () => {
 
     expect(moveTo(filtered, 'agents')).toEqual({ screen: 'agents', project: 'prj_fleet' })
     expect(moveTo(filtered, 'projects')).toEqual({ screen: 'projects', project: undefined })
+    expect(moveTo(filtered, 'settings')).toEqual({ screen: 'settings', project: undefined })
+    expect(fleetHref('settings', { project: 'prj_fleet' })).toBe('/?view=settings')
     expect(moveTo({ screen: 'projects', project: undefined }, 'agents')).toEqual({
       screen: 'agents',
       project: undefined

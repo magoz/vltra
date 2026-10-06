@@ -17,6 +17,11 @@ import type {
   OpenCodeUnavailableError,
   SessionNotFoundError
 } from '@/lib/services/opencode/errors'
+import type {
+  PushDeviceNotFoundError,
+  PushSendError,
+  PushStoreError
+} from '@/lib/services/push/service'
 
 // Not a validation boundary. Construct the owner case, then project to a plain, tag-first object
 // for the action wire.
@@ -76,6 +81,9 @@ export type FleetActionError =
   | ProjectBusyError
   | LaunchNotFoundError
   | LaunchInProgressError
+  | PushStoreError
+  | PushDeviceNotFoundError
+  | PushSendError
 
 /** User-facing words for the OpenCode calls that write; reads keep the generic message. */
 const requestFailures = new Map([
@@ -113,7 +121,10 @@ export const failureMessage = (error: FleetActionError): string =>
       LaunchNotFoundError: () => 'That launch is gone',
       LaunchInProgressError: () => 'The launch is still running',
       OpenCodeRequestError: failed =>
-        requestFailures.get(failed.operation) ?? 'OpenCode request failed'
+        requestFailures.get(failed.operation) ?? 'OpenCode request failed',
+      PushStoreError: () => 'Fleet could not save the notification settings',
+      PushDeviceNotFoundError: () => 'This device no longer gets notifications',
+      PushSendError: failed => `The push service refused: ${failed.message}`
     })
   )
 

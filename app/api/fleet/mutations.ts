@@ -56,7 +56,10 @@ export const failureStatus = (error: FleetActionError): number =>
       ProjectBusyError: () => 409,
       OpenCodeRejectedError: () => 409,
       OpenCodeRequestError: () => 502,
-      OpenCodeUnavailableError: () => 503
+      OpenCodeUnavailableError: () => 503,
+      PushDeviceNotFoundError: () => 404,
+      PushSendError: () => 502,
+      PushStoreError: () => 503
     })
   )
 

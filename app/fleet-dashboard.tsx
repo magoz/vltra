@@ -10,9 +10,12 @@ import { launchAction } from '@/app/launch-action'
 import { markHandledAction } from '@/app/mark-handled-action'
 import { markViewedAction } from '@/app/mark-viewed-action'
 import { newSessionAction } from '@/app/new-session-action'
+import { removePushDeviceAction } from '@/app/remove-push-device-action'
 import { reopenAction } from '@/app/reopen-action'
 import { retireWorktreeAction } from '@/app/retire-worktree-action'
+import { savePushDeviceAction } from '@/app/save-push-device-action'
 import { suggestBranchAction } from '@/app/suggest-branch-action'
+import { testPushAction } from '@/app/test-push-action'
 import { useFleetLive } from '@/app/use-fleet-live'
 import { useFleetNav } from '@/app/use-fleet-nav'
 import { useNow } from '@/app/use-now'
@@ -30,7 +33,10 @@ const serverActions: FleetActions = {
   newSession: newSessionAction,
   retireWorktree: retireWorktreeAction,
   deleteProject: deleteProjectAction,
-  suggestBranch: suggestBranchAction
+  suggestBranch: suggestBranchAction,
+  savePushDevice: savePushDeviceAction,
+  removePushDevice: removePushDeviceAction,
+  testPush: testPushAction
 }
 
 /**
