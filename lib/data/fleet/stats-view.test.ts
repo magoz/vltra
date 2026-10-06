@@ -8,6 +8,7 @@ import {
   cacheHitRatio,
   calendarGrid,
   changePercent,
+  doneOverTime,
   freshTokens,
   hourGrid,
   inkLevel,
@@ -376,5 +377,34 @@ describe('stats charts', () => {
     expect(inkLevel(1, 10)).toBe(1)
     expect(inkLevel(5, 10)).toBe(3)
     expect(inkLevel(10, 10)).toBe(5)
+  })
+
+  it('counts sessions done by their last run end, leaving out ones that need you', () => {
+    const doneLive = liveOf([
+      sessionRecord('ses_done', {
+        created: baseTime,
+        idle: baseTime + 10,
+        outcome: 'succeeded',
+        handled: baseTime + 10
+      }),
+      sessionRecord('ses_waiting', {
+        created: baseTime,
+        idle: baseTime + hour + 10,
+        outcome: 'succeeded'
+      }),
+      // Marked done for an earlier run: its latest run needs you again.
+      sessionRecord('ses_again', {
+        created: baseTime,
+        idle: baseTime + hour + 20,
+        outcome: 'failed',
+        handled: baseTime + 5
+      }),
+      sessionRecord('ses_never_ran', { created: baseTime + 30 })
+    ])
+
+    const chart = doneOverTime(doneLive, report, undefined)
+
+    expect(chart.series).toEqual([{ key: 'done', name: 'done' }])
+    expect(chart.rows.map(row => row.values)).toEqual([[1], [0]])
   })
 })

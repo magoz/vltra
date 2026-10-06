@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { bucketTitle } from '@/app/stats-format'
 import { fakeActions, TestDashboard, testLocation } from '@/app/testing/dashboard-fixtures'
 import type { NavCall } from '@/app/testing/dashboard-fixtures'
 import { fleetLive, now } from '@/app/testing/fleet-scenario'
@@ -287,5 +288,30 @@ describe('stats tab', () => {
     fireEvent.mouseLeave(prompts.parentElement ?? prompts)
 
     expect(screen.queryByRole('tooltip')).toBeNull()
+  })
+
+  it("names a tile's bar and value on hover", async () => {
+    vi.stubGlobal(
+      'fetch',
+      statsFetch(() => Response.json(report))
+    )
+    renderStats()
+
+    const steps = await screen.findByText('Steps', { selector: 'dt' })
+    const tile = steps.parentElement ?? steps
+    const line = tile.querySelector('svg')?.parentElement
+
+    if (line === null || line === undefined) return expect.unreachable('a sparkline')
+
+    // jsdom has no layout: every box is at 0 and 0 wide, so the pointer picks the first bar.
+    fireEvent.mouseMove(line, { clientX: 0 })
+
+    expect(within(tile).getByRole('tooltip').textContent).toBe(
+      `${bucketTitle(report.buckets[0]?.start ?? 0, 'day', 'UTC')} · 7.8K`
+    )
+
+    fireEvent.mouseLeave(line)
+
+    expect(within(tile).queryByRole('tooltip')).toBeNull()
   })
 })

@@ -388,6 +388,36 @@ export const cacheHitRatio = (report: StatsReport): SeriesChart =>
 export const toolFailureRate = (report: StatsReport): SeriesChart =>
   singleSeries(report, 'failed', bucket => 100 * ratio(bucket.tools.failed, bucket.tools.calls))
 
+/**
+ * Root sessions done (marked done, or counting as done, their folder gone), by when their latest
+ * run ended (the time of its last message): Fleet does not record when Done was pressed, and keeps
+ * only the latest run's marker.
+ */
+export const doneOverTime = (
+  live: LiveFleet,
+  report: StatsReport,
+  filter: string | undefined
+): SeriesChart => {
+  const perBucket = report.buckets.map(() => 0)
+
+  for (const row of filteredRows(live, filter)) {
+    if (row.idle === undefined || row.state !== 'handled') continue
+
+    const index = bucketIndex(report.buckets, row.idle)
+
+    if (index >= 0) perBucket[index] = (perBucket[index] ?? 0) + 1
+  }
+
+  return {
+    series: [{ key: 'done', name: 'done' }],
+    rows: report.buckets.map((bucket, index) => ({
+      start: bucket.start,
+      end: bucket.end,
+      values: [perBucket[index] ?? 0]
+    }))
+  }
+}
+
 /** How root sessions' latest runs ended, per bucket of the end (earlier runs are not kept). */
 export const outcomesOverTime = (
   live: LiveFleet,

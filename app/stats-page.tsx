@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { useFleet } from '@/app/fleet-context'
 import { ProjectFilter } from '@/app/project-filter'
 import { SessionSplit } from '@/app/session-panel'
+import type { TrendLine } from '@/app/stats-charts'
 import {
   CalendarHeatmap,
   CategoryBars,
@@ -18,6 +19,7 @@ import {
   TimeBars
 } from '@/app/stats-charts'
 import {
+  bucketTitle,
   calendarDay,
   compactNumber,
   durationText,
@@ -48,6 +50,7 @@ import {
   cacheHitRatio,
   calendarGrid,
   changePercent,
+  doneOverTime,
   freshTokens,
   hourGrid,
   modelShare,
@@ -211,6 +214,12 @@ function Tiles({ report, started }: { readonly report: StatsReport; readonly sta
   const tools = totals.toolTotals
   const trend = tileSeries(report)
 
+  const labels = report.buckets.map(bucket =>
+    bucketTitle(bucket.start, report.unit, report.timezone)
+  )
+
+  const line = (values: ReadonlyArray<number>): TrendLine => ({ values, labels })
+
   return (
     <dl className="grid grid-cols-2 gap-2 @lg:grid-cols-4 @5xl:grid-cols-7">
       <Tile
@@ -219,7 +228,7 @@ function Tiles({ report, started }: { readonly report: StatsReport; readonly sta
         detail={`${compactNumber(totals.subagents)} subagents`}
         title={`${wholeNumber(totals.sessions)} sessions and ${wholeNumber(totals.subagents)} subagents with activity; ${wholeNumber(started)} sessions started`}
         change={changePercent(totals.sessions, previous?.sessions)}
-        trend={trend.sessions}
+        trend={line(trend.sessions)}
       />
       <Tile
         label="Prompts"
@@ -227,7 +236,7 @@ function Tiles({ report, started }: { readonly report: StatsReport; readonly sta
         detail={`${compactNumber(started)} sessions started`}
         title={`${wholeNumber(totals.prompts)} prompts`}
         change={changePercent(totals.prompts, previous?.prompts)}
-        trend={trend.prompts}
+        trend={line(trend.prompts)}
       />
       <Tile
         label="Steps"
@@ -239,7 +248,7 @@ function Tiles({ report, started }: { readonly report: StatsReport; readonly sta
         }
         title={`${wholeNumber(totals.steps)} steps (model calls)`}
         change={changePercent(totals.steps, previous?.steps)}
-        trend={trend.steps}
+        trend={line(trend.steps)}
       />
       <Tile
         label="Tokens"
@@ -256,7 +265,7 @@ function Tiles({ report, started }: { readonly report: StatsReport; readonly sta
           tokens,
           previous === undefined ? undefined : freshTokens(previous.tokens)
         )}
-        trend={trend.tokens}
+        trend={line(trend.tokens)}
       />
       <Tile
         label="Cache reads"
@@ -264,7 +273,7 @@ function Tiles({ report, started }: { readonly report: StatsReport; readonly sta
         detail={`${percentText(totals.tokens.cacheRead, totals.tokens.cacheRead + totals.tokens.input)} of input`}
         title={`${wholeNumber(totals.tokens.cacheRead)} tokens read from cache`}
         change={changePercent(totals.tokens.cacheRead, previous?.tokens.cacheRead)}
-        trend={trend.cacheReads}
+        trend={line(trend.cacheReads)}
       />
       <Tile
         label="Tool calls"
@@ -276,7 +285,7 @@ function Tiles({ report, started }: { readonly report: StatsReport; readonly sta
         }
         title={`${wholeNumber(tools.succeeded)} succeeded, ${wholeNumber(tools.failed)} failed, ${wholeNumber(tools.unfinished)} unfinished`}
         change={changePercent(tools.calls, previous?.toolTotals.calls)}
-        trend={trend.toolCalls}
+        trend={line(trend.toolCalls)}
       />
       <Tile
         label="Active days"
@@ -408,8 +417,8 @@ function YearCalendar({ calendar }: { readonly calendar: StatsState<StatsCalenda
 
 /**
  * The cards' grid by the page's own width: one column, two from 56rem, three from 80rem (two
- * columns are too wide on a big screen). `wide` cards take two of three: the scatter and the tools
- * table, which also fill their rows (beside the models and outcomes tables).
+ * columns are too wide on a big screen). `wide` cards take two of three: the tools table (its row
+ * filled by the outcomes table).
  */
 const cardGrid = 'grid gap-3 @4xl:grid-cols-2 @7xl:grid-cols-3'
 
@@ -459,6 +468,7 @@ function StatsBody({
       cacheHits: cacheHitRatio(report),
       toolFailures: toolFailureRate(report),
       outcomes: outcomesOverTime(view, report, filter),
+      done: doneOverTime(view, report, filter),
       lengths: sessionLengths(view, report, filter),
       subagents: subagentCounts(view, report, filter),
       points: sessionPoints(view, report, filter)
@@ -476,7 +486,9 @@ function StatsBody({
     <>
       <Tiles report={report} started={started} />
       <div className={cardGrid}>
-        <YearCalendar calendar={calendar} />
+        <StatsCard title="Done" detail="sessions marked done, by their last run's end">
+          <TimeBars chart={charts.done} unit={unit} timeZone={timeZone} format={compactNumber} />
+        </StatsCard>
         <StatsCard title="Sessions started" detail="by project, from Fleet's list">
           <TimeBars
             chart={charts.projects}
@@ -493,6 +505,7 @@ function StatsBody({
             format={compactNumber}
           />
         </StatsCard>
+        <YearCalendar calendar={calendar} />
         <TimeOfDay report={report} hours={hours} filter={filter} />
         <StatsCard title="Steps" detail="model calls">
           <TimeBars chart={charts.steps} unit={unit} timeZone={timeZone} format={compactNumber} />
@@ -567,11 +580,7 @@ function StatsBody({
         <StatsCard title="Subagents per session" detail="sessions started, by subagents run">
           <CategoryBars data={charts.subagents} noun="sessions" />
         </StatsCard>
-        <StatsCard
-          title="Tokens × length"
-          detail="a dot per session started (log scales)"
-          className={wide}
-        >
+        <StatsCard title="Tokens × length" detail="a dot per session started (log scales)">
           <SessionScatter points={charts.points} />
         </StatsCard>
         <StatsCard title="Models" detail="whole range">

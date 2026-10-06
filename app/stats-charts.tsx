@@ -80,35 +80,89 @@ export function StatsCard({
 }
 
 /** One headline number, with what it counts under it. */
-/** A word-sized line of a tile's values over the range (Tufte's sparkline), no axes. */
-export function Sparkline({ values }: { readonly values: ReadonlyArray<number> }) {
+/** A tile's values over the range, each with its bar's name (`Tue, Oct 6`). */
+export type TrendLine = {
+  readonly values: ReadonlyArray<number>
+  readonly labels: ReadonlyArray<string>
+}
+
+/** The sparkline's height in its own units (it stretches to the tile's width). */
+const sparkHeight = 24
+
+/**
+ * A word-sized line of a tile's values over the range (Tufte's sparkline), no axes. Hovering picks
+ * the nearest bar: a guide, a dot, and its name and value above.
+ */
+export function Sparkline({ trend }: { readonly trend: TrendLine }) {
+  const { values, labels } = trend
+  const [hovered, setHovered] = useState<number>()
   const largest = Math.max(0, ...values)
 
   if (values.length < 2 || largest === 0) return null
 
   const step = 100 / (values.length - 1)
+  const y = (value: number) => sparkHeight - 1 - ((sparkHeight - 2) * value) / largest
 
   const points = values
-    .map(
-      (value, index) => `${(index * step).toFixed(2)},${(23 - (22 * value) / largest).toFixed(2)}`
-    )
+    .map((value, index) => `${(index * step).toFixed(2)},${y(value).toFixed(2)}`)
     .join(' ')
 
+  const value = hovered === undefined ? undefined : values[hovered]
+
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 100 24"
-      preserveAspectRatio="none"
-      className="text-foreground/70 h-6 w-full"
+    <div
+      className="relative"
+      onMouseMove={event => {
+        const box = event.currentTarget.getBoundingClientRect()
+        const share = box.width > 0 ? (event.clientX - box.left) / box.width : 0
+        const index = Math.round(share * (values.length - 1))
+
+        setHovered(Math.max(0, Math.min(values.length - 1, index)))
+      }}
+      onMouseLeave={() => setHovered(undefined)}
     >
-      <polyline
-        points={points}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
+      <svg
+        aria-hidden="true"
+        viewBox={`0 0 100 ${sparkHeight}`}
+        preserveAspectRatio="none"
+        className="text-foreground/70 h-6 w-full"
+      >
+        {hovered === undefined ? null : (
+          <line
+            x1={hovered * step}
+            x2={hovered * step}
+            y1={0}
+            y2={sparkHeight}
+            stroke="var(--border)"
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+        <polyline
+          points={points}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      {hovered === undefined || value === undefined ? null : (
+        <>
+          {/* Out of the stretched SVG, so the dot stays round. */}
+          <span
+            aria-hidden="true"
+            className="bg-foreground absolute size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ left: `${hovered * step}%`, top: `${(100 * y(value)) / sparkHeight}%` }}
+          />
+          <span
+            role="tooltip"
+            className="border-border bg-popover text-popover-foreground pointer-events-none absolute bottom-full z-10 mb-1 -translate-x-1/2 border px-2 py-1 font-mono text-xs whitespace-nowrap tabular-nums"
+            style={{ left: `clamp(4.5rem, ${hovered * step}%, calc(100% - 4.5rem))` }}
+          >
+            {labels[hovered]} · {compactNumber(value)}
+          </span>
+        </>
+      )}
+    </div>
   )
 }
 
@@ -131,7 +185,7 @@ export function Tile({
   readonly title?: string
   /** Percent against the previous range. */
   readonly change?: number | undefined
-  readonly trend?: ReadonlyArray<number>
+  readonly trend?: TrendLine
 }) {
   return (
     <div title={title} className="flex min-w-0 flex-col gap-0.5 border px-3 py-2">
@@ -149,7 +203,7 @@ export function Tile({
       )}
       {trend === undefined ? null : (
         <dd className="mt-1">
-          <Sparkline values={trend} />
+          <Sparkline trend={trend} />
         </dd>
       )}
     </div>

@@ -174,10 +174,12 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   OpenCode project to rank them, then the top three's bars), `/hours` (prompts per hour, up to 31
   days, else `TooLong`) and `/calendar` (steps per day for 53 weeks, one call). `use-stats.ts`
   refetches each every minute while shown, keeping the last value. Top to bottom: 7 tiles (with
-  sparkline and change, `24×` past doubling), then cards in a grid by the page's width (1 column,
-  2 from 56rem, 3 from 80rem; the scatter and the tools table take 2 of 3): the year calendar (in
-  a card under 36rem the last 26 weeks), sessions started and prompts (both by the same top three projects, so
-  each keeps one ink), time of day (weekday × hour heatmap, hour bars; sessions started past 31
+  sparkline, its bar's date and value on hover, and change, `24×` past doubling), then cards in a grid by the page's width (1 column,
+  2 from 56rem, 3 from 80rem; the tools table takes 2 of 3): Done (root sessions marked
+  done, by their latest run's end, the `handled` marker's own time; when Done was pressed is not
+  recorded), sessions started and prompts (both by the same top three
+  projects, so each keeps one ink), the year calendar (in a card under 36rem the last 26 weeks),
+  time of day (weekday × hour heatmap, hour bars; sessions started past 31
   days), steps and steps per prompt, tokens by model and model share, tool calls and failure
   rate, cache hits and run outcomes over time, session length and subagents per session (bins),
   tokens × length (a dot per session, log scales), then the models, tools and outcomes tables.
