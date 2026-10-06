@@ -185,7 +185,7 @@ export const usageDetail = (pools: ReadonlyArray<UsagePool>, now: number): strin
 
 /**
  * The subscription quotas, condensed: `Claude 106% 2d · Codex 184% 4d · Go 32% 5d`,
- * each the % left of the window that runs out first, summed over a pool's accounts (red at 10% of
+ * each the % left of the weekly window, summed over a pool's accounts (red at 10% of
  * the capacity or less), then the time to the pool's first weekly reset; every window and reset on
  * hover. Desktops under 84rem leave it out, where the count line could no longer sit centred
  * beside it.

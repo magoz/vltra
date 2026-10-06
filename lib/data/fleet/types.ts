@@ -594,7 +594,7 @@ export type UsageWindow = typeof UsageWindow.Type
  * `{ left: 106, capacity: 200 }`.
  */
 export const UsageReading = Schema.Struct({
-  /** Sum over the reporting accounts of each one's tightest window (the one that runs out first). */
+  /** Sum over the reporting accounts of what each has left of its weekly window. */
   left: Schema.Number,
   /** 100 per reporting account. */
   capacity: Schema.Number

@@ -13,16 +13,17 @@ const knownProviders: ReadonlyArray<{ readonly provider: string; readonly name: 
 /** A weekly limit on one model only: it never stops the account, so it never drives `left`. */
 const isModelScoped = (window: QuotaWindow) => window.id.startsWith('weekly-scoped-')
 
-/** The account's tightest window: the least left of those that bind the whole account. */
-const tightest = (account: QuotaAccount) => {
+const week = 7 * 24 * 60
+
+/**
+ * The account's headline: what is left of its weekly window (else its first account-wide one),
+ * as the `usage` dashboard's `summaryWindow` picks it, so both show the same figure.
+ */
+const weeklyLeft = (account: QuotaAccount) => {
   const binding = account.windows.filter(window => !isModelScoped(window))
 
-  return binding.length === 0
-    ? undefined
-    : Math.min(...binding.map(window => window.remainingPercent))
+  return (binding.find(window => window.durationMinutes === week) ?? binding[0])?.remainingPercent
 }
-
-const week = 7 * 24 * 60
 
 /** The first weekly reset among the accounts, model-scoped weeks aside. */
 const firstWeeklyReset = (accounts: ReadonlyArray<QuotaAccount>) => {
@@ -60,7 +61,7 @@ const toPool = (accounts: ReadonlyArray<QuotaAccount>, provider: string): UsageP
 
   const reading = pooled(
     accounts.flatMap(account => {
-      const value = tightest(account)
+      const value = weeklyLeft(account)
 
       return value === undefined ? [] : [value]
     })
@@ -84,8 +85,8 @@ const toPool = (accounts: ReadonlyArray<QuotaAccount>, provider: string): UsageP
 }
 
 /**
- * One pool per provider, Claude, Codex and Go first: how much is left of the window that
- * runs out first (summed over the pool's accounts, out of 100% each), the first weekly reset, and
+ * One pool per provider, Claude, Codex and Go first: how much is left of the weekly window
+ * (summed over the pool's accounts, out of 100% each), the first weekly reset, and
  * every window for the details.
  */
 export const usageSummary = (accounts: ReadonlyArray<QuotaAccount>): UsageSummary => {
