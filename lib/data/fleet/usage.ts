@@ -1,5 +1,5 @@
 import { Effect } from 'effect'
-import type { UsagePool, UsageSummary } from '@/lib/data/fleet/types'
+import type { UsagePool, UsageReading, UsageSummary } from '@/lib/data/fleet/types'
 import { Usage } from '@/lib/services/usage/service'
 import type { QuotaAccount, QuotaWindow } from '@/lib/services/usage/service'
 
@@ -23,8 +23,14 @@ const tightest = (account: QuotaAccount) => {
     : Math.min(...binding.map(window => window.remainingPercent))
 }
 
-const average = (values: ReadonlyArray<number>) =>
-  values.length === 0 ? undefined : values.reduce((sum, value) => sum + value, 0) / values.length
+/** Each account adds its own 100%: the proxy moves on to the next one when one runs out. */
+const pooled = (values: ReadonlyArray<number>): UsageReading | undefined =>
+  values.length === 0
+    ? undefined
+    : {
+        left: values.reduce((sum, value) => sum + value, 0),
+        capacity: values.length * 100
+      }
 
 const providerRank = (provider: string) => {
   const rank = knownProviders.findIndex(known => known.provider === provider)
@@ -38,7 +44,7 @@ const toPool = (accounts: ReadonlyArray<QuotaAccount>, provider: string): UsageP
     accounts[0]?.providerName ??
     provider
 
-  const left = average(
+  const reading = pooled(
     accounts.flatMap(account => {
       const value = tightest(account)
 
@@ -49,7 +55,7 @@ const toPool = (accounts: ReadonlyArray<QuotaAccount>, provider: string): UsageP
   return {
     provider,
     name,
-    left,
+    reading,
     stale: accounts.some(account => !account.fresh),
     windows: accounts.flatMap(account =>
       account.windows.map(window => ({
@@ -64,8 +70,8 @@ const toPool = (accounts: ReadonlyArray<QuotaAccount>, provider: string): UsageP
 
 /**
  * One pool per provider, Claude, Codex, Z.AI and Go first: how much is left of the window that
- * runs out first (a pool's accounts averaged, as the proxy spreads requests over them), and every
- * window for the details.
+ * runs out first (summed over the pool's accounts, out of 100% each), and every window for the
+ * details.
  */
 export const usageSummary = (accounts: ReadonlyArray<QuotaAccount>): UsageSummary => {
   const providers = Array.from(new Set(accounts.map(account => account.provider))).toSorted(

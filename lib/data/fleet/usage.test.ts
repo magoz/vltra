@@ -50,7 +50,7 @@ describe('usage summary', () => {
       ])
     ]).pools
 
-    expect(claude?.left).toBe(45)
+    expect(claude?.reading).toEqual({ left: 45, capacity: 100 })
     // Every window stays in the details.
     expect(claude?.windows).toEqual([
       { account: 'anthropic@x.com', label: 'five-hour', left: 89, resetsAt: 1000 },
@@ -59,14 +59,14 @@ describe('usage summary', () => {
     ])
   })
 
-  it("averages a pool's accounts; ones without a reading do not count", () => {
+  it("sums a pool's accounts, 100% each; ones without a reading do not count", () => {
     const [codex] = usageSummary([
-      account('codex', [window('weekly', 91)], { account: 'a@x.com' }),
-      account('codex', [window('weekly', 100)], { account: 'b@x.com' }),
+      account('codex', [window('weekly', 6)], { account: 'a@x.com' }),
+      account('codex', [window('five-hour', 40), window('weekly', 100)], { account: 'b@x.com' }),
       account('codex', [], { account: 'c@x.com', fresh: false })
     ]).pools
 
-    expect(codex).toMatchObject({ left: 95.5, stale: true })
+    expect(codex).toMatchObject({ reading: { left: 46, capacity: 200 }, stale: true })
   })
 
   it('has no figure when no account reports', () => {
@@ -75,7 +75,7 @@ describe('usage summary', () => {
     expect(zai).toEqual({
       provider: 'zai',
       name: 'Z.AI',
-      left: undefined,
+      reading: undefined,
       stale: true,
       windows: []
     })

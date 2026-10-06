@@ -585,15 +585,25 @@ export const UsageWindow = Schema.Struct({
 
 export type UsageWindow = typeof UsageWindow.Type
 
+/**
+ * How much a pool has left, each reporting account counting 100%: two accounts at 6% and 100% are
+ * `{ left: 106, capacity: 200 }`.
+ */
+export const UsageReading = Schema.Struct({
+  /** Sum over the reporting accounts of each one's tightest window (the one that runs out first). */
+  left: Schema.Number,
+  /** 100 per reporting account. */
+  capacity: Schema.Number
+})
+
+export type UsageReading = typeof UsageReading.Type
+
 /** A provider's subscription quota: Claude, Codex (pooled accounts), Z.AI, Go. */
 export const UsagePool = Schema.Struct({
   provider: Schema.String,
   name: Schema.String,
-  /**
-   * Percent left of the tightest window (the one that runs out first), averaged over the pool's
-   * accounts; absent when none reports.
-   */
-  left: Schema.optional(Schema.Number),
+  /** Absent when no account reports. */
+  reading: Schema.optional(UsageReading),
   /** Some reading is the last good one (a refresh failed). */
   stale: Schema.Boolean,
   windows: Schema.Array(UsageWindow)

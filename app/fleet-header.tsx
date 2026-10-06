@@ -10,6 +10,7 @@ import type {
   FleetConnection,
   FleetCounts,
   UsagePool,
+  UsageReading,
   UsageSummary,
   UsageWindow
 } from '@/lib/data/fleet/types'
@@ -147,8 +148,14 @@ export function CountLine({ counts }: { readonly counts: FleetCounts }) {
 /** `45`, `<1`: a percentage without its sign. */
 const percentText = (value: number) => (value > 0 && value < 1 ? '<1' : `${Math.round(value)}`)
 
-/** A pool this low is about to stop the agents that use it. */
+/** A pool this low (% of its capacity) is about to stop the agents that use it. */
 const lowUsage = 10
+
+const isLow = (reading: UsageReading) => (reading.left / reading.capacity) * 100 <= lowUsage
+
+/** ` of 200%` for a pool of several accounts; nothing for one, whose capacity is always 100%. */
+const capacityText = (reading: UsageReading) =>
+  reading.capacity > 100 ? ` of ${reading.capacity}%` : ''
 
 const windowText = (window: UsageWindow, now: number) =>
   window.resetsAt === undefined || window.resetsAt <= now
@@ -163,7 +170,7 @@ export const usageDetail = (pools: ReadonlyArray<UsagePool>, now: number): strin
   pools
     .map(pool => {
       const accounts = Map.groupBy(pool.windows, window => window.account)
-      const head = `${pool.name} ${pool.left === undefined ? 'unavailable' : `${percentText(pool.left)}% left`}${pool.stale ? ' (last reading)' : ''}`
+      const head = `${pool.name} ${pool.reading === undefined ? 'unavailable' : `${percentText(pool.reading.left)}%${capacityText(pool.reading)} left`}${pool.stale ? ' (last reading)' : ''}`
 
       return [
         head,
@@ -177,8 +184,9 @@ export const usageDetail = (pools: ReadonlyArray<UsagePool>, now: number): strin
     .join('\n')
 
 /**
- * The subscription quotas, condensed: `Claude 45% · Codex 96% · Z.AI 100% · Go 34% left`, each the
- * window that runs out first (red at 10% or less); every window and reset on hover. Desktops
+ * The subscription quotas, condensed: `Claude 45% · Codex 106% of 200% · Z.AI 100% · Go 34% left`,
+ * each the window that runs out first, summed over a pool's accounts (red at 10% of the capacity or
+ * less); every window and reset on hover. Desktops
  * under 84rem leave it out, where the count line could no longer sit centred beside it.
  */
 export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readonly now: number }) {
@@ -196,13 +204,14 @@ export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readon
           {pool.name}{' '}
           <span
             className={cn(
-              pool.left !== undefined && pool.left <= lowUsage
+              pool.reading !== undefined && isLow(pool.reading)
                 ? 'text-destructive'
                 : !pool.stale && 'text-foreground'
             )}
           >
-            {pool.left === undefined ? '–' : `${percentText(pool.left)}%`}
+            {pool.reading === undefined ? '–' : `${percentText(pool.reading.left)}%`}
           </span>
+          {pool.reading === undefined ? null : capacityText(pool.reading)}
         </span>
       ))}{' '}
       left

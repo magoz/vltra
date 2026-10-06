@@ -179,7 +179,7 @@ describe('usage line', () => {
       {
         provider: 'anthropic',
         name: 'Claude',
-        left: 45,
+        reading: { left: 45, capacity: 100 },
         stale: false,
         windows: [
           { account: 'me@x.com', label: '5-hour', left: 89, resetsAt: 3 * hour },
@@ -189,31 +189,33 @@ describe('usage line', () => {
       {
         provider: 'codex',
         name: 'Codex',
-        left: 8.4,
+        // 15% of 200% is 7.5% of the pool: low.
+        reading: { left: 15, capacity: 200 },
         stale: false,
         windows: [
-          { account: 'a@x.com', label: 'Weekly', left: 7 },
-          { account: 'b@x.com', label: 'Weekly', left: 9.8 }
+          { account: 'a@x.com', label: 'Weekly', left: 0 },
+          { account: 'b@x.com', label: 'Weekly', left: 15 }
         ]
       },
-      { provider: 'zai', name: 'Z.AI', left: undefined, stale: true, windows: [] }
+      { provider: 'zai', name: 'Z.AI', reading: undefined, stale: true, windows: [] }
     ]
   }
 
-  it("reads each pool's % left condensed, a low one in red, every window on hover", () => {
+  it("reads each pool's % left of its capacity condensed, a low one in red, every window on hover", () => {
     render(<UsageLine usage={usage} now={0} />)
 
     const line = screen.getByLabelText('Usage left')
 
-    expect(line.textContent).toBe('Claude 45% · Codex 8% · Z.AI – left')
-    expect(within(line).getByText('8%').className).toContain('text-destructive')
+    expect(line.textContent).toBe('Claude 45% · Codex 15% of 200% · Z.AI – left')
+    expect(within(line).getByText('45%').className).not.toContain('text-destructive')
+    expect(within(line).getByText('15%').className).toContain('text-destructive')
     expect(line.title).toBe(
       [
         'Claude 45% left',
         '  me@x.com: 5-hour 89% (resets in 3h) · Weekly 45% (resets in 5d)',
-        'Codex 8% left',
-        '  a@x.com: Weekly 7%',
-        '  b@x.com: Weekly 10%',
+        'Codex 15% of 200% left',
+        '  a@x.com: Weekly 0%',
+        '  b@x.com: Weekly 15%',
         'Z.AI unavailable (last reading)'
       ].join('\n')
     )
