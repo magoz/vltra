@@ -6,7 +6,8 @@ import {
   CountLine,
   FleetHeader,
   linkStatus,
-  UsageLine
+  UsageLine,
+  UsagePoolDetail
 } from '@/app/fleet-header'
 import type { FleetScreen } from '@/app/fleet-href'
 import { fakeActions, WithFleet } from '@/app/testing/dashboard-fixtures'
@@ -208,7 +209,7 @@ describe('usage line', () => {
     ]
   }
 
-  it("reads each pool's % left and first weekly reset, a low one in red, every window on hover", () => {
+  it("reads each pool's % left and first weekly reset, a low one in red", () => {
     render(<UsageLine usage={usage} now={0} />)
 
     const line = screen.getByLabelText('Usage left')
@@ -216,16 +217,43 @@ describe('usage line', () => {
     expect(line.textContent).toBe('Claude 45% 5d · Codex 15% · Go –')
     expect(within(line).getByText('45%').className).not.toContain('text-destructive')
     expect(within(line).getByText('15%').className).toContain('text-destructive')
-    expect(line.title).toBe(
-      [
-        'Claude 45% left',
-        '  me@x.com: 5-hour 89% (resets in 3h) · Weekly 45% (resets in 5d)',
-        'Codex 15% of 200% left',
-        '  a@x.com: Weekly 0%',
-        '  b@x.com: Weekly 15%',
-        'Go unavailable (last reading)'
-      ].join('\n')
+  })
+
+  it("shows a pool's accounts on hover, each window as a bar of what is left", async () => {
+    render(<UsageLine usage={usage} now={0} />)
+
+    fireEvent.focus(screen.getByRole('button', { name: /Codex/ }))
+
+    const b = await screen.findByRole('region', { name: 'b@x.com' })
+
+    expect(screen.getByText('15% of 200% left')).toBeTruthy()
+    expect(within(b).getByText('15% left').className).not.toContain('text-destructive')
+    expect(within(b).getByRole('meter', { name: 'Weekly' }).getAttribute('aria-valuenow')).toBe(
+      '15'
     )
+    expect(
+      within(screen.getByRole('region', { name: 'a@x.com' })).getByText('0% left').className
+    ).toContain('text-destructive')
+  })
+
+  it('names each window with its time to reset, and says when a pool has no reading', () => {
+    const [claude, , go] = usage.pools
+
+    if (claude === undefined || go === undefined) throw new Error('fixture')
+
+    const { container } = render(<UsagePoolDetail pool={claude} now={0} />)
+
+    expect(
+      Array.from(
+        container.querySelectorAll('[role=meter]'),
+        meter => meter.parentElement?.textContent
+      )
+    ).toEqual(['5-hour3h89% left', 'Weekly5d45% left'])
+
+    cleanup()
+    render(<UsagePoolDetail pool={go} now={0} />)
+
+    expect(screen.getByText('unavailable (last reading)')).toBeTruthy()
   })
 
   it('shows in the header once loaded', () => {

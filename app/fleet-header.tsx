@@ -6,6 +6,7 @@ import type { FleetScreen } from '@/app/fleet-href'
 import { NavLink } from '@/app/nav-link'
 import type { StreamStatus } from '@/app/use-fleet-live'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type {
   FleetConnection,
   FleetCounts,
@@ -157,38 +158,76 @@ const isLow = (reading: UsageReading) => (reading.left / reading.capacity) * 100
 const capacityText = (reading: UsageReading) =>
   reading.capacity > 100 ? ` of ${reading.capacity}%` : ''
 
-const windowText = (window: UsageWindow, now: number) =>
-  window.resetsAt === undefined || window.resetsAt <= now
-    ? `${window.label} ${percentText(window.left)}%`
-    : `${window.label} ${percentText(window.left)}% (resets in ${relativeTime(now, window.resetsAt)})`
+/** One window as `~/usage` draws it: label, time to reset and % left, then a bar of what is left. */
+function UsageWindowMeter({ window, now }: { readonly window: UsageWindow; readonly now: number }) {
+  const low = window.left <= lowUsage
+
+  return (
+    <div>
+      <div className="flex justify-between gap-4">
+        <span className="text-muted-foreground">{window.label}</span>
+        <span className="whitespace-nowrap tabular-nums">
+          {window.resetsAt === undefined || window.resetsAt <= now ? null : (
+            <span className="text-muted-foreground mr-2.5">
+              {relativeTime(now, window.resetsAt)}
+            </span>
+          )}
+          <span className={cn(low && 'text-destructive')}>{percentText(window.left)}% left</span>
+        </span>
+      </div>
+      <div
+        role="meter"
+        aria-label={window.label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(window.left)}
+        className="bg-muted mt-1.5 h-1 overflow-hidden rounded-full"
+      >
+        <span
+          className={cn('block h-full rounded-full', low ? 'bg-destructive' : 'bg-foreground')}
+          style={{ width: `${Math.min(100, Math.max(0, window.left))}%` }}
+        />
+      </div>
+    </div>
+  )
+}
 
 /**
- * The usage line's hover text, a pool per line: `Claude 45% left`, then each account's windows
- * (`me@x.com: 5-hour 89% (resets in 3h) · Weekly 45% (resets in 5d)`).
+ * A pool on hover: `Claude 85% of 200% left`, then each account with its windows as bars (5-hour,
+ * weekly, monthly…), the same rows as the `usage` dashboard's account cards.
  */
-export const usageDetail = (pools: ReadonlyArray<UsagePool>, now: number): string =>
-  pools
-    .map(pool => {
-      const accounts = Map.groupBy(pool.windows, window => window.account)
-      const head = `${pool.name} ${pool.reading === undefined ? 'unavailable' : `${percentText(pool.reading.left)}%${capacityText(pool.reading)} left`}${pool.stale ? ' (last reading)' : ''}`
+export function UsagePoolDetail({ pool, now }: { readonly pool: UsagePool; readonly now: number }) {
+  const accounts = Array.from(Map.groupBy(pool.windows, window => window.account))
 
-      return [
-        head,
-        ...Array.from(
-          accounts,
-          ([account, windows]) =>
-            `  ${account}: ${windows.map(window => windowText(window, now)).join(' · ')}`
-        )
-      ].join('\n')
-    })
-    .join('\n')
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="flex justify-between gap-4">
+        <span>{pool.name}</span>
+        <span className="text-muted-foreground tabular-nums">
+          {pool.reading === undefined
+            ? 'unavailable'
+            : `${percentText(pool.reading.left)}%${capacityText(pool.reading)} left`}
+          {pool.stale ? ' (last reading)' : null}
+        </span>
+      </p>
+      {accounts.map(([account, windows]) => (
+        <section key={account} aria-label={account} className="flex flex-col gap-2.5">
+          <h3 className="truncate">{account}</h3>
+          {windows.map(window => (
+            <UsageWindowMeter key={window.label} window={window} now={now} />
+          ))}
+        </section>
+      ))}
+    </div>
+  )
+}
 
 /**
  * The subscription quotas, condensed: `Claude 106% 2d · Codex 184% 4d · Go 32% 5d`,
  * each the % left of the weekly window, summed over a pool's accounts (red at 10% of
- * the capacity or less), then the time to the pool's first weekly reset; every window and reset on
- * hover. Desktops under 84rem leave it out, where the count line could no longer sit centred
- * beside it.
+ * the capacity or less), then the time to the pool's first weekly reset; hovering (or focusing) a
+ * pool shows its accounts' windows as bars (`UsagePoolDetail`). Desktops under 84rem leave it
+ * out, where the count line could no longer sit centred beside it.
  */
 export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readonly now: number }) {
   if (usage.pools.length === 0) return null
@@ -196,25 +235,34 @@ export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readon
   return (
     <p
       aria-label="Usage left"
-      title={usageDetail(usage.pools, now)}
       className="text-muted-foreground shrink-0 text-xs max-[84rem]:hidden"
     >
       {usage.pools.map((pool, index) => (
         <span key={pool.provider}>
           {index === 0 ? null : ' · '}
-          {pool.name}{' '}
-          <span
-            className={cn(
-              pool.reading !== undefined && isLow(pool.reading)
-                ? 'text-destructive'
-                : !pool.stale && 'text-foreground'
-            )}
-          >
-            {pool.reading === undefined ? '–' : `${percentText(pool.reading.left)}%`}
-          </span>
-          {pool.weeklyResetAt === undefined || pool.weeklyResetAt <= now
-            ? null
-            : ` ${relativeTime(now, pool.weeklyResetAt)}`}
+          <Tooltip>
+            <TooltipTrigger
+              delay={100}
+              className="hover:text-foreground focus-visible:outline-ring cursor-default focus-visible:outline-1"
+            >
+              {pool.name}{' '}
+              <span
+                className={cn(
+                  pool.reading !== undefined && isLow(pool.reading)
+                    ? 'text-destructive'
+                    : !pool.stale && 'text-foreground'
+                )}
+              >
+                {pool.reading === undefined ? '–' : `${percentText(pool.reading.left)}%`}
+              </span>
+              {pool.weeklyResetAt === undefined || pool.weeklyResetAt <= now
+                ? null
+                : ` ${relativeTime(now, pool.weeklyResetAt)}`}
+            </TooltipTrigger>
+            <TooltipContent className="w-72 p-3">
+              <UsagePoolDetail pool={pool} now={now} />
+            </TooltipContent>
+          </Tooltip>
         </span>
       ))}
     </p>
