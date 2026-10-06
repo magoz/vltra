@@ -1,6 +1,7 @@
 import { otherProjectID, projectKey, projectName } from '@/lib/data/fleet/board'
 import type { LiveFleet } from '@/lib/data/fleet/board'
 import type {
+  FleetRow,
   HourActivity,
   ModelUsage,
   Outcome,
@@ -171,11 +172,24 @@ export const sessionsByProject = (
   report: StatsReport,
   filter: string | undefined,
   order?: ReadonlyArray<string>
+): SeriesChart => rowsByProject(live, report, filter, row => row.created, order)
+
+/**
+ * Root rows counted per bucket of `at` (none: left out) by project: `order`'s projects when
+ * given, else the top three, then the rest.
+ */
+const rowsByProject = (
+  live: LiveFleet,
+  report: StatsReport,
+  filter: string | undefined,
+  at: (row: FleetRow) => number | undefined,
+  order: ReadonlyArray<string> | undefined
 ): SeriesChart => {
   const perBucket = report.buckets.map(() => new Map<string, number>())
 
   for (const row of filteredRows(live, filter)) {
-    const counts = perBucket[bucketIndex(report.buckets, row.created)]
+    const time = at(row)
+    const counts = time === undefined ? undefined : perBucket[bucketIndex(report.buckets, time)]
 
     if (counts === undefined) continue
 
@@ -389,34 +403,23 @@ export const toolFailureRate = (report: StatsReport): SeriesChart =>
   singleSeries(report, 'failed', bucket => 100 * ratio(bucket.tools.failed, bucket.tools.calls))
 
 /**
- * Root sessions done (marked done, or counting as done, their folder gone), by when their latest
- * run ended (the time of its last message): Fleet does not record when Done was pressed, and keeps
- * only the latest run's marker.
+ * Root sessions done (marked done, or counting as done, their folder gone) by project, by when
+ * their latest run ended (the time of its last message): Fleet does not record when Done was
+ * pressed, and keeps only the latest run's marker. `order` as for `sessionsByProject`.
  */
 export const doneOverTime = (
   live: LiveFleet,
   report: StatsReport,
-  filter: string | undefined
-): SeriesChart => {
-  const perBucket = report.buckets.map(() => 0)
-
-  for (const row of filteredRows(live, filter)) {
-    if (row.idle === undefined || row.state !== 'handled') continue
-
-    const index = bucketIndex(report.buckets, row.idle)
-
-    if (index >= 0) perBucket[index] = (perBucket[index] ?? 0) + 1
-  }
-
-  return {
-    series: [{ key: 'done', name: 'done' }],
-    rows: report.buckets.map((bucket, index) => ({
-      start: bucket.start,
-      end: bucket.end,
-      values: [perBucket[index] ?? 0]
-    }))
-  }
-}
+  filter: string | undefined,
+  order?: ReadonlyArray<string>
+): SeriesChart =>
+  rowsByProject(
+    live,
+    report,
+    filter,
+    row => (row.state === 'handled' ? row.idle : undefined),
+    order
+  )
 
 /** How root sessions' latest runs ended, per bucket of the end (earlier runs are not kept). */
 export const outcomesOverTime = (

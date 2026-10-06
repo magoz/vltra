@@ -33,7 +33,11 @@ const table = (rows: number): CardBody => ({ kind: 'table', rows })
 
 /** The loaded page's cards, in its order (`stats-page.test.tsx` holds them to it). */
 export const skeletonCards: ReadonlyArray<CardSpec> = [
-  { title: 'Done', detail: "sessions marked done, by their last run's end", body: bars(0) },
+  {
+    title: 'Done',
+    detail: "sessions marked done by project, by their last run's end",
+    body: bars(1)
+  },
   { title: 'Sessions started', detail: "by project, from Fleet's list", body: bars(1) },
   { title: 'Prompts', detail: 'your messages, by project', body: bars(1) },
   {

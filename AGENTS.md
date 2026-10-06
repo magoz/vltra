@@ -180,7 +180,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   refetches each every minute while shown, keeping the last value. Top to bottom: 7 tiles (with
   sparkline, its bar's date and value on hover, and change, `24×` past doubling), then cards in a grid by the page's width (1 column,
   2 from 56rem, 3 from 80rem; the tools table takes 2 of 3): Done (root sessions marked
-  done, by their latest run's end, the `handled` marker's own time; when Done was pressed is not
+  done by project, the same projects as below, by their latest run's end, the `handled` marker's own time; when Done was pressed is not
   recorded), sessions started and prompts (both by the same top three
   projects, so each keeps one ink), the year calendar (in a card under 36rem the last 26 weeks),
   time of day (weekday × hour heatmap, hour bars; sessions started past 31

@@ -462,7 +462,12 @@ function StatsBody({
       cacheHits: cacheHitRatio(report),
       toolFailures: toolFailureRate(report),
       outcomes: outcomesOverTime(view, report, filter),
-      done: doneOverTime(view, report, filter),
+      done: doneOverTime(
+        view,
+        report,
+        filter,
+        byProject === undefined ? undefined : promptProjectKeys(view, byProject)
+      ),
       lengths: sessionLengths(view, report, filter),
       subagents: subagentCounts(view, report, filter),
       points: sessionPoints(view, report, filter)
@@ -480,7 +485,7 @@ function StatsBody({
     <>
       <Tiles report={report} started={started} />
       <div className={cardGrid}>
-        <StatsCard title="Done" detail="sessions marked done, by their last run's end">
+        <StatsCard title="Done" detail="sessions marked done by project, by their last run's end">
           <TimeBars chart={charts.done} unit={unit} timeZone={timeZone} format={compactNumber} />
         </StatsCard>
         <StatsCard title="Sessions started" detail="by project, from Fleet's list">

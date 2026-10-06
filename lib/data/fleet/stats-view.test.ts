@@ -404,7 +404,12 @@ describe('stats charts', () => {
 
     const chart = doneOverTime(doneLive, report, undefined)
 
-    expect(chart.series).toEqual([{ key: 'done', name: 'done' }])
+    expect(chart.series).toEqual([{ key: 'prj_fleet', name: 'fleet' }])
     expect(chart.rows.map(row => row.values)).toEqual([[1], [0]])
+
+    // In the Prompts chart's project order, the others as the rest.
+    expect(
+      doneOverTime(doneLive, report, undefined, [otherProjectID]).series.map(series => series.key)
+    ).toEqual([otherProjectID, restKey])
   })
 })
