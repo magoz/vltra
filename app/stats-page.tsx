@@ -6,18 +6,16 @@ import type { ReactNode } from 'react'
 import { useFleet } from '@/app/fleet-context'
 import { ProjectFilter } from '@/app/project-filter'
 import { SessionSplit } from '@/app/session-panel'
-import type { TrendLine } from '@/app/stats-charts'
+import { cardGrid, StatsCard, Tile, wide } from '@/app/stats-card'
+import type { TrendLine } from '@/app/stats-card'
+import { CategoryBars, HourBars, SessionScatter, ShareTable, TimeBars } from '@/app/stats-charts'
+import { CalendarHeatmap, HourHeatmap } from '@/app/stats-heatmaps'
 import {
-  CalendarHeatmap,
-  CategoryBars,
-  HourBars,
-  HourHeatmap,
-  SessionScatter,
-  ShareTable,
-  StatsCard,
-  Tile,
-  TimeBars
-} from '@/app/stats-charts'
+  BarsPlaceholder,
+  CalendarPlaceholder,
+  HeatmapPlaceholder,
+  StatsSkeleton
+} from '@/app/stats-skeleton'
 import {
   bucketTitle,
   calendarDay,
@@ -42,7 +40,6 @@ import {
   useStatsProjects
 } from '@/app/use-stats'
 import type { StatsState } from '@/app/use-stats'
-import { Skeleton } from '@/components/ui/skeleton'
 import type { LiveFleet } from '@/lib/data/fleet/board'
 import { calendarDayParts, StatsPeriod, statsPresets } from '@/lib/data/fleet/stats-period'
 import type { StatsPreset } from '@/lib/data/fleet/stats-period'
@@ -360,7 +357,7 @@ function TimeOfDay({
         }
   }, [shown, view, report, filter])
 
-  const body = (chart: (grid: HourGrid, noun: string) => ReactNode) => {
+  const body = (chart: (grid: HourGrid, noun: string) => ReactNode, placeholder: ReactNode) => {
     if (source !== undefined) {
       return (
         <div className={cn('transition-opacity', hours.status === 'loading' && 'opacity-50')}>
@@ -372,21 +369,27 @@ function TimeOfDay({
     return hours.status === 'failed' ? (
       <p className="text-destructive text-xs">{hours.error}</p>
     ) : (
-      <Skeleton aria-label="Loading hours" className="h-44" />
+      placeholder
     )
   }
 
   return (
     <>
       <StatsCard title="Time of day" detail={source?.detail ?? 'by weekday and hour'}>
-        {body((grid, noun) => (
-          <HourHeatmap grid={grid} noun={noun} />
-        ))}
+        {body(
+          (grid, noun) => (
+            <HourHeatmap grid={grid} noun={noun} />
+          ),
+          <HeatmapPlaceholder />
+        )}
       </StatsCard>
       <StatsCard title="By hour of day" detail={source?.noun ?? 'whole range'}>
-        {body((grid, noun) => (
-          <HourBars grid={grid} noun={noun} />
-        ))}
+        {body(
+          (grid, noun) => (
+            <HourBars grid={grid} noun={noun} />
+          ),
+          <BarsPlaceholder />
+        )}
       </StatsCard>
     </>
   )
@@ -409,20 +412,11 @@ function YearCalendar({ calendar }: { readonly calendar: StatsState<StatsCalenda
       ) : calendar.status === 'failed' ? (
         <p className="text-destructive text-xs">{calendar.error}</p>
       ) : (
-        <Skeleton aria-label="Loading the year" className="h-28" />
+        <CalendarPlaceholder />
       )}
     </StatsCard>
   )
 }
-
-/**
- * The cards' grid by the page's own width: one column, two from 56rem, three from 80rem (two
- * columns are too wide on a big screen). `wide` cards take two of three: the tools table (its row
- * filled by the outcomes table).
- */
-const cardGrid = 'grid gap-3 @4xl:grid-cols-2 @7xl:grid-cols-3'
-
-const wide = '@7xl:col-span-2'
 
 function StatsBody({
   report,
@@ -622,24 +616,6 @@ function StatsBody({
         </StatsCard>
       </div>
     </>
-  )
-}
-
-function StatsSkeleton() {
-  return (
-    <div aria-label="Loading stats" className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-2 @lg:grid-cols-4 @5xl:grid-cols-7">
-        {['a', 'b', 'c', 'd'].map(key => (
-          <Skeleton key={key} className="h-16" />
-        ))}
-      </div>
-      <div className={cardGrid}>
-        <Skeleton className="h-56" />
-        <Skeleton className="h-56" />
-        <Skeleton className="h-56" />
-        <Skeleton className="h-56" />
-      </div>
-    </div>
   )
 }
 

@@ -22,38 +22,39 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
 ## WHERE TO LOOK
 
-| Task                             | Location                                                        | Notes                                                    |
-| -------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------- |
-| Session states / priority        | `lib/data/fleet/state.ts`, `model.ts`                           | blocked > working > finished > handled; stuck, order     |
-| Wire shapes (API, SSE)           | `lib/data/fleet/types.ts`                                       | Effect Schema; the ocb plugin decodes the same types     |
-| Snapshot rows / grouping         | `lib/data/fleet/snapshot.ts`, `links.ts`                        | Roll-up, projects → worktrees → rows, deep links         |
-| Watcher, resync, backoff         | `lib/data/fleet/watcher.ts`, `store.ts`                         | Also interrupt reasons; `LONG_LIVED_WATCHER.md`          |
-| Action Effects + inputs          | `lib/data/fleet/actions.ts`                                     | Handled, reopen, viewed (asks: in OpenCode's chat)       |
-| Rollout script                   | `scripts/import-handled.ts`                                     | `pnpm fleet:import-handled`, one-off, never auto-run     |
-| OpenCode client                  | `lib/services/opencode/`                                        | See `patterns/OPENCODE_SURFACE.md`                       |
-| Chat proxy, chat keys            | `proxy.ts`, `app/opencode-proxy.ts`, `app/chat-keys.ts`         | Same-origin OpenCode iframe; Fleet's keys inside it      |
-| Runtime (one per process)        | `lib/runtime/fleet-runtime.ts`                                  | `ManagedRuntime` on `globalThis`; `runFleet`             |
-| Watcher start                    | `instrumentation.ts`                                            | Node runtime only; skipped during `next build`           |
-| Shutdown (SIGTERM deadline)      | `lib/runtime/shutdown.ts`                                       | Exits 3s after the signal; `LONG_LIVED_WATCHER.md`       |
-| Page / API routes / actions      | `app/`                                                          | `(fleet)/` one page, `api/fleet`, `*-action.ts`          |
-| Plugin mutation routes (JSON)    | `app/api/fleet/mutations.ts`, `json-request.ts`                 | handled, reopen, launches, dismiss, checkouts/open       |
-| Dashboard UI                     | `app/fleet-shell.tsx` and siblings                              | Layout's live tree (`fleet-live.tsx`); see below         |
-| Launcher UI                      | `app/launcher-dialog.tsx`, `pending-launches.tsx`               | Palette, launches, `retire-worktree.tsx`                 |
-| Agents (focus, board) / Projects | `app/agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx` | Cards: `agent-card.tsx`, rows: `session-row.tsx`         |
-| Board projections                | `lib/data/fleet/board.ts`                                       | Pure: live rows, needs-me list, columns, cards, filter   |
-| Run summaries (plugin page)      | `lib/data/fleet/session-detail.ts`                              | Latest answer + diff totals, cached by `idle`            |
-| Stats tab (data)                 | `lib/data/fleet/stats.ts`, `stats-period.ts`, `stats-view.ts`   | OpenCode `session.stats` per range + bucket; projections |
-| Stats tab (UI)                   | `app/stats-page.tsx`, `stats-charts.tsx`, `use-stats.ts`        | Recharts (lazy), `components/ui/chart.tsx`               |
-| Notifications (what, when)       | `lib/data/fleet/notify.ts`, `notifier.ts`                       | Pure snapshot diff + grace recheck; forked in runtime    |
-| Web Push (keys, devices, send)   | `lib/services/push/`, `lib/data/fleet/push.ts`                  | `push.json` (0600), `web-push`; fake in `testing/`       |
-| Settings tab, service worker     | `app/settings-page.tsx`, `use-push.ts`, `public/sw.js`          | Turn on/off, test, devices; DESIGN.md "Notifications"    |
-| Launcher list / open / retire    | `lib/data/fleet/launcher.ts`, `checkouts.ts`                    | Pure projection + guards; `GET /api/fleet/launcher`      |
-| Launches (worktree + session)    | `lib/data/fleet/launches.ts`                                    | Registry in the runtime, background fibers, in store     |
-| Branch names / palette rows      | `lib/data/fleet/branch.ts`, `palette.ts`                        | `--` encoding, suggestion check, fallback, fuzzy         |
-| Repos on Box (git, gh)           | `lib/services/repos/`                                           | Roots scan, worktrees + marker owner, cached PR status   |
-| Subscription usage (header)      | `lib/services/usage/`, `lib/data/fleet/usage.ts`                | Reads `~/usage`'s `/api/usage`; one pool per provider    |
-| Test doubles                     | `lib/**/testing/`                                               | Fake OpenCode / Repos layers, throwaway `opencode serve` |
-| Conventions                      | `patterns/`, then `../10x/patterns/`                            | Fleet notes only where it differs from 10x               |
+| Task                             | Location                                                         | Notes                                                    |
+| -------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------- |
+| Session states / priority        | `lib/data/fleet/state.ts`, `model.ts`                            | blocked > working > finished > handled; stuck, order     |
+| Wire shapes (API, SSE)           | `lib/data/fleet/types.ts`                                        | Effect Schema; the ocb plugin decodes the same types     |
+| Snapshot rows / grouping         | `lib/data/fleet/snapshot.ts`, `links.ts`                         | Roll-up, projects → worktrees → rows, deep links         |
+| Watcher, resync, backoff         | `lib/data/fleet/watcher.ts`, `store.ts`                          | Also interrupt reasons; `LONG_LIVED_WATCHER.md`          |
+| Action Effects + inputs          | `lib/data/fleet/actions.ts`                                      | Handled, reopen, viewed (asks: in OpenCode's chat)       |
+| Rollout script                   | `scripts/import-handled.ts`                                      | `pnpm fleet:import-handled`, one-off, never auto-run     |
+| OpenCode client                  | `lib/services/opencode/`                                         | See `patterns/OPENCODE_SURFACE.md`                       |
+| Chat proxy, chat keys            | `proxy.ts`, `app/opencode-proxy.ts`, `app/chat-keys.ts`          | Same-origin OpenCode iframe; Fleet's keys inside it      |
+| Runtime (one per process)        | `lib/runtime/fleet-runtime.ts`                                   | `ManagedRuntime` on `globalThis`; `runFleet`             |
+| Watcher start                    | `instrumentation.ts`                                             | Node runtime only; skipped during `next build`           |
+| Shutdown (SIGTERM deadline)      | `lib/runtime/shutdown.ts`                                        | Exits 3s after the signal; `LONG_LIVED_WATCHER.md`       |
+| Page / API routes / actions      | `app/`                                                           | `(fleet)/` one page, `api/fleet`, `*-action.ts`          |
+| Plugin mutation routes (JSON)    | `app/api/fleet/mutations.ts`, `json-request.ts`                  | handled, reopen, launches, dismiss, checkouts/open       |
+| Dashboard UI                     | `app/fleet-shell.tsx` and siblings                               | Layout's live tree (`fleet-live.tsx`); see below         |
+| Launcher UI                      | `app/launcher-dialog.tsx`, `pending-launches.tsx`                | Palette, launches, `retire-worktree.tsx`                 |
+| Agents (focus, board) / Projects | `app/agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`  | Cards: `agent-card.tsx`, rows: `session-row.tsx`         |
+| Board projections                | `lib/data/fleet/board.ts`                                        | Pure: live rows, needs-me list, columns, cards, filter   |
+| Run summaries (plugin page)      | `lib/data/fleet/session-detail.ts`                               | Latest answer + diff totals, cached by `idle`            |
+| Stats tab (data)                 | `lib/data/fleet/stats.ts`, `stats-period.ts`, `stats-view.ts`    | OpenCode `session.stats` per range + bucket; projections |
+| Stats tab (UI)                   | `app/stats-page.tsx`, `stats-charts.tsx`, `use-stats.ts`         | Recharts (lazy), `components/ui/chart.tsx`               |
+| Stats frames, heatmaps, skeleton | `app/stats-card.tsx`, `stats-heatmaps.tsx`, `stats-skeleton.tsx` | No Recharts: the skeleton shows while the tab loads      |
+| Notifications (what, when)       | `lib/data/fleet/notify.ts`, `notifier.ts`                        | Pure snapshot diff + grace recheck; forked in runtime    |
+| Web Push (keys, devices, send)   | `lib/services/push/`, `lib/data/fleet/push.ts`                   | `push.json` (0600), `web-push`; fake in `testing/`       |
+| Settings tab, service worker     | `app/settings-page.tsx`, `use-push.ts`, `public/sw.js`           | Turn on/off, test, devices; DESIGN.md "Notifications"    |
+| Launcher list / open / retire    | `lib/data/fleet/launcher.ts`, `checkouts.ts`                     | Pure projection + guards; `GET /api/fleet/launcher`      |
+| Launches (worktree + session)    | `lib/data/fleet/launches.ts`                                     | Registry in the runtime, background fibers, in store     |
+| Branch names / palette rows      | `lib/data/fleet/branch.ts`, `palette.ts`                         | `--` encoding, suggestion check, fallback, fuzzy         |
+| Repos on Box (git, gh)           | `lib/services/repos/`                                            | Roots scan, worktrees + marker owner, cached PR status   |
+| Subscription usage (header)      | `lib/services/usage/`, `lib/data/fleet/usage.ts`                 | Reads `~/usage`'s `/api/usage`; one pool per provider    |
+| Test doubles                     | `lib/**/testing/`                                                | Fake OpenCode / Repos layers, throwaway `opencode serve` |
+| Conventions                      | `patterns/`, then `../10x/patterns/`                             | Fleet notes only where it differs from 10x               |
 
 ## CONVENTIONS
 
@@ -188,6 +189,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   tokens × length (a dot per session, log scales), then the models, tools and outcomes tables.
   Pure projections in `stats-view.ts`; session-based charts (started, outcomes, lengths,
   subagents, scatter) read the live fleet, rows carrying `tokens` (fresh tokens, no cache reads).
+  The skeleton (`stats-skeleton.tsx`, also the lazy chunk's `loading`) draws the same tiles and
+  cards (`skeletonCards`, held to the page's order by a test) at their sizes, the heatmaps empty.
   Stacks keep three series and "rest" (more grey shades are hard to tell apart); heatmaps use
   five even ink steps (`inkLevel`) and hover tips (`HeatTips`: cells' `data-tip`). No cost: OpenCode prices subscription models at $0.
 - **Launcher** (DESIGN.md "Launcher and worktrees"; `launcher-dialog.tsx`, state in the shell,

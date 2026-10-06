@@ -610,3 +610,18 @@ export const calendarGrid = (
 /** An ink level 1–5 for a heatmap cell (0 for none): even steps of the busiest value. */
 export const inkLevel = (value: number, largest: number): number =>
   value <= 0 || largest <= 0 ? 0 : Math.min(5, Math.ceil((5 * value) / largest))
+
+/**
+ * The year calendar's weeks with no steps, up to `now` in `timeZone`: what the skeleton draws
+ * before the calendar loads, at its final size.
+ */
+export const emptyYear = (
+  now: number,
+  timeZone: string
+): ReadonlyArray<ReadonlyArray<CalendarDay>> => {
+  const { weekday } = clockIn(timeZone)(now)
+  // `calendarGrid` steps from noon: this time of day, `weekday + 52 weeks` days back, is a Monday.
+  const monday = now - (weekday + 52 * 7) * 24 * hourMs - 12 * hourMs
+
+  return calendarGrid([], monday, now, timeZone)
+}

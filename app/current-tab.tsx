@@ -6,10 +6,12 @@ import { AgentsFocus } from '@/app/agents-focus'
 import { useFleet } from '@/app/fleet-context'
 import { ProjectsGrid } from '@/app/projects-grid'
 import { SettingsPage } from '@/app/settings-page'
+import { StatsPageSkeleton } from '@/app/stats-skeleton'
 
-// Charts (Recharts) load with the Stats tab, not with the dashboard.
+// Charts (Recharts) load with the Stats tab, not with the dashboard; its skeleton shows meanwhile.
 const StatsPage = dynamic(() => import('@/app/stats-page').then(module => module.StatsPage), {
-  ssr: false
+  ssr: false,
+  loading: () => <StatsPageSkeleton />
 })
 
 /**

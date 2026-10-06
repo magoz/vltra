@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { bucketTitle } from '@/app/stats-format'
+import { skeletonCards } from '@/app/stats-skeleton'
 import { fakeActions, TestDashboard, testLocation } from '@/app/testing/dashboard-fixtures'
 import type { NavCall } from '@/app/testing/dashboard-fixtures'
 import { fleetLive, now } from '@/app/testing/fleet-scenario'
@@ -313,5 +314,42 @@ describe('stats tab', () => {
     fireEvent.mouseLeave(line)
 
     expect(within(tile).queryByRole('tooltip')).toBeNull()
+  })
+
+  it('shows the same cards, in order, while loading as once loaded', async () => {
+    let answer: (response: Response) => void = () => undefined
+
+    // The report waits until the skeleton has been checked; the other reads are not found.
+    const pending = new Promise<Response>(resolve => {
+      answer = resolve
+    })
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) =>
+        String(input).startsWith('/api/fleet/stats?')
+          ? pending
+          : Promise.resolve(new Response('{}', { status: 404 }))
+      )
+    )
+
+    renderStats()
+
+    const cardTitles = () =>
+      Array.from(document.querySelectorAll('main section[aria-label]'), section =>
+        section.getAttribute('aria-label')
+      )
+
+    const skeleton = await screen.findByLabelText('Loading stats')
+
+    expect(skeleton.querySelectorAll('section[aria-label]')).toHaveLength(skeletonCards.length)
+    expect(cardTitles()).toEqual(skeletonCards.map(card => card.title))
+
+    answer(Response.json(report))
+
+    await screen.findByText('Steps', { selector: 'dt' })
+
+    expect(screen.queryByLabelText('Loading stats')).toBeNull()
+    expect(cardTitles()).toEqual(skeletonCards.map(card => card.title))
   })
 })
