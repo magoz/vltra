@@ -14,6 +14,7 @@ export const sessionRecord = (
   directory: '/home/magoz/dev/repos/fleet',
   title: `Session ${id}`,
   cost: 0,
+  tokens: 0,
   created: baseTime,
   ...overrides
 })

@@ -2,7 +2,14 @@ import { Context } from 'effect'
 import type { Effect, Option, Stream } from 'effect'
 import type { OpenCodeSignal } from '@/lib/data/fleet/events'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
-import type { FileChange, InterruptReason, SessionRecord, Transcript } from '@/lib/data/fleet/types'
+import type {
+  FileChange,
+  InterruptReason,
+  ProjectRecord,
+  SessionRecord,
+  SessionStats,
+  Transcript
+} from '@/lib/data/fleet/types'
 import type {
   OpenCodeInvalidInputError,
   OpenCodeRejectedError,
@@ -110,6 +117,23 @@ export type OpenCodeConnection = {
   }) => Effect.Effect<SessionRecord, RejectableError>
   /** `POST /api/experimental/generate { prompt }` with OpenCode's default model: the text. */
   readonly generateText: (prompt: string) => Effect.Effect<string, RejectableError>
+  /**
+   * `GET /api/experimental/session/stats`: activity in `[from, to)` (from OpenCode's first message
+   * when `from` is absent), optionally one project's; days in `timezone`. Tool totals with
+   * `summary`, per tool with `detail`, none with `none`. OpenCode refuses an empty range, which is also what "all time" is for a project
+   * without messages (2.0.22).
+   */
+  readonly stats: (input: StatsInput) => Effect.Effect<SessionStats, RejectableError>
+  /** `GET /api/project`: every project OpenCode knows. */
+  readonly projects: Effect.Effect<ReadonlyArray<ProjectRecord>, OpenCodeRequestError>
+}
+
+export type StatsInput = {
+  readonly from: number | undefined
+  readonly to: number
+  readonly projectID: string | undefined
+  readonly timezone: string
+  readonly tools: 'none' | 'summary' | 'detail'
 }
 
 export type OpenCodeOperations = {

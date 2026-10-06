@@ -124,6 +124,14 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
     checkout, 403 cross-site (or no `Origin`), 404 unknown session / launch, 409 not finished /
     folder gone / launch still running / OpenCode refused, 415 not JSON, 502 an OpenCode call
     failed, 503 OpenCode unreachable.
+- Stats: `GET /api/fleet/stats?range=24h|7d|30d|90d|all` (or `?from=&to=` days)`&tz=&project=`
+  → `StatsReport`: OpenCode's own `GET /api/experimental/session/stats` for the range and per
+  hour / day / week bucket in the browser's zone. No Fleet state; settled buckets cached in memory.
+  `GET /api/fleet/stats/hours` (same query) → `StatsHours`: prompts per hour for the time-of-day
+  charts, or `TooLong` past 31 days and for all time.
+  `GET /api/fleet/stats/projects` (same range) → `PromptsByProject`: prompts per bar, all
+  projects and the three with most (the Prompts chart's split). `GET /api/fleet/stats/calendar`
+  (`?tz=&project=`) → `StatsCalendar`: steps per day over the last 53 weeks.
 - Launcher: `GET /api/fleet/launcher` → `LauncherList` (repos with worktrees, owner, PR, session
   tallies and latest root session, most recent activity first); `POST /api/fleet/launcher/branch`
   `{ task }` → `{ branch, source: 'model' | 'fallback' }` (JSON only, same-origin: a non-browser
@@ -133,14 +141,14 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
 
 ## Clients
 
-**Web (fleet.oox.sh, Mac + phone):** one full-width page with three tabs in the URL: **Focus**
-(plain `/`), **Agents** (the board, `?view=agents`) and **Projects** (`?view=projects`; the old
-`/projects` redirects), `1` / `2` / `3`. One page on purpose: tabs switch in place, instantly,
+**Web (fleet.oox.sh, Mac + phone):** one full-width page with four tabs in the URL: **Focus**
+(plain `/`), **Agents** (the board, `?view=agents`), **Projects** (`?view=projects`; the old
+`/projects` redirects) and **Stats** (`?view=stats`), `1`–`4`. One page on purpose: tabs switch in place, instantly,
 and Next's Cache Components never keeps a hidden copy of another page alive. Desktop: the tabs sit
 in the header, which also carries the count line (`6 need you · 17 working · 2 stuck`) and a
 condensed usage line from the `usage` dashboard (`Claude 45% · Codex 96% · Go 34% left`: each
 subscription's % left of the window that runs out first, red at 10% or less, details on hover). Phone: no
-header; a bottom tab bar `Focus | Agents | Projects | +`, plus a slim `reconnecting…` line on top
+header; a bottom tab bar `Focus | Agents | Projects | Stats | +`, plus a slim `reconnecting…` line on top
 only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
 - **Two views of the sessions** (`?view=agents` for the board; Focus is the default, so plain `/`
   is Focus):

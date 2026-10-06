@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { fleetHref } from '@/app/fleet-href'
 import type { FleetScreen } from '@/app/fleet-href'
 import type { LiveFleet } from '@/lib/data/fleet/board'
+import type { StatsPeriod } from '@/lib/data/fleet/stats-period'
 
 /** The open session (`?session=`, see `use-selected-session.ts`). */
 export type SessionSelection = {
@@ -17,14 +18,18 @@ export type SessionSelection = {
 export type FleetNav = {
   /** The tab (`?view=`). */
   readonly screen: FleetScreen
-  /** Focus' and Agents' filter (`?project=`, a `projectKey`); never set on Projects. */
+  /** The filter of Focus, Agents and Stats (`?project=`, a `projectKey`); never set on Projects. */
   readonly project: string | undefined
+  /** Stats' range (`?range=` / `?from=&to=`); the default on the other tabs. */
+  readonly period: StatsPeriod
   /** `screen`'s URL (`moveTo` for the filter), keeping the open session. */
   readonly href: (screen: FleetScreen, project?: string) => string
   /** Shows `href`'s URL in place, pushing a history entry (nothing when already there). */
   readonly show: (screen: FleetScreen, project?: string) => void
   /** Changes the filter in place (replaces the history entry). */
   readonly setProject: (project: string | undefined) => void
+  /** Changes Stats' range in place (replaces the history entry). */
+  readonly setPeriod: (period: StatsPeriod) => void
   /** Opens a session on the Focus tab, unfiltered (the launcher's landing): pushes an entry. */
   readonly openSession: (sessionID: string) => void
 }
@@ -59,4 +64,4 @@ export function useFleet(): Fleet {
 
 /** A session's URL on the current tab (its chat opens beside the tab). */
 export const sessionHref = (nav: FleetNav, sessionID: string) =>
-  fleetHref(nav.screen, { project: nav.project, session: sessionID })
+  fleetHref(nav.screen, { project: nav.project, session: sessionID, period: nav.period })

@@ -2,6 +2,8 @@ import { Effect, Layer, ManagedRuntime } from 'effect'
 import { LaunchesLive } from '@/lib/data/fleet/launches'
 import type { Launches } from '@/lib/data/fleet/launches'
 import { SessionSummaries, SessionSummariesLive } from '@/lib/data/fleet/session-detail'
+import { StatsLive } from '@/lib/data/fleet/stats'
+import type { Stats } from '@/lib/data/fleet/stats'
 import { FleetStore, FleetStoreLive } from '@/lib/data/fleet/store'
 import { FleetWatcherLive } from '@/lib/data/fleet/watcher'
 import { exitOnSignals } from '@/lib/runtime/shutdown'
@@ -19,19 +21,21 @@ export type FleetServices =
   | FleetStore
   | OpenCode
   | SessionSummaries
+  | Stats
   | Directories
   | Repos
   | Launches
   | Usage
 
 /**
- * Store + OpenCode client + session folder checks + finished-run summary cache + the launcher's
- * repositories and launch registry + the subscription quotas, with the watcher (and any running launch) forked for the
- * lifetime of the runtime.
+ * Store + OpenCode client + session folder checks + finished-run summary and stats caches + the
+ * launcher's repositories and launch registry + the subscription quotas, with the watcher (and any
+ * running launch) forked for the lifetime of the runtime.
  */
 export const FleetLayer = Layer.mergeAll(
   FleetWatcherLive(),
   SessionSummariesLive,
+  StatsLive,
   LaunchesLive()
 ).pipe(
   Layer.provideMerge(FleetStoreLive),

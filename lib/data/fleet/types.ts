@@ -46,6 +46,8 @@ export const SessionRecord = Schema.Struct({
   agent: Schema.optional(Schema.String),
   model: Schema.optional(Schema.String),
   cost: Schema.Number,
+  /** Tokens its steps read or wrote anew (cache reads left out), subagents not included. */
+  tokens: Schema.Number,
   created: Schema.Number,
   /** End of the latest run; identifies the run. */
   idle: Schema.optional(Schema.Number),
@@ -196,6 +198,8 @@ const rowFields = {
   agent: Schema.optional(Schema.String),
   model: Schema.optional(Schema.String),
   cost: Schema.Number,
+  /** Tokens its steps read or wrote anew (cache reads left out), subagents not included. */
+  tokens: Schema.Number,
   created: Schema.Number,
   /** End of the latest run (OpenCode `time.idle`); identifies the run. */
   idle: Schema.optional(Schema.Number),
@@ -617,3 +621,180 @@ export type UsagePool = typeof UsagePool.Type
 export const UsageSummary = Schema.Struct({ pools: Schema.Array(UsagePool) })
 
 export type UsageSummary = typeof UsageSummary.Type
+
+/** Tokens as OpenCode records them per assistant step (cache reads dwarf the rest). */
+export const TokenCounts = Schema.Struct({
+  input: Schema.Number,
+  output: Schema.Number,
+  reasoning: Schema.Number,
+  cacheRead: Schema.Number,
+  cacheWrite: Schema.Number
+})
+
+export type TokenCounts = typeof TokenCounts.Type
+
+/** Tool calls by status: `unfinished` were still running (or never ended) when read. */
+export const ToolTotals = Schema.Struct({
+  calls: Schema.Number,
+  succeeded: Schema.Number,
+  failed: Schema.Number,
+  unfinished: Schema.Number
+})
+
+export type ToolTotals = typeof ToolTotals.Type
+
+export const ToolUsage = Schema.Struct({
+  name: Schema.String,
+  calls: Schema.Number,
+  succeeded: Schema.Number,
+  failed: Schema.Number,
+  unfinished: Schema.Number,
+  /** Median duration in ms of the calls that ended. */
+  durationP50: Schema.optional(Schema.Number)
+})
+
+export type ToolUsage = typeof ToolUsage.Type
+
+/** One model's share: `provider/model`, with `#variant` when the step named one. */
+export const ModelUsage = Schema.Struct({
+  model: Schema.String,
+  steps: Schema.Number,
+  tokens: TokenCounts
+})
+
+export type ModelUsage = typeof ModelUsage.Type
+
+/** Steps on one calendar day (`YYYY-MM-DD` in the query's time zone). */
+export const DayActivity = Schema.Struct({ date: Schema.String, steps: Schema.Number })
+
+export type DayActivity = typeof DayActivity.Type
+
+/**
+ * OpenCode's activity in a time range (`GET /api/experimental/session/stats`), counted from the
+ * messages created in it: sessions and subagents with any message, prompts (root sessions' user
+ * messages), steps (assistant messages) and their tokens, tool calls; days in OpenCode's
+ * time zone. `tools` per tool only when asked for in detail.
+ */
+export const SessionStats = Schema.Struct({
+  from: Schema.Number,
+  to: Schema.Number,
+  sessions: Schema.Number,
+  subagents: Schema.Number,
+  prompts: Schema.Number,
+  steps: Schema.Number,
+  tokens: TokenCounts,
+  activeDays: Schema.Number,
+  /** Longest run of consecutive active days in the range. */
+  streak: Schema.Number,
+  toolTotals: ToolTotals,
+  tools: Schema.Array(ToolUsage),
+  models: Schema.Array(ModelUsage),
+  /** Days with any step, in order. */
+  activity: Schema.Array(DayActivity)
+})
+
+export type SessionStats = typeof SessionStats.Type
+
+/** A Stats chart's bucket size: hours up to two days, days up to 92, then weeks (from Monday). */
+export const StatsUnit = Schema.Literals(['hour', 'day', 'week'])
+
+export type StatsUnit = typeof StatsUnit.Type
+
+/** One bar of the Stats charts: `[start, end)`, clipped to the range. */
+export const StatsBucket = Schema.Struct({
+  start: Schema.Number,
+  end: Schema.Number,
+  sessions: Schema.Number,
+  subagents: Schema.Number,
+  prompts: Schema.Number,
+  steps: Schema.Number,
+  tokens: TokenCounts,
+  tools: ToolTotals,
+  models: Schema.Array(ModelUsage)
+})
+
+export type StatsBucket = typeof StatsBucket.Type
+
+/**
+ * `GET /api/fleet/stats`: OpenCode's stats for the whole range (`totals`, tools in detail) and per
+ * bucket, in the browser's time zone. `from` is OpenCode's first message for "all time".
+ */
+export const StatsReport = Schema.Struct({
+  from: Schema.Number,
+  to: Schema.Number,
+  unit: StatsUnit,
+  timezone: Schema.String,
+  totals: SessionStats,
+  /** The as long range just before (none for all time), for the tiles' change. */
+  previous: Schema.optional(SessionStats),
+  buckets: Schema.Array(StatsBucket)
+})
+
+export type StatsReport = typeof StatsReport.Type
+
+/** Prompts sent in one hour of the range (the first and last hours clipped to it). */
+export const HourActivity = Schema.Struct({ start: Schema.Number, prompts: Schema.Number })
+
+export type HourActivity = typeof HourActivity.Type
+
+/**
+ * `GET /api/fleet/stats/hours`: prompts per hour, for the time-of-day charts; `TooLong` past 31
+ * days (and for all time), where one OpenCode call per hour would cost too much.
+ */
+export const HoursRead = Schema.TaggedStruct('Hours', {
+  from: Schema.Number,
+  to: Schema.Number,
+  timezone: Schema.String,
+  hours: Schema.Array(HourActivity)
+})
+
+export const HoursTooLong = Schema.TaggedStruct('TooLong', {})
+
+export const StatsHours = Schema.Union([HoursRead, HoursTooLong])
+
+export type StatsHours = typeof StatsHours.Type
+
+/**
+ * `GET /api/fleet/stats/calendar`: steps per day over the last 53 weeks (from a Monday), whatever
+ * the range; days without any left out.
+ */
+export const StatsCalendar = Schema.Struct({
+  from: Schema.Number,
+  to: Schema.Number,
+  timezone: Schema.String,
+  days: Schema.Array(DayActivity)
+})
+
+export type StatsCalendar = typeof StatsCalendar.Type
+
+/** One bar of all projects' prompts. */
+export const PromptBucket = Schema.Struct({
+  start: Schema.Number,
+  end: Schema.Number,
+  prompts: Schema.Number
+})
+
+export type PromptBucket = typeof PromptBucket.Type
+
+/** One OpenCode project's prompts per bar. */
+export const ProjectPromptSeries = Schema.Struct({
+  projectID: Schema.String,
+  prompts: Schema.Array(Schema.Number)
+})
+
+export type ProjectPromptSeries = typeof ProjectPromptSeries.Type
+
+/**
+ * `GET /api/fleet/stats/projects`: prompts per bar for all projects and for the five projects with
+ * most prompts in the range (most first), whatever `?project=`; the rest is the difference.
+ */
+export const PromptsByProject = Schema.Struct({
+  from: Schema.Number,
+  to: Schema.Number,
+  unit: StatsUnit,
+  timezone: Schema.String,
+  buckets: Schema.Array(PromptBucket),
+  projects: Schema.Array(ProjectPromptSeries)
+})
+
+export type PromptsByProject = typeof PromptsByProject.Type

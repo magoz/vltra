@@ -36,6 +36,7 @@ import {
   toFileChange,
   toResolvedLocation,
   toSessionRecord,
+  toSessionStats,
   toSignals,
   toTranscript,
   withFleetHandled
@@ -523,7 +524,21 @@ const makeConnection = (
           .pipe(
             refusable('generate.text'),
             Effect.map(output => output.text)
-          )
+          ),
+      stats: ({ from, to, projectID, timezone, tools }) =>
+        Effect.gen(function* () {
+          const project = projectID === undefined ? undefined : yield* decodeProjectId(projectID)
+
+          const stats = yield* client.session
+            .stats({ from, to, project, timezone, tools })
+            .pipe(refusable('session.stats'))
+
+          return toSessionStats(stats)
+        }),
+      projects: client.project.list().pipe(
+        request('project.list'),
+        Effect.map(list => list.map(toProjectRecord))
+      )
     } satisfies OpenCodeConnection
   })
 

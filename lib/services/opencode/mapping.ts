@@ -22,6 +22,8 @@ import type {
   PendingPermission,
   ProjectRecord,
   SessionRecord,
+  SessionStats,
+  TokenCounts,
   Transcript,
   TranscriptEntry
 } from '@/lib/data/fleet/types'
@@ -60,6 +62,12 @@ export const withFleetHandled = (
   return Object.keys(next).length === 0 ? others : { ...others, fleet: next }
 }
 
+type OpenCodeTokens = Session.Info['tokens']
+
+/** Tokens read or written anew: all but cache reads (Fleet's `freshTokens`). */
+export const freshTokenCount = (tokens: OpenCodeTokens): number =>
+  tokens.input + tokens.output + tokens.reasoning + tokens.cache.write
+
 export const toSessionRecord = (info: Session.Info): SessionRecord => ({
   id: info.id,
   parentID: info.parentID,
@@ -69,6 +77,7 @@ export const toSessionRecord = (info: Session.Info): SessionRecord => ({
   agent: info.agent,
   model: info.model === undefined ? undefined : modelLabel(info.model),
   cost: info.cost,
+  tokens: freshTokenCount(info.tokens),
   created: DateTime.toEpochMillis(info.time.created),
   idle: millis(info.time.idle),
   viewed: millis(info.time.viewed),
@@ -380,6 +389,53 @@ export const toFileChange = (diff: FileDiffInfo): FileChange => ({
   status: diff.status
 })
 
+type StatsOutput = Effect.Success<ReturnType<OpenCodeClient['session']['stats']>>
+
+const toTokenCounts = (tokens: StatsOutput['tokens']): TokenCounts => ({
+  input: tokens.input,
+  output: tokens.output,
+  reasoning: tokens.reasoning,
+  cacheRead: tokens.cache.read,
+  cacheWrite: tokens.cache.write
+})
+
+const variantLabel = (model: Model.Ref): string =>
+  model.variant === undefined ? modelLabel(model) : `${modelLabel(model)}#${model.variant}`
+
+/** `session.stats`; tool totals are zero and the per-tool list empty for `tools: 'none'`. */
+export const toSessionStats = (stats: StatsOutput): SessionStats => ({
+  from: DateTime.toEpochMillis(stats.range.from),
+  to: DateTime.toEpochMillis(stats.range.to),
+  sessions: stats.sessions,
+  subagents: stats.subagents,
+  prompts: stats.prompts,
+  steps: stats.steps,
+  tokens: toTokenCounts(stats.tokens),
+  activeDays: stats.activeDays,
+  streak: stats.streak,
+  toolTotals:
+    stats.tools.mode === 'none'
+      ? { calls: 0, succeeded: 0, failed: 0, unfinished: 0 }
+      : stats.tools.totals,
+  tools:
+    stats.tools.mode === 'detail'
+      ? stats.tools.usage.map(tool => ({
+          name: tool.name,
+          calls: tool.calls,
+          succeeded: tool.succeeded,
+          failed: tool.failed,
+          unfinished: tool.unfinished,
+          durationP50: tool.durationP50
+        }))
+      : [],
+  models: stats.models.map(entry => ({
+    model: variantLabel(entry.model),
+    steps: entry.steps,
+    tokens: toTokenCounts(entry.tokens)
+  })),
+  activity: stats.activity.map(day => ({ date: day.date, steps: day.steps }))
+})
+
 type SessionLogItem = Stream.Success<ReturnType<OpenCodeClient['session']['log']>>
 
 /** How a run ended, as recorded in the session's durable log. */
@@ -440,7 +496,11 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
       )
     case 'session.usage.updated':
       return apply(
-        FleetEvent.UsageUpdated({ sessionID: event.data.sessionID, cost: event.data.cost })
+        FleetEvent.UsageUpdated({
+          sessionID: event.data.sessionID,
+          cost: event.data.cost,
+          tokens: freshTokenCount(event.data.tokens)
+        })
       )
     case 'session.execution.started':
       return apply(

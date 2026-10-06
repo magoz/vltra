@@ -15,13 +15,14 @@ describe('commandKey', () => {
     expect(commandKey(chord('Digit9'))).toEqual(CommandKey.Session({ index: 8 }))
   })
 
-  it('⌘⌥1–⌘⌥3 pick a tab, by physical key whatever the layout prints', () => {
+  it('⌘⌥1–⌘⌥4 pick a tab, by physical key whatever the layout prints', () => {
     expect(commandKey(chord('Digit1', { alt: true }))).toEqual(CommandKey.Tab({ screen: 'focus' }))
     expect(commandKey(chord('Digit2', { alt: true }))).toEqual(CommandKey.Tab({ screen: 'agents' }))
     expect(commandKey(chord('Digit3', { alt: true }))).toEqual(
       CommandKey.Tab({ screen: 'projects' })
     )
-    expect(commandKey(chord('Digit4', { alt: true }))).toBeUndefined()
+    expect(commandKey(chord('Digit4', { alt: true }))).toEqual(CommandKey.Tab({ screen: 'stats' }))
+    expect(commandKey(chord('Digit5', { alt: true }))).toBeUndefined()
   })
 
   it('⌘D marks the open session done (not ⌘⌥D, the macOS Dock toggle)', () => {

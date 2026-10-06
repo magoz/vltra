@@ -268,8 +268,8 @@ export const applyEvent = (model: FleetModel, event: FleetEvent): FleetModel =>
       updateSession(model, sessionID, session => patchInfo(session, { agent })),
     ModelSelected: ({ sessionID, model: selected }) =>
       updateSession(model, sessionID, session => patchInfo(session, { model: selected })),
-    UsageUpdated: ({ sessionID, cost }) =>
-      updateSession(model, sessionID, session => patchInfo(session, { cost })),
+    UsageUpdated: ({ sessionID, cost, tokens }) =>
+      updateSession(model, sessionID, session => patchInfo(session, { cost, tokens })),
     ExecutionStarted: ({ sessionID, at }) =>
       updateSession(model, sessionID, session => ({
         ...idleSession(session),

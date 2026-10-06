@@ -3,11 +3,12 @@ import { fleetHref } from '@/app/fleet-href'
 import type { FleetScreen } from '@/app/fleet-href'
 import { Skeleton } from '@/components/ui/skeleton'
 
-/** The tabs (header and phone tab bar): Focus, Agents (the board), Projects. */
+/** The tabs (header and phone tab bar): Focus, Agents (the board), Projects, Stats. */
 const tabs: ReadonlyArray<{ readonly screen: FleetScreen; readonly label: string }> = [
   { screen: 'focus', label: 'Focus' },
   { screen: 'agents', label: 'Agents' },
-  { screen: 'projects', label: 'Projects' }
+  { screen: 'projects', label: 'Projects' },
+  { screen: 'stats', label: 'Stats' }
 ]
 
 /** Focus mode's list: a few blocked rows, then finished ones. */

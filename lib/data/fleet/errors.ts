@@ -48,3 +48,8 @@ export class LaunchInProgressError extends Schema.TaggedError<LaunchInProgressEr
   'LaunchInProgressError',
   { id: Schema.String }
 ) {}
+
+/** A Stats range that names days that do not exist, or an unknown time zone. */
+export class StatsRangeError extends Schema.TaggedError<StatsRangeError>()('StatsRangeError', {
+  timezone: Schema.String
+}) {}

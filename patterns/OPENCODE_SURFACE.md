@@ -15,18 +15,19 @@ stable API; the integration suite is the tripwire when OpenCode is upgraded.
 
 ## Reads
 
-| Purpose              | Call                                                               |
-| -------------------- | ------------------------------------------------------------------ |
-| Sessions (all)       | `GET /api/session?limit=100` + `cursor.next`, newest-updated first |
-| Active executions    | `GET /api/session/active`                                          |
-| Loaded locations     | `GET /api/debug/location` (falls back to running sessions' dirs)   |
-| Pending permissions  | `GET /api/permission/request?location[directory]=…` per location   |
-| Pending forms        | `GET /api/form?location[directory]=…` per location                 |
-| Projects / worktrees | `GET /api/project`, `GET /api/worktree?projectID=…`                |
-| One session          | `GET /api/session/:id` (outside window, created/moved/forked)      |
-| Transcript tail      | `GET /api/session/:id/message?order=desc&limit=…` (one page)       |
-| Latest turn's files  | `GET /api/session/:id/diff?context=0` (patch text dropped)         |
-| A run's end (missed) | `GET /api/experimental/session/:id/log` (`follow: false`)          |
+| Purpose              | Call                                                                 |
+| -------------------- | -------------------------------------------------------------------- |
+| Sessions (all)       | `GET /api/session?limit=100` + `cursor.next`, newest-updated first   |
+| Active executions    | `GET /api/session/active`                                            |
+| Loaded locations     | `GET /api/debug/location` (falls back to running sessions' dirs)     |
+| Pending permissions  | `GET /api/permission/request?location[directory]=…` per location     |
+| Pending forms        | `GET /api/form?location[directory]=…` per location                   |
+| Projects / worktrees | `GET /api/project`, `GET /api/worktree?projectID=…`                  |
+| One session          | `GET /api/session/:id` (outside window, created/moved/forked)        |
+| Transcript tail      | `GET /api/session/:id/message?order=desc&limit=…` (one page)         |
+| Latest turn's files  | `GET /api/session/:id/diff?context=0` (patch text dropped)           |
+| A run's end (missed) | `GET /api/experimental/session/:id/log` (`follow: false`)            |
+| Stats (Stats tab)    | `GET /api/experimental/session/stats?from&to&project&timezone&tools` |
 
 Permissions and forms are **per location** in 2.0.20 (each loaded location has its own pending
 map), so the DESIGN's `GET /api/permission/request` and `GET /api/form` are called once per
@@ -34,6 +35,17 @@ loaded location. Querying only loaded locations avoids booting new ones. Forms k
 (Fleet's `FormField`, minus validation details; `hidden` fields are dropped, OpenCode applies their
 default) on the wire rows; Fleet itself never answers them (OpenCode's chat does). Forms with the
 temporary MCP `sessionID: "global"` owner are kept in the model but not attached to any row.
+
+Stats (`session.stats`) count messages created in `[from, to)` (default `from`: the first
+message): sessions / subagents with any, prompts (root user messages), steps (assistant messages)
+with tokens and cost (Fleet ignores cost: OpenCode's own catalog prices, $0 for subscription
+providers), tool calls (`summary` totals or `detail` per tool with median duration),
+active days in `timezone`. Fleet reads the range in `detail` and each chart bucket in `summary`
+(`lib/data/fleet/stats.ts`), each hour in `summary` for the time-of-day charts (up to 31 days),
+and each project (`GET /api/project`) in `none` to rank them for the Prompts chart's split (then
+the top three's buckets in `summary`), the range before in `summary` for the tiles' change, and
+53 weeks in `none` for the year calendar (its per-day `activity`, steps only). 2.0.22 refuses an all-time range for a project without messages
+(`InvalidRequestError`, "Stats range must end after it starts"); Fleet shows it as empty.
 
 ## Launcher calls
 

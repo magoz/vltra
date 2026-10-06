@@ -144,13 +144,13 @@ function useCommandKeys(run: (chord: CommandKey) => void) {
 }
 
 /**
- * Around the tab showing (DESIGN.md "Clients" → Web): the tabs (Focus | Agents | Projects; in the
- * desktop header with the count line, key hint and connection, or the phone's bottom tab bar,
- * whose only other chrome is a reconnecting line when the link is down) and Handled / Undo /
- * Reopen. Each tab shows the open session (`?session=`) itself: Focus' pane, the board's and
- * Projects' split (`SessionSplit`). Keys: `1` / `2` / `3` the tabs, `Escape`
- * closes the session, `n` / `⌘K` open the launcher (its palette, its list for the Projects cards,
- * and the auto-open of a launch started here).
+ * Around the tab showing (DESIGN.md "Clients" → Web): the tabs (Focus | Agents | Projects | Stats;
+ * in the desktop header with the count line, key hint and connection, or the phone's bottom tab
+ * bar, whose only other chrome is a reconnecting line when the link is down) and Handled / Undo /
+ * Reopen. Each tab shows the open session (`?session=`) itself: Focus' pane, the split of the
+ * board, Projects and Stats (`SessionSplit`). Keys: `1`–`4` the tabs, `Escape` closes the
+ * session, `n` / `⌘K` open the launcher (its palette, its list for the Projects cards, and the
+ * auto-open of a launch started here).
  */
 export function FleetShell({
   live,
@@ -226,6 +226,7 @@ export function FleetShell({
     '1': screen === 'focus' ? undefined : () => nav.show('focus'),
     '2': screen === 'agents' ? undefined : () => nav.show('agents'),
     '3': screen === 'projects' ? undefined : () => nav.show('projects'),
+    '4': screen === 'stats' ? undefined : () => nav.show('stats'),
     Escape: selected === undefined ? undefined : selection.close
   })
 

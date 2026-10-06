@@ -42,6 +42,8 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | Agents (focus, board) / Projects | `app/agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx` | Cards: `agent-card.tsx`, rows: `session-row.tsx`         |
 | Board projections                | `lib/data/fleet/board.ts`                                       | Pure: live rows, needs-me list, columns, cards, filter   |
 | Run summaries (plugin page)      | `lib/data/fleet/session-detail.ts`                              | Latest answer + diff totals, cached by `idle`            |
+| Stats tab (data)                 | `lib/data/fleet/stats.ts`, `stats-period.ts`, `stats-view.ts`   | OpenCode `session.stats` per range + bucket; projections |
+| Stats tab (UI)                   | `app/stats-page.tsx`, `stats-charts.tsx`, `use-stats.ts`        | Recharts (lazy), `components/ui/chart.tsx`               |
 | Launcher list / open / retire    | `lib/data/fleet/launcher.ts`, `checkouts.ts`                    | Pure projection + guards; `GET /api/fleet/launcher`      |
 | Launches (worktree + session)    | `lib/data/fleet/launches.ts`                                    | Registry in the runtime, background fibers, in store     |
 | Branch names / palette rows      | `lib/data/fleet/branch.ts`, `palette.ts`                        | `--` encoding, suggestion check, fallback, fuzzy         |
@@ -77,10 +79,10 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
 ## DASHBOARD
 
-- One page (`app/(fleet)/page.tsx` → `current-tab.tsx`) with three tabs in `?view=`: **Focus**
+- One page (`app/(fleet)/page.tsx` → `current-tab.tsx`) with four tabs in `?view=`: **Focus**
   (plain `/`, `agents-focus.tsx`), **Agents** (the board: `?view=agents`, `agents-board.tsx`; old
-  `?view=board` links still open it) and **Projects** (`?view=projects`, `projects-grid.tsx`; the old `/projects` redirects in
-  `next.config.ts`). Keep it one route: Cache Components keeps up to three visited routes mounted
+  `?view=board` links still open it), **Projects** (`?view=projects`, `projects-grid.tsx`; the old `/projects` redirects in
+  `next.config.ts`) and **Stats** (`?view=stats`, `stats-page.tsx`, loaded with `next/dynamic`). Keep it one route: Cache Components keeps up to three visited routes mounted
   in hidden `<Activity>` boundaries (`MAX_BF_CACHE_ENTRIES` in Next's `bfcache-state-manager`), so
   a second route kept a hidden copy of the other page alive (with its own OpenCode iframe) and
   restored its stale state on return. The page is static; the layout's `<Suspense>` holds the live
@@ -91,8 +93,9 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   every `initial` event, apply other changes in place, reconnect with backoff and on visibility),
   the clock and Handled's undo state.
 - `FleetDashboard` wires server actions, the clock and the URL (`use-fleet-nav.ts`: the tab and
-  the filter; `use-selected-session.ts`: `?session=`; `fleet-href.ts` builds every URL) around
-  `FleetShell` (`fleet-shell.tsx`): the tabs `Focus | Agents | Projects` (`fleet-header.tsx`), in
+  the filter, Stats' range; `use-selected-session.ts`: `?session=`; `fleet-href.ts` builds every
+  URL) around `FleetShell` (`fleet-shell.tsx`): the tabs `Focus | Agents | Projects | Stats`
+  (`fleet-header.tsx`), in
   the desktop header (no visible title, the tabs first; the count line `N need you · N working · N stuck`, centred; on the right the usage
   line, New, `?` and the connection) or the phone's bottom tab bar (`BottomTabs`, with `+`; no header there, only
   `ConnectionLine`: a slim `reconnecting…` line on top once a reconnect lasts 3s, the wait starting
@@ -110,8 +113,9 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   fetch, no remount): `nav.show` pushes an entry (Back returns), `setProject` replaces it,
   `openSession` (the launcher) pushes Focus with the session. `moveTo` in `fleet-href.ts` decides
   the filter: given (Projects card headers, and `Enter` on a card, open the board filtered), else
-  kept between Focus (which ignores it) and Agents; Projects has none, so from it they start
-  unfiltered. `1` / `2` / `3` pick a tab.
+  kept between Focus (which ignores it), Agents and Stats; Projects has none, so from it they
+  start unfiltered. Stats' range (`?range=` / `?from=&to=`) lives only on Stats. `1`–`4` pick a
+  tab.
 - **Focus** (`agents-focus.tsx`, default): a sidebar (26rem, hairline right border,
   scrolls on its own) with only the needs-me sessions (`buildNeedsMe` / `needsMeOrder` in
   `board.ts`: blocked, then finished, each newest first; the board's Need you
@@ -159,6 +163,27 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   every session Fleet files under the card (`projectKey`; subagents and archived ones too,
   also with the folder gone) for good, and the card leaves with their `session.deleted`. OpenCode
   has no project delete; files, worktrees and branches are untouched.
+- **Stats** (`?view=stats`, `stats-page.tsx`): charts of OpenCode's own data, no Fleet state.
+  Range: presets `24h · 7d · 30d · 90d · All` (default 7d, no param; `[` / `]` step) or Custom
+  days (`?from=&to=`, `stats-period.ts`); project filter shared with Agents (`?project=`, mapped
+  to OpenCode's project id, `other` → `global`). `GET /api/fleet/stats` (`stats.ts`) reads
+  `session.stats` for the range (tools in detail), the as long range before (tiles' change) and
+  per bucket (hours ≤ 48h, days ≤ 92, else weeks from Monday, in the browser's zone); buckets
+  settled 10 min are cached in the runtime (`Stats` service). Three more reads load apart so the
+  page never waits: `/api/fleet/stats/projects` (prompts by project: one `tools: none` call per
+  OpenCode project to rank them, then the top three's bars), `/hours` (prompts per hour, up to 31
+  days, else `TooLong`) and `/calendar` (steps per day for 53 weeks, one call). `use-stats.ts`
+  refetches each every minute while shown, keeping the last value. Top to bottom: 7 tiles (with
+  sparkline and change, `24×` past doubling), the year calendar (full width; narrow pages the last
+  26 weeks), then pairs: sessions started and prompts (both by the same top three projects, so
+  each keeps one ink), time of day (weekday × hour heatmap, hour bars; sessions started past 31
+  days), steps and steps per prompt, tokens by model and model share, tool calls and failure
+  rate, cache hits and run outcomes over time, session length and subagents per session (bins),
+  tokens × length (a dot per session, log scales), then the models, tools and outcomes tables.
+  Pure projections in `stats-view.ts`; session-based charts (started, outcomes, lengths,
+  subagents, scatter) read the live fleet, rows carrying `tokens` (fresh tokens, no cache reads).
+  Stacks keep three series and "rest" (more grey shades are hard to tell apart); heatmaps use
+  five even ink steps (`inkLevel`). No cost: OpenCode prices subscription models at $0.
 - **Launcher** (DESIGN.md "Launcher and worktrees"; `launcher-dialog.tsx`, state in the shell,
   `launcher-context.tsx`): header **New**, `n` and `⌘K`/`Ctrl+K` on any page (in the chat too;
   OpenCode's palette stays on `⌘P` / `⌘⇧P`, which on a session page is the same dialog as its
@@ -205,12 +230,12 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   and drop. Phone: swipe a finished card left (`use-swipe.ts`); the `✔ Done` button stays.
 - Keys (`use-keys.ts`, desktop; ignored while typing (except `Escape`), with modifiers and in
   dialogs; in the chat, `chat-keys.ts` hands Fleet the keys the chat does not own, see the
-  session panel): shell `1` / `2` / `3` the tabs, `n` the launcher (and `⌘K` / `Ctrl+K`,
+  session panel): shell `1`–`4` the tabs, `n` the launcher (and `⌘K` / `Ctrl+K`,
   `isLauncherKey`, its own listener, also while typing),
   `?` / `⌘/` (`isHelpKey`, also while typing) the tab's keys (`shortcuts-dialog.tsx`,
   `keyHints`; also the header's `?`; no hints line),
   `Escape` closes the session (the palette closes itself). `⌘1`–`⌘9` open Focus' Nth session
-  (in Focus from another tab) and `⌘⌥1`–`⌘⌥3` pick a tab, `⌘U` is the tab's `u` (`useKeys`),
+  (in Focus from another tab) and `⌘⌥1`–`⌘⌥4` pick a tab, `⌘U` is the tab's `u` (`useKeys`),
   `⌘I` / `i` put the caret in the chat's composer (`useInsertKeys`; `chat-composer.ts`, which also
   focuses it once when a chat loads, on a fine pointer, unless a Fleet field or dialog has focus),
   `⌘D` marks the open finished session done (`useDoneKey` in

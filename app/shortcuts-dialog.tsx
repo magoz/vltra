@@ -6,8 +6,8 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 type KeyHint = { readonly keys: string; readonly label: string }
 
 /**
- * Each tab's keys (`agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`), plus the
- * shell's: `n` (the launcher, also `⌘K`), `1` / `2` / `3` and `⌘⌥1`–`⌘⌥3`
+ * Each tab's keys (`agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`, `stats-page.tsx`),
+ * plus the shell's: `n` (the launcher, also `⌘K`), `1`–`4` and `⌘⌥1`–`⌘⌥4`
  * (the tabs), `⌘1`–`⌘9` (Focus' Nth session), `Escape` (close the session) and `?` / `⌘/` (this list), plus OpenCode's
  * own palette in the chat (`⌘P`).
  */
@@ -19,7 +19,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: 'u ⌘U', label: 'undo' },
     { keys: 'n ⌘K', label: 'new' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
-    { keys: '1 2 3 ⌘⌥1–3', label: 'tabs' },
+    { keys: '1 2 3 4 ⌘⌥1–4', label: 'tabs' },
     { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
     { keys: '⌘P', label: "OpenCode's palette (in the chat)" },
@@ -34,7 +34,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: 'n ⌘K', label: 'new' },
     { keys: '/', label: 'filter' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
-    { keys: '1 2 3 ⌘⌥1–3', label: 'tabs' },
+    { keys: '1 2 3 4 ⌘⌥1–4', label: 'tabs' },
     { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
     { keys: '⌘P', label: "OpenCode's palette (in the chat)" },
@@ -46,10 +46,19 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
     { keys: '↵', label: 'open' },
     { keys: 'n ⌘K', label: 'new' },
     { keys: '⌘1–9', label: 'Nth session (Focus)' },
-    { keys: '1 2 3 ⌘⌥1–3', label: 'tabs' },
+    { keys: '1 2 3 4 ⌘⌥1–4', label: 'tabs' },
     { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
     { keys: '⌘P', label: "OpenCode's palette (in the chat)" },
+    { keys: '? ⌘/', label: 'shortcuts' }
+  ],
+  stats: [
+    { keys: '[ ]', label: 'shorter / longer range' },
+    { keys: '/', label: 'filter' },
+    { keys: 'n ⌘K', label: 'new' },
+    { keys: '⌘1–9', label: 'Nth session (Focus)' },
+    { keys: '1 2 3 4 ⌘⌥1–4', label: 'tabs' },
+    { keys: 'esc', label: 'close the session' },
     { keys: '? ⌘/', label: 'shortcuts' }
   ]
 }
@@ -57,7 +66,8 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
 const tabNames: Readonly<Record<FleetScreen, string>> = {
   focus: 'Focus',
   agents: 'Agents',
-  projects: 'Projects'
+  projects: 'Projects',
+  stats: 'Stats'
 }
 
 /** The tab's keys (desktop), opened with `?` or the header's `?`; `Escape` closes it. */

@@ -501,6 +501,7 @@ describe('session row mapping', () => {
         agent: undefined,
         model: 'fleet-none/none',
         cost: 0,
+        tokens: 0,
         created: 1790806672952,
         idle: 1790806673204,
         viewed: undefined,

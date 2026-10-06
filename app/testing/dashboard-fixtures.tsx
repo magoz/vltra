@@ -20,6 +20,8 @@ import type { FleetModel, OpenCodeSnapshot, TrackedSession } from '@/lib/data/fl
 import { buildRows, buildSnapshot } from '@/lib/data/fleet/snapshot'
 import { baseTime, webUrl } from '@/lib/data/fleet/testing/fixtures'
 import type { FleetRow } from '@/lib/data/fleet/types'
+import { defaultStatsPeriod } from '@/lib/data/fleet/stats-period'
+import type { StatsPeriod } from '@/lib/data/fleet/stats-period'
 import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 
 // Rows and live fleets for component tests, built through the real model and snapshot projection.
@@ -202,9 +204,11 @@ const noLauncher: Launcher = { list: undefined, open: () => undefined, reload: (
 const staticNav: FleetNav = {
   screen: 'focus',
   project: undefined,
+  period: defaultStatsPeriod,
   href: (screen, project) => fleetHref(screen, { project }),
   show: () => undefined,
   setProject: () => undefined,
+  setPeriod: () => undefined,
   openSession: () => undefined
 }
 
@@ -256,6 +260,7 @@ export function WithFleet({
 export type NavCall =
   | { readonly kind: 'show'; readonly screen: FleetScreen; readonly project: string | undefined }
   | { readonly kind: 'filter'; readonly project: string | undefined }
+  | { readonly kind: 'period'; readonly period: StatsPeriod }
   | { readonly kind: 'open'; readonly session: string }
 
 /**
@@ -286,13 +291,16 @@ export function TestDashboard({
     moveTo({ screen: 'focus', project: undefined }, initialScreen, initialProject)
   )
 
+  const [period, setPeriod] = useState<StatsPeriod>(defaultStatsPeriod)
+
   const nav: FleetNav = {
     screen: place.screen,
     project: place.project,
+    period,
     href: (target, filter) => {
       const to = moveTo(place, target, filter)
 
-      return fleetHref(to.screen, { project: to.project, session: selected })
+      return fleetHref(to.screen, { project: to.project, session: selected, period })
     },
     show: (target, filter) => {
       const to = moveTo(place, target, filter)
@@ -301,10 +309,17 @@ export function TestDashboard({
 
       navigations.push({ kind: 'show', screen: to.screen, project: to.project })
       setPlace(to)
+
+      // Like the URL: Stats' range stays only while Stats shows.
+      if (to.screen !== place.screen) setPeriod(defaultStatsPeriod)
     },
     setProject: filter => {
       navigations.push({ kind: 'filter', project: filter })
       setPlace({ screen: place.screen, project: filter })
+    },
+    setPeriod: next => {
+      navigations.push({ kind: 'period', period: next })
+      setPeriod(next)
     },
     openSession: sessionID => {
       navigations.push({ kind: 'open', session: sessionID })
@@ -327,7 +342,11 @@ export function TestDashboard({
       <Toaster theme="light" />
       <output
         hidden
-        data-location={fleetHref(place.screen, { project: place.project, session: selected })}
+        data-location={fleetHref(place.screen, {
+          project: place.project,
+          session: selected,
+          period
+        })}
       />
     </FleetActionsProvider>
   )

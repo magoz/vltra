@@ -221,14 +221,18 @@ export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readon
   )
 }
 
-/** The tabs, the same on desktop (header) and phone (bottom bar): Focus, Agents (the board), Projects. */
+/**
+ * The tabs, the same on desktop (header) and phone (bottom bar): Focus, Agents (the board),
+ * Projects, Stats.
+ */
 const tabs: ReadonlyArray<{ readonly screen: FleetScreen; readonly label: string }> = [
   { screen: 'focus', label: 'Focus' },
   { screen: 'agents', label: 'Agents' },
-  { screen: 'projects', label: 'Projects' }
+  { screen: 'projects', label: 'Projects' },
+  { screen: 'stats', label: 'Stats' }
 ]
 
-/** Focus | Agents | Projects: header tabs on desktop. */
+/** Focus | Agents | Projects | Stats: header tabs on desktop. */
 function HeaderTabs({ screen }: { readonly screen: FleetScreen }) {
   return (
     <nav aria-label="Pages" className="flex self-stretch">
@@ -247,8 +251,8 @@ function HeaderTabs({ screen }: { readonly screen: FleetScreen }) {
 }
 
 /**
- * Focus | Agents | Projects | +: the phone's bottom tab bar (no header there; `ConnectionLine`
- * shows only while reconnecting); + opens the launcher, full screen.
+ * Focus | Agents | Projects | Stats | +: the phone's bottom tab bar (no header there;
+ * `ConnectionLine` shows only while reconnecting); + opens the launcher, full screen.
  */
 export function BottomTabs({
   screen,

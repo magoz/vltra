@@ -247,14 +247,15 @@ describe('state machine transitions (DESIGN.md "Session state")', () => {
       FleetEvent.SessionRenamed({ sessionID: id, title: 'Renamed' }),
       FleetEvent.AgentSelected({ sessionID: id, agent: 'plan' }),
       FleetEvent.ModelSelected({ sessionID: id, model: 'anthropic/claude' }),
-      FleetEvent.UsageUpdated({ sessionID: id, cost: 1.25 })
+      FleetEvent.UsageUpdated({ sessionID: id, cost: 1.25, tokens: 900 })
     ])
 
     expect(sessionOf(model).info).toMatchObject({
       title: 'Renamed',
       agent: 'plan',
       model: 'anthropic/claude',
-      cost: 1.25
+      cost: 1.25,
+      tokens: 900
     })
   })
 

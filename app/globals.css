@@ -87,6 +87,19 @@
   }
 }
 
+/*
+ * Stats chart series: ink, from full strength to faint (both appearances, as they mix the page's
+ * own colours); `--chart-rest` is everything past the top series.
+ */
+:root {
+  --chart-1: var(--foreground);
+  --chart-2: color-mix(in oklab, var(--foreground) 70%, var(--background));
+  --chart-3: color-mix(in oklab, var(--foreground) 50%, var(--background));
+  --chart-4: color-mix(in oklab, var(--foreground) 34%, var(--background));
+  --chart-5: color-mix(in oklab, var(--foreground) 22%, var(--background));
+  --chart-rest: var(--border);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

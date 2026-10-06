@@ -57,7 +57,8 @@ describe('header', () => {
     expect(tabLinks(tabs)).toEqual([
       ['Focus', '/'],
       ['Agents', '/?view=agents'],
-      ['Projects', '/?view=projects']
+      ['Projects', '/?view=projects'],
+      ['Stats', '/?view=stats']
     ])
     expect(screen.getByLabelText('Session counts').textContent).toBe(
       '6 need you · 17 working · 2 stuck'
@@ -135,7 +136,8 @@ describe('tab bar', () => {
     expect(tabLinks(bar)).toEqual([
       ['Focus', '/'],
       ['Agents', '/?view=agents'],
-      ['Projects', '/?view=projects']
+      ['Projects', '/?view=projects'],
+      ['Stats', '/?view=stats']
     ])
     expect(within(bar).getByRole('button', { name: 'New (launcher)' })).toBeTruthy()
   })

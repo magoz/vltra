@@ -116,6 +116,7 @@ const buildNode = (
     agent: info.agent,
     model: info.model,
     cost: info.cost,
+    tokens: info.tokens,
     created: info.created,
     idle: info.idle,
     outcome: info.outcome,

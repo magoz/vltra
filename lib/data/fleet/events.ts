@@ -20,7 +20,7 @@ export type FleetEvent = Data.TaggedEnum<{
   SessionRenamed: { readonly sessionID: string; readonly title: string }
   AgentSelected: { readonly sessionID: string; readonly agent: string }
   ModelSelected: { readonly sessionID: string; readonly model: string }
-  UsageUpdated: { readonly sessionID: string; readonly cost: number }
+  UsageUpdated: { readonly sessionID: string; readonly cost: number; readonly tokens: number }
   ExecutionStarted: { readonly sessionID: string; readonly at: number }
   ExecutionEnded: {
     readonly sessionID: string

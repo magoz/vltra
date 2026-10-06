@@ -2,8 +2,15 @@ import type { Session } from '@opencode/client/effect'
 import { Clock, Deferred, Effect, Layer, Option, Queue, Ref, Stream } from 'effect'
 import type { Cause } from 'effect'
 import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
+import { noActivity } from '@/lib/data/fleet/stats'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
-import type { FileChange, InterruptReason, SessionRecord, Transcript } from '@/lib/data/fleet/types'
+import type {
+  FileChange,
+  InterruptReason,
+  SessionRecord,
+  SessionStats,
+  Transcript
+} from '@/lib/data/fleet/types'
 import {
   OpenCodeRequestError,
   OpenCodeUnavailableError,
@@ -15,7 +22,8 @@ import type {
   ActionError,
   OpenCodeConnection,
   RejectableError,
-  ResolvedLocation
+  ResolvedLocation,
+  StatsInput
 } from '@/lib/services/opencode/service'
 
 /** A call Fleet made against the fake, for assertions. */
@@ -32,6 +40,7 @@ export type FakeCall =
   | { readonly op: 'createSession'; readonly directory: string; readonly title: string | undefined }
   | { readonly op: 'removeSession'; readonly sessionID: string }
   | { readonly op: 'generateText'; readonly prompt: string }
+  | ({ readonly op: 'stats' } & StatsInput)
 
 /** How the fake answers the launcher's calls; each defaults to a quick success (text: a refusal). */
 export type FakeLauncherBehavior = {
@@ -96,7 +105,15 @@ export type FakeOpenCode = {
   readonly setInterruptReason: (sessionID: string, reason: InterruptReason) => Effect.Effect<void>
   /** Override how the launcher's calls answer. */
   readonly setLauncherBehavior: (behavior: Partial<FakeLauncherBehavior>) => Effect.Effect<void>
+  /** How `stats` answers (default: no activity, `from` defaulting to `to`). */
+  readonly setStats: (
+    answer: (input: StatsInput) => Effect.Effect<SessionStats, RejectableError>
+  ) => Effect.Effect<void>
 }
+
+/** No activity in `[from, to)`; "all time" (no `from`) starts at `to`, like an empty OpenCode. */
+export const emptyStats = (input: StatsInput): SessionStats =>
+  noActivity(input.from ?? input.to, input.to)
 
 export const emptySnapshot: OpenCodeSnapshot = {
   sessions: [],
@@ -126,6 +143,11 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
     const interrupts = yield* Ref.make<ReadonlyMap<string, InterruptReason>>(new Map())
     const launcher = yield* Ref.make(defaultLauncherBehavior)
     const created = yield* Ref.make(0)
+
+    const stats = yield* Ref.make(
+      (input: StatsInput): Effect.Effect<SessionStats, RejectableError> =>
+        Effect.succeed(emptyStats(input))
+    )
 
     const current = yield* Ref.make<Option.Option<Queue.Queue<OpenCodeSignal, Cause.Done>>>(
       Option.none()
@@ -248,6 +270,7 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
           directory: input.directory,
           title: input.title,
           cost: 0,
+          tokens: 0,
           created: yield* Clock.currentTimeMillis
         }
 
@@ -337,7 +360,13 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
         Effect.andThen(
           record({ op: 'generateText', prompt }),
           Effect.flatMap(Ref.get(launcher), behavior => behavior.generateText(prompt))
-        )
+        ),
+      stats: input =>
+        Effect.andThen(
+          record({ op: 'stats', ...input }),
+          Effect.flatMap(Ref.get(stats), answer => answer(input))
+        ),
+      projects: Effect.map(Ref.get(snapshot), value => value.projects)
     })
 
     const layer = Layer.succeed(OpenCode, {
@@ -388,7 +417,8 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
       setInterruptReason: (sessionID, reason) =>
         Ref.update(interrupts, map => new Map(map).set(sessionID, reason)),
       setLauncherBehavior: behavior =>
-        Ref.update(launcher, current => ({ ...current, ...behavior }))
+        Ref.update(launcher, current => ({ ...current, ...behavior })),
+      setStats: answer => Ref.set(stats, answer)
     }
 
     return fake

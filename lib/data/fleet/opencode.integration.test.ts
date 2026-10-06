@@ -178,6 +178,19 @@ describe.skipIf(!binary.available)('Fleet against a real opencode serve', () => 
 
           expect(summary.sessionID).toBe(sessionID)
 
+          // The Stats tab's numbers: the prompt counts, with OpenCode's first message as `from`.
+          const stats = yield* actionConnection.stats({
+            from: undefined,
+            to: Date.now() + 1,
+            projectID: undefined,
+            timezone: 'Europe/Madrid',
+            tools: 'detail'
+          })
+
+          expect(stats.sessions).toBeGreaterThanOrEqual(1)
+          expect(stats.prompts).toBeGreaterThanOrEqual(1)
+          expect(stats.from).toBeLessThanOrEqual(failed.idle ?? Date.now())
+
           // Mark viewed (panel open) only moves OpenCode's unread marker, never Fleet state.
           expect(yield* markViewed({ sessionID })).toBe('marked')
 

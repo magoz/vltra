@@ -43,7 +43,7 @@ describe('shortcuts', () => {
       'n ⌘K new',
       '/ filter',
       '⌘1–9 Nth session (Focus)',
-      '1 2 3 ⌘⌥1–3 tabs',
+      '1 2 3 4 ⌘⌥1–4 tabs',
       'i ⌘I type in the chat',
       'esc close the session',
       "⌘P OpenCode's palette (in the chat)",

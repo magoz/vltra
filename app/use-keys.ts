@@ -4,8 +4,8 @@ import { useEffect, useRef } from 'react'
 import { CommandKey, commandKey } from '@/app/command-keys'
 
 /**
- * The dashboard's keys (desktop). Each page binds its own; the shell binds the tabs' `1`, `2`,
- * `3`, and `n`, `?`, `Escape` (`⌘K` and `⌘/` are the shell's own listeners). Keys pressed in the
+ * The dashboard's keys (desktop). Each page binds its own; the shell binds the tabs' `1`–`4`,
+ * and `n`, `?`, `Escape` (`⌘K` and `⌘/` are the shell's own listeners). Keys pressed in the
  * OpenCode chat that it does not own reach here too (`forwardChatKeys`).
  */
 export type FleetKey =
@@ -18,6 +18,9 @@ export type FleetKey =
   | '1'
   | '2'
   | '3'
+  | '4'
+  | '['
+  | ']'
   | '/'
   | '?'
   | 'Enter'
@@ -40,6 +43,9 @@ const fleetKeys: ReadonlyArray<string> = [
   '1',
   '2',
   '3',
+  '4',
+  '[',
+  ']',
   '/',
   '?',
   'Enter',
