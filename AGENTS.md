@@ -174,8 +174,9 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   OpenCode project to rank them, then the top three's bars), `/hours` (prompts per hour, up to 31
   days, else `TooLong`) and `/calendar` (steps per day for 53 weeks, one call). `use-stats.ts`
   refetches each every minute while shown, keeping the last value. Top to bottom: 7 tiles (with
-  sparkline and change, `24×` past doubling), the year calendar (full width; narrow pages the last
-  26 weeks), then pairs: sessions started and prompts (both by the same top three projects, so
+  sparkline and change, `24×` past doubling), then cards in a grid by the page's width (1 column,
+  2 from 56rem, 3 from 80rem; the scatter and the tools table take 2 of 3): the year calendar (in
+  a card under 36rem the last 26 weeks), sessions started and prompts (both by the same top three projects, so
   each keeps one ink), time of day (weekday × hour heatmap, hour bars; sessions started past 31
   days), steps and steps per prompt, tokens by model and model share, tool calls and failure
   rate, cache hits and run outcomes over time, session length and subagents per session (bins),
@@ -183,7 +184,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   Pure projections in `stats-view.ts`; session-based charts (started, outcomes, lengths,
   subagents, scatter) read the live fleet, rows carrying `tokens` (fresh tokens, no cache reads).
   Stacks keep three series and "rest" (more grey shades are hard to tell apart); heatmaps use
-  five even ink steps (`inkLevel`). No cost: OpenCode prices subscription models at $0.
+  five even ink steps (`inkLevel`) and hover tips (`HeatTips`: cells' `data-tip`). No cost: OpenCode prices subscription models at $0.
 - **Launcher** (DESIGN.md "Launcher and worktrees"; `launcher-dialog.tsx`, state in the shell,
   `launcher-context.tsx`): header **New**, `n` and `⌘K`/`Ctrl+K` on any page (in the chat too;
   OpenCode's palette stays on `⌘P` / `⌘⇧P`, which on a session page is the same dialog as its

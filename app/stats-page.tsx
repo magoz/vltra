@@ -383,7 +383,7 @@ function TimeOfDay({
   )
 }
 
-/** A year of steps per day (its own read, the range ignored). */
+/** The last year's steps per day (its own read, whatever the range). */
 function YearCalendar({ calendar }: { readonly calendar: StatsState<StatsCalendar> }) {
   const shown = shownValue(calendar)
 
@@ -393,16 +393,27 @@ function YearCalendar({ calendar }: { readonly calendar: StatsState<StatsCalenda
     [shown]
   )
 
-  if (shown === undefined) {
-    return calendar.status === 'failed' ? (
-      <p className="text-destructive text-xs">{calendar.error}</p>
-    ) : (
-      <Skeleton aria-label="Loading the year" className="h-28" />
-    )
-  }
-
-  return <CalendarHeatmap weeks={weeks} noun="steps" />
+  return (
+    <StatsCard title="Last year" detail="steps per day, whatever the range">
+      {shown !== undefined ? (
+        <CalendarHeatmap weeks={weeks} noun="steps" />
+      ) : calendar.status === 'failed' ? (
+        <p className="text-destructive text-xs">{calendar.error}</p>
+      ) : (
+        <Skeleton aria-label="Loading the year" className="h-28" />
+      )}
+    </StatsCard>
+  )
 }
+
+/**
+ * The cards' grid by the page's own width: one column, two from 56rem, three from 80rem (two
+ * columns are too wide on a big screen). `wide` cards take two of three: the scatter and the tools
+ * table, which also fill their rows (beside the models and outcomes tables).
+ */
+const cardGrid = 'grid gap-3 @4xl:grid-cols-2 @7xl:grid-cols-3'
+
+const wide = '@7xl:col-span-2'
 
 function StatsBody({
   report,
@@ -464,10 +475,8 @@ function StatsBody({
   return (
     <>
       <Tiles report={report} started={started} />
-      <StatsCard title="Last year" detail="steps per day, whatever the range">
+      <div className={cardGrid}>
         <YearCalendar calendar={calendar} />
-      </StatsCard>
-      <div className="grid gap-3 @4xl:grid-cols-2">
         <StatsCard title="Sessions started" detail="by project, from Fleet's list">
           <TimeBars
             chart={charts.projects}
@@ -505,6 +514,7 @@ function StatsBody({
             unit={unit}
             timeZone={timeZone}
             format={percentValue}
+            max={100}
           />
         </StatsCard>
         <StatsCard title="Tool calls">
@@ -535,6 +545,7 @@ function StatsBody({
             unit={unit}
             timeZone={timeZone}
             format={percentValue}
+            max={100}
           />
         </StatsCard>
         <StatsCard title="Run outcomes over time" detail="latest run of each session, by its end">
@@ -556,7 +567,11 @@ function StatsBody({
         <StatsCard title="Subagents per session" detail="sessions started, by subagents run">
           <CategoryBars data={charts.subagents} noun="sessions" />
         </StatsCard>
-        <StatsCard title="Tokens × length" detail="a dot per session started (log scales)">
+        <StatsCard
+          title="Tokens × length"
+          detail="a dot per session started (log scales)"
+          className={wide}
+        >
           <SessionScatter points={charts.points} />
         </StatsCard>
         <StatsCard title="Models" detail="whole range">
@@ -573,7 +588,7 @@ function StatsBody({
             }))}
           />
         </StatsCard>
-        <StatsCard title="Tools" detail="whole range; median duration">
+        <StatsCard title="Tools" detail="whole range; median duration" className={wide}>
           <ShareTable
             label="Tool"
             columns={['calls', 'failed', 'p50']}
@@ -609,7 +624,9 @@ function StatsSkeleton() {
           <Skeleton key={key} className="h-16" />
         ))}
       </div>
-      <div className="grid gap-3 @4xl:grid-cols-2">
+      <div className={cardGrid}>
+        <Skeleton className="h-56" />
+        <Skeleton className="h-56" />
         <Skeleton className="h-56" />
         <Skeleton className="h-56" />
       </div>

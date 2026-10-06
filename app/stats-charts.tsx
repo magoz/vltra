@@ -1,6 +1,7 @@
 'use client'
 
 import { Option, Predicate, Schema } from 'effect'
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   Bar,
@@ -12,12 +13,14 @@ import {
   XAxis,
   YAxis
 } from 'recharts'
+import type { YAxisProps } from 'recharts'
 import {
   bucketLabel,
   bucketTitle,
   changeText,
   compactNumber,
-  durationText
+  durationText,
+  wholeNumber
 } from '@/app/stats-format'
 import { ChartContainer } from '@/components/ui/chart'
 import { inkLevel, restKey, weekdays } from '@/lib/data/fleet/stats-view'
@@ -63,9 +66,12 @@ export function StatsCard({
   return (
     <section aria-label={title} className={cn('bg-background min-w-0 border', className)}>
       <h3 className="flex items-baseline gap-2 border-b px-3 py-2">
-        <span className="font-semibold">{title}</span>
+        {/* The title stays on one line; the detail gives way (in full on hover). */}
+        <span className="shrink-0 font-semibold whitespace-nowrap">{title}</span>
         {detail === undefined ? null : (
-          <span className="text-muted-foreground truncate text-xs">{detail}</span>
+          <span title={detail} className="text-muted-foreground min-w-0 truncate text-xs">
+            {detail}
+          </span>
         )}
       </h3>
       <div className="p-3">{children}</div>
@@ -152,6 +158,12 @@ export function Tile({
 
 const tick = { fill: 'var(--muted-foreground)', fontSize: 11 }
 
+/** A value axis from zero: to `max` in quarters when the values have a top (shares), else fitted. */
+const valueAxis = (max: number | undefined): Pick<YAxisProps, 'domain' | 'ticks'> =>
+  max === undefined
+    ? { domain: [0, 'auto'] }
+    : { domain: [0, max], ticks: [0, max / 4, max / 2, (3 * max) / 4, max] }
+
 /**
  * Bars over time, one stacked segment per series, a tooltip per bar (hover, tap or arrow keys) and
  * a legend when there is more than one series. `colors` overrides the ink colours by series key.
@@ -161,6 +173,7 @@ export function TimeBars({
   unit,
   timeZone,
   format,
+  max,
   colors = {}
 }: {
   readonly chart: SeriesChart
@@ -168,6 +181,8 @@ export function TimeBars({
   readonly timeZone: string
   /** Values on the axis and in the tooltip. */
   readonly format: (value: number) => string
+  /** The axis' top when the values have one (100 for shares); else it fits the data. */
+  readonly max?: number
   readonly colors?: Readonly<Partial<Record<string, string>>>
 }) {
   const color = (key: string, index: number) => colors[key] ?? seriesColor(key, index)
@@ -198,6 +213,7 @@ export function TimeBars({
             axisLine={false}
             tick={tick}
             allowDecimals={false}
+            {...valueAxis(max)}
             tickFormatter={(value: number) => format(value)}
           />
           <Tooltip
@@ -307,7 +323,11 @@ export function ShareTable({
     <table aria-label={label} className="w-full table-fixed text-xs">
       <thead className="text-muted-foreground">
         <tr>
-          <th className="w-[45%] pb-1 text-left font-normal">{label}</th>
+          <th
+            className={cn('pb-1 text-left font-normal', columns.length > 2 ? 'w-[45%]' : 'w-[60%]')}
+          >
+            {label}
+          </th>
           {columns.map(column => (
             <th key={column} className="pb-1 text-right font-normal">
               {column}
@@ -359,6 +379,60 @@ const heatCell = (value: number, largest: number) => {
   return ink === undefined || ink === '' ? undefined : { background: ink }
 }
 
+type Tip = { readonly text: string; readonly left: number; readonly top: number }
+
+/** Half a tip's usual width: how far from the card's edges its centre stays. */
+const tipHalfWidth = 130
+
+/**
+ * Hover tips for a heatmap's cells, like the charts' tooltips: any descendant with `data-tip`
+ * shows its text above it (one listener for the whole grid, kept inside the card's edges).
+ */
+export function HeatTips({ children }: { readonly children: ReactNode }) {
+  const [tip, setTip] = useState<Tip>()
+
+  const show = (target: EventTarget, container: HTMLElement) => {
+    const cell = target instanceof Element ? target.closest<HTMLElement>('[data-tip]') : null
+    const text = cell?.dataset.tip
+
+    if (cell === null || text === undefined) {
+      setTip(undefined)
+
+      return
+    }
+
+    const box = container.getBoundingClientRect()
+    const rect = cell.getBoundingClientRect()
+    const center = rect.left + rect.width / 2 - box.left
+    const right = Math.max(tipHalfWidth, box.width - tipHalfWidth)
+
+    setTip({
+      text,
+      left: Math.min(Math.max(center, tipHalfWidth), right),
+      top: rect.top - box.top
+    })
+  }
+
+  return (
+    <div
+      className="relative"
+      onMouseOver={event => show(event.target, event.currentTarget)}
+      onMouseLeave={() => setTip(undefined)}
+    >
+      {children}
+      {tip === undefined ? null : (
+        <div
+          role="tooltip"
+          className="border-border bg-popover text-popover-foreground pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full border px-2.5 py-1.5 font-mono text-xs whitespace-nowrap tabular-nums"
+          style={{ left: tip.left, top: tip.top - 6 }}
+        >
+          {tip.text}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /**
  * Counts by weekday (rows, Monday first) and hour of the day (columns): ink as dark as the busiest
  * hour, empty hours a hairline square; each square's count on hover.
@@ -374,41 +448,43 @@ export function HourHeatmap({
   const largest = Math.max(0, ...grid.cells.flat())
 
   return (
-    <div
-      role="table"
-      aria-label={`${noun} by weekday and hour`}
-      className="grid grid-cols-[2.5rem_repeat(24,minmax(0,1fr))] gap-0.5 text-[11px]"
-    >
-      <div role="row" className="contents">
-        <span role="columnheader" />
-        {grid.byHour.map((_, hour) => (
-          <span
-            key={hour}
-            role="columnheader"
-            className="text-muted-foreground text-center tabular-nums"
-          >
-            {hour % 3 === 0 ? twoDigits(hour) : ''}
-          </span>
-        ))}
-      </div>
-      {grid.cells.map((row, weekday) => (
-        <div key={weekdays[weekday]} role="row" className="contents">
-          <span role="rowheader" className="text-muted-foreground self-center">
-            {weekdays[weekday]}
-          </span>
-          {row.map((value, hour) => (
+    <HeatTips>
+      <div
+        role="table"
+        aria-label={`${noun} by weekday and hour`}
+        className="grid grid-cols-[2.5rem_repeat(24,minmax(0,1fr))] gap-0.5 text-[11px]"
+      >
+        <div role="row" className="contents">
+          <span role="columnheader" />
+          {grid.byHour.map((_, hour) => (
             <span
               key={hour}
-              role="cell"
-              title={`${weekdays[weekday]} ${twoDigits(hour)}:00 · ${value} ${noun}`}
-              aria-label={`${weekdays[weekday]} ${twoDigits(hour)}:00: ${value}`}
-              className={cn('h-5', value === 0 && 'bg-hairline/50')}
-              style={heatCell(value, largest)}
-            />
+              role="columnheader"
+              className="text-muted-foreground text-center tabular-nums"
+            >
+              {hour % 3 === 0 ? twoDigits(hour) : ''}
+            </span>
           ))}
         </div>
-      ))}
-    </div>
+        {grid.cells.map((row, weekday) => (
+          <div key={weekdays[weekday]} role="row" className="contents">
+            <span role="rowheader" className="text-muted-foreground self-center">
+              {weekdays[weekday]}
+            </span>
+            {row.map((value, hour) => (
+              <span
+                key={hour}
+                role="cell"
+                data-tip={`${weekdays[weekday]} ${twoDigits(hour)}:00–${twoDigits((hour + 1) % 24)}:00 · ${compactNumber(value)} ${noun}`}
+                aria-label={`${weekdays[weekday]} ${twoDigits(hour)}:00: ${value}`}
+                className={cn('h-5', value === 0 && 'bg-hairline/50')}
+                style={heatCell(value, largest)}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </HeatTips>
   )
 }
 
@@ -496,7 +572,7 @@ export function CategoryBars({
           axisLine={{ stroke: 'var(--border)' }}
           tick={tick}
           tickMargin={6}
-          interval={0}
+          minTickGap={6}
         />
         <YAxis
           width={44}
@@ -598,8 +674,18 @@ export function SessionScatter({ points }: { readonly points: ReadonlyArray<Sess
   )
 }
 
-/** Weeks the calendar keeps where it is narrow. */
+/** Weeks the calendar keeps in a narrow card (under 36rem). */
 const narrowWeeks = 26
+
+/** `Tue, Oct 6, 2026` for a `YYYY-MM-DD` day. */
+const dayFormat = (date: string) =>
+  new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC'
+  }).format(new Date(`${date}T00:00:00Z`))
 
 const monthFormat = (date: string) =>
   new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' }).format(
@@ -609,7 +695,7 @@ const monthFormat = (date: string) =>
 /**
  * A year of days like GitHub's contributions: a column per week (Monday on top) sharing the full
  * width, square days, darker for busier days in five even steps, month names over the weeks they
- * start; each day's count on hover. In a narrow page, the last 26 weeks.
+ * start; each day's count on hover. In a narrow card, the last 26 weeks.
  */
 export function CalendarHeatmap({
   weeks,
@@ -621,57 +707,70 @@ export function CalendarHeatmap({
   const largest = Math.max(0, ...weeks.flat().map(day => day.steps))
 
   return (
-    <div className="flex min-w-0 gap-1 text-[11px]">
-      {/* Stretches to the weeks' height, so its seven rows line up with their squares. */}
-      <div className="text-muted-foreground grid w-7 shrink-0 grid-rows-[1rem_repeat(7,minmax(0,1fr))] gap-[2px]">
-        <span />
-        {weekdays.map((day, index) => (
-          // Out of the flow, so the labels never make the rows taller than the squares.
-          <span key={day} className="relative">
-            {index % 2 === 0 ? (
-              <span className="absolute inset-y-0 left-0 flex items-center text-[10px]">{day}</span>
-            ) : null}
-          </span>
-        ))}
-      </div>
-      <div
-        role="table"
-        aria-label={`${noun} per day, last year`}
-        className="grid min-w-0 flex-1 auto-cols-[minmax(0,1fr)] grid-flow-col gap-[2px]"
-      >
-        {weeks.map((week, index) => {
-          const first = week[0]?.date ?? ''
-          const previous = weeks[index - 1]?.[0]?.date ?? ''
-          // Narrow (a phone), the last half year only, so the squares stay big enough to see.
-          const older = index < weeks.length - narrowWeeks
-          const newMonth = index === 0 || first.slice(0, 7) !== previous.slice(0, 7)
+    <HeatTips>
+      <div className="@container/calendar flex min-w-0 gap-1 text-[11px]">
+        {/* Stretches to the weeks' height, so its seven rows line up with their squares. */}
+        <div className="text-muted-foreground grid w-7 shrink-0 grid-rows-[1rem_repeat(7,minmax(0,1fr))] gap-[2px]">
+          <span />
+          {weekdays.map((day, index) => (
+            // Out of the flow, so the labels never make the rows taller than the squares.
+            <span key={day} className="relative">
+              {index % 2 === 0 ? (
+                <span className="absolute inset-y-0 left-0 flex items-center text-[10px]">
+                  {day}
+                </span>
+              ) : null}
+            </span>
+          ))}
+        </div>
+        <div
+          role="table"
+          aria-label={`${noun} per day, last year`}
+          className="grid min-w-0 flex-1 auto-cols-[minmax(0,1fr)] grid-flow-col gap-[2px]"
+        >
+          {weeks.map((week, index) => {
+            const first = week[0]?.date ?? ''
+            const previous = weeks[index - 1]?.[0]?.date ?? ''
+            // In a narrow card, the last half year only, so the squares stay big enough to see.
+            const older = index < weeks.length - narrowWeeks
+            const newMonth = index === 0 || first.slice(0, 7) !== previous.slice(0, 7)
+            // The half year's first week names its month too, but only while it starts the row.
+            const narrowStart = !newMonth && index === weeks.length - narrowWeeks
 
-          return (
-            <div
-              key={first}
-              role="row"
-              className={cn('grid content-start gap-[2px]', older && '@max-3xl:hidden')}
-            >
-              {/* The month name overflows into the next weeks without widening its own. */}
-              <span role="columnheader" className="text-muted-foreground relative h-4">
-                {newMonth ? (
-                  <span className="absolute left-0 whitespace-nowrap">{monthFormat(first)}</span>
-                ) : null}
-              </span>
-              {week.map(day => (
-                <span
-                  key={day.date}
-                  role="cell"
-                  title={`${day.date} · ${compactNumber(day.steps)} ${noun}`}
-                  aria-label={`${day.date}: ${day.steps}`}
-                  className={cn('aspect-square', day.steps === 0 && 'bg-hairline/50')}
-                  style={heatCell(day.steps, largest)}
-                />
-              ))}
-            </div>
-          )
-        })}
+            return (
+              <div
+                key={first}
+                role="row"
+                className={cn('grid content-start gap-[2px]', older && '@max-xl/calendar:hidden')}
+              >
+                {/* The month name overflows into the next weeks without widening its own. */}
+                <span role="columnheader" className="text-muted-foreground relative h-4">
+                  {newMonth || narrowStart ? (
+                    <span
+                      className={cn(
+                        'absolute left-0 whitespace-nowrap',
+                        narrowStart && '@xl/calendar:hidden'
+                      )}
+                    >
+                      {monthFormat(first)}
+                    </span>
+                  ) : null}
+                </span>
+                {week.map(day => (
+                  <span
+                    key={day.date}
+                    role="cell"
+                    data-tip={`${dayFormat(day.date)} · ${wholeNumber(day.steps)} ${noun}`}
+                    aria-label={`${day.date}: ${day.steps}`}
+                    className={cn('aspect-square', day.steps === 0 && 'bg-hairline/50')}
+                    style={heatCell(day.steps, largest)}
+                  />
+                ))}
+              </div>
+            )
+          })}
+        </div>
       </div>
-    </div>
+    </HeatTips>
   )
 }

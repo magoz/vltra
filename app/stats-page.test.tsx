@@ -270,4 +270,22 @@ describe('stats tab', () => {
         .slice(0, 2)
     ).toEqual(['fleet', 'box'])
   })
+
+  it('shows a heatmap cell on hover', async () => {
+    vi.stubGlobal(
+      'fetch',
+      statsFetch(() => Response.json(report))
+    )
+    renderStats()
+
+    const prompts = await screen.findByRole('table', { name: 'prompts by weekday and hour' })
+
+    fireEvent.mouseOver(within(prompts).getByLabelText('Tue 14:00: 7'))
+
+    expect(screen.getByRole('tooltip').textContent).toBe('Tue 14:00–15:00 · 7 prompts')
+
+    fireEvent.mouseLeave(prompts.parentElement ?? prompts)
+
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  })
 })
