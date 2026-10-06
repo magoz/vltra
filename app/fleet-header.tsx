@@ -184,10 +184,11 @@ export const usageDetail = (pools: ReadonlyArray<UsagePool>, now: number): strin
     .join('\n')
 
 /**
- * The subscription quotas, condensed: `Claude 45% · Codex 106% of 200% · Z.AI 100% · Go 34% left`,
- * each the window that runs out first, summed over a pool's accounts (red at 10% of the capacity or
- * less); every window and reset on hover. Desktops
- * under 84rem leave it out, where the count line could no longer sit centred beside it.
+ * The subscription quotas, condensed: `Claude 106% 2d · Codex 184% 4d · Z.AI 100% 1d · Go 32% 5d`,
+ * each the % left of the window that runs out first, summed over a pool's accounts (red at 10% of
+ * the capacity or less), then the time to the pool's first weekly reset; every window and reset on
+ * hover. Desktops under 84rem leave it out, where the count line could no longer sit centred
+ * beside it.
  */
 export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readonly now: number }) {
   if (usage.pools.length === 0) return null
@@ -211,10 +212,11 @@ export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readon
           >
             {pool.reading === undefined ? '–' : `${percentText(pool.reading.left)}%`}
           </span>
-          {pool.reading === undefined ? null : capacityText(pool.reading)}
+          {pool.weeklyResetAt === undefined || pool.weeklyResetAt <= now
+            ? null
+            : ` ${relativeTime(now, pool.weeklyResetAt)}`}
         </span>
-      ))}{' '}
-      left
+      ))}
     </p>
   )
 }

@@ -604,6 +604,8 @@ export const UsagePool = Schema.Struct({
   name: Schema.String,
   /** Absent when no account reports. */
   reading: Schema.optional(UsageReading),
+  /** The first of the pool's accounts' weekly resets (epoch ms); absent when none says. */
+  weeklyResetAt: Schema.optional(Schema.Number),
   /** Some reading is the last good one (a refresh failed). */
   stale: Schema.Boolean,
   windows: Schema.Array(UsageWindow)

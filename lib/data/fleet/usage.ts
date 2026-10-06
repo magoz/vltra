@@ -23,6 +23,21 @@ const tightest = (account: QuotaAccount) => {
     : Math.min(...binding.map(window => window.remainingPercent))
 }
 
+const week = 7 * 24 * 60
+
+/** The first weekly reset among the accounts, model-scoped weeks aside. */
+const firstWeeklyReset = (accounts: ReadonlyArray<QuotaAccount>) => {
+  const resets = accounts.flatMap(account =>
+    account.windows.flatMap(window =>
+      window.durationMinutes === week && !isModelScoped(window) && window.resetsAt !== undefined
+        ? [window.resetsAt]
+        : []
+    )
+  )
+
+  return resets.length === 0 ? undefined : Math.min(...resets)
+}
+
 /** Each account adds its own 100%: the proxy moves on to the next one when one runs out. */
 const pooled = (values: ReadonlyArray<number>): UsageReading | undefined =>
   values.length === 0
@@ -56,6 +71,7 @@ const toPool = (accounts: ReadonlyArray<QuotaAccount>, provider: string): UsageP
     provider,
     name,
     reading,
+    weeklyResetAt: firstWeeklyReset(accounts),
     stale: accounts.some(account => !account.fresh),
     windows: accounts.flatMap(account =>
       account.windows.map(window => ({
@@ -70,8 +86,8 @@ const toPool = (accounts: ReadonlyArray<QuotaAccount>, provider: string): UsageP
 
 /**
  * One pool per provider, Claude, Codex, Z.AI and Go first: how much is left of the window that
- * runs out first (summed over the pool's accounts, out of 100% each), and every window for the
- * details.
+ * runs out first (summed over the pool's accounts, out of 100% each), the first weekly reset, and
+ * every window for the details.
  */
 export const usageSummary = (accounts: ReadonlyArray<QuotaAccount>): UsageSummary => {
   const providers = Array.from(new Set(accounts.map(account => account.provider))).toSorted(

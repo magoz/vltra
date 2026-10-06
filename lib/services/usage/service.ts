@@ -7,6 +7,8 @@ export type QuotaWindow = {
   readonly id: string
   readonly label: string
   readonly remainingPercent: number
+  /** The window's length (`10080` for a week); absent when the dashboard does not say. */
+  readonly durationMinutes: number | undefined
   /** Epoch milliseconds; absent when the provider does not say. */
   readonly resetsAt: number | undefined
 }

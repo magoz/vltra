@@ -180,6 +180,7 @@ describe('usage line', () => {
         provider: 'anthropic',
         name: 'Claude',
         reading: { left: 45, capacity: 100 },
+        weeklyResetAt: 5 * 24 * hour,
         stale: false,
         windows: [
           { account: 'me@x.com', label: '5-hour', left: 89, resetsAt: 3 * hour },
@@ -201,12 +202,12 @@ describe('usage line', () => {
     ]
   }
 
-  it("reads each pool's % left of its capacity condensed, a low one in red, every window on hover", () => {
+  it("reads each pool's % left and first weekly reset, a low one in red, every window on hover", () => {
     render(<UsageLine usage={usage} now={0} />)
 
     const line = screen.getByLabelText('Usage left')
 
-    expect(line.textContent).toBe('Claude 45% · Codex 15% of 200% · Z.AI – left')
+    expect(line.textContent).toBe('Claude 45% 5d · Codex 15% · Z.AI –')
     expect(within(line).getByText('45%').className).not.toContain('text-destructive')
     expect(within(line).getByText('15%').className).toContain('text-destructive')
     expect(line.title).toBe(

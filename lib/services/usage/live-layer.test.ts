@@ -72,9 +72,16 @@ describe('UsageLive', () => {
               id: 'weekly',
               label: 'Weekly',
               remainingPercent: 45,
+              durationMinutes: 10080,
               resetsAt: Date.parse('2026-10-09T18:00:00.000Z')
             },
-            { id: 'five-hour', label: '5-hour', remainingPercent: 100, resetsAt: undefined }
+            {
+              id: 'five-hour',
+              label: '5-hour',
+              remainingPercent: 100,
+              durationMinutes: undefined,
+              resetsAt: undefined
+            }
           ]
         },
         { provider: 'zai', providerName: 'Z.AI', account: 'key', fresh: false, windows: [] }

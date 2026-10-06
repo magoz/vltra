@@ -15,12 +15,20 @@ const account = (
   ...overrides
 })
 
-const window = (id: string, remainingPercent: number, resetsAt?: number) => ({
+const window = (
+  id: string,
+  remainingPercent: number,
+  resetsAt?: number,
+  durationMinutes?: number
+) => ({
   id,
   label: id,
   remainingPercent,
+  durationMinutes,
   resetsAt
 })
+
+const week = 7 * 24 * 60
 
 describe('usage summary', () => {
   it('one pool per provider, Claude, Codex, Z.AI and Go first, the rest as reported', () => {
@@ -67,6 +75,21 @@ describe('usage summary', () => {
     ]).pools
 
     expect(codex).toMatchObject({ reading: { left: 46, capacity: 200 }, stale: true })
+  })
+
+  it("carries the first of the accounts' weekly resets, never a 5-hour or model-scoped one", () => {
+    const [claude] = usageSummary([
+      account('anthropic', [window('five-hour', 90, 100, 300), window('weekly', 6, 3000, week)], {
+        account: 'a@x.com'
+      }),
+      account(
+        'anthropic',
+        [window('weekly', 100, 5000, week), window('weekly-scoped-opus', 50, 2000, week)],
+        { account: 'b@x.com' }
+      )
+    ]).pools
+
+    expect(claude?.weeklyResetAt).toBe(3000)
   })
 
   it('has no figure when no account reports', () => {

@@ -22,6 +22,7 @@ const UsageResponse = Schema.Struct({
           id: Schema.String,
           label: Schema.String,
           remainingPercent: Schema.Number,
+          durationMinutes: Schema.optional(Schema.NullOr(Schema.Number)),
           resetsAt: Schema.NullOr(Schema.String)
         })
       )
@@ -49,6 +50,7 @@ export const toAccounts = (response: UsageResponse): ReadonlyArray<QuotaAccount>
       id: window.id,
       label: window.label,
       remainingPercent: window.remainingPercent,
+      durationMinutes: window.durationMinutes ?? undefined,
       resetsAt: resetTime(window.resetsAt)
     }))
   }))
