@@ -271,8 +271,9 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   upstream has no embed mode. Fleet serves OpenCode's web UI and API from its own origin
   (`proxy.ts`: OpenCode's root paths, `/api/*` but `/api/fleet/*`, to the loopback service;
   `/sw.js` stays out; `opencode-proxy.ts` gives same-origin requests the target's `Origin` so
-  OpenCode honours its cookie), so the chat is same-origin, signed in by OpenCode's pairing cookie
-  (`opencode pair --url https://fleet.oox.sh`, once per browser). Same-origin lets Fleet take the
+  OpenCode honours its cookie; Next buffers every proxied body, silently cut at
+  `proxyClientMaxBodySize`, `1gb` in `next.config.ts` for pasted images and files), so the chat
+  is same-origin, signed in by OpenCode's pairing cookie (`opencode pair --url https://fleet.oox.sh`, once per browser). Same-origin lets Fleet take the
   chat's keys (`useChatFrame` / `forwardChatKeys` in `chat-keys.ts`: a capture listener on the
   frame's window replays each key on Fleet's document unless the chat owns it: typing, its
   overlays, scroll keys, `Enter` on a control; `⌘K`, `⌘/` and the `⌘` chords are always Fleet's,

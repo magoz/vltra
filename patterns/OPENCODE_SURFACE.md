@@ -152,6 +152,21 @@ a session's panel posts `POST /api/session/:id/view { idle }` for OpenCode's unr
   `(sessionID, idle)` for the life of the process, so each run's log is read at most once;
   `user` is then auto-handled as above.
 
+## Web UI internals (chat iframe)
+
+The chat panel leans on OpenCode's web UI, not its API: nothing here is tested against a real
+build, so check each by hand after an upgrade (verified on 2.0.22).
+
+| Fleet relies on                                                    | Where                         |
+| ------------------------------------------------------------------ | ----------------------------- |
+| Session route `/server/<base64url(origin)>/session/<id>`           | `links.ts`, `chat-navigation` |
+| Its router follows `replaceState` + `popstate` (session switch)    | `chat-navigation.ts`          |
+| Composer `[data-component="composer-editor"][contenteditable]`     | `chat-composer.ts`            |
+| `opencode:session-tabs-removed` event, `…browser.dat:tabs` storage | `chat-tabs.ts`                |
+| Root paths it serves, and its worker at `/sw.js` (kept out)        | `proxy.ts`, `public/sw.js`    |
+
+A broken router move shows as Fleet's header on the new session and the chat on the old one.
+
 ## Test isolation (integration)
 
 `lib/services/opencode/testing/opencode-server.ts` starts `opencode serve` on a random
