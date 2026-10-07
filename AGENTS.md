@@ -288,7 +288,10 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   (finished; phone only, the desktop card has its own) / Reopen (handled; neither for "folder deleted"), open in the terminal (`ocb://`,
   fine pointers only) or a new tab, close (desktop). Messages, asks, follow-ups and Stop happen in
   the chat. Being same-site, the iframe runs on Fleet's main thread: keep one chat mounted at a
-  time (no hidden pages, no pools).
+  time (no hidden pages, no pools). The panel is not keyed by session: switching moves that one
+  frame inside OpenCode's router (`showInChat` in `chat-navigation.ts`: `replaceState` +
+  `popstate`, ~40ms) instead of a new frame starting OpenCode again (a second and more); a frame
+  not loaded yet loads the URL instead.
 - Mutations go through `FleetActions` (`app/fleet-actions.tsx`): the dashboard provides the server
   actions (the launcher's `launch`, `newSession`, `retireWorktree`, `dismissLaunch` and
   `suggestBranch` return `FleetActionValue`s when they carry a value), component tests provide

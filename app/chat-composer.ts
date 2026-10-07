@@ -51,16 +51,22 @@ const mayAutoFocus = () => {
 
 /**
  * Focuses the composer of a chat that just loaded, once it shows (OpenCode renders it after its
- * own data loads), unless `mayAutoFocus` says no then. Gives up after `composerWait`, e.g. a
- * subagent's session, which has no composer. Returns the cleanup.
+ * own data loads), unless `mayAutoFocus` says no then. After a move to another session
+ * (`showInChat`), `replacing`: the composer on screen is the last session's, so it waits for
+ * OpenCode's new one. Gives up after `composerWait`, e.g. a subagent's session, which has no
+ * composer. Returns the cleanup.
  */
-export const autoFocusComposer = (frame: HTMLIFrameElement): (() => void) => {
+export const autoFocusComposer = (frame: HTMLIFrameElement, replacing = false): (() => void) => {
   const frameDocument = frame.contentDocument
 
   if (frameDocument === null) return () => undefined
 
+  const stale = replacing ? composerOf(frame) : undefined
+
   const settle = () => {
-    if (composerOf(frame) === undefined) return false
+    const composer = composerOf(frame)
+
+    if (composer === undefined || composer === stale) return false
 
     if (mayAutoFocus()) focusComposer(frame)
 

@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
-import { focusComposer } from '@/app/chat-composer'
+import { autoFocusComposer, focusComposer } from '@/app/chat-composer'
 import { useChatFrame } from '@/app/chat-keys'
+import { showInChat } from '@/app/chat-navigation'
 import { useCloseDoneTabs } from '@/app/chat-tabs'
 import { CommandKey, commandKey, inDialog } from '@/app/command-keys'
 import { useFleet } from '@/app/fleet-context'
@@ -94,10 +95,32 @@ function useInsertKeys(frame: RefObject<HTMLIFrameElement | null>) {
 }
 
 /**
+ * Moves the chat to `url` when the open session changes (`showInChat`: inside OpenCode's router
+ * once it has loaded), focusing the new session's composer like a first load does.
+ */
+function useChatSession(frame: RefObject<HTMLIFrameElement | null>, url: string) {
+  const shown = useRef(url)
+
+  useEffect(() => {
+    const element = frame.current
+
+    if (element === null || shown.current === url) return
+
+    shown.current = url
+
+    if (showInChat(element, url) === 'loading') return
+
+    return autoFocusComposer(element, true)
+  }, [frame, url])
+}
+
+/**
  * OpenCode's own web UI for the session (`row.links.web`), framed. Served from Fleet's origin
  * (`proxy.ts`), so a browser paired once there (`opencode pair`) stays signed in and the keys
  * pressed in the chat that it does not own reach Fleet (`useChatFrame`). OpenCode has no embed
- * mode, so its full app chrome shows; done sessions leave its tab strip (`useCloseDoneTabs`).
+ * mode, so its full app chrome shows; done sessions leave its tab strip (`useCloseDoneTabs`). One
+ * frame for every session: `src` is the first, then `useChatSession` moves it, as a new frame
+ * would start the whole app again (a second and more).
  */
 function OpenCodeChat({
   sessionID,
@@ -110,8 +133,10 @@ function OpenCodeChat({
 }) {
   const frame = useRef<HTMLIFrameElement>(null)
   const loaded = useChatFrame(frame)
+  const [src] = useState(url)
 
   useInsertKeys(frame)
+  useChatSession(frame, url)
   useCloseDoneTabs(frame, loaded, sessionID, url)
 
   return (
@@ -127,7 +152,7 @@ function OpenCodeChat({
       )}
       <iframe
         ref={frame}
-        src={url}
+        src={src}
         title={title}
         allow="clipboard-read; clipboard-write"
         referrerPolicy="no-referrer"
@@ -183,7 +208,8 @@ type SessionPanelProps = {
  * button, state and title, Handled or Reopen, open in the terminal or a new tab, close). Messages,
  * asks, follow-ups and Stop all happen in the chat. It fills its container: the split beside the
  * board and Projects (`SessionSplit`), or focus mode's pane (full screen on the phone either way).
- * Callers key it by session, so a new session or closing drops the iframe.
+ * Callers keep it mounted across sessions (no `key`), so a new session moves the one chat frame
+ * (`OpenCodeChat`) instead of starting OpenCode again; closing drops it.
  */
 export function SessionPanel({ sessionID, item, onClose }: SessionPanelProps) {
   const row = item?.row
@@ -253,7 +279,6 @@ export function SessionSplit() {
       className="bg-background flex min-h-0 min-w-0 flex-col max-lg:fixed max-lg:inset-0 max-lg:z-30 lg:w-[min(52rem,42vw)] lg:shrink-0 lg:border-l"
     >
       <SessionPanel
-        key={selected}
         sessionID={selected}
         item={row === undefined ? undefined : boardRow(view, row)}
         onClose={selection.close}

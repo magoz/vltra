@@ -171,12 +171,7 @@ function Focus() {
           {selected === undefined ? (
             <EmptyPane empty={list.length === 0} />
           ) : (
-            <SessionPanel
-              key={selected}
-              sessionID={selected}
-              item={selectedItem}
-              onClose={selection.close}
-            />
+            <SessionPanel sessionID={selected} item={selectedItem} onClose={selection.close} />
           )}
         </section>
       </div>

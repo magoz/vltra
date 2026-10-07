@@ -77,7 +77,7 @@ describe('session split', () => {
     expect(pane().textContent).not.toContain('Not signed in?')
   })
 
-  it('drops the iframe when the session changes or the split closes', () => {
+  it('keeps one iframe across sessions, moving it, and drops it when the split closes', () => {
     renderDashboard()
     open('Wait old')
 
@@ -87,8 +87,10 @@ describe('session split', () => {
 
     open('Done new')
 
-    expect(first?.isConnected).toBe(false)
-    expect(iframe()?.getAttribute('src')).toBe(webLink('ses_done_new'))
+    // Not loaded yet (jsdom loads nothing), so the frame loads the new session's URL.
+    expect(iframe()).toBe(first)
+    expect(first?.getAttribute('src')).toBe(webLink('ses_done_new'))
+    expect(first?.getAttribute('title')).toBe('Done new')
 
     press('Escape')
 
