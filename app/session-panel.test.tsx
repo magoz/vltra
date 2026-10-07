@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SessionPanel } from '@/app/session-panel'
-import { fakeActions, itemFor, rowFrom, WithActions } from '@/app/testing/dashboard-fixtures'
+import { fakeActions, itemFor, rowFrom, WithFleet } from '@/app/testing/dashboard-fixtures'
 import { baseTime, sessionRecord } from '@/lib/data/fleet/testing/fixtures'
 import type { FleetRow, SessionRecord } from '@/lib/data/fleet/types'
 
@@ -9,16 +9,17 @@ const renderPanel = (row: FleetRow | undefined, actions = fakeActions()) => {
   const onClose = vi.fn<() => void>()
 
   render(
-    <WithActions
+    <WithFleet
       actions={actions.actions}
       rows={row === undefined ? undefined : new Map([[row.id, row]])}
+      now={baseTime}
     >
       <SessionPanel
         sessionID="ses_1"
         item={row === undefined ? undefined : itemFor(row)}
         onClose={onClose}
       />
-    </WithActions>
+    </WithFleet>
   )
 
   return { onClose, calls: actions.calls }

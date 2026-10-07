@@ -32,6 +32,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | Rollout script                   | `scripts/import-handled.ts`                                      | `pnpm fleet:import-handled`, one-off, never auto-run     |
 | OpenCode client                  | `lib/services/opencode/`                                         | See `patterns/OPENCODE_SURFACE.md`                       |
 | Chat proxy, chat keys            | `proxy.ts`, `app/opencode-proxy.ts`, `app/chat-keys.ts`          | Same-origin OpenCode iframe; Fleet's keys inside it      |
+| Chat tab strip cleanup           | `app/chat-tabs.ts`                                               | Done sessions leave OpenCode's tabs (its own event)      |
 | Runtime (one per process)        | `lib/runtime/fleet-runtime.ts`                                   | `ManagedRuntime` on `globalThis`; `runFleet`             |
 | Watcher start                    | `instrumentation.ts`                                             | Node runtime only; skipped during `next build`           |
 | Shutdown (SIGTERM deadline)      | `lib/runtime/shutdown.ts`                                        | Exits 3s after the signal; `LONG_LIVED_WATCHER.md`       |
@@ -276,7 +277,13 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   frame's window replays each key on Fleet's document unless the chat owns it: typing, its
   overlays, scroll keys, `Enter` on a control; `⌘K`, `⌘/` and the `⌘` chords are always Fleet's,
   `⌘P` OpenCode's; `Escape` goes to the chat
-  first and an unused one moves focus to Fleet, where the next closes the session). Its
+  first and an unused one moves focus to Fleet, where the next closes the session). Every
+  session opened leaves a tab in OpenCode's own tab strip (browser localStorage; its server knows
+  nothing of tabs), so done sessions leave it (`useCloseDoneTabs` in `chat-tabs.ts`): once the chat
+  loads and whenever the done set changes, Fleet sends OpenCode's internal
+  `opencode:session-tabs-removed` event into the frame (made in the frame's realm: OpenCode checks
+  `instanceof CustomEvent`), all done sessions but the open one; it reads the saved strip back,
+  resends while tabs stay, then warns (OpenCode changed). Each browser cleans its own. Its
   slim toolbar has only what Fleet adds: the phone's back button, state and title, `✔ Done`
   (finished; phone only, the desktop card has its own) / Reopen (handled; neither for "folder deleted"), open in the terminal (`ocb://`,
   fine pointers only) or a new tab, close (desktop). Messages, asks, follow-ups and Stop happen in

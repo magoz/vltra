@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import { focusComposer } from '@/app/chat-composer'
 import { useChatFrame } from '@/app/chat-keys'
+import { useCloseDoneTabs } from '@/app/chat-tabs'
 import { CommandKey, commandKey, inDialog } from '@/app/command-keys'
 import { useFleet } from '@/app/fleet-context'
 import { sessionTitle } from '@/app/fleet-format'
@@ -96,13 +97,22 @@ function useInsertKeys(frame: RefObject<HTMLIFrameElement | null>) {
  * OpenCode's own web UI for the session (`row.links.web`), framed. Served from Fleet's origin
  * (`proxy.ts`), so a browser paired once there (`opencode pair`) stays signed in and the keys
  * pressed in the chat that it does not own reach Fleet (`useChatFrame`). OpenCode has no embed
- * mode, so its full app chrome shows.
+ * mode, so its full app chrome shows; done sessions leave its tab strip (`useCloseDoneTabs`).
  */
-function OpenCodeChat({ url, title }: { readonly url: string; readonly title: string }) {
+function OpenCodeChat({
+  sessionID,
+  url,
+  title
+}: {
+  readonly sessionID: string
+  readonly url: string
+  readonly title: string
+}) {
   const frame = useRef<HTMLIFrameElement>(null)
   const loaded = useChatFrame(frame)
 
   useInsertKeys(frame)
+  useCloseDoneTabs(frame, loaded, sessionID, url)
 
   return (
     <div className="relative min-h-0 flex-1">
@@ -218,7 +228,7 @@ export function SessionPanel({ sessionID, item, onClose }: SessionPanelProps) {
           This session is not on the board, so Fleet has no OpenCode link for it.
         </p>
       ) : (
-        <OpenCodeChat url={row.links.web} title={title} />
+        <OpenCodeChat sessionID={sessionID} url={row.links.web} title={title} />
       )}
     </div>
   )
