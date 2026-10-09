@@ -129,10 +129,15 @@ describe('focus mode', () => {
     expect(within(list()).queryByRole('combobox', { name: 'Project' })).toBeNull()
     expect(within(row('ses_wait_old')).getByText('blocked')).toBeTruthy()
     expect(within(row('ses_done_old')).queryByText('blocked')).toBeNull()
-    // Rows are titles (and Handled when finished); asks and run facts are in the chat.
+    // Rows are titles (and Handled when finished, on hover only: touch swipes); asks and run
+    // facts are in the chat.
     expect(row('ses_wait_old').textContent).not.toContain('pnpm test per_old')
     expect(within(row('ses_wait_old')).queryByRole('button')).toBeNull()
-    expect(within(row('ses_done_old')).getByRole('button', { name: 'Done' })).toBeTruthy()
+    const done = within(row('ses_done_old')).getByRole('button', { name: 'Done' })
+    expect(done.className.split(' ')).toEqual(
+      expect.arrayContaining(['hidden', 'pointer-fine:group-hover/card:inline-flex'])
+    )
+    expect(done.className.split(' ')).not.toContain('inline-flex')
     expect(within(row('ses_done_old')).getByRole('img', { name: 'Finished · failed' })).toBeTruthy()
     expect(within(row('ses_done_old')).queryByText('run failed')).toBeNull()
     // Working and handled sessions are not listed, but the count line still has them.

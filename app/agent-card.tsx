@@ -58,7 +58,7 @@ function WorktreeLine({ item }: { readonly item: BoardRow }) {
  * A session's card, on the Agents board and in focus mode's list: marker (red for a failed run),
  * project, a "blocked" badge (both lists hold blocked and finished alike), `✔ Done`
  * left of the age when finished (with a mouse only on hover, the project name giving way; on
- * touch always, and swiping left does the same), age, title, the worktree line (`WorktreeLine`), the stuck /
+ * touch always but in focus mode's list, swiping left doing the same), age, title, the worktree line (`WorktreeLine`), the stuck /
  * "folder deleted" flags, then Reopen when done. Asks, answers and activity are left to the
  * chat. `cursor` is the keyboard focus. `compact` is focus mode's list row: no box of its own, a
  * hairline under it, tighter spacing, and the open session tinted.
@@ -129,8 +129,10 @@ export function AgentCard({
               size="sm"
               className={cn(
                 'relative z-10 -my-1 self-center',
-                // Mouse: only on hover, left of the age (the project name gives way).
-                'pointer-fine:hidden pointer-fine:group-hover/card:inline-flex'
+                // Mouse: only on hover, left of the age (the project name gives way). Touch: in
+                // focus mode's list a swipe does it, so no button.
+                compact ? 'hidden' : 'pointer-fine:hidden',
+                'pointer-fine:group-hover/card:inline-flex'
               )}
             />
           ) : null}

@@ -144,7 +144,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   Done (handled): active in the last 24h, newest first, then "N more → Projects". Cards
   (`agent-card.tsx`) are minimal: marker (red for a failed run), the project (`boardRow`; the
   global project's sessions by their directory), the `blocked` badge, `✔ Done` left of the age
-  (finished; with a mouse only on hover, the project name giving way; on touch always), age,
+  (finished; with a mouse only on hover, the project name giving way; on touch always, but not
+  in Focus' list), age,
   title, then for worktree sessions a line with the worktree (`worktreeLabel`: its folder minus
   the repo's `<name>-` prefix) left and its PR plus the issues it closes right, linked
   (`worktreeAt` in the launcher list; none before it loads or for the primary checkout), flags for
@@ -240,7 +241,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
 - Handled / Undo / Reopen (`use-handled.tsx`, provided by the shell): applied at once as
   optimistic overrides (until the server's next word on that row, `withOverrides`), Handled
   raises a sonner toast with Undo (= reopen, after the handled write). No "handle all", no drag
-  and drop. Phone: swipe a finished card left (`use-swipe.ts`); the `✔ Done` button stays.
+  and drop. Phone: swipe a finished card left (`use-swipe.ts`); the board's cards keep the `✔ Done`
+  button, Focus' list rows do not (swipe only).
 - Keys (`use-keys.ts`, desktop; ignored while typing (except `Escape`), with modifiers and in
   dialogs; in the chat, `chat-keys.ts` hands Fleet the keys the chat does not own, see the
   session panel): shell `1`–`5` the tabs, `n` the launcher (and `⌘K` / `Ctrl+K`,
