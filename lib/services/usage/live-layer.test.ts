@@ -38,6 +38,7 @@ describe('UsageLive', () => {
           generatedAt: '2026-10-04T10:00:00.000Z',
           accounts: [
             {
+              id: 'anthropic:me@x.com',
               provider: 'anthropic',
               providerName: 'Claude',
               account: 'me@x.com',
@@ -56,6 +57,7 @@ describe('UsageLive', () => {
               ]
             },
             {
+              id: 'opencode-go:key',
               provider: 'opencode-go',
               providerName: 'OpenCode Go',
               account: 'key',
@@ -63,7 +65,18 @@ describe('UsageLive', () => {
               windows: []
             }
           ],
-          warnings: []
+          warnings: [],
+          routing: {
+            status: 'available',
+            accounts: [
+              {
+                accountId: 'anthropic:me@x.com',
+                provider: 'anthropic',
+                models: ['claude-opus-5-5'],
+                switching: false
+              }
+            ]
+          }
         })
       )
 
@@ -73,6 +86,7 @@ describe('UsageLive', () => {
           providerName: 'Claude',
           account: 'me@x.com',
           fresh: true,
+          active: true,
           windows: [
             {
               id: 'weekly',
@@ -95,9 +109,31 @@ describe('UsageLive', () => {
           providerName: 'OpenCode Go',
           account: 'key',
           fresh: false,
+          active: false,
           windows: []
         }
       ])
+    })
+  )
+
+  it.effect('marks no account active when routing is unknown or missing', () =>
+    Effect.gen(function* () {
+      const accounts = [
+        {
+          id: 'codex:me@x.com',
+          provider: 'codex',
+          providerName: 'Codex',
+          account: 'me@x.com',
+          status: 'fresh',
+          windows: []
+        }
+      ]
+
+      answer(200, JSON.stringify({ accounts, routing: { status: 'unavailable' } }))
+      expect((yield* makeUsage(base).accounts).map(account => account.active)).toEqual([false])
+
+      answer(200, JSON.stringify({ accounts }))
+      expect((yield* makeUsage(base).accounts).map(account => account.active)).toEqual([false])
     })
   )
 

@@ -189,6 +189,7 @@ describe('usage line', () => {
         reading: { left: 45, capacity: 100 },
         resetAt: 5 * 24 * hour,
         stale: false,
+        activeAccounts: ['me@x.com'],
         windows: [
           { account: 'me@x.com', label: '5-hour', left: 89, resetsAt: 3 * hour },
           { account: 'me@x.com', label: 'Weekly', left: 45, resetsAt: 5 * 24 * hour }
@@ -200,12 +201,21 @@ describe('usage line', () => {
         // 15% of 200% is 7.5% of the pool: low.
         reading: { left: 15, capacity: 200 },
         stale: false,
+        // The proxy routes Codex to b, so its windows come first.
+        activeAccounts: ['b@x.com'],
         windows: [
-          { account: 'a@x.com', label: 'Weekly', left: 0 },
-          { account: 'b@x.com', label: 'Weekly', left: 15 }
+          { account: 'b@x.com', label: 'Weekly', left: 15 },
+          { account: 'a@x.com', label: 'Weekly', left: 0 }
         ]
       },
-      { provider: 'opencode-go', name: 'Go', reading: undefined, stale: true, windows: [] }
+      {
+        provider: 'opencode-go',
+        name: 'Go',
+        reading: undefined,
+        stale: true,
+        activeAccounts: [],
+        windows: []
+      }
     ]
   }
 
@@ -234,6 +244,19 @@ describe('usage line', () => {
     expect(
       within(screen.getByRole('region', { name: 'a@x.com' })).getByText('0% left').className
     ).toContain('text-destructive')
+  })
+
+  it('lists the account the proxy routes to first, marked active', async () => {
+    render(<UsageLine usage={usage} now={0} />)
+
+    fireEvent.focus(screen.getByRole('button', { name: /Codex/ }))
+
+    const b = await screen.findByRole('region', { name: 'b@x.com' })
+    const a = screen.getByRole('region', { name: 'a@x.com' })
+
+    expect(b.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(b).getByRole('heading').textContent).toBe('b@x.comactive')
+    expect(within(a).getByRole('heading').textContent).toBe('a@x.com')
   })
 
   it('names each window with its time to reset, and says when a pool has no reading', () => {

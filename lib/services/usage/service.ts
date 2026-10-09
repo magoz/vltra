@@ -21,6 +21,11 @@ export type QuotaAccount = {
   readonly account: string
   /** Whether the reading is current; a failed refresh keeps the last one (stale). */
   readonly fresh: boolean
+  /**
+   * The model proxy currently routes its pool here (the dashboard's `routing`, from the proxy's
+   * sticky-fill-first pins); false when it does not or nobody knows.
+   */
+  readonly active: boolean
   readonly windows: ReadonlyArray<QuotaWindow>
 }
 

@@ -11,6 +11,7 @@ const account = (
   providerName: provider,
   account: `${provider}@x.com`,
   fresh: true,
+  active: false,
   windows,
   ...overrides
 })
@@ -111,6 +112,20 @@ describe('usage summary', () => {
     expect(claude?.resetAt).toBe(3000)
   })
 
+  it("puts the accounts the proxy routes to first and names them, else keeps the dashboard's order", () => {
+    const [claude, codex] = usageSummary([
+      account('anthropic', [window('weekly', 90)], { account: 'a@x.com' }),
+      account('anthropic', [window('weekly', 30)], { account: 'b@x.com', active: true }),
+      account('codex', [window('weekly', 10)], { account: 'c@x.com' }),
+      account('codex', [window('weekly', 20)], { account: 'd@x.com' })
+    ]).pools
+
+    expect(claude?.activeAccounts).toEqual(['b@x.com'])
+    expect(claude?.windows.map(window => window.account)).toEqual(['b@x.com', 'a@x.com'])
+    expect(codex?.activeAccounts).toEqual([])
+    expect(codex?.windows.map(window => window.account)).toEqual(['c@x.com', 'd@x.com'])
+  })
+
   it('has no figure when no account reports', () => {
     const [go] = usageSummary([account('opencode-go', [], { fresh: false })]).pools
 
@@ -119,6 +134,7 @@ describe('usage summary', () => {
       name: 'Go',
       reading: undefined,
       stale: true,
+      activeAccounts: [],
       windows: []
     })
   })

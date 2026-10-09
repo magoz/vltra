@@ -612,6 +612,8 @@ export const UsagePool = Schema.Struct({
   resetAt: Schema.optional(Schema.Number),
   /** Some reading is the last good one (a refresh failed). */
   stale: Schema.Boolean,
+  /** The accounts the proxy currently routes this pool to (usually one); their windows come first. */
+  activeAccounts: Schema.Array(Schema.String),
   windows: Schema.Array(UsageWindow)
 })
 

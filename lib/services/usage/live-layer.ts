@@ -13,6 +13,7 @@ const requestTimeout = Duration.seconds(10)
 const UsageResponse = Schema.Struct({
   accounts: Schema.Array(
     Schema.Struct({
+      id: Schema.String,
       provider: Schema.String,
       providerName: Schema.String,
       account: Schema.String,
@@ -27,6 +28,13 @@ const UsageResponse = Schema.Struct({
         })
       )
     })
+  ),
+  /** Which accounts the proxy routes to; absent from dashboards older than it, or unknown. */
+  routing: Schema.optional(
+    Schema.Struct({
+      status: Schema.String,
+      accounts: Schema.optional(Schema.Array(Schema.Struct({ accountId: Schema.String })))
+    })
   )
 })
 
@@ -40,12 +48,20 @@ const resetTime = (value: string | null) => {
   return Number.isFinite(time) ? time : undefined
 }
 
-export const toAccounts = (response: UsageResponse): ReadonlyArray<QuotaAccount> =>
-  response.accounts.map(account => ({
+const activeIds = (routing: UsageResponse['routing']) =>
+  new Set(
+    routing?.status === 'available' ? (routing.accounts ?? []).map(entry => entry.accountId) : []
+  )
+
+export const toAccounts = (response: UsageResponse): ReadonlyArray<QuotaAccount> => {
+  const active = activeIds(response.routing)
+
+  return response.accounts.map(account => ({
     provider: account.provider,
     providerName: account.providerName,
     account: account.account,
     fresh: account.status === 'fresh',
+    active: active.has(account.id),
     windows: account.windows.map(window => ({
       id: window.id,
       label: window.label,
@@ -54,6 +70,7 @@ export const toAccounts = (response: UsageResponse): ReadonlyArray<QuotaAccount>
       resetsAt: resetTime(window.resetsAt)
     }))
   }))
+}
 
 const unavailable = (message: string) => () => new UsageUnavailableError({ message })
 

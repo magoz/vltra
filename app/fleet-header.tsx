@@ -194,7 +194,8 @@ function UsageWindowMeter({ window, now }: { readonly window: UsageWindow; reado
 
 /**
  * A pool on hover: `Claude 85% of 200% left`, then each account with its windows as bars (5-hour,
- * weekly, monthly…), the same rows as the `usage` dashboard's account cards.
+ * weekly, monthly…), the same rows as the `usage` dashboard's account cards. The account the
+ * proxy routes to comes first, marked `active`.
  */
 export function UsagePoolDetail({ pool, now }: { readonly pool: UsagePool; readonly now: number }) {
   const accounts = Array.from(Map.groupBy(pool.windows, window => window.account))
@@ -212,7 +213,12 @@ export function UsagePoolDetail({ pool, now }: { readonly pool: UsagePool; reado
       </p>
       {accounts.map(([account, windows]) => (
         <section key={account} aria-label={account} className="flex flex-col gap-2.5">
-          <h3 className="truncate">{account}</h3>
+          <h3 className="flex justify-between gap-4">
+            <span className="truncate">{account}</span>
+            {pool.activeAccounts.includes(account) ? (
+              <span className="text-muted-foreground shrink-0">active</span>
+            ) : null}
+          </h3>
           {windows.map(window => (
             <UsageWindowMeter key={window.label} window={window} now={now} />
           ))}
