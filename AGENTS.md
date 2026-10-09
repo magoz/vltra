@@ -113,7 +113,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   `GET /api/fleet/usage`, polled by `use-usage.ts` every minute while the page shows):
   `Claude 106% 2d · Codex 184% 4d · Go 32% 5d`, each the % left of the longest window
   (weekly, Go's monthly, as `~/usage` shows it; model-scoped weekly limits excluded; a pool's accounts summed, 100% each), red at 10% of the pool or less,
-  then the time to that window's first reset; hovering a pool shows its accounts' windows as `~/usage`-style bars (`UsagePoolDetail`, in `components/ui/tooltip.tsx`). Hidden until it loads; a failed load keeps the last.
+  then the time to that window's first reset; hovering a pool shows its accounts' windows as `~/usage`-style bars (`UsagePoolDetail`, in `components/ui/tooltip.tsx`), the account the proxy routes to first, marked `active` (`~/usage`'s `routing`, from the proxy's sticky-fill-first pins; none when unknown). Hidden until it loads; a failed load keeps the last.
 - Every move is a history write that Next syncs into `useSearchParams` (no router navigation, no
   fetch, no remount): `nav.show` pushes an entry (Back returns), `setProject` replaces it,
   `openSession` (the launcher) pushes Focus with the session. `moveTo` in `fleet-href.ts` decides
