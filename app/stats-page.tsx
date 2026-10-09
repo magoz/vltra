@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useFleet } from '@/app/fleet-context'
 import { ProjectFilter } from '@/app/project-filter'
+import type { ProjectFilterHandle } from '@/app/project-filter'
 import { SessionSplit } from '@/app/session-panel'
 import { cardGrid, StatsCard, Tile, wide } from '@/app/stats-card'
 import type { TrendLine } from '@/app/stats-card'
@@ -633,7 +634,7 @@ function StatsBody({
  */
 export function StatsPage() {
   const { view, nav } = useFleet()
-  const filterRef = useRef<HTMLSelectElement>(null)
+  const filterRef = useRef<ProjectFilterHandle>(null)
   const [timeZone] = useState(browserTimeZone)
   const project = statsProjectID(view, nav.project)
   const state = useStats(statsUrl(nav.period, project, timeZone))
@@ -642,7 +643,7 @@ export function StatsPage() {
   const report = shownValue(state)
 
   useKeys({
-    '/': () => filterRef.current?.focus(),
+    '/': () => filterRef.current?.open(),
     '[': () => nav.setPeriod(StatsPeriod.Preset({ preset: steppedPreset(nav.period, -1) })),
     ']': () => nav.setPeriod(StatsPeriod.Preset({ preset: steppedPreset(nav.period, 1) }))
   })

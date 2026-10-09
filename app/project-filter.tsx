@@ -1,62 +1,87 @@
 'use client'
 
-import { useMemo } from 'react'
-import type { RefObject } from 'react'
+import { useImperativeHandle, useMemo, useState } from 'react'
+import type { Ref } from 'react'
 import { useFleet } from '@/app/fleet-context'
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+  ComboboxSearch,
+  ComboboxTrigger,
+  ComboboxValue
+} from '@/components/ui/combobox'
 import { buildProjectCards, projectName } from '@/lib/data/fleet/board'
 import { cn } from '@/lib/utils'
 
+/** What the page's `/` key reaches: opening the picker with its search field focused. */
+export type ProjectFilterHandle = { readonly open: () => void }
+
+/** A picker row: a project, or `null` for every project (no `?project=`). */
+type ProjectOption = { readonly id: string | null; readonly name: string }
+
+const allProjects: ProjectOption = { id: null, name: 'All projects' }
+
 /**
- * The Agents page's project filter (`?project=`, both modes): a select (`/` focuses it) and,
- * while filtered, a chip with ×.
+ * The Agents and Stats pages' project filter (`?project=`): a searchable select (`/` opens it,
+ * type to narrow the projects) and, while filtered, a chip with ×.
  */
 export function ProjectFilter({
   filterRef,
   className
 }: {
-  readonly filterRef: RefObject<HTMLSelectElement | null>
+  readonly filterRef: Ref<ProjectFilterHandle>
   readonly className?: string
 }) {
   const { view, nav } = useFleet()
+  const [open, setOpen] = useState(false)
 
-  const projects = useMemo(
-    () => buildProjectCards(view).map(card => ({ id: card.id, name: card.name })),
-    [view]
-  )
+  useImperativeHandle(filterRef, () => ({ open: () => setOpen(true) }), [])
 
-  const options =
-    nav.project === undefined || projects.some(project => project.id === nav.project)
+  const options = useMemo((): ReadonlyArray<ProjectOption> => {
+    const projects = buildProjectCards(view).map(card => ({ id: card.id, name: card.name }))
+
+    return nav.project === undefined || projects.some(project => project.id === nav.project)
       ? projects
       : [...projects, { id: nav.project, name: projectName(view, nav.project) }]
+  }, [view, nav.project])
 
+  const items = useMemo(() => [allProjects, ...options], [options])
   const current = options.find(project => project.id === nav.project)
 
   return (
     <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-2', className)}>
-      <label className="text-muted-foreground flex items-center gap-2 text-xs">
-        <span>Project</span>
-        <select
-          ref={filterRef}
-          value={nav.project ?? ''}
-          onChange={event =>
-            nav.setProject(event.target.value === '' ? undefined : event.target.value)
-          }
-          onKeyDown={event => {
-            if (event.key !== 'Escape') return
-
-            event.preventDefault()
-            event.currentTarget.blur()
-          }}
-          className="border-input bg-background text-foreground focus-visible:ring-ring/50 h-7 border px-1.5 font-mono text-xs outline-none focus-visible:ring-[3px]"
-        >
-          <option value="">All projects</option>
-          {options.map(project => (
-            <option key={project.id} value={project.id}>
-              {project.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Combobox
+        items={items}
+        value={current ?? allProjects}
+        onValueChange={option => nav.setProject(option?.id ?? undefined)}
+        isItemEqualToValue={(item, value) => item.id === value.id}
+        itemToStringLabel={option => option.name}
+        open={open}
+        onOpenChange={setOpen}
+        autoHighlight
+      >
+        <div className="flex items-center gap-2">
+          <ComboboxLabel>Project</ComboboxLabel>
+          <ComboboxTrigger className="max-w-56">
+            <ComboboxValue />
+          </ComboboxTrigger>
+        </div>
+        <ComboboxContent aria-label="Projects">
+          <ComboboxSearch placeholder="Search projects" aria-label="Search projects" />
+          <ComboboxEmpty>No matching projects.</ComboboxEmpty>
+          <ComboboxList>
+            {(option: ProjectOption) => (
+              <ComboboxItem key={option.id ?? ''} value={option}>
+                {option.name}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
       {current === undefined ? null : (
         <span className="border-foreground flex items-center gap-1 border py-0.5 pr-0.5 pl-2 text-xs">
           {current.name}

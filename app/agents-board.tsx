@@ -8,6 +8,7 @@ import { useFleet } from '@/app/fleet-context'
 import { NavLink } from '@/app/nav-link'
 import { PendingLaunches } from '@/app/pending-launches'
 import { ProjectFilter } from '@/app/project-filter'
+import type { ProjectFilterHandle } from '@/app/project-filter'
 import { SessionSplit } from '@/app/session-panel'
 import { useHandled } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
@@ -220,7 +221,7 @@ function Board({ project }: { readonly project: string | undefined }) {
   const board = useMemo(() => buildAgentsBoard(view, now, project), [view, now, project])
   const [segment, setSegment] = useState<BoardColumn>(() => initialColumn(board))
   const [cursor, setCursor] = useState<Cursor>()
-  const filterRef = useRef<HTMLSelectElement>(null)
+  const filterRef = useRef<ProjectFilterHandle>(null)
   const position = resolve(board, cursor)
 
   const focus = (target: Position | undefined) => {
@@ -272,7 +273,7 @@ function Board({ project }: { readonly project: string | undefined }) {
 
       if (id !== undefined) setCursor({ column: 'needsYou', id, index: 0 })
     },
-    '/': () => filterRef.current?.focus()
+    '/': () => filterRef.current?.open()
   })
 
   const cursorID = position?.item.row.id

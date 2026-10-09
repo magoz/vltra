@@ -204,7 +204,8 @@ describe('stats tab', () => {
     vi.stubGlobal('fetch', fetch)
     renderStats()
 
-    fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'prj_fleet' } })
+    fireEvent.click(await screen.findByRole('combobox', { name: 'Project' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'fleet' }))
 
     await waitFor(() => expect(statsUrls(fetch).at(-1)).toContain('project=prj_fleet'))
     expect(testLocation()).toBe('/?view=stats&project=prj_fleet')

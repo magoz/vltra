@@ -45,6 +45,13 @@ const press = (key: string, target: Element = document.body) => fireEvent.keyDow
 
 const pane = () => screen.queryByRole('region', { name: 'Session' })
 
+const projectPicker = () => screen.getByRole('combobox', { name: 'Project' })
+
+const pickProject = async (name: string) => {
+  fireEvent.click(projectPicker())
+  fireEvent.click(await screen.findByRole('option', { name }))
+}
+
 beforeEach(() => {
   // The launcher loads its list; answer with nothing.
   vi.stubGlobal(
@@ -174,7 +181,7 @@ describe('project filter', () => {
       Working: ['ses_run', 'ses_retry', 'ses_busy'],
       Done: ['ses_handled']
     })
-    expect(screen.getByRole('combobox', { name: 'Project' })).toHaveProperty('value', 'prj_fleet')
+    expect(projectPicker().textContent).toBe('fleet')
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear the fleet filter' }))
 
@@ -183,18 +190,23 @@ describe('project filter', () => {
     expect(rowIDs(column('Done'))).toEqual(['ses_tmp', 'ses_handled', 'ses_box'])
   })
 
-  it('filters from the select, which / focuses', () => {
+  it('filters from the picker, which / opens on its search', async () => {
     const { navigations } = renderBoard()
-    const select = screen.getByRole('combobox', { name: 'Project' })
+
+    expect(projectPicker().textContent).toBe('All projects')
 
     press('/')
 
-    expect(document.activeElement).toBe(select)
-    // Typing in the filter leaves the board's keys alone.
-    press('j', select)
-    expect(cursorID()).toBe('ses_wait_new')
+    const search = await screen.findByRole('combobox', { name: 'Search projects' })
 
-    fireEvent.change(select, { target: { value: 'other' } })
+    await waitFor(() => expect(document.activeElement).toBe(search))
+    // Typing in the search leaves the board's keys alone, and narrows the projects.
+    press('j', search)
+    expect(cursorID()).toBe('ses_wait_new')
+    fireEvent.change(search, { target: { value: 'oth' } })
+    expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual(['Other'])
+
+    fireEvent.click(screen.getByRole('option', { name: 'Other' }))
 
     expect(navigations).toEqual([{ kind: 'filter', project: 'other' }])
     expect(screen.getByRole('button', { name: 'Clear the Other filter' })).toBeTruthy()
@@ -353,16 +365,29 @@ describe('phone', () => {
     expect(column('Need you').className).toContain('max-lg:hidden')
   })
 
-  it('opens on Working when nothing needs me', () => {
+  it('closes the picker with Escape, keeping the open chat', async () => {
+    renderBoard()
+    press('Enter')
+    press('/')
+
+    const search = await screen.findByRole('combobox', { name: 'Search projects' })
+
+    press('Escape', search)
+
+    await waitFor(() =>
+      expect(screen.queryByRole('combobox', { name: 'Search projects' })).toBeNull()
+    )
+    expect(pane()).not.toBeNull()
+  })
+
+  it('opens on Working when nothing needs me', async () => {
     renderBoard({ project: 'prj_box' })
 
     expect(screen.getByRole('tab', { name: 'Working 0' }).getAttribute('aria-selected')).toBe(
       'true'
     )
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Project' }), {
-      target: { value: '' }
-    })
+    await pickProject('All projects')
 
     expect(screen.getByRole('tab', { name: 'Need you 4' }).getAttribute('aria-selected')).toBe(
       'true'

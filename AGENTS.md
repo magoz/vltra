@@ -150,7 +150,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   (`worktreeAt` in the launcher list; none before it loads or for the primary checkout), flags for
   `retrying (n×, …)` / `quiet Nm` and "folder deleted", Reopen (handled, not for "folder
   deleted"). Asks, answers and live activity are left to the chat. `?project=<projectKey>`
-  (`other` = the global project) narrows every column: a select (`/` focuses it) and a chip with ×
+  (`other` = the global project) narrows every column: a searchable select (`project-filter.tsx`,
+  `components/ui/combobox.tsx`, Base UI Combobox; `/` opens it on its search) and a chip with ×
   (`setProject` replaces the history entry). An open session (`?session=`) splits the board
   (`SessionSplit`): the three columns narrow beside its chat (down to 11rem, then they scroll),
   still clickable to switch it. Phone: one column via a segmented control, opening on Need you
