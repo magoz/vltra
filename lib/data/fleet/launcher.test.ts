@@ -41,6 +41,8 @@ const anvil = `${repos}/anvil`
 
 const zinc = `${repos}/zinc`
 
+const subs = '/home/magoz/subs'
+
 const fleetRepo: RepoCheckout = {
   name: 'fleet',
   directory: fleet,
@@ -85,6 +87,7 @@ const snapshot: OpenCodeSnapshot = {
     }),
     // `fleet-launcher` is not inside `fleet`.
     sessionRecord('ses_sibling', { directory: `${repos}/fleet-launcher`, ...finished(baseTime) }),
+    sessionRecord('ses_subs', { projectID: 'global', directory: subs, ...finished(baseTime) }),
     // A deleted folder inside zinc never counts.
     sessionRecord('ses_zinc_gone', { directory: `${zinc}/tmp`, ...finished(baseTime + 9 * minute) })
   ],
@@ -104,6 +107,7 @@ const rows = buildRows(model, webUrl)
 const launcher = () =>
   buildLauncher({
     repos: checkouts,
+    folders: [subs],
     pullRequests: new Map([
       [fleetX, { state: 'merged', number: 12, url: 'https://github.com/o/fleet/pull/12' }]
     ]),
@@ -115,7 +119,13 @@ const launcher = () =>
 describe('buildLauncher', () => {
   it('orders repositories by their latest agent activity, then by name', () => {
     // fleet's worktree runs right now (active at the snapshot), box finished 5 minutes ago.
-    expect(launcher().entries.map(entry => entry.name)).toEqual(['fleet', 'box', 'anvil', 'zinc'])
+    expect(launcher().entries.map(entry => entry.name)).toEqual([
+      'fleet',
+      'box',
+      'subs',
+      'anvil',
+      'zinc'
+    ])
   })
 
   it("merges OpenCode's projects by directory and tallies each checkout's sessions", () => {
@@ -153,6 +163,7 @@ describe('buildLauncher', () => {
 
   it('leaves repositories OpenCode never opened without a project or sessions', () => {
     expect(launcher().entries.find(item => item.name === 'anvil')).toEqual({
+      kind: 'repo',
       name: 'anvil',
       directory: anvil,
       projectID: undefined,
@@ -163,6 +174,19 @@ describe('buildLauncher', () => {
       lastActivity: undefined
     })
     expect(launcher().entries.find(item => item.name === 'zinc')?.latestSession).toBeUndefined()
+  })
+
+  it('lists plain-folder roots with their own sessions, without a project or worktrees', () => {
+    expect(launcher().entries.find(item => item.name === 'subs')).toEqual({
+      kind: 'folder',
+      name: 'subs',
+      directory: subs,
+      sessions: { blocked: 0, working: 0, finished: 1, handled: 0 },
+      latestSession: 'ses_subs',
+      activeAt: baseTime,
+      worktrees: [],
+      lastActivity: baseTime
+    })
   })
 })
 
@@ -228,7 +252,7 @@ const services = (fake: FakeOpenCode, fakeRepos: FakeRepos) =>
 
 const setUp = Effect.gen(function* () {
   const fake = yield* makeFakeOpenCode(snapshot)
-  const fakeRepos = yield* makeFakeRepos(checkouts)
+  const fakeRepos = yield* makeFakeRepos(checkouts, [subs])
 
   return { fake, fakeRepos, layer: yield* services(fake, fakeRepos) }
 })
@@ -246,6 +270,7 @@ describe('loadLauncher', () => {
       expect(
         list.entries.find(entry => entry.name === 'fleet')?.worktrees.map(item => item.pr)
       ).toEqual([{ state: 'open', number: 3 }, { state: 'none' }])
+      expect(list.entries.find(entry => entry.directory === subs)?.kind).toBe('folder')
     })
   )
 })
@@ -305,7 +330,20 @@ describe('newSession', () => {
     })
   )
 
-  it.effect('refuses a folder that is not a checkout', () =>
+  it.effect('creates one in a plain-folder launcher root', () =>
+    Effect.gen(function* () {
+      const { fake, layer } = yield* setUp
+
+      expect(yield* newSession({ directory: subs }).pipe(Effect.provide(layer))).toEqual({
+        sessionID: 'ses_created_1'
+      })
+      expect((yield* fake.calls).filter(call => call.op === 'createSession')).toEqual([
+        { op: 'createSession', directory: subs, title: undefined }
+      ])
+    })
+  )
+
+  it.effect('refuses a folder that is not a checkout or a launcher root', () =>
     Effect.gen(function* () {
       const { fake, layer } = yield* setUp
 

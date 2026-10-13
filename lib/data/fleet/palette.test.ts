@@ -13,6 +13,7 @@ const worktree = (directory: string, branch: string | undefined): LauncherWorktr
 })
 
 const entry = (name: string, worktrees: ReadonlyArray<LauncherWorktree> = []): LauncherEntry => ({
+  kind: 'repo',
   name,
   directory: `/r/${name}`,
   sessions: tally,

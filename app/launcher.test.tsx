@@ -9,6 +9,7 @@ import {
   fleetLive,
   launch,
   launcherFetch,
+  launcherList,
   now
 } from '@/app/testing/fleet-scenario'
 import type { LiveFleet } from '@/lib/data/fleet/board'
@@ -17,6 +18,8 @@ import type { Launch } from '@/lib/data/fleet/types'
 const fleet = '/home/magoz/dev/repos/fleet'
 
 const box = '/home/magoz/dev/repos/box'
+
+const subs = '/home/magoz/subs'
 
 const withLaunches = (launches: ReadonlyArray<Launch>): LiveFleet => ({
   ...fleetLive(),
@@ -203,6 +206,47 @@ describe('launcher palette', () => {
 
     await waitFor(() =>
       expect(calls()).toEqual([{ action: 'newSession', input: { directory: box } }])
+    )
+  })
+
+  it('offers a plain folder a new session only', async () => {
+    const list = launcherList()
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        launcherFetch({
+          ...list,
+          entries: [
+            ...list.entries,
+            {
+              kind: 'folder',
+              name: 'subs',
+              directory: subs,
+              sessions: { blocked: 0, working: 0, finished: 0, handled: 0 },
+              worktrees: []
+            }
+          ]
+        })
+      )
+    )
+
+    const { calls } = renderDashboard()
+
+    await openPalette()
+
+    fireEvent.change(filter(), { target: { value: 'subs' } })
+
+    expect(rows()).toEqual(['repo subsfolder'])
+    expect(actionNames()).toEqual(['↵New session in subs'])
+
+    fireEvent.keyDown(filter(), { key: 'Enter', shiftKey: true })
+    expect(within(palette()).queryByRole('textbox', { name: 'Task' })).toBeNull()
+
+    fireEvent.keyDown(filter(), { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(calls()).toEqual([{ action: 'newSession', input: { directory: subs } }])
     )
   })
 

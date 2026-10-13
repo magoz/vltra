@@ -31,7 +31,7 @@ import { Repos } from '@/lib/services/repos/service'
 import type { CheckoutInfo, ReposOperations } from '@/lib/services/repos/service'
 
 export type ReposOptions = {
-  /** Launcher roots, absolute: each a repository, or a folder of repositories. */
+  /** Launcher roots, absolute: each a repository, a folder of repositories, or a plain folder. */
   readonly roots: ReadonlyArray<string>
   /** Extra environment for `git` and `gh` (tests put a fake `gh` first on `PATH`). */
   readonly env?: Readonly<Record<string, string>>
@@ -215,6 +215,37 @@ export const makeRepos = (options: ReposOptions) =>
         return repos.flatMap(Option.toArray)
       }).pipe(Effect.withSpan('repos.list'))
 
+    /** A directory that is no checkout and holds none (`candidates` would only find folders). */
+    const isPlainFolder = (root: string) =>
+      Effect.gen(function* () {
+        if (!Option.contains(yield* kind(root), 'Directory')) return false
+
+        if (Option.isSome(yield* dotGitKind(root))) return false
+
+        const children = yield* candidates(root)
+
+        const checkouts = yield* Effect.forEach(children, dotGitKind, {
+          concurrency: scanConcurrency
+        })
+
+        return !checkouts.some(Option.isSome)
+      })
+
+    const folders: ReposOperations['folders'] = Effect.gen(function* () {
+      const found = yield* Effect.forEach(
+        options.roots,
+        root =>
+          Effect.gen(function* () {
+            if (!(yield* isPlainFolder(root))) return Option.none<string>()
+
+            return yield* option(fs.realPath(root))
+          }),
+        { concurrency: 4 }
+      )
+
+      return Array.from(new Set(found.flatMap(Option.toArray)))
+    }).pipe(Effect.withSpan('repos.folders'))
+
     const inspect: ReposOperations['inspect'] = directory =>
       Effect.gen(function* () {
         if (!path.isAbsolute(directory)) return Option.none<CheckoutInfo>()
@@ -325,7 +356,7 @@ export const makeRepos = (options: ReposOptions) =>
         )
       )
 
-    const operations: ReposOperations = { list, inspect, pullRequest }
+    const operations: ReposOperations = { list, folders, inspect, pullRequest }
 
     return operations
   })

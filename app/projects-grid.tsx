@@ -13,7 +13,7 @@ import { useKeys } from '@/app/use-keys'
 import { OwnerBadge, PrBadge } from '@/app/worktree-badges'
 import { buildProjectCards, cardSections } from '@/lib/data/fleet/board'
 import type { BoardRow, ProjectCard, WorktreeSection } from '@/lib/data/fleet/board'
-import type { LauncherEntry } from '@/lib/data/fleet/types'
+import type { LauncherRepo } from '@/lib/data/fleet/types'
 
 /** `2 need you · 1 working` (need you in green), zeros left out. */
 function CardCounts({ card }: { readonly card: ProjectCard }) {
@@ -127,7 +127,7 @@ function Card({
 }: {
   readonly card: ProjectCard
   /** The card's repository in the launcher, when it is one on Box. */
-  readonly entry: LauncherEntry | undefined
+  readonly entry: LauncherRepo | undefined
   readonly cursor: boolean
   readonly rowCursor: string | undefined
   readonly expanded: boolean

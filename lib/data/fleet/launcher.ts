@@ -91,6 +91,8 @@ const unknownPullRequest: PullRequest = { state: 'unknown' }
 
 export type LauncherInputs = {
   readonly repos: ReadonlyArray<RepoCheckout>
+  /** Plain-folder launcher roots (`Repos.folders`). */
+  readonly folders: ReadonlyArray<string>
   /** PR status per worktree directory. */
   readonly pullRequests: ReadonlyMap<string, PullRequest>
   readonly projects: ReadonlyArray<ProjectRecord>
@@ -101,18 +103,19 @@ export type LauncherInputs = {
 
 /**
  * The launcher's entries: each repository with OpenCode's project for it (same canonical
- * directory) and its linked worktrees; every live root row whose folder still exists counts
- * toward the innermost checkout containing its directory. Repositories order by their latest
- * agent activity (primary and worktrees), then by name; worktrees by their own, then by
- * directory.
+ * directory) and its linked worktrees, and each plain-folder root; every live root row whose
+ * folder still exists counts toward the innermost checkout or folder containing its directory.
+ * Entries order by their latest agent activity (a repository's primary and worktrees), then by
+ * name; worktrees by their own, then by directory.
  */
 export const buildLauncher = (inputs: LauncherInputs): LauncherList => {
   const places = new Map<string, Place>()
 
-  for (const repo of inputs.repos) {
-    for (const directory of [repo.directory, ...repo.worktrees.map(item => item.directory)]) {
-      places.set(directory, { directory, rows: [] })
-    }
+  for (const directory of [
+    ...inputs.folders,
+    ...inputs.repos.flatMap(repo => [repo.directory, ...repo.worktrees.map(item => item.directory)])
+  ]) {
+    places.set(directory, { directory, rows: [] })
   }
 
   // Innermost first, so a nested checkout wins over the one around it.
@@ -129,7 +132,7 @@ export const buildLauncher = (inputs: LauncherInputs): LauncherList => {
   const placeRows = (directory: string) => places.get(directory)?.rows ?? []
   const projectByDirectory = new Map(inputs.projects.map(project => [project.directory, project]))
 
-  const entries = inputs.repos.map((repo): LauncherEntry => {
+  const repos = inputs.repos.map((repo): LauncherEntry => {
     const own = placeRows(repo.directory)
 
     const worktrees = repo.worktrees
@@ -150,6 +153,7 @@ export const buildLauncher = (inputs: LauncherInputs): LauncherList => {
     const known = activity.filter(at => at !== undefined)
 
     return {
+      kind: 'repo',
       name: repo.name,
       directory: repo.directory,
       projectID: projectByDirectory.get(repo.directory)?.id ?? own[0]?.projectID,
@@ -159,9 +163,22 @@ export const buildLauncher = (inputs: LauncherInputs): LauncherList => {
     }
   })
 
+  const folders = inputs.folders.map((directory): LauncherEntry => {
+    const summary = summarize(placeRows(directory))
+
+    return {
+      kind: 'folder',
+      name: path.basename(directory),
+      directory,
+      ...summary,
+      worktrees: [],
+      lastActivity: summary.activeAt
+    }
+  })
+
   return {
     generatedAt: inputs.now,
-    entries: entries.toSorted(
+    entries: [...repos, ...folders].toSorted(
       (left, right) =>
         byRecency(left.lastActivity, right.lastActivity) || left.name.localeCompare(right.name)
     )
@@ -180,7 +197,11 @@ export const loadLauncher = Effect.gen(function* () {
   const repos = yield* Repos
   // The global project's directory is `/`, never a repository.
   const projects = Array.from(view.model.projects.values()).filter(item => item.directory !== '/')
-  const checkouts = yield* repos.list(projects.map(project => project.directory))
+
+  const [checkouts, folders] = yield* Effect.all(
+    [repos.list(projects.map(project => project.directory)), repos.folders],
+    { concurrency: 2 }
+  )
 
   const pullRequests = yield* Effect.forEach(
     checkouts.flatMap(repo =>
@@ -200,6 +221,7 @@ export const loadLauncher = Effect.gen(function* () {
 
   return buildLauncher({
     repos: checkouts,
+    folders,
     pullRequests: new Map(pullRequests),
     projects,
     rows: snapshotRows(view.snapshot),
@@ -230,20 +252,33 @@ export const suggestBranch = (input: SuggestBranchInput) =>
     Effect.withSpan('launcher.suggest-branch')
   )
 
+/** Where the launcher may start a session: a git checkout on Box, else a plain-folder root. */
+const sessionDirectory = (directory: string) =>
+  Effect.gen(function* () {
+    const repos = yield* Repos
+    const info = yield* repos.inspect(directory)
+
+    if (Option.isSome(info)) return Option.some(info.value.directory)
+
+    const folders = yield* repos.folders
+
+    return folders.includes(directory) ? Option.some(directory) : Option.none<string>()
+  })
+
 /**
- * A new empty session in a repository or worktree (the launcher's Enter), never resuming one.
- * Refused unless the folder is a git checkout on Box.
+ * A new empty session in a repository, worktree or plain-folder root (the launcher's Enter),
+ * never resuming one. Refused anywhere else.
  */
 export const newSession = (input: NewSessionInput) =>
   Effect.gen(function* () {
-    const info = yield* Effect.flatMap(Repos, repos => repos.inspect(input.directory))
+    const directory = yield* sessionDirectory(input.directory)
 
-    if (Option.isNone(info)) {
+    if (Option.isNone(directory)) {
       return yield* new NotACheckoutError({ directory: input.directory })
     }
 
     const session = yield* withConnection(connection =>
-      connection.createSession({ directory: info.value.directory, title: undefined })
+      connection.createSession({ directory: directory.value, title: undefined })
     )
 
     const created: NewSession = { sessionID: session.id }
@@ -253,7 +288,7 @@ export const newSession = (input: NewSessionInput) =>
 
 /**
  * Opening a repository or worktree (the terminal plugin): its latest root session, or a new empty
- * session there when it has none (only in a real checkout on Box).
+ * session there when it has none (only where `newSession` may start one).
  */
 export const openCheckout = (input: OpenCheckoutInput) =>
   Effect.gen(function* () {

@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { settled, useFleetActions } from '@/app/fleet-actions'
 import { useFleet } from '@/app/fleet-context'
 import { relativeTime } from '@/app/fleet-format'
+import { launcherRepos } from '@/app/launcher-context'
 import type { LauncherRequest } from '@/app/launcher-context'
 import { OwnerBadge, PrBadge } from '@/app/worktree-badges'
 import { Button } from '@/components/ui/button'
@@ -18,8 +19,8 @@ import { paletteItems, worktreeName } from '@/lib/data/fleet/palette'
 import type { PaletteItem } from '@/lib/data/fleet/palette'
 import type {
   BranchSuggestion,
-  LauncherEntry,
   LauncherList,
+  LauncherRepo,
   SessionTally
 } from '@/lib/data/fleet/types'
 import { cn } from '@/lib/utils'
@@ -78,6 +79,8 @@ function Row({
             <OwnerBadge owner={item.worktree.owner} branch={item.worktree.branch} />
             <PrBadge pr={item.worktree.pr} />
           </>
+        ) : item.entry.kind === 'folder' ? (
+          <span>folder</span>
         ) : null}
         <Tally sessions={item.kind === 'repo' ? item.entry.sessions : item.worktree.sessions} />
         {at === undefined ? null : <span>{relativeTime(at, now)}</span>}
@@ -94,10 +97,11 @@ const placeDirectory = (item: PaletteItem) =>
   item.kind === 'repo' ? item.entry.directory : item.worktree.directory
 
 /**
- * The palette's bottom bar: the highlighted row's two actions, keys shown on desktop (`↵` a new
- * session there, `⇧↵` a new worktree in its repository), then the list keys. Buttons for pointers
- * (the phone taps a row, then an action); the keyboard uses the keys, so they stay out of the tab
- * order. In one place under the list, so moving the highlight never shifts the rows.
+ * The palette's bottom bar: the highlighted row's actions, keys shown on desktop (`↵` a new
+ * session there, `⇧↵` a new worktree in its repository, not for a plain folder), then the list
+ * keys. Buttons for pointers (the phone taps a row, then an action); the keyboard uses the keys,
+ * so they stay out of the tab order. In one place under the list, so moving the highlight never
+ * shifts the rows.
  */
 function ActionBar({
   item,
@@ -108,8 +112,10 @@ function ActionBar({
   readonly item: PaletteItem
   readonly starting: boolean
   readonly onSession: () => void
-  readonly onWorktree: () => void
+  readonly onWorktree: (repo: LauncherRepo) => void
 }) {
+  const repo = item.entry.kind === 'repo' ? item.entry : undefined
+
   const action =
     'hover:text-foreground flex min-w-0 items-baseline gap-2 text-left disabled:opacity-50 max-lg:py-2'
 
@@ -130,19 +136,21 @@ function ActionBar({
           {starting ? 'Starting…' : `New session in ${placeName(item)}`}
         </span>
       </button>
-      <button
-        type="button"
-        tabIndex={-1}
-        aria-keyshortcuts="Shift+Enter"
-        disabled={starting}
-        onClick={onWorktree}
-        className={action}
-      >
-        <kbd aria-hidden="true" className="text-foreground font-mono max-lg:hidden">
-          ⇧↵
-        </kbd>
-        <span className="truncate">New worktree in {item.entry.name}…</span>
-      </button>
+      {repo === undefined ? null : (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-keyshortcuts="Shift+Enter"
+          disabled={starting}
+          onClick={() => onWorktree(repo)}
+          className={action}
+        >
+          <kbd aria-hidden="true" className="text-foreground font-mono max-lg:hidden">
+            ⇧↵
+          </kbd>
+          <span className="truncate">New worktree in {repo.name}…</span>
+        </button>
+      )}
       <span className="ml-auto shrink-0 max-lg:hidden">
         <kbd className="text-foreground">↑ ↓</kbd> move · <kbd className="text-foreground">esc</kbd>{' '}
         close
@@ -152,9 +160,9 @@ function ActionBar({
 }
 
 /**
- * The palette's first step: pick a repository or worktree. The bar under the list shows what the
- * highlighted row starts (`ActionBar`): `Enter` a new session there, `Shift+Enter` a new worktree
- * in its repository. A click or tap moves the highlight; hovering does not.
+ * The palette's first step: pick a repository, worktree or plain folder. The bar under the list
+ * shows what the highlighted row starts (`ActionBar`): `Enter` a new session there, `Shift+Enter`
+ * a new worktree in its repository. A click or tap moves the highlight; hovering does not.
  */
 function PickStep({
   list,
@@ -211,8 +219,8 @@ function PickStep({
     if (event.key === 'ArrowDown' || (!typing && event.key === 'j')) move(1)
     else if (event.key === 'ArrowUp' || (!typing && event.key === 'k')) move(-1)
     else if (event.key === 'Enter' && current !== undefined) {
-      if (event.shiftKey) onNew(current.entry.directory)
-      else startSession(current)
+      if (!event.shiftKey) startSession(current)
+      else if (current.entry.kind === 'repo') onNew(current.entry.directory)
     } else return
 
     event.preventDefault()
@@ -243,7 +251,7 @@ function PickStep({
         <p className="text-muted-foreground px-3 py-6 text-center text-xs">Loading repositories…</p>
       ) : entries.length === 0 ? (
         <p className="text-muted-foreground px-3 py-6 text-center text-xs">
-          No git repositories under the launcher roots.
+          Nothing under the launcher roots.
         </p>
       ) : items.length === 0 ? (
         <p className="text-muted-foreground px-3 py-6 text-center text-xs">No matches.</p>
@@ -276,7 +284,7 @@ function PickStep({
           item={current}
           starting={starting === current.key}
           onSession={() => startSession(current)}
-          onWorktree={() => onNew(current.entry.directory)}
+          onWorktree={repo => onNew(repo.directory)}
         />
       )}
     </div>
@@ -290,7 +298,7 @@ function NewStep({
   onLaunched,
   onClose
 }: {
-  readonly entry: LauncherEntry
+  readonly entry: LauncherRepo
   readonly onBack: () => void
   readonly onLaunched: (launchID: string, branch: string) => void
   readonly onClose: () => void
@@ -499,7 +507,7 @@ export function LauncherDialog({
   const close = () => onOpenChange(false)
 
   const entry =
-    step.step === 'new' ? list?.entries.find(item => item.directory === step.repo) : undefined
+    step.step === 'new' ? launcherRepos(list).find(item => item.directory === step.repo) : undefined
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -341,6 +341,7 @@ describe('card sections with the launcher', () => {
   const tally = { blocked: 0, working: 0, finished: 0, handled: 0 }
 
   const entry: LauncherEntry = {
+    kind: 'repo',
     name: 'fleet',
     directory: fleet,
     projectID: 'prj_fleet',
@@ -481,6 +482,7 @@ describe('worktree lookup', () => {
     generatedAt: baseTime,
     entries: [
       {
+        kind: 'repo',
         name: 'fleet',
         directory: fleet,
         sessions: { blocked: 0, working: 0, finished: 0, handled: 0 },

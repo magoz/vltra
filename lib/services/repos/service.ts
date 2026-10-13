@@ -24,6 +24,12 @@ export type ReposOperations = {
    * they belong to their primary. Missing roots and broken repositories are skipped.
    */
   readonly list: (extra: Iterable<string>) => Effect.Effect<ReadonlyArray<RepoCheckout>>
+  /**
+   * The launcher roots that are plain folders: a directory that is not a repository and has no
+   * repository (or linked worktree) among its children, so `list` finds nothing in it. Canonical
+   * paths; missing roots are skipped.
+   */
+  readonly folders: Effect.Effect<ReadonlyArray<string>>
   /** The checkout whose top level is `directory`; none when it is not one (or is gone). */
   readonly inspect: (directory: string) => Effect.Effect<Option.Option<CheckoutInfo>>
   /**

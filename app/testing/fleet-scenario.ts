@@ -110,6 +110,7 @@ export const launcherList = (): LauncherList => ({
   generatedAt: now,
   entries: [
     {
+      kind: 'repo',
       name: 'fleet',
       directory: fleet,
       projectID: 'prj_fleet',
@@ -149,6 +150,7 @@ export const launcherList = (): LauncherList => ({
       ]
     },
     {
+      kind: 'repo',
       name: 'box',
       directory: box,
       projectID: 'prj_box',
@@ -158,7 +160,7 @@ export const launcherList = (): LauncherList => ({
       lastActivity: now - 5 * hour,
       worktrees: []
     },
-    { name: 'anvil', directory: anvil, sessions: tally(), worktrees: [] }
+    { kind: 'repo', name: 'anvil', directory: anvil, sessions: tally(), worktrees: [] }
   ]
 })
 

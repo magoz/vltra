@@ -74,6 +74,8 @@ const solo = path.join(base, 'solo')
 
 const extra = path.join(base, 'extra')
 
+const notes = path.join(base, 'notes')
+
 /** Repositories, worktrees (two ownership markers) and the fake `gh`, created once. */
 const createFixture = () => {
   makeRepo(alpha)
@@ -83,6 +85,8 @@ const createFixture = () => {
   makeRepo(extra)
   mkdirSync(path.join(root, 'notes'))
   writeFileSync(path.join(root, 'README'), 'not a folder')
+  mkdirSync(path.join(notes, 'drafts'), { recursive: true })
+  writeFileSync(path.join(base, 'file-root'), 'not a folder')
   addWorktree(alpha, owned, 'feat/x')
   addWorktree(alpha, plain, 'fix/y')
   addWorktree(alpha, stale, 'feat/stale')
@@ -154,6 +158,28 @@ describe('ReposLive', () => {
       ])
       expect(repos[1]?.worktrees).toEqual([])
     }).pipe(Effect.provide(reposLayer()))
+  )
+
+  it.live('finds the roots that are plain folders', () =>
+    Effect.gen(function* () {
+      // Not the folder of repositories, the repository or the worktree roots, a missing root or
+      // a file; a plain folder once, however often it is listed.
+      expect(yield* Effect.flatMap(Repos, service => service.folders)).toEqual([notes])
+    }).pipe(
+      Effect.provide(
+        reposLayer({
+          roots: [
+            root,
+            solo,
+            owned,
+            path.join(base, 'missing'),
+            path.join(base, 'file-root'),
+            notes,
+            `${notes}/`
+          ]
+        })
+      )
+    )
   )
 
   it.live('inspects one checkout', () =>

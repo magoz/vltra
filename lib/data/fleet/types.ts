@@ -497,7 +497,8 @@ export type LauncherWorktree = typeof LauncherWorktree.Type
  * One repository in the launcher: its primary checkout (`sessions`, `latestSession` and
  * `activeAt` are the primary's own; sessions in subfolders count too) and its linked worktrees.
  */
-export const LauncherEntry = Schema.Struct({
+export const LauncherRepo = Schema.Struct({
+  kind: Schema.Literal('repo'),
   ...checkoutFields,
   name: Schema.String,
   /** OpenCode's project for the repository, when OpenCode has opened it. */
@@ -507,9 +508,31 @@ export const LauncherEntry = Schema.Struct({
   lastActivity: Schema.optional(Schema.Number)
 })
 
+export type LauncherRepo = typeof LauncherRepo.Type
+
+/**
+ * A launcher root that is a plain folder (not git, no repositories in it): new sessions only, no
+ * worktrees (`worktrees` stays empty, so readers of repositories need no special case).
+ */
+export const LauncherFolder = Schema.Struct({
+  kind: Schema.Literal('folder'),
+  ...checkoutFields,
+  name: Schema.String,
+  worktrees: Schema.Tuple([]),
+  /** Its own `activeAt` (the launcher's order). */
+  lastActivity: Schema.optional(Schema.Number)
+})
+
+export type LauncherFolder = typeof LauncherFolder.Type
+
+export const LauncherEntry = Schema.Union([LauncherRepo, LauncherFolder])
+
 export type LauncherEntry = typeof LauncherEntry.Type
 
-/** `GET /api/fleet/launcher`: repositories by most recent agent activity, then by name. */
+/**
+ * `GET /api/fleet/launcher`: repositories and plain folders by most recent agent activity, then by
+ * name.
+ */
 export const LauncherList = Schema.Struct({
   generatedAt: Schema.Number,
   entries: Schema.Array(LauncherEntry)

@@ -147,7 +147,10 @@ describe.skipIf(!binary.available)('launcher against a real opencode serve', () 
           // The launcher lists it with OpenCode's project id.
           const listed = yield* eventually(
             Effect.map(loadLauncher, list =>
-              list.entries.find(entry => entry.directory === repo && entry.projectID !== undefined)
+              list.entries.find(
+                entry =>
+                  entry.kind === 'repo' && entry.directory === repo && entry.projectID !== undefined
+              )
             ),
             'launcher entry'
           )

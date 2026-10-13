@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
-import type { LauncherEntry, LauncherList } from '@/lib/data/fleet/types'
+import type { LauncherList, LauncherRepo } from '@/lib/data/fleet/types'
 
 /** What the launcher opens on: the repository picker, or a new worktree in `repo`. */
 export type LauncherRequest =
@@ -36,11 +36,20 @@ export function useLauncher(): Launcher {
   return launcher
 }
 
-/** The launcher entry for an OpenCode project (by id, else by its directory). */
+/** The launcher's repositories (plain folders left out). */
+export const launcherRepos = (list: LauncherList | undefined): ReadonlyArray<LauncherRepo> =>
+  list?.entries.flatMap(entry => (entry.kind === 'repo' ? [entry] : [])) ?? []
+
+/** The launcher repository for an OpenCode project (by id, else by its directory). */
 export const entryForProject = (
   list: LauncherList | undefined,
   projectID: string,
   directory: string | undefined
-): LauncherEntry | undefined =>
-  list?.entries.find(entry => entry.projectID === projectID) ??
-  (directory === undefined ? undefined : list?.entries.find(entry => entry.directory === directory))
+): LauncherRepo | undefined => {
+  const repos = launcherRepos(list)
+
+  return (
+    repos.find(entry => entry.projectID === projectID) ??
+    (directory === undefined ? undefined : repos.find(entry => entry.directory === directory))
+  )
+}

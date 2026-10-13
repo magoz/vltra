@@ -207,7 +207,9 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   retirement, again while PR lookups are still `unknown`, every 5 minutes): repos under
   `FLEET_LAUNCHER_ROOTS` (plus OpenCode's project folders) with their linked worktrees, owner (the
   dotfiles marker, else `pi`; `detached` for OpenCode's own git-strategy checkouts) and PR state,
-  most recent agent activity first. Type to fuzzy-filter (`palette.ts`), `↑`/`↓` (`j`/`k` once the
+  plus roots that are plain folders (no git, no repos in them, e.g. `~/subs`: `Repos.folders`,
+  entries of `kind: 'folder'`, marked `folder`, new session only, no `⇧↵`; `newSession` accepts
+  them), most recent agent activity first. Type to fuzzy-filter (`palette.ts`), `↑`/`↓` (`j`/`k` once the
   list has focus) to move. The bar under the list (`ActionBar`) shows the highlighted row's two
   actions as buttons, then `↑ ↓ move · esc close` (hovering does not move the highlight, a
   click/tap does):
@@ -374,13 +376,13 @@ Commit before shipping: the working tree at build time is what goes live.
 
 ## CONFIGURATION
 
-| Variable                            | Default                                         | Purpose                                                              |
-| ----------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------- |
-| `OPENCODE_URL`, `OPENCODE_PASSWORD` | unset → `Service.discover`                      | Explicit endpoint (tests, dev)                                       |
-| `OPENCODE_SERVICE_FILE`             | `$XDG_STATE_HOME/opencode/service.json`         | Registration file for discovery                                      |
-| `FLEET_OPENCODE_WEB_URL`            | `https://fleet.oox.sh`                          | OpenCode web UI base for deep links (Fleet's own origin, `proxy.ts`) |
-| `FLEET_SESSION_LIMIT`               | unset → every session                           | Optional cap on sessions loaded                                      |
-| `FLEET_LAUNCHER_ROOTS`              | `~/dev/repos:~/.dotfiles:~/aha:~/collie:~/subs` | Launcher roots (`:` list, `~` ok): each a repo, or a folder of repos |
-| `FLEET_BRANCH_MODEL`                | `opencode-go/qwen3.8-flash#none`                | Launcher branch suggestions (`generate.text` model, `#variant` ok)   |
-| `FLEET_USAGE_URL`                   | `http://127.0.0.1:8320`                         | The `usage` dashboard (`~/usage`) for the header's usage line        |
-| `FLEET_PUSH_FILE`                   | `$XDG_STATE_HOME/fleet/push.json`               | Web Push keys + devices (`push.dev.json` under `next dev`)           |
+| Variable                            | Default                                         | Purpose                                                                         |
+| ----------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------- |
+| `OPENCODE_URL`, `OPENCODE_PASSWORD` | unset → `Service.discover`                      | Explicit endpoint (tests, dev)                                                  |
+| `OPENCODE_SERVICE_FILE`             | `$XDG_STATE_HOME/opencode/service.json`         | Registration file for discovery                                                 |
+| `FLEET_OPENCODE_WEB_URL`            | `https://fleet.oox.sh`                          | OpenCode web UI base for deep links (Fleet's own origin, `proxy.ts`)            |
+| `FLEET_SESSION_LIMIT`               | unset → every session                           | Optional cap on sessions loaded                                                 |
+| `FLEET_LAUNCHER_ROOTS`              | `~/dev/repos:~/.dotfiles:~/aha:~/collie:~/subs` | Launcher roots (`:` list, `~` ok): a repo, a folder of repos, or a plain folder |
+| `FLEET_BRANCH_MODEL`                | `opencode-go/qwen3.8-flash#none`                | Launcher branch suggestions (`generate.text` model, `#variant` ok)              |
+| `FLEET_USAGE_URL`                   | `http://127.0.0.1:8320`                         | The `usage` dashboard (`~/usage`) for the header's usage line                   |
+| `FLEET_PUSH_FILE`                   | `$XDG_STATE_HOME/fleet/push.json`               | Web Push keys + devices (`push.dev.json` under `next dev`)                      |

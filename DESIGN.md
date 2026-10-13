@@ -240,7 +240,9 @@ OpenCode.
 - **List source**: `GET /api/fleet/launcher` — the sessionizer roots (`~/dev/repos/*`,
   `~/.dotfiles`, `~/aha`, `~/collie`, `~/subs`; configurable) that are git repos, merged with
   OpenCode's projects; each repo with its linked worktrees (branch, directory, owner: `dotfiles`
-  marker = Fleet/OpenCode-managed, else Pi/Herdr), sessions and states.
+  marker = Fleet/OpenCode-managed, else Pi/Herdr), sessions and states. A root that is a plain
+  folder (no git, no repos in it, e.g. `~/subs`) is listed too, marked `folder`: New session only
+  (its sessions land in OpenCode's global project, "Other").
 - **Retire**: on worktree sections (Projects), only for marker-owned worktrees, disabled while
   any session there is working or blocked; confirms, then OpenCode `worktree.remove({ force:
   false })` → `worktree-manage` retirement (database leases released, never forced, branch

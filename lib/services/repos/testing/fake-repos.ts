@@ -6,6 +6,7 @@ import type { CheckoutInfo } from '@/lib/services/repos/service'
 export type FakeRepos = {
   readonly layer: Layer.Layer<Repos>
   readonly setRepos: (repos: ReadonlyArray<RepoCheckout>) => Effect.Effect<void>
+  readonly setFolders: (folders: ReadonlyArray<string>) => Effect.Effect<void>
   readonly setPullRequest: (repo: string, branch: string, pr: PullRequest) => Effect.Effect<void>
   /** The `extra` directories of every `list` call. */
   readonly listed: Effect.Effect<ReadonlyArray<ReadonlyArray<string>>>
@@ -48,11 +49,16 @@ const inspectIn = (repos: ReadonlyArray<RepoCheckout>, directory: string) => {
 
 /**
  * In-memory repositories: `list` returns them (ignoring roots and extras, which it records),
- * `inspect` knows their checkouts, `pullRequest` answers what was set (else `none`).
+ * `folders` the plain folders set, `inspect` knows their checkouts, `pullRequest` answers what was
+ * set (else `none`).
  */
-export const makeFakeRepos = (initial: ReadonlyArray<RepoCheckout> = []) =>
+export const makeFakeRepos = (
+  initial: ReadonlyArray<RepoCheckout> = [],
+  initialFolders: ReadonlyArray<string> = []
+) =>
   Effect.gen(function* () {
     const repos = yield* Ref.make(initial)
+    const folders = yield* Ref.make(initialFolders)
     const prs = yield* Ref.make<ReadonlyMap<string, PullRequest>>(new Map())
     const listed = yield* Ref.make<ReadonlyArray<ReadonlyArray<string>>>([])
 
@@ -62,6 +68,7 @@ export const makeFakeRepos = (initial: ReadonlyArray<RepoCheckout> = []) =>
           Ref.update(listed, calls => [...calls, Array.from(extra)]),
           Ref.get(repos)
         ),
+      folders: Ref.get(folders),
       inspect: directory => Effect.map(Ref.get(repos), list => inspectIn(list, directory)),
       pullRequest: ({ repo, branch }) =>
         Effect.map(Ref.get(prs), map => map.get(prKey(repo, branch)) ?? { state: 'none' })
@@ -70,6 +77,7 @@ export const makeFakeRepos = (initial: ReadonlyArray<RepoCheckout> = []) =>
     const fake: FakeRepos = {
       layer,
       setRepos: value => Ref.set(repos, value),
+      setFolders: value => Ref.set(folders, value),
       setPullRequest: (repo, branch, pr) =>
         Ref.update(prs, map => new Map(map).set(prKey(repo, branch), pr)),
       listed: Ref.get(listed)
