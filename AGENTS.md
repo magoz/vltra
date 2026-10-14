@@ -291,7 +291,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   `opencode:session-tabs-removed` event into the frame (made in the frame's realm: OpenCode checks
   `instanceof CustomEvent`), all done sessions but the open one; it reads the saved strip back,
   resends while tabs stay, then warns (OpenCode changed). Each browser cleans its own. Its
-  slim toolbar has only what Fleet adds: the phone's back button, state and title, `✔ Done`
+  slim toolbar has only what Fleet adds: the phone's back button, state and title, where it runs (`project · worktree`, then the PR, as on its card; shrinks before the title), `✔ Done`
   (finished; phone only, the desktop card has its own) / Reopen (handled; neither for "folder deleted"), open in the terminal (`ocb://`,
   fine pointers only) or a new tab, close (desktop). Messages, asks, follow-ups and Stop happen in
   the chat. Being same-site, the iframe runs on Fleet's main thread: keep one chat mounted at a

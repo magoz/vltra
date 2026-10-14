@@ -11,13 +11,16 @@ import { useFleet } from '@/app/fleet-context'
 import { sessionTitle } from '@/app/fleet-format'
 import { useFleetActions } from '@/app/fleet-actions'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
+import { useLauncher } from '@/app/launcher-context'
 import { isReopenable } from '@/app/session-row'
 import { StateMarker } from '@/app/state-marker'
 import { useHandled } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
+import { PrBadge } from '@/app/worktree-badges'
 import { Button } from '@/components/ui/button'
 import { boardRow } from '@/lib/data/fleet/board'
 import type { BoardRow } from '@/lib/data/fleet/board'
+import { worktreeAt } from '@/lib/data/fleet/checkouts'
 
 /**
  * Opening a session's panel marks its latest run viewed in OpenCode (its own unread dots). Fleet
@@ -196,6 +199,28 @@ function ToolbarActions({ row }: { readonly row: BoardRow['row'] }) {
   )
 }
 
+/**
+ * Where the session runs, beside its title: the project, then the worktree and its PR (as on its
+ * card), muted. When the toolbar is narrow it shrinks first (the huge shrink factor, down to
+ * 10ch) and never takes more than half, so the title truncates last.
+ */
+function Location({ item }: { readonly item: BoardRow }) {
+  const { list } = useLauncher()
+  const pr = item.worktree === undefined ? undefined : worktreeAt(list, item.row.directory)?.pr
+
+  return (
+    <>
+      <span
+        title={item.row.directory}
+        className="text-muted-foreground max-w-1/2 min-w-[10ch] shrink-[100000] truncate text-xs"
+      >
+        {item.worktree === undefined ? item.project : `${item.project} · ${item.worktree}`}
+      </span>
+      {pr === undefined ? null : <PrBadge pr={pr} link className="shrink-0 text-xs" />}
+    </>
+  )
+}
+
 type SessionPanelProps = {
   readonly sessionID: string
   /** The row, when the session is on the board. */
@@ -205,7 +230,7 @@ type SessionPanelProps = {
 
 /**
  * A session's panel: OpenCode's chat (its web UI in an iframe) under one slim toolbar (phone back
- * button, state and title, Handled or Reopen, open in the terminal or a new tab, close). Messages,
+ * button, state, title and where it runs, Handled or Reopen, open in the terminal or a new tab, close). Messages,
  * asks, follow-ups and Stop all happen in the chat. It fills its container: the split beside the
  * board and Projects (`SessionSplit`), or focus mode's pane (full screen on the phone either way).
  * Callers keep it mounted across sessions (no `key`), so a new session moves the one chat frame
@@ -235,6 +260,7 @@ export function SessionPanel({ sessionID, item, onClose }: SessionPanelProps) {
             <StateMarker state={row.state} failed={row.outcome === 'failed'} />
           )}
           <h2 className="min-w-0 truncate font-semibold">{title}</h2>
+          {item === undefined ? null : <Location item={item} />}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {row === undefined ? null : <ToolbarActions row={row} />}

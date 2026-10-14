@@ -73,6 +73,23 @@ describe('session panel', () => {
     expect(screen.queryByRole('button', { name: 'Done' })).toBeNull()
   })
 
+  it('shows where the session runs beside its title: project, then worktree', () => {
+    const row = workingRow()
+
+    render(
+      <WithFleet actions={fakeActions().actions} rows={new Map([[row.id, row]])} now={baseTime}>
+        <SessionPanel sessionID="ses_1" item={itemFor(row, 'feat-x')} onClose={() => undefined} />
+      </WithFleet>
+    )
+
+    expect(screen.getByText('fleet · feat-x').getAttribute('title')).toBe(row.directory)
+    cleanup()
+
+    renderPanel(row)
+
+    expect(screen.getByText('fleet')).toBeTruthy()
+  })
+
   it("i and ⌘I put the caret in the chat's composer", () => {
     // A phone pointer: no auto-focus on load, only the keys.
     vi.stubGlobal('matchMedia', () => ({ matches: false }))
