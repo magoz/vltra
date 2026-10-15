@@ -236,6 +236,11 @@ OpenCode.
   create into the provisioned sibling checkout `<repo>-<branch-slug>` on a named branch from
   origin's fresh default tip (env/db/setup); it can take minutes, so the launch shows as a
   "provisioning…" entry until the session exists (or an error with what was preserved).
+  These steps run in **Watcher** (`~/dev/repos/watcher`): Fleet asks it to launch (`POST
+  /launches` on its unix socket) and follows the run, so a launch survives Fleet restarts (OpenCode
+  cancels `worktree.create` when its client disconnects; Fleet exits 3s after SIGTERM), drains on
+  Watcher's own restarts and is recovered after a crash. In-process launching remains for tests
+  and an explicit `OPENCODE_URL`.
   Repos OpenCode has never opened are registered first (`location.get` with the directory).
 - **List source**: `GET /api/fleet/launcher` — the sessionizer roots (`~/dev/repos/*`,
   `~/.dotfiles`, `~/aha`, `~/collie`, `~/subs`; configurable) that are git repos, merged with

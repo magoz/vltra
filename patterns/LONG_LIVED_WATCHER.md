@@ -145,8 +145,10 @@ timeout: a 90s outage per deploy. `exitOnSignals` (`lib/runtime/shutdown.ts`) bo
 process exits `shutdownGraceMs` (3s) after the signal, with Next's exit codes (143 / 130), unless
 Next exits first. The deadline counts from the signal, not from `stopFleet`, since disposing can
 itself wait (interrupting a `gh` or `git` call), and it is an unref'd timer outside the runtime it
-disposes. Nothing that must finish runs at shutdown: actions run on the disposed runtime, launches
-in flight are lost by design, no `after()`. The unit's `TimeoutStopSec` is the backstop.
+disposes. Nothing that must finish runs at shutdown: actions run on the disposed runtime, no
+`after()`. Launches are not Fleet's to finish: Watcher runs them (Fleet only follows them, and
+picks them up again at boot), so a restart costs a launch nothing. The unit's `TimeoutStopSec` is
+the backstop.
 
 To check by hand: `next start` the build on a spare port with `OPENCODE_URL` at a stub that serves
 an endless event stream, hold `/api/event` open through Fleet (`curl -N`), send SIGTERM: it exits

@@ -22,6 +22,7 @@ import type {
   PushSendError,
   PushStoreError
 } from '@/lib/services/push/service'
+import type { WatcherRefusedError, WatcherUnavailableError } from '@/lib/services/watcher/service'
 
 // Not a validation boundary. Construct the owner case, then project to a plain, tag-first object
 // for the action wire.
@@ -84,6 +85,8 @@ export type FleetActionError =
   | PushStoreError
   | PushDeviceNotFoundError
   | PushSendError
+  | WatcherUnavailableError
+  | WatcherRefusedError
 
 /** User-facing words for the OpenCode calls that write; reads keep the generic message. */
 const requestFailures = new Map([
@@ -124,7 +127,11 @@ export const failureMessage = (error: FleetActionError): string =>
         requestFailures.get(failed.operation) ?? 'OpenCode request failed',
       PushStoreError: () => 'Fleet could not save the notification settings',
       PushDeviceNotFoundError: () => 'This device no longer gets notifications',
-      PushSendError: failed => `The push service refused: ${failed.message}`
+      PushSendError: failed => `The push service refused: ${failed.message}`,
+      WatcherUnavailableError: () =>
+        'Watcher is not running, so nothing can be launched (systemctl --user start watcher)',
+      // Watcher's own words, e.g. an invalid branch.
+      WatcherRefusedError: refused => refused.message
     })
   )
 

@@ -59,7 +59,9 @@ export const failureStatus = (error: FleetActionError): number =>
       OpenCodeUnavailableError: () => 503,
       PushDeviceNotFoundError: () => 404,
       PushSendError: () => 502,
-      PushStoreError: () => 503
+      PushStoreError: () => 503,
+      WatcherRefusedError: () => 400,
+      WatcherUnavailableError: () => 503
     })
   )
 

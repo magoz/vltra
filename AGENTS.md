@@ -22,40 +22,40 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
 ## WHERE TO LOOK
 
-| Task                             | Location                                                         | Notes                                                    |
-| -------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------- |
-| Session states / priority        | `lib/data/fleet/state.ts`, `model.ts`                            | blocked > working > finished > handled; stuck, order     |
-| Wire shapes (API, SSE)           | `lib/data/fleet/types.ts`                                        | Effect Schema; the ocb plugin decodes the same types     |
-| Snapshot rows / grouping         | `lib/data/fleet/snapshot.ts`, `links.ts`                         | Roll-up, projects → worktrees → rows, deep links         |
-| Watcher, resync, backoff         | `lib/data/fleet/watcher.ts`, `store.ts`                          | Also interrupt reasons; `LONG_LIVED_WATCHER.md`          |
-| Action Effects + inputs          | `lib/data/fleet/actions.ts`                                      | Handled, reopen, viewed (asks: in OpenCode's chat)       |
-| Rollout script                   | `scripts/import-handled.ts`                                      | `pnpm fleet:import-handled`, one-off, never auto-run     |
-| OpenCode client                  | `lib/services/opencode/`                                         | See `patterns/OPENCODE_SURFACE.md`                       |
-| Chat proxy, chat keys            | `proxy.ts`, `app/opencode-proxy.ts`, `app/chat-keys.ts`          | Same-origin OpenCode iframe; Fleet's keys inside it      |
-| Chat tab strip cleanup           | `app/chat-tabs.ts`                                               | Done sessions leave OpenCode's tabs (its own event)      |
-| Runtime (one per process)        | `lib/runtime/fleet-runtime.ts`                                   | `ManagedRuntime` on `globalThis`; `runFleet`             |
-| Watcher start                    | `instrumentation.ts`                                             | Node runtime only; skipped during `next build`           |
-| Shutdown (SIGTERM deadline)      | `lib/runtime/shutdown.ts`                                        | Exits 3s after the signal; `LONG_LIVED_WATCHER.md`       |
-| Page / API routes / actions      | `app/`                                                           | `(fleet)/` one page, `api/fleet`, `*-action.ts`          |
-| Plugin mutation routes (JSON)    | `app/api/fleet/mutations.ts`, `json-request.ts`                  | handled, reopen, launches, dismiss, checkouts/open       |
-| Dashboard UI                     | `app/fleet-shell.tsx` and siblings                               | Layout's live tree (`fleet-live.tsx`); see below         |
-| Launcher UI                      | `app/launcher-dialog.tsx`, `pending-launches.tsx`                | Palette, launches, `retire-worktree.tsx`                 |
-| Agents (focus, board) / Projects | `app/agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`  | Cards: `agent-card.tsx`, rows: `session-row.tsx`         |
-| Board projections                | `lib/data/fleet/board.ts`                                        | Pure: live rows, needs-me list, columns, cards, filter   |
-| Run summaries (plugin page)      | `lib/data/fleet/session-detail.ts`                               | Latest answer + diff totals, cached by `idle`            |
-| Stats tab (data)                 | `lib/data/fleet/stats.ts`, `stats-period.ts`, `stats-view.ts`    | OpenCode `session.stats` per range + bucket; projections |
-| Stats tab (UI)                   | `app/stats-page.tsx`, `stats-charts.tsx`, `use-stats.ts`         | Recharts (lazy), `components/ui/chart.tsx`               |
-| Stats frames, heatmaps, skeleton | `app/stats-card.tsx`, `stats-heatmaps.tsx`, `stats-skeleton.tsx` | No Recharts: the skeleton shows while the tab loads      |
-| Notifications (what, when)       | `lib/data/fleet/notify.ts`, `notifier.ts`                        | Pure snapshot diff + grace recheck; forked in runtime    |
-| Web Push (keys, devices, send)   | `lib/services/push/`, `lib/data/fleet/push.ts`                   | `push.json` (0600), `web-push`; fake in `testing/`       |
-| Settings tab, service worker     | `app/settings-page.tsx`, `use-push.ts`, `public/sw.js`           | Turn on/off, test, devices; DESIGN.md "Notifications"    |
-| Launcher list / open / retire    | `lib/data/fleet/launcher.ts`, `checkouts.ts`                     | Pure projection + guards; `GET /api/fleet/launcher`      |
-| Launches (worktree + session)    | `lib/data/fleet/launches.ts`                                     | Registry in the runtime, background fibers, in store     |
-| Branch names / palette rows      | `lib/data/fleet/branch.ts`, `palette.ts`                         | `--` encoding, suggestion check, fallback, fuzzy         |
-| Repos on Box (git, gh)           | `lib/services/repos/`                                            | Roots scan, worktrees + marker owner, cached PR status   |
-| Subscription usage (header)      | `lib/services/usage/`, `lib/data/fleet/usage.ts`                 | Reads `~/usage`'s `/api/usage`; one pool per provider    |
-| Test doubles                     | `lib/**/testing/`                                                | Fake OpenCode / Repos layers, throwaway `opencode serve` |
-| Conventions                      | `patterns/`, then `../10x/patterns/`                             | Fleet notes only where it differs from 10x               |
+| Task                             | Location                                                         | Notes                                                     |
+| -------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------- |
+| Session states / priority        | `lib/data/fleet/state.ts`, `model.ts`                            | blocked > working > finished > handled; stuck, order      |
+| Wire shapes (API, SSE)           | `lib/data/fleet/types.ts`                                        | Effect Schema; the ocb plugin decodes the same types      |
+| Snapshot rows / grouping         | `lib/data/fleet/snapshot.ts`, `links.ts`                         | Roll-up, projects → worktrees → rows, deep links          |
+| Watcher, resync, backoff         | `lib/data/fleet/watcher.ts`, `store.ts`                          | Also interrupt reasons; `LONG_LIVED_WATCHER.md`           |
+| Action Effects + inputs          | `lib/data/fleet/actions.ts`                                      | Handled, reopen, viewed (asks: in OpenCode's chat)        |
+| Rollout script                   | `scripts/import-handled.ts`                                      | `pnpm fleet:import-handled`, one-off, never auto-run      |
+| OpenCode client                  | `lib/services/opencode/`                                         | See `patterns/OPENCODE_SURFACE.md`                        |
+| Chat proxy, chat keys            | `proxy.ts`, `app/opencode-proxy.ts`, `app/chat-keys.ts`          | Same-origin OpenCode iframe; Fleet's keys inside it       |
+| Chat tab strip cleanup           | `app/chat-tabs.ts`                                               | Done sessions leave OpenCode's tabs (its own event)       |
+| Runtime (one per process)        | `lib/runtime/fleet-runtime.ts`                                   | `ManagedRuntime` on `globalThis`; `runFleet`              |
+| Watcher start                    | `instrumentation.ts`                                             | Node runtime only; skipped during `next build`            |
+| Shutdown (SIGTERM deadline)      | `lib/runtime/shutdown.ts`                                        | Exits 3s after the signal; `LONG_LIVED_WATCHER.md`        |
+| Page / API routes / actions      | `app/`                                                           | `(fleet)/` one page, `api/fleet`, `*-action.ts`           |
+| Plugin mutation routes (JSON)    | `app/api/fleet/mutations.ts`, `json-request.ts`                  | handled, reopen, launches, dismiss, checkouts/open        |
+| Dashboard UI                     | `app/fleet-shell.tsx` and siblings                               | Layout's live tree (`fleet-live.tsx`); see below          |
+| Launcher UI                      | `app/launcher-dialog.tsx`, `pending-launches.tsx`                | Palette, launches, `retire-worktree.tsx`                  |
+| Agents (focus, board) / Projects | `app/agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`  | Cards: `agent-card.tsx`, rows: `session-row.tsx`          |
+| Board projections                | `lib/data/fleet/board.ts`                                        | Pure: live rows, needs-me list, columns, cards, filter    |
+| Run summaries (plugin page)      | `lib/data/fleet/session-detail.ts`                               | Latest answer + diff totals, cached by `idle`             |
+| Stats tab (data)                 | `lib/data/fleet/stats.ts`, `stats-period.ts`, `stats-view.ts`    | OpenCode `session.stats` per range + bucket; projections  |
+| Stats tab (UI)                   | `app/stats-page.tsx`, `stats-charts.tsx`, `use-stats.ts`         | Recharts (lazy), `components/ui/chart.tsx`                |
+| Stats frames, heatmaps, skeleton | `app/stats-card.tsx`, `stats-heatmaps.tsx`, `stats-skeleton.tsx` | No Recharts: the skeleton shows while the tab loads       |
+| Notifications (what, when)       | `lib/data/fleet/notify.ts`, `notifier.ts`                        | Pure snapshot diff + grace recheck; forked in runtime     |
+| Web Push (keys, devices, send)   | `lib/services/push/`, `lib/data/fleet/push.ts`                   | `push.json` (0600), `web-push`; fake in `testing/`        |
+| Settings tab, service worker     | `app/settings-page.tsx`, `use-push.ts`, `public/sw.js`           | Turn on/off, test, devices; DESIGN.md "Notifications"     |
+| Launcher list / open / retire    | `lib/data/fleet/launcher.ts`, `checkouts.ts`                     | Pure projection + guards; `GET /api/fleet/launcher`       |
+| Launches (worktree + session)    | `lib/data/fleet/launches.ts`, `lib/services/watcher/`            | Registry in store; Watcher runs them (backend), see below |
+| Branch names / palette rows      | `lib/data/fleet/branch.ts`, `palette.ts`                         | `--` encoding, suggestion check, fallback, fuzzy          |
+| Repos on Box (git, gh)           | `lib/services/repos/`                                            | Roots scan, worktrees + marker owner, cached PR status    |
+| Subscription usage (header)      | `lib/services/usage/`, `lib/data/fleet/usage.ts`                 | Reads `~/usage`'s `/api/usage`; one pool per provider     |
+| Test doubles                     | `lib/**/testing/`                                                | Fake OpenCode / Repos layers, throwaway `opencode serve`  |
+| Conventions                      | `patterns/`, then `../10x/patterns/`                             | Fleet notes only where it differs from 10x                |
 
 ## CONVENTIONS
 
@@ -226,8 +226,16 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   list). Cards shaped like `AgentCard` (`pending-launches.tsx`: pulsing dashed marker,
   repo · branch, a ticking clock, the task as title, `provisioning…` / `starting the session…`;
   failures red with what was kept and ×): focus mode's **Provisioning** above its list (compact),
-  the board at the top of Working. In memory on the server: lost on restart; ready ones stay in the
-  registry 10 minutes (the page's auto-open, the plugin) but no longer show on the web.
+  the board at the top of Working. The registry is in memory, but the launches themselves run in
+  **Watcher** (`~/dev/repos/watcher`, `watcher.service`; `POST /launches` on its unix socket, watch id
+  `manual`, no guardrails): a Fleet restart (`pnpm ship`) no longer cuts `worktree.create`, which
+  OpenCode cancels with its client. Fleet follows each run (`GET /runs/:id`, every second, through
+  Watcher's own restarts) and, at boot, lists and follows the ones still running. Watcher down:
+  launching fails with "Watcher is not running" (503). Backends in `launches.ts`: `watcher`, and
+  `opencode` (in-process, the old path) for tests and whenever `OPENCODE_URL` is set, so `pnpm dev`
+  against a throwaway server never launches through the live Watcher (`FLEET_LAUNCHER` overrides).
+  Ready ones stay in the registry 10 minutes (the page's auto-open, the plugin) but no longer show
+  on the web.
 - **Projects worktrees**: a card for a launcher repo shows each worktree section under its branch
   with `pi` / `detached`, the PR (`#123 open`, `merged · retire`, `closed · retire`, then `· closes #98` from
   GitHub's closing references, same `gh pr list` call; linked) and,
@@ -376,13 +384,15 @@ Commit before shipping: the working tree at build time is what goes live.
 
 ## CONFIGURATION
 
-| Variable                            | Default                                         | Purpose                                                                         |
-| ----------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------- |
-| `OPENCODE_URL`, `OPENCODE_PASSWORD` | unset → `Service.discover`                      | Explicit endpoint (tests, dev)                                                  |
-| `OPENCODE_SERVICE_FILE`             | `$XDG_STATE_HOME/opencode/service.json`         | Registration file for discovery                                                 |
-| `FLEET_OPENCODE_WEB_URL`            | `https://fleet.oox.sh`                          | OpenCode web UI base for deep links (Fleet's own origin, `proxy.ts`)            |
-| `FLEET_SESSION_LIMIT`               | unset → every session                           | Optional cap on sessions loaded                                                 |
-| `FLEET_LAUNCHER_ROOTS`              | `~/dev/repos:~/.dotfiles:~/aha:~/collie:~/subs` | Launcher roots (`:` list, `~` ok): a repo, a folder of repos, or a plain folder |
-| `FLEET_BRANCH_MODEL`                | `opencode-go/qwen3.8-flash#none`                | Launcher branch suggestions (`generate.text` model, `#variant` ok)              |
-| `FLEET_USAGE_URL`                   | `http://127.0.0.1:8320`                         | The `usage` dashboard (`~/usage`) for the header's usage line                   |
-| `FLEET_PUSH_FILE`                   | `$XDG_STATE_HOME/fleet/push.json`               | Web Push keys + devices (`push.dev.json` under `next dev`)                      |
+| Variable                            | Default                                          | Purpose                                                                         |
+| ----------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `OPENCODE_URL`, `OPENCODE_PASSWORD` | unset → `Service.discover`                       | Explicit endpoint (tests, dev)                                                  |
+| `OPENCODE_SERVICE_FILE`             | `$XDG_STATE_HOME/opencode/service.json`          | Registration file for discovery                                                 |
+| `FLEET_OPENCODE_WEB_URL`            | `https://fleet.oox.sh`                           | OpenCode web UI base for deep links (Fleet's own origin, `proxy.ts`)            |
+| `FLEET_SESSION_LIMIT`               | unset → every session                            | Optional cap on sessions loaded                                                 |
+| `FLEET_LAUNCHER_ROOTS`              | `~/dev/repos:~/.dotfiles:~/aha:~/collie:~/subs`  | Launcher roots (`:` list, `~` ok): a repo, a folder of repos, or a plain folder |
+| `FLEET_BRANCH_MODEL`                | `opencode-go/qwen3.8-flash#none`                 | Launcher branch suggestions (`generate.text` model, `#variant` ok)              |
+| `FLEET_USAGE_URL`                   | `http://127.0.0.1:8320`                          | The `usage` dashboard (`~/usage`) for the header's usage line                   |
+| `FLEET_PUSH_FILE`                   | `$XDG_STATE_HOME/fleet/push.json`                | Web Push keys + devices (`push.dev.json` under `next dev`)                      |
+| `FLEET_LAUNCHER`                    | `watcher`; `opencode` when `OPENCODE_URL` is set | Where launches run: Watcher's daemon, or in-process                             |
+| `FLEET_WATCHER_SOCKET`              | `$XDG_RUNTIME_DIR/watcher.sock`                  | Watcher's API socket                                                            |

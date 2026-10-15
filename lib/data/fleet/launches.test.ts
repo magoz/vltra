@@ -2,7 +2,7 @@ import { describe, expect, it } from '@effect/vitest'
 import { Effect, Layer } from 'effect'
 import * as TestClock from 'effect/testing/TestClock'
 import { diffSnapshots } from '@/lib/data/fleet/change'
-import { Launches, makeLaunches } from '@/lib/data/fleet/launches'
+import { InProcessBackendLive, Launches, makeLaunches } from '@/lib/data/fleet/launches'
 import { FleetStore, makeFleetStore } from '@/lib/data/fleet/store'
 import { webUrl } from '@/lib/data/fleet/testing/fixtures'
 import type { RepoCheckout } from '@/lib/data/fleet/types'
@@ -46,6 +46,7 @@ const setUp = (behavior: Partial<FakeLauncherBehavior> = {}) =>
     const store = Layer.effect(FleetStore, makeFleetStore(webUrl))
 
     const layer = Layer.effect(Launches, makeLaunches({ readyFor: '10 minutes' })).pipe(
+      Layer.provide(InProcessBackendLive),
       Layer.provideMerge(Layer.mergeAll(store, fake.layer, repos.layer))
     )
 

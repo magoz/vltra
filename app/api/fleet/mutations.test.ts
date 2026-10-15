@@ -19,7 +19,7 @@ import {
   SessionFolderGoneError,
   SessionNotFinishedError
 } from '@/lib/data/fleet/errors'
-import { Launches, makeLaunches } from '@/lib/data/fleet/launches'
+import { InProcessBackendLive, Launches, makeLaunches } from '@/lib/data/fleet/launches'
 import { fromSnapshot } from '@/lib/data/fleet/model'
 import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
 import { FleetStore, makeFleetStore } from '@/lib/data/fleet/store'
@@ -94,6 +94,7 @@ const setUp = (behavior: Partial<FakeLauncherBehavior> = {}) =>
     )
 
     const layer = Layer.effect(Launches, makeLaunches({ readyFor: '10 minutes' })).pipe(
+      Layer.provide(InProcessBackendLive),
       Layer.provideMerge(Layer.mergeAll(store, fake.layer, repos.layer, directories.layer))
     )
 
