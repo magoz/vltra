@@ -14,8 +14,9 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     background_color: '#faf8f4',
     theme_color: '#faf8f4',
-    // Rendered from app/home-screen-icon.svg with rsvg-convert, like app/apple-icon.png (180 px).
-    // The favicon, app/icon.svg, is the same mark cropped to fill 16 px, on transparent.
+    // The wordmark's pixel `v`, ink on paper: rendered from app/home-screen-icon.svg with
+    // `rsvg-convert -w <size> -h <size>`, like app/apple-icon.png (180 px). The favicon,
+    // app/icon.svg, is the same `v` filling 16 px on transparent, with the status dot.
     icons: [
       { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
