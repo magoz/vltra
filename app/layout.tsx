@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v l t r a',
+  title: 'ᴠ ʟ ᴛ ʀ ᴀ',
   description: 'Every OpenCode session in one view',
   applicationName: 'Vltra',
   appleWebApp: { capable: true, title: 'Vltra', statusBarStyle: 'default' }
