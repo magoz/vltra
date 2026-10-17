@@ -65,8 +65,10 @@ export function VltraDashboardSkeleton() {
   return (
     <div className="flex min-h-dvh flex-col font-mono text-sm lg:h-dvh" aria-busy="true">
       <header className="sticky top-0 z-20 flex h-12 items-center gap-x-4 border-b px-4 max-lg:hidden">
-        <h1 className="mr-3 flex items-center">
-          <Logo />
+        <h1 className="mr-6 flex items-center self-stretch">
+          <Link href={vltraHref('focus', {})} className="flex items-center self-stretch">
+            <Logo />
+          </Link>
         </h1>
         <nav aria-label="Pages" className="-ml-4 flex self-stretch">
           {tabs.map(item => (

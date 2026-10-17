@@ -395,8 +395,13 @@ export function VltraHeader({
   return (
     <header className="bg-background/95 supports-backdrop-filter:bg-background/80 sticky top-0 z-20 grid h-12 grid-cols-[1fr_auto_1fr] items-center gap-x-4 border-b px-4 backdrop-blur-sm max-lg:hidden">
       <div className="flex items-center self-stretch">
-        <h1 className="mr-3 flex items-center">
-          <Logo />
+        <h1 className="mr-6 flex items-center self-stretch">
+          <NavLink
+            screen="focus"
+            className="focus-visible:ring-ring/50 flex items-center self-stretch outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
+          >
+            <Logo />
+          </NavLink>
         </h1>
         <HeaderTabs screen={screen} />
       </div>

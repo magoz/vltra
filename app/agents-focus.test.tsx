@@ -295,6 +295,23 @@ describe('tabs', () => {
     ])
   })
 
+  it('the logo opens Focus in place, keeping the open session', () => {
+    const { navigations } = renderFocus({ session: 'ses_done_old' })
+
+    press('3')
+
+    const logo = headerTab('Vltra')
+
+    expect(logo.getAttribute('href')).toBe('/?session=ses_done_old')
+    expect(logo.getAttribute('aria-current')).toBeNull()
+
+    fireEvent.click(logo)
+
+    expect(testLocation()).toBe('/?session=ses_done_old')
+    expect(headerTab('Focus').getAttribute('aria-current')).toBe('page')
+    expect(navigations.at(-1)).toEqual({ kind: 'show', screen: 'focus' })
+  })
+
   it('switches with 1 / 2 / 3, all on the one page', () => {
     const { navigations } = renderFocus({ project: 'prj_vltra' })
 
