@@ -134,12 +134,11 @@ export const parsePullRequests = (output: string): PullRequest =>
 
 /**
  * The launcher roots: `VLTRA_LAUNCHER_ROOTS` (a `:`-separated path list, `~` for the home
- * directory), else `~/dev/repos` (whose children are the repositories), `~/.dotfiles`, `~/aha`,
- * `~/collie` and `~/subs`.
+ * directory), else `~/dev/repos` (whose children are the repositories).
  */
 export const launcherRoots = (configured: Option.Option<string>, home: string) =>
   Option.match(configured, {
-    onNone: () => ['~/dev/repos', '~/.dotfiles', '~/aha', '~/collie', '~/subs'],
+    onNone: () => ['~/dev/repos'],
     onSome: list => list.split(path.delimiter)
   })
     .map(entry => entry.trim())

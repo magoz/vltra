@@ -128,8 +128,7 @@ export const failureMessage = (error: VltraActionError): string =>
       PushStoreError: () => 'Vltra could not save the notification settings',
       PushDeviceNotFoundError: () => 'This device no longer gets notifications',
       PushSendError: failed => `The push service refused: ${failed.message}`,
-      WatcherUnavailableError: () =>
-        'Watcher is not running, so nothing can be launched (systemctl --user start watcher)',
+      WatcherUnavailableError: () => 'Watcher is not running, so nothing can be launched',
       // Watcher's own words, e.g. an invalid branch.
       WatcherRefusedError: refused => refused.message
     })

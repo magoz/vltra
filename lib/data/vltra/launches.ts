@@ -325,16 +325,11 @@ export const makeWatcherBackend = Effect.gen(function* () {
 })
 
 /**
- * Which backend: `VLTRA_LAUNCHER` (`watcher` | `opencode`); by default `watcher`, unless
- * `OPENCODE_URL` points Vltra at an explicit (throwaway) server, where launches stay in-process.
+ * Which backend: `VLTRA_LAUNCHER` (`watcher` | `opencode`); by default `opencode` (in-process),
+ * so only a deployment that runs a Watcher daemon opts into it.
  */
-export const launcherBackend = Config.all({
-  explicit: Config.option(Config.literals(['watcher', 'opencode'], 'VLTRA_LAUNCHER')),
-  openCodeUrl: Config.option(Config.nonEmptyString('OPENCODE_URL'))
-}).pipe(
-  Config.map(({ explicit, openCodeUrl }) =>
-    Option.getOrElse(explicit, () => (Option.isSome(openCodeUrl) ? 'opencode' : 'watcher'))
-  )
+export const launcherBackend = Config.literals(['watcher', 'opencode'], 'VLTRA_LAUNCHER').pipe(
+  Config.withDefault('opencode')
 )
 
 export const InProcessBackendLive = Layer.effect(LaunchBackend, makeInProcessBackend)

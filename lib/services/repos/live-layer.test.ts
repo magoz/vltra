@@ -312,14 +312,8 @@ describe('parseWorktreeList', () => {
 })
 
 describe('launcherRoots', () => {
-  it('defaults to the sessionizer roots under the home directory', () => {
-    expect(launcherRoots(Option.none(), '/home/me')).toEqual([
-      '/home/me/dev/repos',
-      '/home/me/.dotfiles',
-      '/home/me/aha',
-      '/home/me/collie',
-      '/home/me/subs'
-    ])
+  it('defaults to ~/dev/repos under the home directory', () => {
+    expect(launcherRoots(Option.none(), '/home/me')).toEqual(['/home/me/dev/repos'])
   })
 
   it('reads VLTRA_LAUNCHER_ROOTS as a path list, expanding ~ and dropping relative entries', () => {

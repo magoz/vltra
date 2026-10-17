@@ -16,7 +16,7 @@ export const openCodeProxyTarget = (openCodeUrl: string | undefined): URL =>
  * (`authorizedSessionCookie` in `server/src/middleware/authorization.ts`). So a request from
  * Vltra's own origin carries the target's origin instead; any other origin passes through
  * untouched and OpenCode refuses the cookie, as it would without the proxy (no cross-site use of
- * the cookie, e.g. from another `*.oox.sh` page).
+ * the cookie, e.g. from a sibling subdomain's page).
  */
 export const proxiedHeaders = (headers: Headers, target: URL): Headers => {
   const next = new Headers(headers)
