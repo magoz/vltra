@@ -103,7 +103,8 @@ Effect 4, shadcn/ui (Base UI), Tailwind v4.
   the filter, Stats' range; `use-selected-session.ts`: `?session=`; `vltra-href.ts` builds every
   URL) around `VltraShell` (`vltra-shell.tsx`): the tabs `Focus | Agents | Projects | Stats | Settings`
   (`vltra-header.tsx`; on the phone Settings is a `⚙`), in
-  the desktop header (no visible title, the tabs first; the count line `N need you · N working · N stuck`, centred; on the right the usage
+  the desktop header (the `vltra` wordmark first, `components/brand/logo.tsx`, as the title, in
+  ink; then the tabs; the count line `N need you · N working · N stuck`, centred; on the right the usage
   line, New, `?` and the connection) or the phone's bottom tab bar (`BottomTabs`, with `+`; no header there, only
   `ConnectionLine`: a slim `reconnecting…` line on top once a reconnect lasts 3s, the wait starting
   over when the page shows again), and each tab shows the open session itself (Focus' pane,

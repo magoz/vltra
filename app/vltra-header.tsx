@@ -5,6 +5,7 @@ import { relativeTime } from '@/app/vltra-format'
 import type { VltraScreen } from '@/app/vltra-href'
 import { NavLink } from '@/app/nav-link'
 import type { StreamStatus } from '@/app/use-vltra-live'
+import { Logo } from '@/components/brand/logo'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type {
@@ -364,8 +365,8 @@ export function BottomTabs({
 }
 
 /**
- * Desktop only (the phone has the tab bar and `ConnectionLine`): the tabs on the left (the title
- * is screen-reader only), the count line centred, on the right the usage line, the launcher's
+ * Desktop only (the phone has the tab bar and `ConnectionLine`): the logo and the tabs on the left
+ * (the logo is the title), the count line centred, on the right the usage line, the launcher's
  * New, `?` (the keys) and the connection.
  */
 export function VltraHeader({
@@ -393,9 +394,10 @@ export function VltraHeader({
 
   return (
     <header className="bg-background/95 supports-backdrop-filter:bg-background/80 sticky top-0 z-20 grid h-12 grid-cols-[1fr_auto_1fr] items-center gap-x-4 border-b px-4 backdrop-blur-sm max-lg:hidden">
-      <div className="-ml-3 flex items-center self-stretch">
-        {/* No visible title: the tabs start the bar. */}
-        <h1 className="sr-only">Vltra</h1>
+      <div className="flex items-center self-stretch">
+        <h1 className="mr-3 flex items-center">
+          <Logo />
+        </h1>
         <HeaderTabs screen={screen} />
       </div>
       <div className="text-sm whitespace-nowrap">

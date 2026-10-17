@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { vltraHref } from '@/app/vltra-href'
 import type { VltraScreen } from '@/app/vltra-href'
+import { Logo } from '@/components/brand/logo'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
@@ -64,8 +65,10 @@ export function VltraDashboardSkeleton() {
   return (
     <div className="flex min-h-dvh flex-col font-mono text-sm lg:h-dvh" aria-busy="true">
       <header className="sticky top-0 z-20 flex h-12 items-center gap-x-4 border-b px-4 max-lg:hidden">
-        <h1 className="text-base font-semibold">Vltra</h1>
-        <nav aria-label="Pages" className="flex self-stretch">
+        <h1 className="mr-3 flex items-center">
+          <Logo />
+        </h1>
+        <nav aria-label="Pages" className="-ml-4 flex self-stretch">
           {tabs.map(item => (
             <Link
               key={item.screen}
