@@ -42,7 +42,8 @@ const VltraMetadata = Schema.Struct({ vltra: HandledMarker })
 
 /**
  * The marker's key from before the rename (Fleet). Read, never written: every write drops it, and
- * `pnpm vltra:migrate-handled` moves the rest, after which this fallback can go.
+ * `pnpm vltra:migrate-handled` moved the rest (2026-10-17; only folder-gone sessions, which read
+ * as handled regardless, kept the old key), so this fallback can go.
  */
 const LegacyMetadata = Schema.Struct({ fleet: HandledMarker })
 

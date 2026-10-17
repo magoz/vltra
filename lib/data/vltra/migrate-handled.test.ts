@@ -21,7 +21,7 @@ describe('migrate handled', () => {
 
       const result = yield* migrateHandled({ dryRun: true }).pipe(Effect.provide(fake.layer))
 
-      expect(result).toEqual({ sessions: 3, marked: 2, written: 0 })
+      expect(result).toEqual({ sessions: 3, marked: 2, written: 0, failed: 0 })
       expect(yield* fake.calls).toEqual([])
     })
   )
@@ -34,7 +34,7 @@ describe('migrate handled', () => {
 
       const result = yield* migrateHandled({ dryRun: false }).pipe(Effect.provide(fake.layer))
 
-      expect(result).toEqual({ sessions: 3, marked: 2, written: 2 })
+      expect(result).toEqual({ sessions: 3, marked: 2, written: 2, failed: 0 })
 
       expect(yield* fake.metadata('ses_legacy')).toEqual({
         plugin: { pinned: true },

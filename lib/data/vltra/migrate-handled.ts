@@ -11,6 +11,8 @@ export type MigrateResult = {
   /** Sessions with a handled marker (either key) when the run started. */
   readonly marked: number
   readonly written: number
+  /** Writes OpenCode refused (a session whose folder is gone): left as they are. */
+  readonly failed: number
 }
 
 /**
@@ -34,7 +36,8 @@ export const migrateHandled = (options: { readonly dryRun: boolean }) =>
         const result: MigrateResult = {
           sessions: snapshot.sessions.length,
           marked: marked.length,
-          written: 0
+          written: 0,
+          failed: 0
         }
 
         return result
@@ -46,22 +49,28 @@ export const migrateHandled = (options: { readonly dryRun: boolean }) =>
           Effect.gen(function* () {
             const fresh = yield* connection.session(session.id)
 
-            if (Option.isNone(fresh) || fresh.value.handled === undefined) return false
+            if (Option.isNone(fresh) || fresh.value.handled === undefined) return 'skipped' as const
 
             yield* connection.setHandled({ sessionID: session.id, handled: fresh.value.handled })
 
-            return true
-          }),
+            return 'written' as const
+          }).pipe(
+            // OpenCode cannot write a session whose folder is gone; it reads as handled anyway.
+            Effect.catch(error =>
+              Effect.as(Console.log(`  failed ${session.id}: ${error.message}`), 'failed' as const)
+            )
+          ),
         { concurrency: 4 }
       )
 
       const result: MigrateResult = {
         sessions: snapshot.sessions.length,
         marked: marked.length,
-        written: outcomes.filter(Boolean).length
+        written: outcomes.filter(outcome => outcome === 'written').length,
+        failed: outcomes.filter(outcome => outcome === 'failed').length
       }
 
-      yield* Console.log(`Done: ${result.written} rewritten.`)
+      yield* Console.log(`Done: ${result.written} rewritten, ${result.failed} failed.`)
 
       return result
     })
