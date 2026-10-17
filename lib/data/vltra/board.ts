@@ -141,7 +141,7 @@ export const worktreeLabel = (
     if (row.directory.startsWith(prefix)) return row.directory.slice(prefix.length)
   }
 
-  // A worktree's folder repeats its repository's (`speldosa-feat-x`): the rest is enough.
+  // A worktree's folder repeats its repository's (`acme-feat-x`): the rest is enough.
   const folder = lastSegment(row.directory)
   const prefix = project === undefined ? undefined : `${lastSegment(project.directory)}-`
 
