@@ -22,14 +22,14 @@ export const faviconStatus = (counts: VltraCounts): FaviconStatus => {
 
 /**
  * `app/icon.svg` with the dot in the status' color (idle is the file as is): the wordmark's pixel
- * `v` (3 × 3 cells) nearly filling the icon (a slim margin) on a transparent background, its ink following the browser's
- * light/dark scheme, the dot in the `v`'s empty bottom-right cell.
+ * `v` (3 × 3 cells) centred at 42% of the icon, as vltra-old's favicon, on a transparent
+ * background, its ink following the browser's light/dark scheme; the dot in the top-right corner.
  */
 export const faviconSvg = (status: FaviconStatus): string =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 17 17">
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10.5 -10.5 36 36">
   <style>path{fill:#3a3835}@media (prefers-color-scheme:dark){path{fill:#ccc8c0}}</style>
   <path d="M0 0h5v10H0zM10 0h5v10h-5zM5 10h5v5H5z"/>
-  <circle cx="12.5" cy="12.5" r="2.25" fill="${dotColors[status]}"/>
+  <circle cx="21" cy="-6" r="4" fill="${dotColors[status]}"/>
 </svg>
 `
 

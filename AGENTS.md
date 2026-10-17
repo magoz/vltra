@@ -326,8 +326,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   (`prefers-color-scheme`), no toggle.
 - PWA: `app/manifest.ts`, `app/icon.svg`, `app/apple-icon.png`, `public/icon-*.png` (no offline).
   Icons are the wordmark's pixel `v`: ink on paper for the home screen, rendered from
-  `app/home-screen-icon.svg` with `rsvg-convert`; the favicon (`app/icon.svg`) on transparent
-  with the status dot in the `v`'s empty bottom-right cell.
+  `app/home-screen-icon.svg` with `rsvg-convert`; the favicon (`app/icon.svg`) at 42% on transparent (as
+  vltra-old's), the status dot in its top-right corner.
 - **Settings** (`?view=settings`, `settings-page.tsx`): notifications (DESIGN.md "Notifications").
   `use-push.ts` owns this browser's side: the service worker (`public/sw.js` at `/sw.js`, push and
   click only, never a `fetch` handler), its subscription and permission (`PushState`: on, off,
