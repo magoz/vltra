@@ -14,7 +14,6 @@ import { LauncherDialog } from '@/app/launcher-dialog'
 import { ShortcutsDialog } from '@/app/shortcuts-dialog'
 import type { StreamStatus } from '@/app/use-vltra-live'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
-import { useFavicon } from '@/app/use-favicon'
 import { useKeys } from '@/app/use-keys'
 import { useLauncherList } from '@/app/use-launcher-list'
 import { useOpenFromNotification, usePushRefresh } from '@/app/use-push'
@@ -198,7 +197,6 @@ export function VltraShell({
 
   const awaitLaunch = useLaunchAutoOpen(live.launches, selection, nav, reload)
 
-  useFavicon(counts)
   usePushRefresh()
   useOpenFromNotification()
   useShellShortcuts(openLauncher, () => setShortcutsOpen(true))

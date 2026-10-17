@@ -327,7 +327,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
 - PWA: `app/manifest.ts`, `app/icon.svg`, `app/apple-icon.png`, `public/icon-*.png` (no offline).
   Icons are the wordmark's pixel `v`: ink on paper for the home screen, rendered from
   `app/home-screen-icon.svg` with `rsvg-convert`; the favicon (`app/icon.svg`) at 42% on transparent (as
-  vltra-old's), the status dot in its top-right corner.
+  vltra-old's), ink following the light/dark scheme; static (no status dot).
 - **Settings** (`?view=settings`, `settings-page.tsx`): notifications (DESIGN.md "Notifications").
   `use-push.ts` owns this browser's side: the service worker (`public/sw.js` at `/sw.js`, push and
   click only, never a `fetch` handler), its subscription and permission (`PushState`: on, off,
@@ -348,8 +348,6 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   event stream goes live the page asks `GET /api/vltra/version` and, on a different build,
   reloads at once when hidden or idle, else (focus in the chat iframe, a field, an open dialog)
   toasts "Vltra was updated" with Reload and reloads the next time the page is hidden.
-- Favicon dot (`use-favicon.ts`): brand orange when any session needs you, else amber while any
-  works, else green (`app/icon.svg` as is).
 
 ## TESTS
 
