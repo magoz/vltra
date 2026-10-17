@@ -11,7 +11,7 @@ stable API; the integration suite is the tripwire when OpenCode is upgraded.
 - Endpoint: `OPENCODE_URL` (+ `OPENCODE_PASSWORD`) if set, else
   `Service.discover` from `@opencode/client/effect/service` (registration file + `/api/info`
   health check). Never `Service.ensure`.
-- All OpenCode types are mapped to Fleet types in `lib/services/opencode/mapping.ts`.
+- All OpenCode types are mapped to Vltra types in `lib/services/opencode/mapping.ts`.
 
 ## Reads
 
@@ -32,24 +32,24 @@ stable API; the integration suite is the tripwire when OpenCode is upgraded.
 Permissions and forms are **per location** in 2.0.20 (each loaded location has its own pending
 map), so the DESIGN's `GET /api/permission/request` and `GET /api/form` are called once per
 loaded location. Querying only loaded locations avoids booting new ones. Forms keep their fields
-(Fleet's `FormField`, minus validation details; `hidden` fields are dropped, OpenCode applies their
-default) on the wire rows; Fleet itself never answers them (OpenCode's chat does). Forms with the
+(Vltra's `FormField`, minus validation details; `hidden` fields are dropped, OpenCode applies their
+default) on the wire rows; Vltra itself never answers them (OpenCode's chat does). Forms with the
 temporary MCP `sessionID: "global"` owner are kept in the model but not attached to any row.
 
 Stats (`session.stats`) count messages created in `[from, to)` (default `from`: the first
 message): sessions / subagents with any, prompts (root user messages), steps (assistant messages)
-with tokens and cost (Fleet ignores cost: OpenCode's own catalog prices, $0 for subscription
+with tokens and cost (Vltra ignores cost: OpenCode's own catalog prices, $0 for subscription
 providers), tool calls (`summary` totals or `detail` per tool with median duration),
-active days in `timezone`. Fleet reads the range in `detail` and each chart bucket in `summary`
-(`lib/data/fleet/stats.ts`), each hour in `summary` for the time-of-day charts (up to 31 days),
+active days in `timezone`. Vltra reads the range in `detail` and each chart bucket in `summary`
+(`lib/data/vltra/stats.ts`), each hour in `summary` for the time-of-day charts (up to 31 days),
 and each project (`GET /api/project`) in `none` to rank them for the Prompts chart's split (then
 the top three's buckets in `summary`) and the range before in `summary` for the tiles' change
 (its per-day `activity` is not read). 2.0.22 refuses an all-time range for a project without messages
-(`InvalidRequestError`, "Stats range must end after it starts"); Fleet shows it as empty.
+(`InvalidRequestError`, "Stats range must end after it starts"); Vltra shows it as empty.
 
 ## Launcher calls
 
-The launcher (`lib/data/fleet/launcher.ts`, `launches.ts`) adds these, each mapped in
+The launcher (`lib/data/vltra/launcher.ts`, `launches.ts`) adds these, each mapped in
 `mapping.ts` and exposed on `OpenCodeConnection`:
 
 | Purpose                   | Call                                                                 |
@@ -64,13 +64,13 @@ The launcher (`lib/data/fleet/launcher.ts`, `launches.ts`) adds these, each mapp
 | One branch name           | `POST /api/experimental/generate { prompt }` (`generate.text`)       |
 
 - `location.get` registers the project of a directory OpenCode never opened and returns
-  `{ directory, project: { id, directory, canonical } }`; Fleet keeps `project.canonical` as the
+  `{ directory, project: { id, directory, canonical } }`; Vltra keeps `project.canonical` as the
   project directory (the same value `GET /api/project` calls `canonical`).
 - `worktree.create` is synchronous: it answers once the strategy is done, which with the dotfiles
   `worktrees` plugin means a provisioned checkout (minutes). `fetch` (undici) gives up waiting for
   response headers after 5 minutes, so worktree calls use their own client
   (`NodeHttpClient.makeUndici`, which leaves time limits to `Effect.timeout`: 35 minutes for
-  create, 21 for remove, matching the plugin's bounds). Fleet sends `name =
+  create, 21 for remove, matching the plugin's bounds). Vltra sends `name =
 branch.replaceAll('/', '--')` (`branch.ts`; the plugin decodes `--` back to `/`).
 - OpenCode's **default `git` strategy** (no plugin, e.g. the integration server) ignores the
   branch: it checks out a **detached** worktree at `$XDG_DATA_HOME/opencode/worktree/<id>/<name>`
@@ -83,11 +83,11 @@ directory: …`, a dirty checkout, the plugin's preflight and `worktree-manage` 
   chars) into `OpenCodeRejectedError`, whose message reaches the user; anything else stays a
   generic `OpenCodeRequestError`.
 - `generate.text` without a usable model fails fast (`InvalidRequestError: No model specified…`
-  or `ServiceUnavailableError` through the dead proxy); Fleet then uses its fallback slug.
+  or `ServiceUnavailableError` through the dead proxy); Vltra then uses its fallback slug.
 - `session.prompt` returns as soon as the message is queued; the run (and its failure without a
   model) happens afterwards.
 
-## Events → Fleet
+## Events → Vltra
 
 `server.connected`, `session.execution.{started,succeeded,failed,interrupted}` (see Interrupt
 reasons), `session.retry.scheduled`, `session.status`, `session.viewed`,
@@ -106,19 +106,19 @@ progress, `session.step.failed`, ...) is ignored. On location shutdown OpenCode 
 
 ## Handled marker (session metadata)
 
-Fleet's only state is `metadata.fleet.handled = <time.idle of the handled run>`; the latest run is
+Vltra's only state is `metadata.vltra.handled = <time.idle of the handled run>`; the latest run is
 handled while `handled >= idle`, so the next run that ends needs me again without an un-handle
 step. Verified in 2.0.20 (`core/src/session/projector.ts`):
 
 - `PATCH /api/session/:id { metadata }` **replaces** the whole object and bumps `time.updated`
-  (so Fleet never orders by `updated`; rows carry `activeAt` from run times instead). It emits
+  (so Vltra never orders by `updated`; rows carry `activeAt` from run times instead). It emits
   `session.metadata.updated` with the full new metadata.
 - Writes are read-modify-write (`setHandled` in `live-layer.ts`, merge in `mapping.ts`
-  `withFleetHandled`): read the session, keep every other key (other writers: plugins), replace
-  only `fleet.handled`; clearing deletes it, and `fleet` once empty. Fleet is the only writer of
-  `metadata.fleet`: the terminal plugin marks handled / reopens through Fleet's
-  `POST /api/fleet/sessions/:id/handled` / `.../reopen` (same Effects as the server actions).
-- Reading: `fleetHandled` decodes `metadata.fleet.handled` as a finite number; absent or malformed
+  `withVltraHandled`): read the session, keep every other key (other writers: plugins), replace
+  only `vltra.handled`; clearing deletes it, and `vltra` once empty. Vltra is the only writer of
+  `metadata.vltra`: the terminal plugin marks handled / reopens through Vltra's
+  `POST /api/vltra/sessions/:id/handled` / `.../reopen` (same Effects as the server actions).
+- Reading: `vltraHandled` decodes `metadata.vltra.handled` as a finite number; absent or malformed
   metadata reads as unhandled.
 - Children and forks inherit the parent's metadata at creation (so a subagent may start with the
   parent's marker; only root rows are ever handled, and a child's own run ends later anyway).
@@ -127,12 +127,12 @@ step. Verified in 2.0.20 (`core/src/session/projector.ts`):
 - A deleted location folder blocks every location-scoped call: OpenCode resolves the location
   with `realPath` (`PlatformError: NotFound: FileSystem.realPath`) once it is not loaded, so
   `PATCH /api/session/:id` (and the diff) fail, 500 on 2.0.20 and 404 on 2.0.22, while
-  `GET /api/session/:id` and messages still work. Fleet counts such sessions handled and skips
+  `GET /api/session/:id` and messages still work. Vltra counts such sessions handled and skips
   those calls (`lib/services/directories/`).
 
 OpenCode's own `time.viewed` (`viewed < idle` = unread in OpenCode UIs) is independent: opening
 a session's panel posts `POST /api/session/:id/view { idle }` for OpenCode's unread dots, and
-`pnpm fleet:import-handled` used it once to seed markers. Fleet state never reads it.
+`pnpm vltra:import-handled` used it once to seed markers. Vltra state never reads it.
 
 ## Interrupt reasons
 
@@ -145,7 +145,7 @@ a session's panel posts `POST /api/session/:id/view { idle }` for OpenCode's unr
   `handled = time.idle`, so a run I stopped myself never needs me.
 - `inactivity` (OpenCode stopping an evicted location's runs) stays finished, labelled "stopped
   by OpenCode". `superseded` is declared but unused in 2.0.20.
-- Missed while Fleet was down: after every snapshot, finished, unhandled root sessions that ended
+- Missed while Vltra was down: after every snapshot, finished, unhandled root sessions that ended
   interrupted with no known reason get it from the durable session log
   (`GET /api/experimental/session/:id/log`, `follow: false`, which ends after its `log.synced`
   marker): the last terminal execution event that is not a shutdown. Results are cached per
@@ -157,7 +157,7 @@ a session's panel posts `POST /api/session/:id/view { idle }` for OpenCode's unr
 The chat panel leans on OpenCode's web UI, not its API: nothing here is tested against a real
 build, so check each by hand after an upgrade (verified on 2.0.22).
 
-| Fleet relies on                                                    | Where                         |
+| Vltra relies on                                                    | Where                         |
 | ------------------------------------------------------------------ | ----------------------------- |
 | Session route `/server/<base64url(origin)>/session/<id>`           | `links.ts`, `chat-navigation` |
 | Its router follows `replaceState` + `popstate` (session switch)    | `chat-navigation.ts`          |
@@ -165,7 +165,7 @@ build, so check each by hand after an upgrade (verified on 2.0.22).
 | `opencode:session-tabs-removed` event, `…browser.dat:tabs` storage | `chat-tabs.ts`                |
 | Root paths it serves, and its worker at `/sw.js` (kept out)        | `proxy.ts`, `public/sw.js`    |
 
-A broken router move shows as Fleet's header on the new session and the chat on the old one.
+A broken router move shows as Vltra's header on the new session and the chat on the old one.
 
 ## Test isolation (integration)
 
@@ -173,7 +173,7 @@ A broken router move shows as Fleet's header on the new session and the chat on 
 loopback port with a random password and a rebuilt environment: `HOME`, `XDG_*`, `TMPDIR`,
 `OPENCODE_CONFIG_DIR` and cwd under one temp directory, `OPENCODE_CONFIG_CONTENT={}`,
 auto-update and models fetch disabled, `HTTP(S)_PROXY` pointed at a dead port. Sessions use
-the unavailable model `fleet-none/none`, so prompts fail with `provider.no-route` without any
+the unavailable model `vltra-none/none`, so prompts fail with `provider.no-route` without any
 network call. (The default free `opencode` provider would otherwise answer real prompts.)
 The launcher suite (`launcher.integration.test.ts`) also sets `OPENCODE_CONFIG_CONTENT` to an
 unavailable default model and creates temp git repositories under the server's own temp folder;

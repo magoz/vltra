@@ -1,22 +1,22 @@
 import type { Session } from '@opencode/client/effect'
 import { Clock, Deferred, Effect, Layer, Option, Queue, Ref, Stream } from 'effect'
 import type { Cause } from 'effect'
-import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
-import { noActivity } from '@/lib/data/fleet/stats'
-import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
+import { VltraEvent, OpenCodeSignal } from '@/lib/data/vltra/events'
+import { noActivity } from '@/lib/data/vltra/stats'
+import type { OpenCodeSnapshot } from '@/lib/data/vltra/model'
 import type {
   FileChange,
   InterruptReason,
   SessionRecord,
   SessionStats,
   Transcript
-} from '@/lib/data/fleet/types'
+} from '@/lib/data/vltra/types'
 import {
   OpenCodeRequestError,
   OpenCodeUnavailableError,
   SessionNotFoundError
 } from '@/lib/services/opencode/errors'
-import { fleetHandled, withFleetHandled } from '@/lib/services/opencode/mapping'
+import { vltraHandled, withVltraHandled } from '@/lib/services/opencode/mapping'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type {
   ActionError,
@@ -26,7 +26,7 @@ import type {
   StatsInput
 } from '@/lib/services/opencode/service'
 
-/** A call Fleet made against the fake, for assertions. */
+/** A call Vltra made against the fake, for assertions. */
 export type FakeCall =
   | { readonly op: 'view'; readonly sessionID: string; readonly idle: number }
   | { readonly op: 'setHandled'; readonly sessionID: string; readonly handled: number | undefined }
@@ -181,13 +181,13 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
     const storeMetadata = (sessionID: string, next: Session.Metadata) =>
       Effect.andThen(
         Ref.update(metadata, map => new Map(map).set(sessionID, next)),
-        patchSession(sessionID, { handled: fleetHandled(next) })
+        patchSession(sessionID, { handled: vltraHandled(next) })
       )
 
     const metadataOf = (session: SessionRecord) =>
       Effect.map(
         Ref.get(metadata),
-        map => map.get(session.id) ?? withFleetHandled(undefined, session.handled)
+        map => map.get(session.id) ?? withVltraHandled(undefined, session.handled)
       )
 
     /** Like OpenCode: replace the whole object, then emit `session.metadata.updated`. */
@@ -199,13 +199,13 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
 
         if (Option.isNone(found)) return yield* new SessionNotFoundError({ sessionID })
 
-        const next = withFleetHandled(yield* metadataOf(found.value), handled)
+        const next = withVltraHandled(yield* metadataOf(found.value), handled)
 
         yield* storeMetadata(sessionID, next)
 
         yield* emit(
           OpenCodeSignal.Apply({
-            event: FleetEvent.HandledChanged({ sessionID, handled: fleetHandled(next) })
+            event: VltraEvent.HandledChanged({ sessionID, handled: vltraHandled(next) })
           })
         )
       })

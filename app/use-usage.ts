@@ -2,7 +2,7 @@
 
 import { Option, Schema } from 'effect'
 import { useEffect, useState } from 'react'
-import { UsageSummary } from '@/lib/data/fleet/types'
+import { UsageSummary } from '@/lib/data/vltra/types'
 
 const decodeSummary = Schema.decodeUnknownOption(Schema.fromJsonString(UsageSummary))
 
@@ -10,7 +10,7 @@ const decodeSummary = Schema.decodeUnknownOption(Schema.fromJsonString(UsageSumm
 const refreshEvery = 60_000
 
 /**
- * The subscription quotas (`GET /api/fleet/usage`): loaded on mount, every minute while the page
+ * The subscription quotas (`GET /api/vltra/usage`): loaded on mount, every minute while the page
  * shows, and when it shows again. A failed load keeps the last summary.
  */
 export function useUsage(): UsageSummary | undefined {
@@ -22,7 +22,7 @@ export function useUsage(): UsageSummary | undefined {
     const load = () => {
       if (document.visibilityState !== 'visible') return
 
-      fetch('/api/fleet/usage', { cache: 'no-store' })
+      fetch('/api/vltra/usage', { cache: 'no-store' })
         .then(response => (response.ok ? response.text() : undefined))
         .then(text => {
           const decoded = text === undefined ? Option.none() : decodeSummary(text)
@@ -30,7 +30,7 @@ export function useUsage(): UsageSummary | undefined {
           if (!disposed && Option.isSome(decoded)) setSummary(decoded.value)
         })
         .catch(() => {
-          // Fleet unreachable: keep the last summary; the next tick tries again.
+          // Vltra unreachable: keep the last summary; the next tick tries again.
         })
     }
 

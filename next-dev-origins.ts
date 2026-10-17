@@ -1,4 +1,4 @@
-const localDevOrigins = ['fleet.localhost', '*.fleet.localhost']
+const localDevOrigins = ['vltra.localhost', '*.vltra.localhost']
 
 export const getAllowedDevOrigins = (portlessUrl?: string): string[] => {
   if (portlessUrl === undefined) return [...localDevOrigins]

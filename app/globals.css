@@ -2,7 +2,7 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
-/* Fleet follows the system appearance; there is no theme toggle. */
+/* Vltra follows the system appearance; there is no theme toggle. */
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
 @theme inline {

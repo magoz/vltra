@@ -1,6 +1,6 @@
 'use client'
 
-import type { FleetScreen } from '@/app/fleet-href'
+import type { VltraScreen } from '@/app/vltra-href'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 
 type KeyHint = { readonly keys: string; readonly label: string }
@@ -11,7 +11,7 @@ type KeyHint = { readonly keys: string; readonly label: string }
  * (the tabs), `⌘1`–`⌘9` (Focus' Nth session), `Escape` (close the session) and `?` / `⌘/` (this list), plus OpenCode's
  * own palette in the chat (`⌘P`).
  */
-export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
+export const keyHints: Readonly<Record<VltraScreen, ReadonlyArray<KeyHint>>> = {
   focus: [
     { keys: 'j k', label: 'move' },
     { keys: '↵', label: 'open' },
@@ -69,7 +69,7 @@ export const keyHints: Readonly<Record<FleetScreen, ReadonlyArray<KeyHint>>> = {
   ]
 }
 
-const tabNames: Readonly<Record<FleetScreen, string>> = {
+const tabNames: Readonly<Record<VltraScreen, string>> = {
   focus: 'Focus',
   agents: 'Agents',
   projects: 'Projects',
@@ -83,7 +83,7 @@ export function ShortcutsDialog({
   open,
   onOpenChange
 }: {
-  readonly screen: FleetScreen
+  readonly screen: VltraScreen
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
 }) {

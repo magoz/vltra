@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import type { FleetCounts } from '@/lib/data/fleet/types'
+import type { VltraCounts } from '@/lib/data/vltra/types'
 
 /** What the favicon's dot says: something needs you, else something is working, else quiet. */
 export type FaviconStatus = 'needs-you' | 'working' | 'idle'
@@ -12,7 +12,7 @@ const dotColors: Readonly<Record<FaviconStatus, string>> = {
   idle: '#4cc26a'
 }
 
-export const faviconStatus = (counts: FleetCounts): FaviconStatus => {
+export const faviconStatus = (counts: VltraCounts): FaviconStatus => {
   if (counts.blocked + counts.finished > 0) return 'needs-you'
 
   if (counts.working > 0) return 'working'
@@ -32,8 +32,8 @@ export const faviconSvg = (status: FaviconStatus): string =>
 </svg>
 `
 
-/** Points the page's `<link rel="icon">` at the favicon for the fleet's current status. */
-export function useFavicon(counts: FleetCounts) {
+/** Points the page's `<link rel="icon">` at the favicon for the vltra's current status. */
+export function useFavicon(counts: VltraCounts) {
   const status = faviconStatus(counts)
 
   useEffect(() => {

@@ -4,8 +4,8 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import { Clock, Config, Effect, Layer, Option, Ref, Schema, Semaphore } from 'effect'
 import { generateVAPIDKeys, sendNotification } from 'web-push'
-import { openCodeWebUrl } from '@/lib/data/fleet/store'
-import type { PushDevice } from '@/lib/data/fleet/types'
+import { openCodeWebUrl } from '@/lib/data/vltra/store'
+import type { PushDevice } from '@/lib/data/vltra/types'
 import {
   BrowserSubscription,
   Push,
@@ -15,7 +15,7 @@ import {
 } from '@/lib/services/push/service'
 import type { PushMessage } from '@/lib/services/push/service'
 
-// Fleet's one file (DESIGN.md "Notifications"): the VAPID key pair and the subscribed browsers,
+// Vltra's one file (DESIGN.md "Notifications"): the VAPID key pair and the subscribed browsers,
 // read once when the runtime starts and rewritten whole (temp file, then rename) on every change.
 // Losing it costs a new "Turn on" on each device; it never holds session state.
 
@@ -39,11 +39,11 @@ type PushFile = typeof PushFile.Type
 const decodeFile = Schema.decodeUnknownEffect(Schema.fromJsonString(PushFile))
 
 /**
- * The push file: `FLEET_PUSH_FILE`, else `$XDG_STATE_HOME/fleet/push.json` (`push.dev.json` under
+ * The push file: `VLTRA_PUSH_FILE`, else `$XDG_STATE_HOME/vltra/push.json` (`push.dev.json` under
  * `next dev`, whose throwaway sessions must not reach the real devices).
  */
 export const pushFilePath = Config.all({
-  file: Config.option(Config.string('FLEET_PUSH_FILE')),
+  file: Config.option(Config.string('VLTRA_PUSH_FILE')),
   stateHome: Config.option(Config.string('XDG_STATE_HOME')),
   home: Config.string('HOME').pipe(Config.withDefault(homedir())),
   mode: Config.string('NODE_ENV').pipe(Config.withDefault('production'))
@@ -52,7 +52,7 @@ export const pushFilePath = Config.all({
     Option.getOrElse(file, () =>
       path.join(
         Option.getOrElse(stateHome, () => path.join(home, '.local', 'state')),
-        'fleet',
+        'vltra',
         mode === 'development' ? 'push.dev.json' : 'push.json'
       )
     )
@@ -93,7 +93,7 @@ const publicDevice = ({ id, label, createdAt }: StoredDevice): PushDevice => ({
   createdAt
 })
 
-/** The parts of a failure Fleet reads: Node's `code`, a `WebPushError`'s `statusCode`. */
+/** The parts of a failure Vltra reads: Node's `code`, a `WebPushError`'s `statusCode`. */
 const Failure = Schema.Struct({
   code: Schema.optional(Schema.String),
   statusCode: Schema.optional(Schema.Number),
@@ -175,7 +175,7 @@ const writePushFile = (file: string, contents: PushFile) =>
       const temporary = `${file}.${process.pid}.tmp`
 
       await mkdir(path.dirname(file), { recursive: true, mode: 0o700 })
-      // The private key lives here: only Fleet's user reads it.
+      // The private key lives here: only Vltra's user reads it.
       await writeFile(temporary, `${JSON.stringify(contents, null, 2)}\n`, { mode: 0o600 })
       await rename(temporary, file)
     },
@@ -184,7 +184,7 @@ const writePushFile = (file: string, contents: PushFile) =>
 
 export type PushOptions = {
   readonly file: string
-  /** VAPID `sub`: Fleet's own URL. */
+  /** VAPID `sub`: Vltra's own URL. */
   readonly subject: string
   readonly sender?: PushSender
 }

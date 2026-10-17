@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AgentCard } from '@/app/agent-card'
-import { useFleet } from '@/app/fleet-context'
+import { useVltra } from '@/app/vltra-context'
 import { PendingLaunches } from '@/app/pending-launches'
 import { SessionPanel } from '@/app/session-panel'
 import { HandledProvider, useHandled } from '@/app/use-handled'
 import type { HandledFlow } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
-import { boardRow, focusList, nextNeedsMe, pendingLaunches } from '@/lib/data/fleet/board'
-import type { BoardRow } from '@/lib/data/fleet/board'
+import { boardRow, focusList, nextNeedsMe, pendingLaunches } from '@/lib/data/vltra/board'
+import type { BoardRow } from '@/lib/data/vltra/board'
 import { cn } from '@/lib/utils'
 
 /**
@@ -52,7 +52,7 @@ function EmptyPane({ empty }: { readonly empty: boolean }) {
 }
 
 function Focus() {
-  const { view, selection } = useFleet()
+  const { view, selection } = useVltra()
   const flow = useHandled()
   const list = useMemo(() => focusList(view), [view])
   const launches = useMemo(() => pendingLaunches(view.launches), [view.launches])

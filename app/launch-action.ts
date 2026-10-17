@@ -2,11 +2,11 @@
 
 import { Effect, Schema } from 'effect'
 import { headers } from 'next/headers'
-import { FleetActionValue, toActionResult } from '@/app/fleet-action-result'
+import { VltraActionValue, toActionResult } from '@/app/vltra-action-result'
 import { requireSameOrigin } from '@/app/same-origin'
-import { LaunchInput } from '@/lib/data/fleet/launcher'
-import { Launches } from '@/lib/data/fleet/launches'
-import { runFleet } from '@/lib/runtime/fleet-runtime'
+import { LaunchInput } from '@/lib/data/vltra/launcher'
+import { Launches } from '@/lib/data/vltra/launches'
+import { runVltra } from '@/lib/runtime/vltra-runtime'
 
 /**
  * Start a new worktree + session for a task (DESIGN.md "Launcher and worktrees"). Returns at once
@@ -15,17 +15,17 @@ import { runFleet } from '@/lib/runtime/fleet-runtime'
  */
 export const launchAction = async (
   input: LaunchInput
-): Promise<FleetActionValue<{ readonly launchID: string }>> => {
+): Promise<VltraActionValue<{ readonly launchID: string }>> => {
   const requestHeaders = await headers()
 
-  return await runFleet(
+  return await runVltra(
     Effect.gen(function* () {
       yield* requireSameOrigin(requestHeaders)
 
       const decoded = yield* Schema.decodeUnknownEffect(LaunchInput)(input)
       const launch = yield* Effect.flatMap(Launches, launches => launches.start(decoded))
 
-      return FleetActionValue.Success({ launchID: launch.id })
-    }).pipe(toActionResult('action.fleet.launch'))
+      return VltraActionValue.Success({ launchID: launch.id })
+    }).pipe(toActionResult('action.vltra.launch'))
   )
 }

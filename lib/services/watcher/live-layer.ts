@@ -8,11 +8,11 @@ import {
 import type { LaunchRequest, WatcherOperations } from '@/lib/services/watcher/service'
 
 /**
- * Watcher's socket (`FLEET_WATCHER_SOCKET`), else `$XDG_RUNTIME_DIR/watcher.sock`: where the daemon
+ * Watcher's socket (`VLTRA_WATCHER_SOCKET`), else `$XDG_RUNTIME_DIR/watcher.sock`: where the daemon
  * listens by default for the same user.
  */
 export const watcherSocket = Config.all({
-  explicit: Config.option(Config.nonEmptyString('FLEET_WATCHER_SOCKET')),
+  explicit: Config.option(Config.nonEmptyString('VLTRA_WATCHER_SOCKET')),
   runtime: Config.option(Config.nonEmptyString('XDG_RUNTIME_DIR'))
 }).pipe(
   Config.map(({ explicit, runtime }) =>

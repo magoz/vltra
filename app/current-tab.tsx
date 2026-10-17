@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { AgentsBoard } from '@/app/agents-board'
 import { AgentsFocus } from '@/app/agents-focus'
-import { useFleet } from '@/app/fleet-context'
+import { useVltra } from '@/app/vltra-context'
 import { ProjectsGrid } from '@/app/projects-grid'
 import { SettingsPage } from '@/app/settings-page'
 import { StatsPageSkeleton } from '@/app/stats-skeleton'
@@ -20,7 +20,7 @@ const StatsPage = dynamic(() => import('@/app/stats-page').then(module => module
  * none stays alive hidden.
  */
 export function CurrentTab() {
-  const { nav } = useFleet()
+  const { nav } = useVltra()
 
   switch (nav.screen) {
     case 'focus':

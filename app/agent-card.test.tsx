@@ -1,18 +1,18 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AgentCard } from '@/app/agent-card'
-import { fakeActions, itemFor, rowFrom, WithFleet } from '@/app/testing/dashboard-fixtures'
+import { fakeActions, itemFor, rowFrom, WithVltra } from '@/app/testing/dashboard-fixtures'
 import { swipeDistance } from '@/app/use-swipe'
-import { baseTime, sessionRecord } from '@/lib/data/fleet/testing/fixtures'
-import type { FleetRow } from '@/lib/data/fleet/types'
+import { baseTime, sessionRecord } from '@/lib/data/vltra/testing/fixtures'
+import type { VltraRow } from '@/lib/data/vltra/types'
 
 const now = baseTime + 5 * 60 * 1000
 
-const renderCard = (row: FleetRow, actions = fakeActions()) => {
+const renderCard = (row: VltraRow, actions = fakeActions()) => {
   const onSelect = vi.fn<(sessionID: string) => void>()
 
   render(
-    <WithFleet
+    <WithVltra
       actions={actions.actions}
       rows={new Map([[row.id, row]])}
       now={now}
@@ -21,7 +21,7 @@ const renderCard = (row: FleetRow, actions = fakeActions()) => {
       <ul>
         <AgentCard item={itemFor(row, 'feat-panel')} cursor={false} />
       </ul>
-    </WithFleet>
+    </WithVltra>
   )
 
   return { onSelect, calls: actions.calls }
@@ -56,12 +56,12 @@ afterEach(() => {
 
 describe('card header', () => {
   it('shows the project, title and age, the worktree under the title, and opens the session on click', () => {
-    const row = rowFrom({ sessions: [sessionRecord('ses_1', { title: 'Fleet watcher' })] }, 'ses_1')
+    const row = rowFrom({ sessions: [sessionRecord('ses_1', { title: 'Vltra watcher' })] }, 'ses_1')
     const { onSelect } = renderCard(row)
-    const link = screen.getByRole('link', { name: 'Fleet watcher' })
+    const link = screen.getByRole('link', { name: 'Vltra watcher' })
 
     expect(link.getAttribute('href')).toBe('/?session=ses_1')
-    expect(screen.getByText('fleet')).toBeTruthy()
+    expect(screen.getByText('vltra')).toBeTruthy()
     expect(screen.getByText('feat-panel')).toBeTruthy()
     expect(screen.getByText('5m')).toBeTruthy()
 
@@ -84,7 +84,7 @@ describe('blocked cards', () => {
   it('show the title only: the ask is answered in the chat', () => {
     const row = rowFrom(
       {
-        sessions: [sessionRecord('ses_1', { title: 'Fleet watcher' })],
+        sessions: [sessionRecord('ses_1', { title: 'Vltra watcher' })],
         permissions: [
           { id: 'per_1', sessionID: 'ses_1', action: 'bash', resources: ['pnpm test --run'] }
         ]
@@ -96,7 +96,7 @@ describe('blocked cards', () => {
 
     expect(row.state).toBe('blocked')
     expect(screen.getByRole('img', { name: 'Blocked' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Fleet watcher' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Vltra watcher' })).toBeTruthy()
     expect(screen.queryByText('pnpm test --run')).toBeNull()
     expect(screen.queryByRole('button')).toBeNull()
   })

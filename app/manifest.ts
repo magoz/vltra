@@ -1,13 +1,13 @@
 import type { MetadataRoute } from 'next'
 
 /**
- * Installable to the phone home screen (no offline support: Fleet is live data only); iPhone
+ * Installable to the phone home screen (no offline support: Vltra is live data only); iPhone
  * notifications need it (`public/sw.js`).
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Fleet',
-    short_name: 'Fleet',
+    name: 'Vltra',
+    short_name: 'Vltra',
     description: 'Every OpenCode session on Box',
     start_url: '/',
     scope: '/',

@@ -1,8 +1,8 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useFleet } from '@/app/fleet-context'
-import type { FleetScreen } from '@/app/fleet-href'
+import { useVltra } from '@/app/vltra-context'
+import type { VltraScreen } from '@/app/vltra-href'
 import { isPlainClick } from '@/app/session-row'
 
 /**
@@ -17,14 +17,14 @@ export function NavLink({
   className,
   children
 }: {
-  readonly screen: FleetScreen
+  readonly screen: VltraScreen
   readonly project?: string
   /** Marks the link as the tab showing (the header's and the phone's tabs). */
   readonly current?: boolean
   readonly className?: string
   readonly children: ReactNode
 }) {
-  const { nav } = useFleet()
+  const { nav } = useVltra()
 
   return (
     <a

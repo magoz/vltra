@@ -1,12 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { useFleet } from '@/app/fleet-context'
+import { useVltra } from '@/app/vltra-context'
 import { cardGrid, StatsCard, wide } from '@/app/stats-card'
 import { CalendarHeatmap, HourHeatmap } from '@/app/stats-heatmaps'
 import { browserTimeZone } from '@/app/use-stats'
 import { Skeleton } from '@/components/ui/skeleton'
-import { hourGrid, yearWeeks } from '@/lib/data/fleet/stats-view'
+import { hourGrid, yearWeeks } from '@/lib/data/vltra/stats-view'
 
 // The Stats tab before its numbers arrive: the same tiles and cards (titles, order, sizes) as the
 // loaded page, so nothing moves when they fill in. No chart library: the tab's lazy chunk shows it
@@ -38,7 +38,7 @@ export const skeletonCards: ReadonlyArray<CardSpec> = [
     detail: "sessions marked done by project, by their last run's end",
     body: bars(1)
   },
-  { title: 'Sessions started', detail: "by project, from Fleet's list", body: bars(1) },
+  { title: 'Sessions started', detail: "by project, from Vltra's list", body: bars(1) },
   { title: 'Prompts', detail: 'your messages, by project', body: bars(1) },
   {
     title: 'Last year',
@@ -85,7 +85,7 @@ export const skeletonCards: ReadonlyArray<CardSpec> = [
 
 /** The year calendar with no steps yet, pulsing, at its final size (no hover tips). */
 export function CalendarPlaceholder() {
-  const { now } = useFleet()
+  const { now } = useVltra()
   const [timeZone] = useState(browserTimeZone)
   const [weeks] = useState(() => yearWeeks(new Map(), now, timeZone))
 

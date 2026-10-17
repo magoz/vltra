@@ -1,9 +1,9 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeActions, TestDashboard } from '@/app/testing/dashboard-fixtures'
-import { fleetLive, now } from '@/app/testing/fleet-scenario'
+import { vltraLive, now } from '@/app/testing/vltra-scenario'
 
-const live = fleetLive()
+const live = vltraLive()
 
 const webLink = (id: string) => {
   const row = live.rows.get(id)
@@ -102,7 +102,7 @@ describe('session split', () => {
     renderDashboard()
     open('Wait old')
 
-    const back = within(pane()).getByRole('button', { name: 'Back to Fleet' })
+    const back = within(pane()).getByRole('button', { name: 'Back to Vltra' })
     const frame = iframe()
 
     if (frame === null) throw new Error('no iframe')

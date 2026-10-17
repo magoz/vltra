@@ -3,7 +3,7 @@ import { Config, Option, Redacted } from 'effect'
 
 /**
  * Explicit endpoint override (tests, local development against a throwaway `opencode serve`).
- * When `OPENCODE_URL` is unset, Fleet discovers the systemd-owned service instead.
+ * When `OPENCODE_URL` is unset, Vltra discovers the systemd-owned service instead.
  */
 export const endpointOverride = Config.all({
   url: Config.option(Config.string('OPENCODE_URL')),
@@ -28,7 +28,7 @@ export const serviceFile = Config.option(Config.string('OPENCODE_SERVICE_FILE'))
  * Optional cap on the most recently updated sessions loaded per snapshot (older ones load on
  * demand). Unset: every session.
  */
-export const sessionLimit = Config.option(Config.int('FLEET_SESSION_LIMIT'))
+export const sessionLimit = Config.option(Config.int('VLTRA_SESSION_LIMIT'))
 
 /**
  * Model for launcher branch suggestions (`generate.text`), as `provider/model[#variant]`. Default:
@@ -36,6 +36,6 @@ export const sessionLimit = Config.option(Config.int('FLEET_SESSION_LIMIT'))
  * request-shaping provider plugins, so the session default may refuse it), without reasoning: it
  * must answer within `suggestionTimeout`. Reasoning models took 6–13 s and always fell back.
  */
-export const branchModel = Config.string('FLEET_BRANCH_MODEL').pipe(
+export const branchModel = Config.string('VLTRA_BRANCH_MODEL').pipe(
   Config.withDefault('opencode-go/qwen3.8-flash#none')
 )

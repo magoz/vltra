@@ -2,18 +2,18 @@
 
 import { Effect, Schema } from 'effect'
 import { headers } from 'next/headers'
-import { FleetActionResult, toActionResult } from '@/app/fleet-action-result'
+import { VltraActionResult, toActionResult } from '@/app/vltra-action-result'
 import { requireSameOrigin } from '@/app/same-origin'
-import { PushDeviceInput, removePushDevice } from '@/lib/data/fleet/push'
-import { runFleet } from '@/lib/runtime/fleet-runtime'
+import { PushDeviceInput, removePushDevice } from '@/lib/data/vltra/push'
+import { runVltra } from '@/lib/runtime/vltra-runtime'
 
 /** Stop notifying a device (this browser, or another from Settings' list). */
 export const removePushDeviceAction = async (
   input: PushDeviceInput
-): Promise<FleetActionResult> => {
+): Promise<VltraActionResult> => {
   const requestHeaders = await headers()
 
-  return await runFleet(
+  return await runVltra(
     Effect.gen(function* () {
       yield* requireSameOrigin(requestHeaders)
 
@@ -21,7 +21,7 @@ export const removePushDeviceAction = async (
 
       yield* removePushDevice(decoded)
 
-      return FleetActionResult.Success()
-    }).pipe(toActionResult('action.fleet.remove-push-device'))
+      return VltraActionResult.Success()
+    }).pipe(toActionResult('action.vltra.remove-push-device'))
   )
 }

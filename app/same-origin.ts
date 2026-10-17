@@ -1,6 +1,6 @@
 import { Effect, Schema } from 'effect'
 
-/** A mutating request did not come from Fleet's own origin. */
+/** A mutating request did not come from Vltra's own origin. */
 export class CrossSiteRequestError extends Schema.TaggedError<CrossSiteRequestError>()(
   'CrossSiteRequestError',
   { message: Schema.String }

@@ -1,15 +1,15 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SessionPanel } from '@/app/session-panel'
-import { fakeActions, itemFor, rowFrom, WithFleet } from '@/app/testing/dashboard-fixtures'
-import { baseTime, sessionRecord } from '@/lib/data/fleet/testing/fixtures'
-import type { FleetRow, SessionRecord } from '@/lib/data/fleet/types'
+import { fakeActions, itemFor, rowFrom, WithVltra } from '@/app/testing/dashboard-fixtures'
+import { baseTime, sessionRecord } from '@/lib/data/vltra/testing/fixtures'
+import type { VltraRow, SessionRecord } from '@/lib/data/vltra/types'
 
-const renderPanel = (row: FleetRow | undefined, actions = fakeActions()) => {
+const renderPanel = (row: VltraRow | undefined, actions = fakeActions()) => {
   const onClose = vi.fn<() => void>()
 
   render(
-    <WithFleet
+    <WithVltra
       actions={actions.actions}
       rows={row === undefined ? undefined : new Map([[row.id, row]])}
       now={baseTime}
@@ -19,7 +19,7 @@ const renderPanel = (row: FleetRow | undefined, actions = fakeActions()) => {
         item={row === undefined ? undefined : itemFor(row)}
         onClose={onClose}
       />
-    </WithFleet>
+    </WithVltra>
   )
 
   return { onClose, calls: actions.calls }
@@ -27,7 +27,7 @@ const renderPanel = (row: FleetRow | undefined, actions = fakeActions()) => {
 
 const workingRow = () =>
   rowFrom(
-    { sessions: [sessionRecord('ses_1', { title: 'Fleet watcher' })], running: ['ses_1'] },
+    { sessions: [sessionRecord('ses_1', { title: 'Vltra watcher' })], running: ['ses_1'] },
     'ses_1'
   )
 
@@ -59,13 +59,13 @@ describe('session panel', () => {
 
     renderPanel(row)
 
-    expect(screen.getByRole('heading', { name: 'Fleet watcher' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Vltra watcher' })).toBeTruthy()
     expect(screen.getByRole('img', { name: 'Working' })).toBeTruthy()
 
     const frame = document.querySelector('iframe')
 
     expect(frame?.getAttribute('src')).toBe(row.links.web)
-    expect(frame?.getAttribute('title')).toBe('Fleet watcher')
+    expect(frame?.getAttribute('title')).toBe('Vltra watcher')
     // Messages, asks, follow-ups and Stop are the chat's.
     expect(screen.queryByRole('tab')).toBeNull()
     expect(screen.queryByRole('textbox')).toBeNull()
@@ -77,17 +77,17 @@ describe('session panel', () => {
     const row = workingRow()
 
     render(
-      <WithFleet actions={fakeActions().actions} rows={new Map([[row.id, row]])} now={baseTime}>
+      <WithVltra actions={fakeActions().actions} rows={new Map([[row.id, row]])} now={baseTime}>
         <SessionPanel sessionID="ses_1" item={itemFor(row, 'feat-x')} onClose={() => undefined} />
-      </WithFleet>
+      </WithVltra>
     )
 
-    expect(screen.getByText('fleet · feat-x').getAttribute('title')).toBe(row.directory)
+    expect(screen.getByText('vltra · feat-x').getAttribute('title')).toBe(row.directory)
     cleanup()
 
     renderPanel(row)
 
-    expect(screen.getByText('fleet')).toBeTruthy()
+    expect(screen.getByText('vltra')).toBeTruthy()
   })
 
   it("i and ⌘I put the caret in the chat's composer", () => {
@@ -117,7 +117,7 @@ describe('session panel', () => {
     editor.blur()
     expect(frameDocument.activeElement).not.toBe(editor)
 
-    // ⌘I also from a Fleet field.
+    // ⌘I also from a Vltra field.
     const field = document.createElement('input')
 
     document.body.append(field)
@@ -226,7 +226,7 @@ describe('session panel', () => {
   it('closes from the back button', () => {
     const { onClose } = renderPanel(doneRow())
 
-    fireEvent.click(screen.getByRole('button', { name: 'Back to Fleet' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Vltra' }))
 
     expect(onClose).toHaveBeenCalled()
   })
@@ -236,7 +236,7 @@ describe('session panel', () => {
 
     expect(screen.getByRole('heading', { name: 'ses_1' })).toBeTruthy()
     expect(
-      screen.getByText('This session is not on the board, so Fleet has no OpenCode link for it.')
+      screen.getByText('This session is not on the board, so Vltra has no OpenCode link for it.')
     ).toBeTruthy()
     expect(document.querySelector('iframe')).toBeNull()
     expect(screen.queryByRole('link')).toBeNull()

@@ -2,19 +2,19 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeActions, TestDashboard, testLocation } from '@/app/testing/dashboard-fixtures'
 import type { NavCall } from '@/app/testing/dashboard-fixtures'
-import { fleetLive, now, rowIDs } from '@/app/testing/fleet-scenario'
-import type { LiveFleet } from '@/lib/data/fleet/board'
+import { vltraLive, now, rowIDs } from '@/app/testing/vltra-scenario'
+import type { LiveVltra } from '@/lib/data/vltra/board'
 
 const renderFocus = (
   options: {
     readonly project?: string
     readonly session?: string
-    readonly live?: LiveFleet
+    readonly live?: LiveVltra
   } = {}
 ) => {
   const actions = fakeActions()
   const navigations: Array<NavCall> = []
-  const live = options.live ?? fleetLive()
+  const live = options.live ?? vltraLive()
 
   render(
     <TestDashboard
@@ -33,9 +33,9 @@ const renderFocus = (
   return { calls, navigations, live }
 }
 
-/** The fleet without its blocked sessions: two finished ones left to handle. */
+/** The vltra without its blocked sessions: two finished ones left to handle. */
 const finishedOnly = () => {
-  const live = fleetLive()
+  const live = vltraLive()
   const rows = new Map(live.rows)
 
   rows.delete('ses_wait_old')
@@ -45,7 +45,7 @@ const finishedOnly = () => {
 }
 
 /** `live` with session `id` running again, as after a message sent in its chat. */
-const working = (live: LiveFleet, id: string): LiveFleet => {
+const working = (live: LiveVltra, id: string): LiveVltra => {
   const row = live.rows.get(id)
 
   if (row === undefined) throw new Error(`no row ${id}`)
@@ -53,7 +53,7 @@ const working = (live: LiveFleet, id: string): LiveFleet => {
   return { ...live, rows: new Map(live.rows).set(id, { ...row, state: 'working', running: true }) }
 }
 
-const webLink = (live: LiveFleet, id: string) => {
+const webLink = (live: LiveVltra, id: string) => {
   const row = live.rows.get(id)
 
   if (row === undefined) throw new Error(`no row ${id}`)
@@ -218,7 +218,7 @@ describe('focus mode', () => {
   })
 
   it('marks only the open session, and no row once it leaves the list', () => {
-    const live = fleetLive()
+    const live = vltraLive()
     const actions = fakeActions().actions
 
     const view = render(
@@ -259,7 +259,7 @@ describe('focus mode', () => {
     expect(pane().className).toContain('max-lg:hidden')
 
     open('Wait old')
-    fireEvent.click(within(pane()).getByRole('button', { name: 'Back to Fleet' }))
+    fireEvent.click(within(pane()).getByRole('button', { name: 'Back to Vltra' }))
 
     expect(pane().className).toContain('max-lg:hidden')
     expect(within(pane()).getByText('Pick a session on the left')).toBeTruthy()
@@ -269,13 +269,13 @@ describe('focus mode', () => {
 
 describe('tabs', () => {
   it('switches Focus ↔ Agents in place, keeping the filter and the open session', () => {
-    const { navigations } = renderFocus({ project: 'prj_fleet', session: 'ses_done_old' })
+    const { navigations } = renderFocus({ project: 'prj_vltra', session: 'ses_done_old' })
 
     fireEvent.click(headerTab('Agents'))
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
     expect(screen.queryByText('Blocked')).toBeNull()
-    expect(testLocation()).toBe('/?view=agents&project=prj_fleet&session=ses_done_old')
+    expect(testLocation()).toBe('/?view=agents&project=prj_vltra&session=ses_done_old')
     // On the board, the session is the split's chat beside the columns.
     expect(within(pane()).getByRole('heading', { name: 'Done old' })).toBeTruthy()
     expect(headerTab('Agents').getAttribute('aria-current')).toBe('page')
@@ -288,22 +288,22 @@ describe('tabs', () => {
     fireEvent.click(headerTab('Focus'))
 
     expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
-    expect(testLocation()).toBe('/?project=prj_fleet&session=ses_done_old')
+    expect(testLocation()).toBe('/?project=prj_vltra&session=ses_done_old')
     expect(navigations).toEqual([
-      { kind: 'show', screen: 'agents', project: 'prj_fleet' },
-      { kind: 'show', screen: 'focus', project: 'prj_fleet' }
+      { kind: 'show', screen: 'agents', project: 'prj_vltra' },
+      { kind: 'show', screen: 'focus', project: 'prj_vltra' }
     ])
   })
 
   it('switches with 1 / 2 / 3, all on the one page', () => {
-    const { navigations } = renderFocus({ project: 'prj_fleet' })
+    const { navigations } = renderFocus({ project: 'prj_vltra' })
 
     expect(screen.queryByRole('group', { name: 'Agents view' })).toBeNull()
 
     press('2')
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
-    expect(testLocation()).toBe('/?view=agents&project=prj_fleet')
+    expect(testLocation()).toBe('/?view=agents&project=prj_vltra')
 
     press('3')
 
@@ -321,7 +321,7 @@ describe('tabs', () => {
     expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
     expect(testLocation()).toBe('/')
     expect(navigations).toEqual([
-      { kind: 'show', screen: 'agents', project: 'prj_fleet' },
+      { kind: 'show', screen: 'agents', project: 'prj_vltra' },
       { kind: 'show', screen: 'projects', project: undefined },
       { kind: 'show', screen: 'agents', project: undefined },
       { kind: 'show', screen: 'focus', project: undefined }
@@ -367,14 +367,14 @@ describe('tabs', () => {
   })
 
   it("switches with the phone's tabs, keeping the filter between Focus and Agents", () => {
-    const { navigations } = renderFocus({ project: 'prj_fleet' })
+    const { navigations } = renderFocus({ project: 'prj_vltra' })
 
     expect(tab('Focus').getAttribute('aria-current')).toBe('page')
 
     fireEvent.click(tab('Agents'))
 
     expect(screen.getByRole('region', { name: 'Working' })).toBeTruthy()
-    expect(testLocation()).toBe('/?view=agents&project=prj_fleet')
+    expect(testLocation()).toBe('/?view=agents&project=prj_vltra')
     expect(tab('Agents').getAttribute('aria-current')).toBe('page')
 
     fireEvent.click(tab('Projects'))
@@ -388,7 +388,7 @@ describe('tabs', () => {
     expect(screen.queryByRole('region', { name: 'Working' })).toBeNull()
     expect(testLocation()).toBe('/')
     expect(navigations).toEqual([
-      { kind: 'show', screen: 'agents', project: 'prj_fleet' },
+      { kind: 'show', screen: 'agents', project: 'prj_vltra' },
       { kind: 'show', screen: 'projects', project: undefined },
       { kind: 'show', screen: 'focus', project: undefined }
     ])

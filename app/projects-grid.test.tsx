@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeActions, TestDashboard, testLocation } from '@/app/testing/dashboard-fixtures'
 import type { NavCall } from '@/app/testing/dashboard-fixtures'
-import { fleetLive, now, rowIDs } from '@/app/testing/fleet-scenario'
+import { vltraLive, now, rowIDs } from '@/app/testing/vltra-scenario'
 
 const renderGrid = () => {
   const actions = fakeActions()
@@ -10,7 +10,7 @@ const renderGrid = () => {
 
   render(
     <TestDashboard
-      live={fleetLive()}
+      live={vltraLive()}
       now={now}
       actions={actions.actions}
       screen="projects"
@@ -54,21 +54,21 @@ describe('project cards', () => {
   it('orders cards by latest activity, Other last', () => {
     renderGrid()
 
-    expect(cards()).toEqual(['fleet', 'box', 'Other'])
+    expect(cards()).toEqual(['vltra', 'box', 'Other'])
   })
 
   it('lists needs-me and working sessions by worktree, with counts in the header', () => {
     renderGrid()
 
-    const fleet = projectCard('fleet')
+    const vltra = projectCard('vltra')
 
-    expect(within(fleet).getByRole('link', { name: 'fleet 4 need you · 3 working' })).toBeTruthy()
+    expect(within(vltra).getByRole('link', { name: 'vltra 4 need you · 3 working' })).toBeTruthy()
     expect(
-      within(fleet)
+      within(vltra)
         .getAllByRole('heading')
         .map(heading => heading.textContent)
-    ).toEqual(['feat-x', 'fleet'])
-    expect(rowIDs(fleet)).toEqual([
+    ).toEqual(['feat-x', 'vltra'])
+    expect(rowIDs(vltra)).toEqual([
       'ses_retry',
       'ses_wait_new',
       'ses_wait_old',
@@ -77,9 +77,9 @@ describe('project cards', () => {
       'ses_done_new',
       'ses_done_old'
     ])
-    expect(within(fleet).getAllByText('blocked · 1 permission')).toHaveLength(2)
-    expect(within(fleet).getByText('quiet 15m')).toBeTruthy()
-    expect(within(fleet).getByText('run failed')).toBeTruthy()
+    expect(within(vltra).getAllByText('blocked · 1 permission')).toHaveLength(2)
+    expect(within(vltra).getByText('quiet 15m')).toBeTruthy()
+    expect(within(vltra).getByText('run failed')).toBeTruthy()
     // A card with only handled sessions is just its fold.
     expect(rowIDs(projectCard('box'))).toEqual([])
     expect(within(projectCard('box')).getByRole('link', { name: 'box' })).toBeTruthy()
@@ -87,31 +87,31 @@ describe('project cards', () => {
 
   it('opens the board (board mode) filtered to the project from the card header', () => {
     const { navigations } = renderGrid()
-    const header = within(projectCard('fleet')).getByRole('link', { name: /^fleet/ })
+    const header = within(projectCard('vltra')).getByRole('link', { name: /^vltra/ })
 
-    expect(header.getAttribute('href')).toBe('/?view=agents&project=prj_fleet')
+    expect(header.getAttribute('href')).toBe('/?view=agents&project=prj_vltra')
 
     fireEvent.click(header)
 
-    expect(navigations).toEqual([{ kind: 'show', screen: 'agents', project: 'prj_fleet' }])
-    expect(testLocation()).toBe('/?view=agents&project=prj_fleet')
-    expect(screen.getByRole('button', { name: 'Clear the fleet filter' })).toBeTruthy()
+    expect(navigations).toEqual([{ kind: 'show', screen: 'agents', project: 'prj_vltra' }])
+    expect(testLocation()).toBe('/?view=agents&project=prj_vltra')
+    expect(screen.getByRole('button', { name: 'Clear the vltra filter' })).toBeTruthy()
     expect(rowIDs(screen.getByRole('region', { name: 'Done' }))).toEqual(['ses_handled'])
   })
 
   it('folds handled sessions into "N done · last 2h", expandable in place, with Reopen', async () => {
     const { calls } = renderGrid()
-    const fleet = projectCard('fleet')
-    const fold = within(fleet).getByRole('button', { name: '··· 2 done · last 2h' })
+    const vltra = projectCard('vltra')
+    const fold = within(vltra).getByRole('button', { name: '··· 2 done · last 2h' })
 
     expect(fold.getAttribute('aria-expanded')).toBe('false')
-    expect(rowIDs(fleet)).not.toContain('ses_handled')
+    expect(rowIDs(vltra)).not.toContain('ses_handled')
 
     fireEvent.click(fold)
 
     expect(fold.getAttribute('aria-expanded')).toBe('true')
 
-    const handled = within(fleet).getByRole('list', { name: 'fleet done' })
+    const handled = within(vltra).getByRole('list', { name: 'vltra done' })
 
     // No time limit: the 30-day-old one is there too.
     expect(rowIDs(handled)).toEqual(['ses_handled', 'ses_ancient'])
@@ -126,12 +126,12 @@ describe('project cards', () => {
       expect(calls).toEqual([{ action: 'reopen', input: { sessionID: 'ses_handled' } }])
     )
     expect(rowIDs(handled)).toEqual(['ses_ancient'])
-    expect(rowIDs(fleet)).toContain('ses_handled')
+    expect(rowIDs(vltra)).toContain('ses_handled')
   })
 
   it('deletes an idle project after a confirmation; a busy one says why it cannot', async () => {
     const { calls } = renderGrid()
-    const busy = within(projectCard('fleet')).getByRole('button', { name: 'Delete fleet' })
+    const busy = within(projectCard('vltra')).getByRole('button', { name: 'Delete vltra' })
 
     expect(busy.hasAttribute('disabled')).toBe(true)
     expect(busy.title).toBe('5 sessions there are working or blocked')
@@ -163,10 +163,10 @@ describe('project cards', () => {
   it('opens a session beside the grid, whose cards stay', () => {
     renderGrid()
 
-    fireEvent.click(within(projectCard('fleet')).getByRole('link', { name: 'Busy run' }))
+    fireEvent.click(within(projectCard('vltra')).getByRole('link', { name: 'Busy run' }))
 
     expect(pane()?.querySelector('iframe')?.getAttribute('title')).toBe('Busy run')
-    expect(within(projectCard('fleet')).getByRole('link', { name: 'Wait old' })).toBeTruthy()
+    expect(within(projectCard('vltra')).getByRole('link', { name: 'Wait old' })).toBeTruthy()
 
     press('Escape')
     expect(pane()).toBeNull()
@@ -177,7 +177,7 @@ describe('keyboard', () => {
   it('moves between cards with the arrows and within one with j / k', () => {
     renderGrid()
 
-    expect(cursorCard()).toBe('fleet')
+    expect(cursorCard()).toBe('vltra')
 
     press('ArrowRight')
     expect(cursorCard()).toBe('box')
@@ -190,7 +190,7 @@ describe('keyboard', () => {
 
     press('ArrowLeft')
     press('ArrowUp')
-    expect(cursorCard()).toBe('fleet')
+    expect(cursorCard()).toBe('vltra')
 
     press('j')
     expect(cursorRow()).toBe('ses_retry')

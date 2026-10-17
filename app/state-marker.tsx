@@ -1,7 +1,7 @@
-import type { FleetState } from '@/lib/data/fleet/types'
+import type { VltraState } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
-const stateNames: Readonly<Record<FleetState, string>> = {
+const stateNames: Readonly<Record<VltraState, string>> = {
   blocked: 'Blocked',
   working: 'Working',
   finished: 'Finished',
@@ -17,7 +17,7 @@ export function StateMarker({
   failed = false,
   className
 }: {
-  readonly state: FleetState
+  readonly state: VltraState
   /** The latest run failed (finished rows get a red mark). */
   readonly failed?: boolean
   readonly className?: string

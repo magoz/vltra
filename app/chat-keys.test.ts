@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { forwardChatKeys } from '@/app/chat-keys'
 
-/** A same-origin chat frame, and the keys that reached Fleet's document and the chat's own. */
+/** A same-origin chat frame, and the keys that reached Vltra's document and the chat's own. */
 const setup = () => {
   const frame = document.createElement('iframe')
 
@@ -14,17 +14,17 @@ const setup = () => {
   frameDocument.body.innerHTML =
     '<textarea></textarea><button>Send</button><div role="dialog"><button>Ok</button></div>'
 
-  const fleet: Array<string> = []
+  const vltra: Array<string> = []
   const chat: Array<string> = []
 
-  // Fleet takes `j` and `⌘K` (as `useKeys` and the launcher do) and leaves the rest.
-  const onFleetKey = (event: KeyboardEvent) => {
-    fleet.push(event.key)
+  // Vltra takes `j` and `⌘K` (as `useKeys` and the launcher do) and leaves the rest.
+  const onVltraKey = (event: KeyboardEvent) => {
+    vltra.push(event.key)
 
     if (event.key === 'j' || (event.key === 'k' && event.metaKey)) event.preventDefault()
   }
 
-  document.addEventListener('keydown', onFleetKey)
+  document.addEventListener('keydown', onVltraKey)
   frameDocument.addEventListener('keydown', event => chat.push(event.key))
 
   const detach = forwardChatKeys(frame)
@@ -42,11 +42,11 @@ const setup = () => {
 
   const cleanup = () => {
     detach?.()
-    document.removeEventListener('keydown', onFleetKey)
+    document.removeEventListener('keydown', onVltraKey)
     frame.remove()
   }
 
-  return { frame, frameDocument, fleet, chat, press, detach, cleanup }
+  return { frame, frameDocument, vltra, chat, press, detach, cleanup }
 }
 
 describe('forwardChatKeys', () => {
@@ -58,18 +58,18 @@ describe('forwardChatKeys', () => {
 
   afterEach(() => chatFrame.cleanup())
 
-  it('hands Fleet the keys it takes, which the chat then never sees', () => {
+  it('hands Vltra the keys it takes, which the chat then never sees', () => {
     const event = chatFrame.press('j')
 
-    expect(chatFrame.fleet).toEqual(['j'])
+    expect(chatFrame.vltra).toEqual(['j'])
     expect(chatFrame.chat).toEqual([])
     expect(event.defaultPrevented).toBe(true)
   })
 
-  it("leaves the keys Fleet does not take to the chat (OpenCode's type-to-focus)", () => {
+  it("leaves the keys Vltra does not take to the chat (OpenCode's type-to-focus)", () => {
     const event = chatFrame.press('x')
 
-    expect(chatFrame.fleet).toEqual(['x'])
+    expect(chatFrame.vltra).toEqual(['x'])
     expect(chatFrame.chat).toEqual(['x'])
     expect(event.defaultPrevented).toBe(false)
   })
@@ -86,11 +86,11 @@ describe('forwardChatKeys', () => {
     chatFrame.press('j', dialog)
     chatFrame.press('Enter', send)
 
-    expect(chatFrame.fleet).toEqual([])
+    expect(chatFrame.vltra).toEqual([])
     expect(chatFrame.chat).toEqual(['ArrowDown', 'j', 'j', 'Enter'])
   })
 
-  it('gives the chat Escape first, and an unused one moves focus out of the frame to Fleet', () => {
+  it('gives the chat Escape first, and an unused one moves focus out of the frame to Vltra', () => {
     chatFrame.frame.focus()
 
     // OpenCode uses this one (closing a menu, say).
@@ -103,12 +103,12 @@ describe('forwardChatKeys', () => {
 
     chatFrame.press('Escape')
 
-    expect(chatFrame.fleet).toEqual([])
+    expect(chatFrame.vltra).toEqual([])
     expect(chatFrame.chat).toEqual(['Escape', 'Escape'])
     expect(document.activeElement).not.toBe(chatFrame.frame)
   })
 
-  it("gives Fleet ⌘K and ⌘/ even while typing; ⌘P (OpenCode's palette) stays the chat's", () => {
+  it("gives Vltra ⌘K and ⌘/ even while typing; ⌘P (OpenCode's palette) stays the chat's", () => {
     const textarea = chatFrame.frameDocument.querySelector('textarea')
 
     if (textarea === null) throw new Error('missing fixture')
@@ -117,12 +117,12 @@ describe('forwardChatKeys', () => {
     chatFrame.press('/', textarea, { code: 'Slash', metaKey: true })
     chatFrame.press('p', textarea, { code: 'KeyP', metaKey: true })
 
-    // `⌘/` reaches Fleet (nothing in this fixture takes it, so the chat sees it too).
-    expect(chatFrame.fleet).toEqual(['k', '/'])
+    // `⌘/` reaches Vltra (nothing in this fixture takes it, so the chat sees it too).
+    expect(chatFrame.vltra).toEqual(['k', '/'])
     expect(chatFrame.chat).toEqual(['/', 'p'])
   })
 
-  it("gives Fleet ⌘ + digits even while typing (OpenCode's tab keys never see them)", () => {
+  it("gives Vltra ⌘ + digits even while typing (OpenCode's tab keys never see them)", () => {
     const textarea = chatFrame.frameDocument.querySelector('textarea')
 
     if (textarea === null) throw new Error('missing fixture')
@@ -133,14 +133,14 @@ describe('forwardChatKeys', () => {
     chatFrame.press('™', textarea, { code: 'Digit2', metaKey: true, altKey: true })
 
     expect(codes).toEqual(['Digit2'])
-    expect(chatFrame.fleet).toEqual(['™'])
+    expect(chatFrame.vltra).toEqual(['™'])
   })
 
   it('stops forwarding once detached', () => {
     chatFrame.detach?.()
     chatFrame.press('j')
 
-    expect(chatFrame.fleet).toEqual([])
+    expect(chatFrame.vltra).toEqual([])
     expect(chatFrame.chat).toEqual(['j'])
   })
 })

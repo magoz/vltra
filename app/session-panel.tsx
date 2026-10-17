@@ -7,9 +7,9 @@ import { useChatFrame } from '@/app/chat-keys'
 import { showInChat } from '@/app/chat-navigation'
 import { useCloseDoneTabs } from '@/app/chat-tabs'
 import { CommandKey, commandKey, inDialog } from '@/app/command-keys'
-import { useFleet } from '@/app/fleet-context'
-import { sessionTitle } from '@/app/fleet-format'
-import { useFleetActions } from '@/app/fleet-actions'
+import { useVltra } from '@/app/vltra-context'
+import { sessionTitle } from '@/app/vltra-format'
+import { useVltraActions } from '@/app/vltra-actions'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
 import { useLauncher } from '@/app/launcher-context'
 import { isReopenable } from '@/app/session-row'
@@ -18,16 +18,16 @@ import { useHandled } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
 import { PrBadge } from '@/app/worktree-badges'
 import { Button } from '@/components/ui/button'
-import { boardRow } from '@/lib/data/fleet/board'
-import type { BoardRow } from '@/lib/data/fleet/board'
-import { worktreeAt } from '@/lib/data/fleet/checkouts'
+import { boardRow } from '@/lib/data/vltra/board'
+import type { BoardRow } from '@/lib/data/vltra/board'
+import { worktreeAt } from '@/lib/data/vltra/checkouts'
 
 /**
- * Opening a session's panel marks its latest run viewed in OpenCode (its own unread dots). Fleet
+ * Opening a session's panel marks its latest run viewed in OpenCode (its own unread dots). Vltra
  * state never depends on it.
  */
 function useMarkViewed(sessionID: string, row: BoardRow['row'] | undefined) {
-  const actions = useFleetActions()
+  const actions = useVltraActions()
   const idle = row?.idle
   const unread = idle !== undefined && (row?.viewed === undefined || row.viewed < idle)
 
@@ -72,7 +72,7 @@ function useDoneKey(row: BoardRow['row'] | undefined) {
 }
 
 /**
- * `i` and `⌘I` put the caret in the chat's composer (back after `Escape`); `⌘I` also from a Fleet
+ * `i` and `⌘I` put the caret in the chat's composer (back after `Escape`); `⌘I` also from a Vltra
  * field. Not in dialogs.
  */
 function useInsertKeys(frame: RefObject<HTMLIFrameElement | null>) {
@@ -118,9 +118,9 @@ function useChatSession(frame: RefObject<HTMLIFrameElement | null>, url: string)
 }
 
 /**
- * OpenCode's own web UI for the session (`row.links.web`), framed. Served from Fleet's origin
+ * OpenCode's own web UI for the session (`row.links.web`), framed. Served from Vltra's origin
  * (`proxy.ts`), so a browser paired once there (`opencode pair`) stays signed in and the keys
- * pressed in the chat that it does not own reach Fleet (`useChatFrame`). OpenCode has no embed
+ * pressed in the chat that it does not own reach Vltra (`useChatFrame`). OpenCode has no embed
  * mode, so its full app chrome shows; done sessions leave its tab strip (`useCloseDoneTabs`). One
  * frame for every session: `src` is the first, then `useChatSession` moves it, as a new frame
  * would start the whole app again (a second and more).
@@ -166,7 +166,7 @@ function OpenCodeChat({
 }
 
 /**
- * Fleet's own action on the session, then the ways out. `✔ Done` only below `lg`, where the
+ * Vltra's own action on the session, then the ways out. `✔ Done` only below `lg`, where the
  * session fills the screen; on desktop the card beside the chat has its own. Reopen everywhere.
  */
 function ToolbarActions({ row }: { readonly row: BoardRow['row'] }) {
@@ -250,7 +250,7 @@ export function SessionPanel({ sessionID, item, onClose }: SessionPanelProps) {
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Back to Fleet"
+            aria-label="Back to Vltra"
             className="ml-1 lg:hidden"
             onClick={onClose}
           >
@@ -277,7 +277,7 @@ export function SessionPanel({ sessionID, item, onClose }: SessionPanelProps) {
       </div>
       {row === undefined ? (
         <p className="text-muted-foreground p-4">
-          This session is not on the board, so Fleet has no OpenCode link for it.
+          This session is not on the board, so Vltra has no OpenCode link for it.
         </p>
       ) : (
         <OpenCodeChat sessionID={sessionID} url={row.links.web} title={title} />
@@ -292,7 +292,7 @@ export function SessionPanel({ sessionID, item, onClose }: SessionPanelProps) {
  * screen below `lg`. Nothing when no session is open.
  */
 export function SessionSplit() {
-  const { view, selection } = useFleet()
+  const { view, selection } = useVltra()
   const { selected } = selection
 
   if (selected === undefined) return null

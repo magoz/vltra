@@ -1,14 +1,14 @@
 import { Data } from 'effect'
-import type { FleetScreen } from '@/app/fleet-href'
+import type { VltraScreen } from '@/app/vltra-href'
 
 /**
- * Fleet's `⌘` chords: `⌘1`–`⌘9` the Nth session of Focus' list, `⌘⌥1`–`⌘⌥5` a tab, `⌘D` the open
+ * Vltra's `⌘` chords: `⌘1`–`⌘9` the Nth session of Focus' list, `⌘⌥1`–`⌘⌥5` a tab, `⌘D` the open
  * session done, `⌘U` undo (the tab's `u`), `⌘I` into the chat's composer. They work everywhere but dialogs, in the OpenCode chat
  * too, even while typing.
  */
 export type CommandKey = Data.TaggedEnum<{
   Session: { readonly index: number }
-  Tab: { readonly screen: FleetScreen }
+  Tab: { readonly screen: VltraScreen }
   Done: Record<never, never>
   Undo: Record<never, never>
   Insert: Record<never, never>
@@ -16,7 +16,7 @@ export type CommandKey = Data.TaggedEnum<{
 
 export const CommandKey = Data.taggedEnum<CommandKey>()
 
-const tabs: ReadonlyArray<FleetScreen> = ['focus', 'agents', 'projects', 'stats', 'settings']
+const tabs: ReadonlyArray<VltraScreen> = ['focus', 'agents', 'projects', 'stats', 'settings']
 
 type ChordEvent = Pick<KeyboardEvent, 'code' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>
 

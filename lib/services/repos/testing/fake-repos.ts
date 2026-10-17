@@ -1,5 +1,5 @@
 import { Effect, Layer, Option, Ref } from 'effect'
-import type { PullRequest, RepoCheckout } from '@/lib/data/fleet/types'
+import type { PullRequest, RepoCheckout } from '@/lib/data/vltra/types'
 import { Repos } from '@/lib/services/repos/service'
 import type { CheckoutInfo } from '@/lib/services/repos/service'
 

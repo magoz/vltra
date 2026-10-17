@@ -2,7 +2,7 @@
 
 import { Option, Schema } from 'effect'
 import { useCallback, useEffect, useState } from 'react'
-import { LauncherList } from '@/lib/data/fleet/types'
+import { LauncherList } from '@/lib/data/vltra/types'
 
 const decodeList = Schema.decodeUnknownOption(Schema.fromJsonString(LauncherList))
 
@@ -18,7 +18,7 @@ const hasPendingLookups = (list: LauncherList) =>
   list.entries.some(entry => entry.worktrees.some(worktree => worktree.pr.state === 'unknown'))
 
 export type LauncherData = {
-  /** `GET /api/fleet/launcher`, once loaded. */
+  /** `GET /api/vltra/launcher`, once loaded. */
   readonly list: LauncherList | undefined
   /** Load it again (opening the launcher, after a launch or a retirement). */
   readonly reload: () => void
@@ -39,7 +39,7 @@ export function useLauncherList(): LauncherData {
     let retry: ReturnType<typeof setTimeout> | undefined
 
     const load = (retries: number) => {
-      fetch('/api/fleet/launcher', { cache: 'no-store' })
+      fetch('/api/vltra/launcher', { cache: 'no-store' })
         .then(response => (response.ok ? response.text() : undefined))
         .then(text => {
           const decoded = text === undefined ? Option.none() : decodeList(text)
@@ -53,7 +53,7 @@ export function useLauncherList(): LauncherData {
           }
         })
         .catch(() => {
-          // Fleet unreachable: keep the last list; the next reload tries again.
+          // Vltra unreachable: keep the last list; the next reload tries again.
         })
     }
 

@@ -3,8 +3,8 @@
 import { Predicate } from 'effect'
 import { useId, useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { settled, useFleetActions } from '@/app/fleet-actions'
-import { plural } from '@/app/fleet-format'
+import { settled, useVltraActions } from '@/app/vltra-actions'
+import { plural } from '@/app/vltra-format'
 import { busyReason } from '@/app/retire-worktree'
 import {
   AlertDialog,
@@ -17,10 +17,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from '@/components/ui/alert-dialog'
-import type { ProjectCard } from '@/lib/data/fleet/board'
-import type { FleetState } from '@/lib/data/fleet/types'
+import type { ProjectCard } from '@/lib/data/vltra/board'
+import type { VltraState } from '@/lib/data/vltra/types'
 
-const isBusy = (state: FleetState) => state === 'working' || state === 'blocked'
+const isBusy = (state: VltraState) => state === 'working' || state === 'blocked'
 
 const triggerClass =
   'text-muted-foreground hover:bg-accent/60 hover:text-destructive focus-visible:ring-ring/50 border-l px-3 text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-inset disabled:pointer-events-none disabled:opacity-50'
@@ -31,7 +31,7 @@ const triggerClass =
  * OpenCode for good) with a toast. The card leaves as the deletions stream in.
  */
 export function DeleteProject({ card }: { readonly card: ProjectCard }) {
-  const actions = useFleetActions()
+  const actions = useVltraActions()
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const reasonID = useId()

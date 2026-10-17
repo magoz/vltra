@@ -2,8 +2,8 @@
 
 import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef } from 'react'
-import type { SessionSelection } from '@/app/fleet-context'
-import { sessionParam, viewParam } from '@/app/fleet-href'
+import type { SessionSelection } from '@/app/vltra-context'
+import { sessionParam, viewParam } from '@/app/vltra-href'
 
 /** The current URL with `?session=` set to `sessionID`, or removed; other params kept. */
 const withSession = (sessionID: string | undefined) => {
@@ -20,7 +20,7 @@ const withSession = (sessionID: string | undefined) => {
 /**
  * The selected session and how to change it; it lives in the URL (`?session=<id>`), so the
  * phone's back button works on every tab. Opening from a tab pushes one history entry; switching
- * between sessions replaces it, so Back always returns to the tab. Closing goes back when Fleet
+ * between sessions replaces it, so Back always returns to the tab. Closing goes back when Vltra
  * pushed the entry on this tab, and otherwise (a deep link, or a tab switch since) replaces the
  * URL with the tab.
  */

@@ -16,15 +16,15 @@ import type { YAxisProps } from 'recharts'
 import { bucketLabel, bucketTitle, compactNumber, durationText } from '@/app/stats-format'
 import { twoDigits } from '@/app/stats-heatmaps'
 import { ChartContainer } from '@/components/ui/chart'
-import { restKey } from '@/lib/data/fleet/stats-view'
+import { restKey } from '@/lib/data/vltra/stats-view'
 import type {
   CategoryCount,
   ChartRow,
   HourGrid,
   SeriesChart,
   SessionPoint
-} from '@/lib/data/fleet/stats-view'
-import type { StatsUnit } from '@/lib/data/fleet/types'
+} from '@/lib/data/vltra/stats-view'
+import type { StatsUnit } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
 // The Stats tab's charts: bars over time (Recharts), distributions, the scatter and share bars

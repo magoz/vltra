@@ -4,9 +4,9 @@ import { OpenCodeEvent } from '@opencode/protocol/groups/event'
 import { WorktreeError } from '@opencode/protocol/groups/worktree'
 import { Session, SessionMessage } from '@opencode/client/effect'
 import { Effect, Option, Schema } from 'effect'
-import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
+import { VltraEvent, OpenCodeSignal } from '@/lib/data/vltra/events'
 import {
-  fleetHandled,
+  vltraHandled,
   latestRunEnd,
   refusalMessage,
   sanitizeMessage,
@@ -15,7 +15,7 @@ import {
   toSessionRecord,
   toSignals,
   toTranscript,
-  withFleetHandled
+  withVltraHandled
 } from '@/lib/services/opencode/mapping'
 import type { RunEnd } from '@/lib/services/opencode/mapping'
 import type { JsonValue } from '@/lib/services/opencode/testing/opencode-server'
@@ -29,7 +29,7 @@ const sessionID = 'ses_f0b9ab9d6ffe3b6lVV32tvtooh'
 
 const durable = (seq: number) => ({ aggregateID: sessionID, seq, version: 1 })
 
-const location = { directory: '/tmp/fleet/work' }
+const location = { directory: '/tmp/vltra/work' }
 
 const wire = {
   connected: { id: 'evt_1', type: 'server.connected', data: {} },
@@ -62,7 +62,7 @@ const wire = {
     durable: durable(5),
     data: {
       sessionID,
-      error: { type: 'provider.no-route', message: 'Model unavailable: fleet-none/none' }
+      error: { type: 'provider.no-route', message: 'Model unavailable: vltra-none/none' }
     }
   },
   interrupted: {
@@ -91,7 +91,7 @@ const wire = {
     created: 1790806673330,
     type: 'session.metadata.updated',
     durable: durable(14),
-    data: { sessionID, metadata: { plugin: { x: 1 }, fleet: { handled: 1790806673204 } } }
+    data: { sessionID, metadata: { plugin: { x: 1 }, vltra: { handled: 1790806673204 } } }
   },
   metadataCleared: {
     id: 'evt_22',
@@ -112,7 +112,7 @@ const wire = {
     created: 1790806673500,
     type: 'permission.asked',
     location,
-    data: { id: 'per_0f465b7e3', sessionID, action: 'fleet.test', resources: ['x'] }
+    data: { id: 'per_0f465b7e3', sessionID, action: 'vltra.test', resources: ['x'] }
   },
   replied: {
     id: 'evt_8',
@@ -145,14 +145,14 @@ const wire = {
     created: 1790806574771,
     type: 'worktree.resolved',
     durable: { aggregateID: 'global', seq: 0, version: 1 },
-    data: { projectID: 'global', directory: '/tmp/fleet/work', previous: 'global' }
+    data: { projectID: 'global', directory: '/tmp/vltra/work', previous: 'global' }
   },
   resolvedAdopting: {
     id: 'evt_12',
     created: 1790806574771,
     type: 'worktree.resolved',
     durable: { aggregateID: 'prj_new', seq: 0, version: 1 },
-    data: { projectID: 'prj_new', directory: '/tmp/fleet/work', previous: 'global' }
+    data: { projectID: 'prj_new', directory: '/tmp/vltra/work', previous: 'global' }
   },
   formHidden: {
     id: 'evt_18',
@@ -180,7 +180,7 @@ const wire = {
       sessionID,
       assistantMessageID: 'msg_0f463c80e',
       agent: 'build',
-      model: { id: 'none', providerID: 'fleet-none' },
+      model: { id: 'none', providerID: 'vltra-none' },
       started: 1790806577000
     }
   },
@@ -241,13 +241,13 @@ describe('OpenCode event mapping', () => {
     Effect.gen(function* () {
       expect(yield* signalsFor(wire.started)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.ExecutionStarted({ sessionID, at: 1790806673000 })
+          event: VltraEvent.ExecutionStarted({ sessionID, at: 1790806673000 })
         })
       ])
 
       expect(yield* signalsFor(wire.failed)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.ExecutionEnded({
+          event: VltraEvent.ExecutionEnded({
             sessionID,
             at: 1790806673204,
             outcome: 'failed',
@@ -258,7 +258,7 @@ describe('OpenCode event mapping', () => {
 
       expect(yield* signalsFor(wire.interrupted)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.ExecutionEnded({
+          event: VltraEvent.ExecutionEnded({
             sessionID,
             at: 1790806673300,
             outcome: 'interrupted',
@@ -273,7 +273,7 @@ describe('OpenCode event mapping', () => {
     Effect.gen(function* () {
       expect(yield* signalsFor(wire.interruptedByUser)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.ExecutionEnded({
+          event: VltraEvent.ExecutionEnded({
             sessionID,
             at: 1790806673310,
             outcome: 'interrupted',
@@ -284,7 +284,7 @@ describe('OpenCode event mapping', () => {
 
       expect(yield* signalsFor(wire.interruptedByInactivity)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.ExecutionEnded({
+          event: VltraEvent.ExecutionEnded({
             sessionID,
             at: 1790806673320,
             outcome: 'interrupted',
@@ -299,13 +299,13 @@ describe('OpenCode event mapping', () => {
     Effect.gen(function* () {
       expect(yield* signalsFor(wire.metadataUpdated)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.HandledChanged({ sessionID, handled: 1790806673204 })
+          event: VltraEvent.HandledChanged({ sessionID, handled: 1790806673204 })
         })
       ])
 
       expect(yield* signalsFor(wire.metadataCleared)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.HandledChanged({ sessionID, handled: undefined })
+          event: VltraEvent.HandledChanged({ sessionID, handled: undefined })
         })
       ])
     })
@@ -314,7 +314,7 @@ describe('OpenCode event mapping', () => {
   it.effect('session.viewed carries the viewer idle watermark', () =>
     Effect.gen(function* () {
       expect(yield* signalsFor(wire.viewed)).toEqual([
-        OpenCodeSignal.Apply({ event: FleetEvent.Viewed({ sessionID, idle: 1790806673204 }) })
+        OpenCodeSignal.Apply({ event: VltraEvent.Viewed({ sessionID, idle: 1790806673204 }) })
       ])
     })
   )
@@ -323,11 +323,11 @@ describe('OpenCode event mapping', () => {
     Effect.gen(function* () {
       expect(yield* signalsFor(wire.asked)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.PermissionAsked({
+          event: VltraEvent.PermissionAsked({
             permission: {
               id: 'per_0f465b7e3',
               sessionID,
-              action: 'fleet.test',
+              action: 'vltra.test',
               resources: ['x'],
               message: undefined
             }
@@ -337,13 +337,13 @@ describe('OpenCode event mapping', () => {
 
       expect(yield* signalsFor(wire.replied)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.PermissionReplied({ requestID: 'per_0f465b7e3' })
+          event: VltraEvent.PermissionReplied({ requestID: 'per_0f465b7e3' })
         })
       ])
 
       expect(yield* signalsFor(wire.formCreated)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.FormCreated({
+          event: VltraEvent.FormCreated({
             form: {
               id: 'frm_0f4658aba',
               sessionID,
@@ -368,7 +368,7 @@ describe('OpenCode event mapping', () => {
       ])
 
       expect(yield* signalsFor(wire.formCancelled)).toEqual([
-        OpenCodeSignal.Apply({ event: FleetEvent.FormSettled({ formID: 'frm_0f4658aba' }) })
+        OpenCodeSignal.Apply({ event: VltraEvent.FormSettled({ formID: 'frm_0f4658aba' }) })
       ])
     })
   )
@@ -387,7 +387,7 @@ describe('OpenCode event mapping', () => {
     Effect.gen(function* () {
       expect(yield* signalsFor(wire.stepStarted)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.ActivityChanged({
+          event: VltraEvent.ActivityChanged({
             sessionID,
             activity: { kind: 'thinking' },
             callID: undefined,
@@ -398,7 +398,7 @@ describe('OpenCode event mapping', () => {
 
       expect(yield* signalsFor(wire.textStarted)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.ActivityChanged({
+          event: VltraEvent.ActivityChanged({
             sessionID,
             activity: { kind: 'writing' },
             callID: undefined,
@@ -409,7 +409,7 @@ describe('OpenCode event mapping', () => {
 
       expect(yield* signalsFor(wire.toolInputStarted)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.ActivityChanged({
+          event: VltraEvent.ActivityChanged({
             sessionID,
             activity: { kind: 'tool', tool: 'bash' },
             callID: 'call_1',
@@ -420,7 +420,7 @@ describe('OpenCode event mapping', () => {
 
       expect(yield* signalsFor(wire.toolCalled)).toEqual([
         OpenCodeSignal.Apply({
-          event: FleetEvent.ToolCalled({
+          event: VltraEvent.ToolCalled({
             sessionID,
             callID: 'call_1',
             detail: 'pnpm build',
@@ -470,7 +470,7 @@ describe('OpenCode event mapping', () => {
     })
   )
 
-  it.effect('ignores events Fleet does not track', () =>
+  it.effect('ignores events Vltra does not track', () =>
     Effect.gen(function* () {
       expect(yield* signalsFor(wire.textDelta)).toEqual([])
     })
@@ -483,7 +483,7 @@ describe('session row mapping', () => {
       const info = yield* Schema.decodeUnknownEffect(Session.Info)({
         id: sessionID,
         projectID: 'global',
-        model: { id: 'none', providerID: 'fleet-none', variant: 'default' },
+        model: { id: 'none', providerID: 'vltra-none', variant: 'default' },
         cost: 0,
         tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
         outcome: 'failed',
@@ -496,10 +496,10 @@ describe('session row mapping', () => {
         id: sessionID,
         parentID: undefined,
         projectID: 'global',
-        directory: '/tmp/fleet/work',
+        directory: '/tmp/vltra/work',
         title: 'spike3',
         agent: undefined,
-        model: 'fleet-none/none',
+        model: 'vltra-none/none',
         cost: 0,
         tokens: 0,
         created: 1790806672952,
@@ -512,7 +512,7 @@ describe('session row mapping', () => {
     })
   )
 
-  it.effect("reads Fleet's handled marker from metadata.fleet.handled", () =>
+  it.effect("reads Vltra's handled marker from metadata.vltra.handled", () =>
     Effect.gen(function* () {
       const info = yield* Schema.decodeUnknownEffect(Session.Info)({
         id: sessionID,
@@ -520,7 +520,7 @@ describe('session row mapping', () => {
         cost: 0,
         tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
         time: { created: 1790806672952, updated: 1790806673183, idle: 1790806673204 },
-        metadata: { other: true, fleet: { handled: 1790806673204 } },
+        metadata: { other: true, vltra: { handled: 1790806673204 } },
         location
       })
 
@@ -530,42 +530,57 @@ describe('session row mapping', () => {
 })
 
 describe('handled marker in session metadata', () => {
-  it('reads metadata.fleet.handled; absent or malformed reads as unhandled', () => {
-    expect(fleetHandled({ fleet: { handled: 42 } })).toBe(42)
-    expect(fleetHandled({ fleet: { handled: 42, note: 'x' }, other: [1] })).toBe(42)
-    expect(fleetHandled(undefined)).toBeUndefined()
-    expect(fleetHandled({})).toBeUndefined()
-    expect(fleetHandled({ fleet: null })).toBeUndefined()
-    expect(fleetHandled({ fleet: 'handled' })).toBeUndefined()
-    expect(fleetHandled({ fleet: { handled: '42' } })).toBeUndefined()
-    expect(fleetHandled({ fleet: [42] })).toBeUndefined()
+  it('reads metadata.vltra.handled; absent or malformed reads as unhandled', () => {
+    expect(vltraHandled({ vltra: { handled: 42 } })).toBe(42)
+    expect(vltraHandled({ vltra: { handled: 42, note: 'x' }, other: [1] })).toBe(42)
+    expect(vltraHandled(undefined)).toBeUndefined()
+    expect(vltraHandled({})).toBeUndefined()
+    expect(vltraHandled({ vltra: null })).toBeUndefined()
+    expect(vltraHandled({ vltra: 'handled' })).toBeUndefined()
+    expect(vltraHandled({ vltra: { handled: '42' } })).toBeUndefined()
+    expect(vltraHandled({ vltra: [42] })).toBeUndefined()
   })
 
-  it('sets only fleet.handled and keeps every other key', () => {
-    expect(withFleetHandled(undefined, 42)).toEqual({ fleet: { handled: 42 } })
+  it('sets only vltra.handled and keeps every other key', () => {
+    expect(withVltraHandled(undefined, 42)).toEqual({ vltra: { handled: 42 } })
 
     expect(
-      withFleetHandled({ plugin: { a: 1 }, tags: ['x'], fleet: { handled: 1, note: 'n' } }, 42)
-    ).toEqual({ plugin: { a: 1 }, tags: ['x'], fleet: { handled: 42, note: 'n' } })
+      withVltraHandled({ plugin: { a: 1 }, tags: ['x'], vltra: { handled: 1, note: 'n' } }, 42)
+    ).toEqual({ plugin: { a: 1 }, tags: ['x'], vltra: { handled: 42, note: 'n' } })
   })
 
-  it('replaces a malformed fleet value', () => {
-    expect(withFleetHandled({ fleet: 'oops', other: 1 }, 42)).toEqual({
+  it('replaces a malformed vltra value', () => {
+    expect(withVltraHandled({ vltra: 'oops', other: 1 }, 42)).toEqual({
       other: 1,
-      fleet: { handled: 42 }
+      vltra: { handled: 42 }
     })
 
-    expect(withFleetHandled({ fleet: [1, 2] }, 42)).toEqual({ fleet: { handled: 42 } })
+    expect(withVltraHandled({ vltra: [1, 2] }, 42)).toEqual({ vltra: { handled: 42 } })
   })
 
-  it('clearing deletes the key, and fleet once it is empty', () => {
-    expect(withFleetHandled({ fleet: { handled: 1, note: 'n' }, other: 1 }, undefined)).toEqual({
-      fleet: { note: 'n' },
+  it('clearing deletes the key, and vltra once it is empty', () => {
+    expect(withVltraHandled({ vltra: { handled: 1, note: 'n' }, other: 1 }, undefined)).toEqual({
+      vltra: { note: 'n' },
       other: 1
     })
 
-    expect(withFleetHandled({ fleet: { handled: 1 }, other: 1 }, undefined)).toEqual({ other: 1 })
-    expect(withFleetHandled(undefined, undefined)).toEqual({})
+    expect(withVltraHandled({ vltra: { handled: 1 }, other: 1 }, undefined)).toEqual({ other: 1 })
+    expect(withVltraHandled(undefined, undefined)).toEqual({})
+  })
+
+  it('reads the legacy fleet key when vltra has none; vltra wins', () => {
+    expect(vltraHandled({ fleet: { handled: 7 } })).toBe(7)
+    expect(vltraHandled({ fleet: { handled: 7 }, vltra: { handled: 42 } })).toBe(42)
+    expect(vltraHandled({ fleet: { handled: '7' } })).toBeUndefined()
+  })
+
+  it('every write drops the legacy fleet key', () => {
+    expect(withVltraHandled({ fleet: { handled: 7 }, other: 1 }, 7)).toEqual({
+      other: 1,
+      vltra: { handled: 7 }
+    })
+
+    expect(withVltraHandled({ fleet: { handled: 7 }, other: 1 }, undefined)).toEqual({ other: 1 })
   })
 })
 
@@ -600,7 +615,7 @@ describe('session log → latest run end', () => {
 })
 
 describe('transcript mapping', () => {
-  const model = { id: 'none', providerID: 'fleet-none' }
+  const model = { id: 'none', providerID: 'vltra-none' }
 
   // Newest first, as `GET /api/session/:id/message?order=desc` returns them.
   const messages = [

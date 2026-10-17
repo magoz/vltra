@@ -46,7 +46,7 @@ describe('chat composer', () => {
     stop()
   })
 
-  it('leaves the keyboard alone on a phone, or while Fleet has a field focused', async () => {
+  it('leaves the keyboard alone on a phone, or while Vltra has a field focused', async () => {
     const phone = chatFrame()
 
     pointer(false)

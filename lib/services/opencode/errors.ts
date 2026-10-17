@@ -22,7 +22,7 @@ export class OpenCodeDisconnectedError extends Schema.TaggedError<OpenCodeDiscon
   { message: Schema.String }
 ) {}
 
-/** OpenCode rejected an id or input Fleet passed through. */
+/** OpenCode rejected an id or input Vltra passed through. */
 export class OpenCodeInvalidInputError extends Schema.TaggedError<OpenCodeInvalidInputError>()(
   'OpenCodeInvalidInputError',
   { field: Schema.String, message: Schema.String }

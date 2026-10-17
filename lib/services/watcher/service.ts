@@ -4,7 +4,7 @@ import type { Effect, Option } from 'effect'
 /** A run as Watcher's API shows it (`RunView`): one launch, from claim to launched or failed. */
 export const WatcherRun = Schema.Struct({
   id: Schema.String,
-  /** `manual` for launches asked for directly (Fleet's), else the watch's id. */
+  /** `manual` for launches asked for directly (Vltra's), else the watch's id. */
   watch: Schema.String,
   key: Schema.String,
   status: Schema.Literals(['launching', 'launched', 'failed']),
@@ -23,7 +23,7 @@ export const WatcherRun = Schema.Struct({
 
 export type WatcherRun = typeof WatcherRun.Type
 
-/** Watcher's daemon is not running, or answered something Fleet cannot read. */
+/** Watcher's daemon is not running, or answered something Vltra cannot read. */
 export class WatcherUnavailableError extends Schema.TaggedError<WatcherUnavailableError>()(
   'WatcherUnavailableError',
   { message: Schema.String }
@@ -48,13 +48,13 @@ export type WatcherOperations = {
   ) => Effect.Effect<WatcherRun, WatcherUnavailableError | WatcherRefusedError>
   /** One run, or none when Watcher does not know it. */
   readonly run: (id: string) => Effect.Effect<Option.Option<WatcherRun>, WatcherUnavailableError>
-  /** Fleet's launches still running (after a Fleet restart). */
+  /** Vltra's launches still running (after a Vltra restart). */
   readonly launching: Effect.Effect<ReadonlyArray<WatcherRun>, WatcherUnavailableError>
 }
 
 /**
  * Watcher (`~/dev/repos/watcher`), the daemon that runs launches on this machine: they survive a
- * Fleet restart, drain on Watcher's own restarts and are recovered after a crash. Reached over its
+ * Vltra restart, drain on Watcher's own restarts and are recovered after a crash. Reached over its
  * unix socket.
  */
-export class Watcher extends Context.Service<Watcher, WatcherOperations>()('@fleet/Watcher') {}
+export class Watcher extends Context.Service<Watcher, WatcherOperations>()('@vltra/Watcher') {}

@@ -1,12 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeActions, TestDashboard } from '@/app/testing/dashboard-fixtures'
-import { fleetLive, now } from '@/app/testing/fleet-scenario'
-import type { FleetScreen } from '@/app/fleet-href'
+import { vltraLive, now } from '@/app/testing/vltra-scenario'
+import type { VltraScreen } from '@/app/vltra-href'
 
-const renderDashboard = (current: FleetScreen) =>
+const renderDashboard = (current: VltraScreen) =>
   render(
-    <TestDashboard live={fleetLive()} now={now} actions={fakeActions().actions} screen={current} />
+    <TestDashboard live={vltraLive()} now={now} actions={fakeActions().actions} screen={current} />
   )
 
 const keys = (dialog: HTMLElement) =>

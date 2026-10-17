@@ -2,19 +2,19 @@
 
 import { Effect, Schema } from 'effect'
 import { headers } from 'next/headers'
-import { FleetActionResult, toActionResult } from '@/app/fleet-action-result'
+import { VltraActionResult, toActionResult } from '@/app/vltra-action-result'
 import { requireSameOrigin } from '@/app/same-origin'
-import { DismissLaunchInput } from '@/lib/data/fleet/launcher'
-import { Launches } from '@/lib/data/fleet/launches'
-import { runFleet } from '@/lib/runtime/fleet-runtime'
+import { DismissLaunchInput } from '@/lib/data/vltra/launcher'
+import { Launches } from '@/lib/data/vltra/launches'
+import { runVltra } from '@/lib/runtime/vltra-runtime'
 
 /** Remove a failed (or ready) launch from the list. */
 export const dismissLaunchAction = async (
   input: DismissLaunchInput
-): Promise<FleetActionResult> => {
+): Promise<VltraActionResult> => {
   const requestHeaders = await headers()
 
-  return await runFleet(
+  return await runVltra(
     Effect.gen(function* () {
       yield* requireSameOrigin(requestHeaders)
 
@@ -22,7 +22,7 @@ export const dismissLaunchAction = async (
 
       yield* Effect.flatMap(Launches, launches => launches.dismiss(decoded.id))
 
-      return FleetActionResult.Success()
-    }).pipe(toActionResult('action.fleet.dismiss-launch'))
+      return VltraActionResult.Success()
+    }).pipe(toActionResult('action.vltra.dismiss-launch'))
   )
 }

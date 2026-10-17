@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { Option, Schema } from 'effect'
-import type { PullRequest, WorktreeOwner } from '@/lib/data/fleet/types'
+import type { PullRequest, WorktreeOwner } from '@/lib/data/vltra/types'
 
 // Pure readers for what git, gh and the dotfiles plugin write. Everything shaped by them stops
 // here.
@@ -133,7 +133,7 @@ export const parsePullRequests = (output: string): PullRequest =>
   })
 
 /**
- * The launcher roots: `FLEET_LAUNCHER_ROOTS` (a `:`-separated path list, `~` for the home
+ * The launcher roots: `VLTRA_LAUNCHER_ROOTS` (a `:`-separated path list, `~` for the home
  * directory), else `~/dev/repos` (whose children are the repositories), `~/.dotfiles`, `~/aha`,
  * `~/collie` and `~/subs`.
  */

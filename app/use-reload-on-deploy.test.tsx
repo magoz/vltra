@@ -1,10 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { StreamStatus } from '@/app/use-fleet-live'
+import type { StreamStatus } from '@/app/use-vltra-live'
 import { useReloadOnDeploy } from '@/app/use-reload-on-deploy'
 import { Toaster } from '@/components/ui/sonner'
 
-/** The server answers `GET /api/fleet/version` with this build. */
+/** The server answers `GET /api/vltra/version` with this build. */
 const serve = (build: string) =>
   vi.stubGlobal(
     'fetch',
@@ -55,7 +55,7 @@ describe('reload on deploy', () => {
 
     await waitFor(() => expect(reload).toHaveBeenCalledTimes(1))
     expect(vi.mocked(fetch).mock.calls.map(([input]) => String(input))).toEqual([
-      '/api/fleet/version'
+      '/api/vltra/version'
     ])
   })
 
@@ -79,7 +79,7 @@ describe('reload on deploy', () => {
     render(<Probe stream="live" reload={reload} typing />)
 
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Draft' }))
-    expect(await screen.findByText('Fleet was updated')).toBeTruthy()
+    expect(await screen.findByText('Vltra was updated')).toBeTruthy()
     expect(reload).not.toHaveBeenCalled()
 
     setVisibility('hidden')

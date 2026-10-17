@@ -10,7 +10,7 @@ import { PushSendError } from '@/lib/services/push/service'
 import type { BrowserSubscription, PushMessage } from '@/lib/services/push/service'
 
 // Real files under a private temp directory; pushes go to a recording sender, never the network.
-const root = mkdtempSync(path.join(tmpdir(), 'fleet-push-'))
+const root = mkdtempSync(path.join(tmpdir(), 'vltra-push-'))
 
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 
@@ -23,7 +23,7 @@ const subscription = (name: string): BrowserSubscription => ({
   keys: { p256dh: `p256dh-${name}`, auth: `auth-${name}` }
 })
 
-const message: PushMessage = { title: 'Response ready', body: 'fleet · x', tag: 'x', url: '/' }
+const message: PushMessage = { title: 'Response ready', body: 'vltra · x', tag: 'x', url: '/' }
 
 type Sent = { readonly endpoint: string; readonly payload: string; readonly subject: string }
 
@@ -44,7 +44,7 @@ const recorder = (gone: ReadonlyArray<string> = [], failing: ReadonlyArray<strin
   return { sent, sender }
 }
 
-const subject = 'https://fleet.oox.sh'
+const subject = 'https://vltra.localhost'
 
 describe('push (file-backed)', () => {
   it.effect('makes a key pair once and keeps it, readable by its owner only', () =>

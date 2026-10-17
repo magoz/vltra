@@ -2,16 +2,16 @@
 
 import { Effect, Schema } from 'effect'
 import { headers } from 'next/headers'
-import { FleetActionResult, toActionResult } from '@/app/fleet-action-result'
+import { VltraActionResult, toActionResult } from '@/app/vltra-action-result'
 import { requireSameOrigin } from '@/app/same-origin'
-import { PushDeviceInput, sendTestPush } from '@/lib/data/fleet/push'
-import { runFleet } from '@/lib/runtime/fleet-runtime'
+import { PushDeviceInput, sendTestPush } from '@/lib/data/vltra/push'
+import { runVltra } from '@/lib/runtime/vltra-runtime'
 
 /** Send a test notification to one device. */
-export const testPushAction = async (input: PushDeviceInput): Promise<FleetActionResult> => {
+export const testPushAction = async (input: PushDeviceInput): Promise<VltraActionResult> => {
   const requestHeaders = await headers()
 
-  return await runFleet(
+  return await runVltra(
     Effect.gen(function* () {
       yield* requireSameOrigin(requestHeaders)
 
@@ -19,7 +19,7 @@ export const testPushAction = async (input: PushDeviceInput): Promise<FleetActio
 
       yield* sendTestPush(decoded)
 
-      return FleetActionResult.Success()
-    }).pipe(toActionResult('action.fleet.test-push'))
+      return VltraActionResult.Success()
+    }).pipe(toActionResult('action.vltra.test-push'))
   )
 }

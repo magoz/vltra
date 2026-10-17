@@ -59,7 +59,7 @@ describe('exit on signals', () => {
     send('SIGTERM')
     await vi.advanceTimersByTimeAsync(shutdownGraceMs - 1)
 
-    // Next exits by itself once its connections close; Fleet never exits early.
+    // Next exits by itself once its connections close; Vltra never exits early.
     expect(exits).toEqual([])
 
     await vi.advanceTimersByTimeAsync(1)
@@ -74,7 +74,7 @@ describe('exit on signals', () => {
     send('SIGTERM')
     await vi.advanceTimersByTimeAsync(shutdownGraceMs)
 
-    expect(logged).toHaveBeenCalledWith('Fleet failed to stop', new Error('dispose failed'))
+    expect(logged).toHaveBeenCalledWith('Vltra failed to stop', new Error('dispose failed'))
     expect(exits).toEqual([143])
   })
 

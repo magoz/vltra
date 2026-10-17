@@ -17,7 +17,7 @@ import {
   Stream
 } from 'effect'
 import { ChildProcess, ChildProcessSpawner } from 'effect/unstable/process'
-import type { PullRequest, RepoCheckout, RepoWorktree } from '@/lib/data/fleet/types'
+import type { PullRequest, RepoCheckout, RepoWorktree } from '@/lib/data/vltra/types'
 import {
   gitDirOf,
   launcherRoots,
@@ -363,11 +363,11 @@ export const makeRepos = (options: ReposOptions) =>
 
 const HomeDirectory = Config.string('HOME').pipe(Config.withDefault(homedir()))
 
-/** Launcher roots from `FLEET_LAUNCHER_ROOTS` (read once, when the layer is built). */
+/** Launcher roots from `VLTRA_LAUNCHER_ROOTS` (read once, when the layer is built). */
 export const ReposLive = Layer.effect(
   Repos,
   Effect.gen(function* () {
-    const configured = yield* Config.option(Config.string('FLEET_LAUNCHER_ROOTS'))
+    const configured = yield* Config.option(Config.string('VLTRA_LAUNCHER_ROOTS'))
     const home = yield* HomeDirectory
 
     return yield* makeRepos({ roots: launcherRoots(configured, home) })

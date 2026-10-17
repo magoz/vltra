@@ -10,7 +10,7 @@ const toasterStyle: React.CSSProperties &
   '--border-radius': 'var(--radius)'
 }
 
-// Follows the system appearance, like the rest of Fleet.
+// Follows the system appearance, like the rest of Vltra.
 const Toaster = ({ ...props }: ToasterProps) => (
   <Sonner theme="system" className="toaster group font-mono" style={toasterStyle} {...props} />
 )

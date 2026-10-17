@@ -7,7 +7,7 @@ const composerSelector = '[data-component="composer-editor"][contenteditable="tr
 const composerWait = 15_000
 
 // The selector matches only a contenteditable element, so the typed `querySelector` holds. The
-// frame's own realm: `instanceof HTMLElement` against Fleet's window would fail.
+// frame's own realm: `instanceof HTMLElement` against Vltra's window would fail.
 const composerOf = (frame: HTMLIFrameElement): HTMLElement | undefined =>
   frame.contentDocument?.querySelector<HTMLElement>(composerSelector) ?? undefined
 
@@ -36,7 +36,7 @@ export const focusComposer = (frame: HTMLIFrameElement): boolean => {
 
 /**
  * Whether opening a chat may take the keyboard: a desktop (a fine pointer; on a phone it would
- * pop the keyboard up), and Fleet itself is not busy with it (a field, a dialog).
+ * pop the keyboard up), and Vltra itself is not busy with it (a field, a dialog).
  */
 const mayAutoFocus = () => {
   if (!window.matchMedia('(pointer: fine)').matches) return false

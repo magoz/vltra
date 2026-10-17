@@ -2,16 +2,16 @@
 
 import { Effect, Schema } from 'effect'
 import { headers } from 'next/headers'
-import { FleetActionResult, toActionResult } from '@/app/fleet-action-result'
+import { VltraActionResult, toActionResult } from '@/app/vltra-action-result'
 import { requireSameOrigin } from '@/app/same-origin'
-import { markViewed, MarkViewedInput } from '@/lib/data/fleet/actions'
-import { runFleet } from '@/lib/runtime/fleet-runtime'
+import { markViewed, MarkViewedInput } from '@/lib/data/vltra/actions'
+import { runVltra } from '@/lib/runtime/vltra-runtime'
 
 /** Mark a session viewed in OpenCode (`POST /api/session/:id/view`), for its unread dots. */
-export const markViewedAction = async (input: MarkViewedInput): Promise<FleetActionResult> => {
+export const markViewedAction = async (input: MarkViewedInput): Promise<VltraActionResult> => {
   const requestHeaders = await headers()
 
-  return await runFleet(
+  return await runVltra(
     Effect.gen(function* () {
       yield* requireSameOrigin(requestHeaders)
 
@@ -19,7 +19,7 @@ export const markViewedAction = async (input: MarkViewedInput): Promise<FleetAct
 
       yield* markViewed(decoded)
 
-      return FleetActionResult.Success()
-    }).pipe(toActionResult('action.fleet.mark-viewed'))
+      return VltraActionResult.Success()
+    }).pipe(toActionResult('action.vltra.mark-viewed'))
   )
 }

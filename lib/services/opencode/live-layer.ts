@@ -12,8 +12,8 @@ import { Service } from '@opencode/client/effect/service'
 import type { Endpoint } from '@opencode/client/effect/service'
 import { Data, DateTime, Duration, Effect, Layer, Option, Predicate, Schema, Stream } from 'effect'
 import { FetchHttpClient, HttpClient, HttpClientRequest } from 'effect/unstable/http'
-import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
-import type { PendingForm, PendingPermission, SessionRecord } from '@/lib/data/fleet/types'
+import type { OpenCodeSnapshot } from '@/lib/data/vltra/model'
+import type { PendingForm, PendingPermission, SessionRecord } from '@/lib/data/vltra/types'
 import {
   branchModel,
   endpointOverride,
@@ -39,7 +39,7 @@ import {
   toSessionStats,
   toSignals,
   toTranscript,
-  withFleetHandled
+  withVltraHandled
 } from '@/lib/services/opencode/mapping'
 import type { RunEnd } from '@/lib/services/opencode/mapping'
 import { OpenCode } from '@/lib/services/opencode/service'
@@ -59,7 +59,7 @@ const logTimeout = Duration.seconds(60)
 
 /**
  * `worktree.create` answers once the checkout is provisioned: the dotfiles plugin bounds its CLI
- * at 30 minutes, so Fleet waits a little longer.
+ * at 30 minutes, so Vltra waits a little longer.
  */
 const createWorktreeTimeout = Duration.minutes(35)
 
@@ -105,7 +105,7 @@ const refusable =
       )
     )
 
-/** Maps OpenCode's typed not-found error to Fleet's, everything else to a request error. */
+/** Maps OpenCode's typed not-found error to Vltra's, everything else to a request error. */
 const action =
   (operation: string, sessionID: string) =>
   <A, E>(effect: Effect.Effect<A, E>) =>
@@ -394,7 +394,7 @@ const makeConnection = (
             .pipe(action('session.get', sessionID))
 
           yield* client.session
-            .update({ sessionID: id, metadata: withFleetHandled(info.metadata, handled) })
+            .update({ sessionID: id, metadata: withVltraHandled(info.metadata, handled) })
             .pipe(action('session.update', sessionID))
         }),
       interruptReason: sessionID =>

@@ -1,7 +1,7 @@
 'use client'
 
-import { useFleet } from '@/app/fleet-context'
-import { relativeTime } from '@/app/fleet-format'
+import { useVltra } from '@/app/vltra-context'
+import { relativeTime } from '@/app/vltra-format'
 import { PushState, usePush } from '@/app/use-push'
 import type { Push } from '@/app/use-push'
 import { Button } from '@/components/ui/button'
@@ -17,19 +17,19 @@ export const pushStatus = PushState.$match({
       ? {
           label: 'Not in Safari',
           detail:
-            'On an iPhone or iPad, notifications come to the Home Screen app: Share → Add to Home Screen, then open Fleet from there.',
+            'On an iPhone or iPad, notifications come to the Home Screen app: Share → Add to Home Screen, then open Vltra from there.',
           on: false
         }
       : { label: 'Not available', detail: 'This browser cannot get notifications.', on: false },
   Denied: (): Status => ({
     label: 'Blocked',
     detail:
-      "The browser was told not to allow Fleet's notifications. Allow them in its site settings (on an iPhone: Settings → Notifications → Fleet), then come back.",
+      "The browser was told not to allow Vltra's notifications. Allow them in its site settings (on an iPhone: Settings → Notifications → Vltra), then come back.",
     on: false
   }),
   Off: (): Status => ({
     label: 'Off on this device',
-    detail: 'Turn them on to hear about sessions that need you while Fleet is not in front of you.',
+    detail: 'Turn them on to hear about sessions that need you while Vltra is not in front of you.',
     on: false
   }),
   On: (): Status => ({ label: 'On for this device', detail: '', on: true })
@@ -114,11 +114,11 @@ function Devices({ push, now }: { readonly push: Push; readonly now: number }) {
 }
 
 /**
- * Settings (`?view=settings`): Fleet's notifications (DESIGN.md "Notifications"). Each browser
+ * Settings (`?view=settings`): Vltra's notifications (DESIGN.md "Notifications"). Each browser
  * turns them on for itself; the list shows every device the server pushes to.
  */
 export function SettingsPage() {
-  const { now } = useFleet()
+  const { now } = useVltra()
   const push = usePush()
 
   return (

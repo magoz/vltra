@@ -4,11 +4,11 @@ import { Predicate } from 'effect'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
-import { FleetActionResult } from '@/app/fleet-action-result'
-import { settled } from '@/app/fleet-actions'
-import type { FleetActions } from '@/app/fleet-actions'
-import type { RowOverride } from '@/lib/data/fleet/board'
-import type { FleetRow } from '@/lib/data/fleet/types'
+import { VltraActionResult } from '@/app/vltra-action-result'
+import { settled } from '@/app/vltra-actions'
+import type { VltraActions } from '@/app/vltra-actions'
+import type { RowOverride } from '@/lib/data/vltra/board'
+import type { VltraRow } from '@/lib/data/vltra/types'
 
 /** How long the Done toast (and its Undo) stays up. */
 const undoWindow = 6000
@@ -51,19 +51,19 @@ const toastID = (sessionID: string) => `handled:${sessionID}`
 /** Drops overrides the server has already answered (their row changed or is gone). */
 const current = (
   overrides: ReadonlyMap<string, RowOverride>,
-  rows: ReadonlyMap<string, FleetRow>
+  rows: ReadonlyMap<string, VltraRow>
 ): Map<string, RowOverride> =>
   new Map(Array.from(overrides).filter(([id, override]) => rows.get(id) === override.base))
 
 /** Owns the overrides; `rows` is the live (server) row map the overrides are checked against. */
 export function useHandledFlow(
-  actions: FleetActions,
-  rows: ReadonlyMap<string, FleetRow>
+  actions: VltraActions,
+  rows: ReadonlyMap<string, VltraRow>
 ): HandledFlow {
   const [overrides, setOverrides] = useState<ReadonlyMap<string, RowOverride>>(() => new Map())
   const rowsRef = useRef(rows)
   // Mark handled calls in flight, so Undo waits for the write it undoes.
-  const handling = useRef(new Map<string, Promise<FleetActionResult>>())
+  const handling = useRef(new Map<string, Promise<VltraActionResult>>())
   const last = useRef<string | undefined>(undefined)
 
   useEffect(() => {
@@ -99,7 +99,7 @@ export function useHandledFlow(
   const reopenAfterHandled = useCallback(
     (sessionID: string, failure: string) => {
       const handled =
-        handling.current.get(sessionID) ?? Promise.resolve(FleetActionResult.Success())
+        handling.current.get(sessionID) ?? Promise.resolve(VltraActionResult.Success())
 
       handling.current.delete(sessionID)
       override(sessionID, 'finished')

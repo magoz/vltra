@@ -24,7 +24,7 @@ export const isChatRoute = (current: string, target: string): boolean => {
  * Shows another session in the chat frame. A loaded chat moves inside OpenCode's router (a
  * replaced history entry and the `popstate` its router listens for, as on Back), in tens of
  * milliseconds instead of a whole app start. Otherwise the frame loads the URL, replacing its
- * entry too: Fleet's history stays the user's moves, so Back never steps through the chat.
+ * entry too: Vltra's history stays the user's moves, so Back never steps through the chat.
  */
 export function showInChat(frame: HTMLIFrameElement, url: string): 'routed' | 'loading' {
   const frameWindow = frame.contentWindow

@@ -3,11 +3,11 @@
 import { Predicate } from 'effect'
 import { useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { settled, useFleetActions } from '@/app/fleet-actions'
-import { useFleet } from '@/app/fleet-context'
-import { elapsedText } from '@/app/fleet-format'
+import { settled, useVltraActions } from '@/app/vltra-actions'
+import { useVltra } from '@/app/vltra-context'
+import { elapsedText } from '@/app/vltra-format'
 import { Button } from '@/components/ui/button'
-import type { Launch } from '@/lib/data/fleet/types'
+import type { Launch } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
 /**
@@ -39,7 +39,7 @@ const statusText: Readonly<Record<Launch['status'], string>> = {
 }
 
 function DismissButton({ launch }: { readonly launch: Launch }) {
-  const actions = useFleetActions()
+  const actions = useVltraActions()
   const [pending, startTransition] = useTransition()
 
   return (
@@ -85,7 +85,7 @@ function LaunchMarker({ failed }: { readonly failed: boolean }) {
  * failure with what was kept and ×.
  */
 function LaunchCard({ launch, compact }: { readonly launch: Launch; readonly compact: boolean }) {
-  const { now } = useFleet()
+  const { now } = useVltra()
   const failed = launch.status === 'failed'
   // Setting up: up to the dashboard's clock, then ticking; failed: how long it ran.
   const base = failed ? launch.updatedAt : Math.max(now, launch.updatedAt)

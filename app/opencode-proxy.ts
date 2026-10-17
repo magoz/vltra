@@ -14,7 +14,7 @@ export const openCodeProxyTarget = (openCodeUrl: string | undefined): URL =>
  * The headers OpenCode gets for a proxied request. Next's proxy sets `Host` to the target, and
  * OpenCode honours its pairing cookie only when `Origin` (if sent) names that host
  * (`authorizedSessionCookie` in `server/src/middleware/authorization.ts`). So a request from
- * Fleet's own origin carries the target's origin instead; any other origin passes through
+ * Vltra's own origin carries the target's origin instead; any other origin passes through
  * untouched and OpenCode refuses the cookie, as it would without the proxy (no cross-site use of
  * the cookie, e.g. from another `*.oox.sh` page).
  */

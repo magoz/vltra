@@ -2,16 +2,16 @@
 
 import { Effect, Schema } from 'effect'
 import { headers } from 'next/headers'
-import { FleetActionResult, toActionResult } from '@/app/fleet-action-result'
+import { VltraActionResult, toActionResult } from '@/app/vltra-action-result'
 import { requireSameOrigin } from '@/app/same-origin'
-import { markHandled, MarkHandledInput } from '@/lib/data/fleet/actions'
-import { runFleet } from '@/lib/runtime/fleet-runtime'
+import { markHandled, MarkHandledInput } from '@/lib/data/vltra/actions'
+import { runVltra } from '@/lib/runtime/vltra-runtime'
 
-/** Mark a finished root session's latest run handled (`metadata.fleet.handled = idle`). */
-export const markHandledAction = async (input: MarkHandledInput): Promise<FleetActionResult> => {
+/** Mark a finished root session's latest run handled (`metadata.vltra.handled = idle`). */
+export const markHandledAction = async (input: MarkHandledInput): Promise<VltraActionResult> => {
   const requestHeaders = await headers()
 
-  return await runFleet(
+  return await runVltra(
     Effect.gen(function* () {
       yield* requireSameOrigin(requestHeaders)
 
@@ -19,7 +19,7 @@ export const markHandledAction = async (input: MarkHandledInput): Promise<FleetA
 
       yield* markHandled(decoded)
 
-      return FleetActionResult.Success()
-    }).pipe(toActionResult('action.fleet.mark-handled'))
+      return VltraActionResult.Success()
+    }).pipe(toActionResult('action.vltra.mark-handled'))
   )
 }

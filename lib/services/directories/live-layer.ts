@@ -2,7 +2,7 @@ import { stat } from 'node:fs/promises'
 import { Effect, Layer, Option, Schema } from 'effect'
 import { Directories } from '@/lib/services/directories/service'
 
-/** The part of a Node `fs` error Fleet reads. */
+/** The part of a Node `fs` error Vltra reads. */
 const ErrnoError = Schema.Struct({ code: Schema.String })
 
 const decodeErrno = Schema.decodeUnknownOption(ErrnoError)
@@ -26,7 +26,7 @@ const isGone = (directory: string) =>
     )
   )
 
-/** Stats are cheap and local; a few at a time keeps a large fleet from flooding the disk. */
+/** Stats are cheap and local; a few at a time keeps a large vltra from flooding the disk. */
 const concurrency = 16
 
 export const DirectoriesLive = Layer.succeed(Directories, {

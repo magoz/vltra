@@ -2,18 +2,18 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeActions, TestDashboard } from '@/app/testing/dashboard-fixtures'
 import type { NavCall } from '@/app/testing/dashboard-fixtures'
-import { fleetLive, now, rowIDs } from '@/app/testing/fleet-scenario'
-import type { LiveFleet } from '@/lib/data/fleet/board'
+import { vltraLive, now, rowIDs } from '@/app/testing/vltra-scenario'
+import type { LiveVltra } from '@/lib/data/vltra/board'
 
 const renderBoard = (
-  options: { readonly project?: string; readonly live?: LiveFleet; readonly failWith?: string } = {}
+  options: { readonly project?: string; readonly live?: LiveVltra; readonly failWith?: string } = {}
 ) => {
   const actions = fakeActions(options.failWith)
   const navigations: Array<NavCall> = []
 
   render(
     <TestDashboard
-      live={options.live ?? fleetLive()}
+      live={options.live ?? vltraLive()}
       now={now}
       actions={actions.actions}
       screen="agents"
@@ -85,9 +85,9 @@ describe('columns', () => {
   it('shows the project on every card, the worktree under the title, Other sessions by their directory', () => {
     renderBoard()
 
-    expect(within(card('ses_retry')).getByText('fleet')).toBeTruthy()
+    expect(within(card('ses_retry')).getByText('vltra')).toBeTruthy()
     expect(within(card('ses_retry')).getByText('feat-x')).toBeTruthy()
-    expect(within(card('ses_run')).getByText('fleet')).toBeTruthy()
+    expect(within(card('ses_run')).getByText('vltra')).toBeTruthy()
     expect(within(card('ses_tmp')).getByText('scratch')).toBeTruthy()
     expect(within(card('ses_retry')).getByText('retrying (2×, rate limited)')).toBeTruthy()
     expect(within(card('ses_run')).getByText('quiet 15m')).toBeTruthy()
@@ -102,8 +102,8 @@ describe('columns', () => {
     expect(within(card('ses_done_old')).queryByText('run failed')).toBeNull()
     // Only the shell's own loads (the launcher list, the usage line): cards fetch nothing.
     expect(vi.mocked(fetch).mock.calls.map(([input]) => String(input))).toEqual([
-      '/api/fleet/launcher',
-      '/api/fleet/usage'
+      '/api/vltra/launcher',
+      '/api/vltra/usage'
     ])
   })
 
@@ -168,25 +168,25 @@ describe('columns', () => {
     fireEvent.click(more)
 
     expect(navigations).toEqual([{ kind: 'show', screen: 'projects', project: undefined }])
-    expect(screen.getByRole('region', { name: 'fleet' })).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'vltra' })).toBeTruthy()
   })
 })
 
 describe('project filter', () => {
   it('narrows every column to the project and shows a chip that clears it', () => {
-    const { navigations } = renderBoard({ project: 'prj_fleet' })
+    const { navigations } = renderBoard({ project: 'prj_vltra' })
 
     expect(columnIDs()).toEqual({
       'Need you': ['ses_wait_new', 'ses_wait_old', 'ses_done_new', 'ses_done_old'],
       Working: ['ses_run', 'ses_retry', 'ses_busy'],
       Done: ['ses_handled']
     })
-    expect(projectPicker().textContent).toBe('fleet')
+    expect(projectPicker().textContent).toBe('vltra')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear the fleet filter' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear the vltra filter' }))
 
     expect(navigations).toEqual([{ kind: 'filter', project: undefined }])
-    expect(screen.queryByRole('button', { name: 'Clear the fleet filter' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Clear the vltra filter' })).toBeNull()
     expect(rowIDs(column('Done'))).toEqual(['ses_tmp', 'ses_handled', 'ses_box'])
   })
 

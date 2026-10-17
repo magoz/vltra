@@ -10,7 +10,7 @@ const nextConfig = {
     // silently cutting the rest (default 10MB): prompts with pasted images went over it.
     proxyClientMaxBodySize: '1gb'
   },
-  // Projects is a tab of the one page now (`app/fleet-href.ts`); the query (`?session=`) passes
+  // Projects is a tab of the one page now (`app/vltra-href.ts`); the query (`?session=`) passes
   // through.
   redirects: async () => [{ source: '/projects', destination: '/?view=projects', permanent: false }]
 } satisfies NextConfig

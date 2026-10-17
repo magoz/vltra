@@ -1,6 +1,6 @@
 import { Context, Schema } from 'effect'
 import type { Effect } from 'effect'
-import type { PushDevice } from '@/lib/data/fleet/types'
+import type { PushDevice } from '@/lib/data/vltra/types'
 
 /** A browser's push subscription, as `PushSubscription.toJSON()` gives it (the parts sent with). */
 const Key = Schema.String.check(Schema.isNonEmpty(), Schema.isMaxLength(200))
@@ -63,7 +63,7 @@ export type PushOperations = {
 }
 
 /**
- * Web Push to the browsers that turned Fleet's notifications on. Their subscriptions and the VAPID
- * keys are the one thing Fleet keeps itself: nothing else knows them (DESIGN.md "Notifications").
+ * Web Push to the browsers that turned Vltra's notifications on. Their subscriptions and the VAPID
+ * keys are the one thing Vltra keeps itself: nothing else knows them (DESIGN.md "Notifications").
  */
-export class Push extends Context.Service<Push, PushOperations>()('@fleet/Push') {}
+export class Push extends Context.Service<Push, PushOperations>()('@vltra/Push') {}

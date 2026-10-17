@@ -3,28 +3,28 @@ import type { Launcher } from '@/app/launcher-context'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { CurrentTab } from '@/app/current-tab'
-import { FleetActionResult, FleetActionValue } from '@/app/fleet-action-result'
-import type { FleetActions } from '@/app/fleet-actions'
-import { FleetActionsProvider } from '@/app/fleet-actions'
-import { FleetProvider } from '@/app/fleet-context'
-import type { FleetNav, SessionSelection } from '@/app/fleet-context'
-import { fleetHref, moveTo } from '@/app/fleet-href'
-import type { FleetPlace, FleetScreen } from '@/app/fleet-href'
-import { FleetShell } from '@/app/fleet-shell'
+import { VltraActionResult, VltraActionValue } from '@/app/vltra-action-result'
+import type { VltraActions } from '@/app/vltra-actions'
+import { VltraActionsProvider } from '@/app/vltra-actions'
+import { VltraProvider } from '@/app/vltra-context'
+import type { VltraNav, SessionSelection } from '@/app/vltra-context'
+import { vltraHref, moveTo } from '@/app/vltra-href'
+import type { VltraPlace, VltraScreen } from '@/app/vltra-href'
+import { VltraShell } from '@/app/vltra-shell'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
 import { Toaster } from '@/components/ui/sonner'
-import { fromSnapshot as liveFromSnapshot } from '@/lib/data/fleet/board'
-import type { BoardRow, LiveFleet } from '@/lib/data/fleet/board'
-import { fromSnapshot } from '@/lib/data/fleet/model'
-import type { FleetModel, OpenCodeSnapshot, TrackedSession } from '@/lib/data/fleet/model'
-import { buildRows, buildSnapshot } from '@/lib/data/fleet/snapshot'
-import { baseTime, webUrl } from '@/lib/data/fleet/testing/fixtures'
-import type { FleetRow } from '@/lib/data/fleet/types'
-import { defaultStatsPeriod } from '@/lib/data/fleet/stats-period'
-import type { StatsPeriod } from '@/lib/data/fleet/stats-period'
+import { fromSnapshot as liveFromSnapshot } from '@/lib/data/vltra/board'
+import type { BoardRow, LiveVltra } from '@/lib/data/vltra/board'
+import { fromSnapshot } from '@/lib/data/vltra/model'
+import type { VltraModel, OpenCodeSnapshot, TrackedSession } from '@/lib/data/vltra/model'
+import { buildRows, buildSnapshot } from '@/lib/data/vltra/snapshot'
+import { baseTime, webUrl } from '@/lib/data/vltra/testing/fixtures'
+import type { VltraRow } from '@/lib/data/vltra/types'
+import { defaultStatsPeriod } from '@/lib/data/vltra/stats-period'
+import type { StatsPeriod } from '@/lib/data/vltra/stats-period'
 import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 
-// Rows and live fleets for component tests, built through the real model and snapshot projection.
+// Rows and live vltras for component tests, built through the real model and snapshot projection.
 
 type LiveFacts = Partial<Pick<TrackedSession, 'activity' | 'retry' | 'activityAt' | 'interrupt'>>
 
@@ -33,7 +33,7 @@ const modelFrom = (
   live: ReadonlyMap<string, LiveFacts>,
   at: number,
   gone: ReadonlyArray<string> = []
-): FleetModel => {
+): VltraModel => {
   const model = fromSnapshot(
     { ...emptySnapshot, ...snapshot },
     at,
@@ -57,7 +57,7 @@ export const rowFrom = (
   id: string,
   live: LiveFacts = {},
   gone: ReadonlyArray<string> = []
-): FleetRow => {
+): VltraRow => {
   const model = modelFrom(snapshot, new Map([[id, live]]), baseTime, gone)
   const row = buildRows(model, webUrl).find(candidate => candidate.id === id)
 
@@ -66,12 +66,12 @@ export const rowFrom = (
   return row
 }
 
-/** A live fleet as the dashboard sees it after loading `GET /api/fleet` at `now`. */
+/** A live vltra as the dashboard sees it after loading `GET /api/vltra` at `now`. */
 export const liveFrom = (
   snapshot: Partial<OpenCodeSnapshot>,
   now: number,
   live: ReadonlyMap<string, LiveFacts> = new Map()
-): LiveFleet =>
+): LiveVltra =>
   liveFromSnapshot(
     buildSnapshot(modelFrom(snapshot, live, now), {
       connection: { status: 'connected', since: now, failures: 0, version: '2.0.20' },
@@ -80,13 +80,13 @@ export const liveFrom = (
     })
   )
 
-export const itemFor = (row: FleetRow, worktree?: string): BoardRow => ({
+export const itemFor = (row: VltraRow, worktree?: string): BoardRow => ({
   row,
-  project: 'fleet',
+  project: 'vltra',
   worktree
 })
 
-type Input<K extends keyof FleetActions> = Parameters<FleetActions[K]>[0]
+type Input<K extends keyof VltraActions> = Parameters<VltraActions[K]>[0]
 
 export type ActionCall =
   | { readonly action: 'markHandled'; readonly input: Input<'markHandled'> }
@@ -129,27 +129,27 @@ export const fakeActions = (failWith?: string, values: Partial<FakeValues> = {})
   const result = () =>
     Promise.resolve(
       failWith === undefined
-        ? FleetActionResult.Success()
-        : FleetActionResult.Error({ message: failWith })
+        ? VltraActionResult.Success()
+        : VltraActionResult.Error({ message: failWith })
     )
 
-  const record = (call: ActionCall): Promise<FleetActionResult> => {
+  const record = (call: ActionCall): Promise<VltraActionResult> => {
     calls.push(call)
 
     return result()
   }
 
-  const recordValue = <A,>(call: ActionCall, value: A): Promise<FleetActionValue<A>> => {
+  const recordValue = <A,>(call: ActionCall, value: A): Promise<VltraActionValue<A>> => {
     calls.push(call)
 
     return Promise.resolve(
       failWith === undefined
-        ? FleetActionValue.Success(value)
-        : FleetActionResult.Error({ message: failWith })
+        ? VltraActionValue.Success(value)
+        : VltraActionResult.Error({ message: failWith })
     )
   }
 
-  const actions: FleetActions = {
+  const actions: VltraActions = {
     markHandled: input => record({ action: 'markHandled', input }),
     reopen: input => record({ action: 'reopen', input }),
     markViewed: input => record({ action: 'markViewed', input }),
@@ -172,15 +172,15 @@ export const fakeActions = (failWith?: string, values: Partial<FakeValues> = {})
   return { actions, calls }
 }
 
-const noRows: ReadonlyMap<string, FleetRow> = new Map()
+const noRows: ReadonlyMap<string, VltraRow> = new Map()
 
 function WithHandled({
   actions,
   rows,
   children
 }: {
-  readonly actions: FleetActions
-  readonly rows: ReadonlyMap<string, FleetRow>
+  readonly actions: VltraActions
+  readonly rows: ReadonlyMap<string, VltraRow>
   readonly children: ReactNode
 }) {
   const flow = useHandledFlow(actions, rows)
@@ -194,16 +194,16 @@ export function WithActions({
   rows = noRows,
   children
 }: {
-  readonly actions: FleetActions
-  readonly rows?: ReadonlyMap<string, FleetRow> | undefined
+  readonly actions: VltraActions
+  readonly rows?: ReadonlyMap<string, VltraRow> | undefined
   readonly children: ReactNode
 }) {
   return (
-    <FleetActionsProvider actions={actions}>
+    <VltraActionsProvider actions={actions}>
       <WithHandled actions={actions} rows={rows}>
         {children}
       </WithHandled>
-    </FleetActionsProvider>
+    </VltraActionsProvider>
   )
 }
 
@@ -211,11 +211,11 @@ export function WithActions({
 /** No launcher list (as before it loads): cards show no branch or PR. */
 const noLauncher: Launcher = { list: undefined, open: () => undefined, reload: () => undefined }
 
-const staticNav: FleetNav = {
+const staticNav: VltraNav = {
   screen: 'focus',
   project: undefined,
   period: defaultStatsPeriod,
-  href: (screen, project) => fleetHref(screen, { project }),
+  href: (screen, project) => vltraHref(screen, { project }),
   show: () => undefined,
   setProject: () => undefined,
   setPeriod: () => undefined,
@@ -224,22 +224,22 @@ const staticNav: FleetNav = {
 
 /**
  * The dashboard's providers for one card or row: `actions`, Handled / Undo / Reopen over `rows`,
- * and the fleet context (`onSelect` records session opens).
+ * and the vltra context (`onSelect` records session opens).
  */
-export function WithFleet({
+export function WithVltra({
   actions,
   rows = noRows,
   now,
   onSelect = () => undefined,
   children
 }: {
-  readonly actions: FleetActions
-  readonly rows?: ReadonlyMap<string, FleetRow> | undefined
+  readonly actions: VltraActions
+  readonly rows?: ReadonlyMap<string, VltraRow> | undefined
   readonly now: number
   readonly onSelect?: (sessionID: string) => void
   readonly children: ReactNode
 }) {
-  const view: LiveFleet = {
+  const view: LiveVltra = {
     connection: { status: 'connected', since: now, failures: 0 },
     rows,
     projects: new Map(),
@@ -247,7 +247,7 @@ export function WithFleet({
     launches: []
   }
 
-  const fleet = {
+  const vltra = {
     view,
     now,
     selection: { selected: undefined, select: onSelect, close: () => undefined },
@@ -256,9 +256,9 @@ export function WithFleet({
 
   return (
     <WithActions actions={actions} rows={rows}>
-      <FleetProvider fleet={fleet}>
+      <VltraProvider vltra={vltra}>
         <LauncherProvider launcher={noLauncher}>{children}</LauncherProvider>
-      </FleetProvider>
+      </VltraProvider>
     </WithActions>
   )
 }
@@ -268,7 +268,7 @@ export function WithFleet({
  * in place, or a session opened on the Agents tab (the launcher).
  */
 export type NavCall =
-  | { readonly kind: 'show'; readonly screen: FleetScreen; readonly project: string | undefined }
+  | { readonly kind: 'show'; readonly screen: VltraScreen; readonly project: string | undefined }
   | { readonly kind: 'filter'; readonly project: string | undefined }
   | { readonly kind: 'period'; readonly period: StatsPeriod }
   | { readonly kind: 'open'; readonly session: string }
@@ -287,30 +287,30 @@ export function TestDashboard({
   session,
   navigations = []
 }: {
-  readonly live: LiveFleet
+  readonly live: LiveVltra
   readonly now: number
-  readonly actions: FleetActions
-  readonly screen?: FleetScreen
+  readonly actions: VltraActions
+  readonly screen?: VltraScreen
   readonly project?: string
   readonly session?: string
   readonly navigations?: Array<NavCall>
 }) {
   const [selected, setSelected] = useState<string | undefined>(session)
 
-  const [place, setPlace] = useState<FleetPlace>(() =>
+  const [place, setPlace] = useState<VltraPlace>(() =>
     moveTo({ screen: 'focus', project: undefined }, initialScreen, initialProject)
   )
 
   const [period, setPeriod] = useState<StatsPeriod>(defaultStatsPeriod)
 
-  const nav: FleetNav = {
+  const nav: VltraNav = {
     screen: place.screen,
     project: place.project,
     period,
     href: (target, filter) => {
       const to = moveTo(place, target, filter)
 
-      return fleetHref(to.screen, { project: to.project, session: selected, period })
+      return vltraHref(to.screen, { project: to.project, session: selected, period })
     },
     show: (target, filter) => {
       const to = moveTo(place, target, filter)
@@ -345,20 +345,20 @@ export function TestDashboard({
   }
 
   return (
-    <FleetActionsProvider actions={actions}>
-      <FleetShell live={live} stream="live" now={now} selection={selection} nav={nav}>
+    <VltraActionsProvider actions={actions}>
+      <VltraShell live={live} stream="live" now={now} selection={selection} nav={nav}>
         <CurrentTab />
-      </FleetShell>
+      </VltraShell>
       <Toaster theme="light" />
       <output
         hidden
-        data-location={fleetHref(place.screen, {
+        data-location={vltraHref(place.screen, {
           project: place.project,
           session: selected,
           period
         })}
       />
-    </FleetActionsProvider>
+    </VltraActionsProvider>
   )
 }
 

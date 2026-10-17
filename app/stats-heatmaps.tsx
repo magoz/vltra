@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { compactNumber, wholeNumber } from '@/app/stats-format'
-import { inkLevel, weekdays } from '@/lib/data/fleet/stats-view'
-import type { CalendarDay, HourGrid } from '@/lib/data/fleet/stats-view'
+import { inkLevel, weekdays } from '@/lib/data/vltra/stats-view'
+import type { CalendarDay, HourGrid } from '@/lib/data/vltra/stats-view'
 import { cn } from '@/lib/utils'
 
 // The Stats tab's heatmaps (weekday × hour, the year calendar) in plain CSS grids, with hover

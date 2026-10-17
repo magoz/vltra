@@ -4,7 +4,7 @@ import { Predicate } from 'effect'
 import { useMemo, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { AgentCard } from '@/app/agent-card'
-import { useFleet } from '@/app/fleet-context'
+import { useVltra } from '@/app/vltra-context'
 import { NavLink } from '@/app/nav-link'
 import { PendingLaunches } from '@/app/pending-launches'
 import { ProjectFilter } from '@/app/project-filter'
@@ -17,9 +17,9 @@ import {
   buildAgentsBoard,
   initialColumn,
   pendingLaunches
-} from '@/lib/data/fleet/board'
-import type { AgentsBoard as Board, BoardColumn, BoardRow } from '@/lib/data/fleet/board'
-import type { Launch } from '@/lib/data/fleet/types'
+} from '@/lib/data/vltra/board'
+import type { AgentsBoard as Board, BoardColumn, BoardRow } from '@/lib/data/vltra/board'
+import type { Launch } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
 const columnNames: Readonly<Record<BoardColumn, string>> = {
@@ -216,7 +216,7 @@ function Segments({
 }
 
 function Board({ project }: { readonly project: string | undefined }) {
-  const { view, now, selection } = useFleet()
+  const { view, now, selection } = useVltra()
   const flow = useHandled()
   const board = useMemo(() => buildAgentsBoard(view, now, project), [view, now, project])
   const [segment, setSegment] = useState<BoardColumn>(() => initialColumn(board))
@@ -322,7 +322,7 @@ function Board({ project }: { readonly project: string | undefined }) {
  * `Escape`, closing the chat, are the shell's).
  */
 export function AgentsBoard() {
-  const { nav } = useFleet()
+  const { nav } = useVltra()
 
   // A new filter is a new board: the phone column and the focus start over.
   return <Board key={nav.project ?? ''} project={nav.project} />

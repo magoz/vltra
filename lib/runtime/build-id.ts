@@ -5,7 +5,7 @@ import path from 'node:path'
 // tell when a deploy replaced it. Read once at boot and kept on `globalThis`, like the runtime
 // (every Next bundle shares it): `pnpm ship` rewrites the file while the old server still runs.
 
-const buildKey: unique symbol = Symbol.for('fleet.buildId')
+const buildKey: unique symbol = Symbol.for('vltra.buildId')
 
 const scope: typeof globalThis & { [buildKey]?: Promise<string> } = globalThis
 

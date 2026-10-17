@@ -3,9 +3,9 @@ import { join } from 'node:path'
 import { cleanup, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { faviconStatus, faviconSvg, useFavicon } from '@/app/use-favicon'
-import type { FleetCounts } from '@/lib/data/fleet/types'
+import type { VltraCounts } from '@/lib/data/vltra/types'
 
-const none: FleetCounts = { blocked: 0, finished: 0, working: 0, stuck: 0, handled: 3 }
+const none: VltraCounts = { blocked: 0, finished: 0, working: 0, stuck: 0, handled: 3 }
 
 afterEach(() => {
   cleanup()

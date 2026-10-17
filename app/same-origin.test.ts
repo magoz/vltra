@@ -10,8 +10,8 @@ describe('same-origin mutations', () => {
       isSameOrigin(
         request({
           'sec-fetch-site': 'same-origin',
-          origin: 'https://fleet.oox.sh',
-          host: 'fleet.oox.sh'
+          origin: 'https://vltra.localhost',
+          host: 'vltra.localhost'
         })
       )
     ).toBe(true)
@@ -21,27 +21,27 @@ describe('same-origin mutations', () => {
     expect(
       isSameOrigin(
         request({
-          origin: 'https://fleet.oox.sh',
+          origin: 'https://vltra.localhost',
           host: '127.0.0.1:3100',
-          'x-forwarded-host': 'fleet.oox.sh'
+          'x-forwarded-host': 'vltra.localhost'
         })
       )
     ).toBe(true)
   })
 
   it.each([
-    { 'sec-fetch-site': 'cross-site', origin: 'https://fleet.oox.sh', host: 'fleet.oox.sh' },
-    { 'sec-fetch-site': 'same-site', origin: 'https://fleet.oox.sh', host: 'fleet.oox.sh' },
-    { origin: 'https://evil.example', host: 'fleet.oox.sh' },
-    { host: 'fleet.oox.sh' },
-    { origin: 'null', host: 'fleet.oox.sh' }
+    { 'sec-fetch-site': 'cross-site', origin: 'https://vltra.localhost', host: 'vltra.localhost' },
+    { 'sec-fetch-site': 'same-site', origin: 'https://vltra.localhost', host: 'vltra.localhost' },
+    { origin: 'https://evil.example', host: 'vltra.localhost' },
+    { host: 'vltra.localhost' },
+    { origin: 'null', host: 'vltra.localhost' }
   ])('rejects cross-site or origin-less requests: case %#', headers => {
     expect(isSameOrigin(request(headers))).toBe(false)
   })
 
   it.effect('fails with CrossSiteRequestError', () =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(requireSameOrigin(request({ host: 'fleet.oox.sh' })))
+      const error = yield* Effect.flip(requireSameOrigin(request({ host: 'vltra.localhost' })))
 
       expect(error._tag).toBe('CrossSiteRequestError')
     })

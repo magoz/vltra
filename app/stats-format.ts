@@ -1,4 +1,4 @@
-import type { StatsUnit } from '@/lib/data/fleet/types'
+import type { StatsUnit } from '@/lib/data/vltra/types'
 
 // Display formatting for the Stats tab. Pure; times are epoch milliseconds, shown in `timeZone`
 // (the browser's, which the report was cut in).

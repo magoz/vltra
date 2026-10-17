@@ -2,11 +2,11 @@ import { Schema } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { closeChatTabs, doneTabs } from '@/app/chat-tabs'
 import { rowFrom } from '@/app/testing/dashboard-fixtures'
-import { baseTime, sessionRecord } from '@/lib/data/fleet/testing/fixtures'
+import { baseTime, sessionRecord } from '@/lib/data/vltra/testing/fixtures'
 
 const tabsKey = 'opencode.window.browser.dat:tabs'
 
-const server = 'https://fleet.oox.sh'
+const server = 'https://vltra.localhost'
 
 const Detail = Schema.Struct({
   server: Schema.String,
@@ -128,7 +128,7 @@ describe('closeChatTabs', () => {
     closeChatTabs(chat.frame, server, ['ses_a'])
     vi.advanceTimersByTime(5000)
 
-    expect(warn).toHaveBeenCalledExactlyOnceWith("Fleet: OpenCode kept 1 done sessions' tabs open")
+    expect(warn).toHaveBeenCalledExactlyOnceWith("Vltra: OpenCode kept 1 done sessions' tabs open")
   })
 
   it('stops checking once the chat closes', () => {

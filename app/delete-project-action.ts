@@ -2,18 +2,18 @@
 
 import { Effect, Schema } from 'effect'
 import { headers } from 'next/headers'
-import { FleetActionResult, toActionResult } from '@/app/fleet-action-result'
+import { VltraActionResult, toActionResult } from '@/app/vltra-action-result'
 import { requireSameOrigin } from '@/app/same-origin'
-import { deleteProject, DeleteProjectInput } from '@/lib/data/fleet/actions'
-import { runFleet } from '@/lib/runtime/fleet-runtime'
+import { deleteProject, DeleteProjectInput } from '@/lib/data/vltra/actions'
+import { runVltra } from '@/lib/runtime/vltra-runtime'
 
 /** Delete a Projects card's sessions in OpenCode, for good; refused while any is busy. */
 export const deleteProjectAction = async (
   input: DeleteProjectInput
-): Promise<FleetActionResult> => {
+): Promise<VltraActionResult> => {
   const requestHeaders = await headers()
 
-  return await runFleet(
+  return await runVltra(
     Effect.gen(function* () {
       yield* requireSameOrigin(requestHeaders)
 
@@ -21,7 +21,7 @@ export const deleteProjectAction = async (
 
       yield* deleteProject(decoded)
 
-      return FleetActionResult.Success()
-    }).pipe(toActionResult('action.fleet.delete-project'))
+      return VltraActionResult.Success()
+    }).pipe(toActionResult('action.vltra.delete-project'))
   )
 }

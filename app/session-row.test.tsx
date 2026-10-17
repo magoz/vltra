@@ -1,17 +1,17 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ProjectRow } from '@/app/session-row'
-import { fakeActions, itemFor, rowFrom, WithFleet } from '@/app/testing/dashboard-fixtures'
-import { baseTime, sessionRecord } from '@/lib/data/fleet/testing/fixtures'
-import type { FleetRow, PendingForm } from '@/lib/data/fleet/types'
+import { fakeActions, itemFor, rowFrom, WithVltra } from '@/app/testing/dashboard-fixtures'
+import { baseTime, sessionRecord } from '@/lib/data/vltra/testing/fixtures'
+import type { VltraRow, PendingForm } from '@/lib/data/vltra/types'
 
 const now = baseTime + 5 * 60 * 1000
 
-const renderRow = (row: FleetRow, actions = fakeActions(), place?: string) => {
+const renderRow = (row: VltraRow, actions = fakeActions(), place?: string) => {
   const onSelect = vi.fn<(sessionID: string) => void>()
 
   render(
-    <WithFleet
+    <WithVltra
       actions={actions.actions}
       rows={new Map([[row.id, row]])}
       now={now}
@@ -20,7 +20,7 @@ const renderRow = (row: FleetRow, actions = fakeActions(), place?: string) => {
       <ul>
         <ProjectRow item={itemFor(row)} now={now} place={place} cursor={false} />
       </ul>
-    </WithFleet>
+    </WithVltra>
   )
 
   return { onSelect, calls: actions.calls }
@@ -39,9 +39,9 @@ afterEach(() => {
 
 describe('project rows', () => {
   it('shows marker, title, state label and age, and opens the session on click', () => {
-    const row = rowFrom({ sessions: [sessionRecord('ses_1', { title: 'Fleet watcher' })] }, 'ses_1')
+    const row = rowFrom({ sessions: [sessionRecord('ses_1', { title: 'Vltra watcher' })] }, 'ses_1')
     const { onSelect } = renderRow(row)
-    const link = screen.getByRole('link', { name: 'Fleet watcher' })
+    const link = screen.getByRole('link', { name: 'Vltra watcher' })
 
     expect(link.getAttribute('href')).toBe('/?session=ses_1')
     expect(screen.getByRole('img', { name: 'Done' })).toBeTruthy()

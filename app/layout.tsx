@@ -2,10 +2,10 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Fleet',
+  title: 'Vltra',
   description: 'Every OpenCode session on Box',
-  applicationName: 'Fleet',
-  appleWebApp: { capable: true, title: 'Fleet', statusBarStyle: 'default' }
+  applicationName: 'Vltra',
+  appleWebApp: { capable: true, title: 'Vltra', statusBarStyle: 'default' }
 }
 
 export const viewport: Viewport = {

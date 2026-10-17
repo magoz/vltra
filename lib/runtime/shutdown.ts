@@ -18,7 +18,7 @@ export const shutdownGraceMs = 3000
 export type ShutdownHooks = {
   /** Registers `listener` for `signal` (`process.once`). */
   readonly on: (signal: ShutdownSignal, listener: () => void) => void
-  /** Fleet's own cleanup; it may hang or fail, the deadline holds either way. */
+  /** Vltra's own cleanup; it may hang or fail, the deadline holds either way. */
   readonly stop: () => Promise<void>
   /** Runs `exit` after `ms`, without keeping the process alive (an unref'd timer). */
   readonly after: (ms: number, exit: () => void) => void
@@ -39,7 +39,7 @@ export const exitOnSignals = (hooks: ShutdownHooks): void => {
 
       started = true
       hooks.after(shutdownGraceMs, () => hooks.exit(signalExitCodes[signal]))
-      hooks.stop().catch(error => console.error('Fleet failed to stop', error))
+      hooks.stop().catch(error => console.error('Vltra failed to stop', error))
     })
   }
 }

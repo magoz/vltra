@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { DeleteProject } from '@/app/delete-project'
-import { useFleet } from '@/app/fleet-context'
-import { relativeTime } from '@/app/fleet-format'
+import { useVltra } from '@/app/vltra-context'
+import { relativeTime } from '@/app/vltra-format'
 import { entryForProject, useLauncher } from '@/app/launcher-context'
 import { NavLink } from '@/app/nav-link'
 import { RetireWorktree } from '@/app/retire-worktree'
@@ -11,9 +11,9 @@ import { SessionSplit } from '@/app/session-panel'
 import { ProjectRow } from '@/app/session-row'
 import { useKeys } from '@/app/use-keys'
 import { OwnerBadge, PrBadge } from '@/app/worktree-badges'
-import { buildProjectCards, cardSections } from '@/lib/data/fleet/board'
-import type { BoardRow, ProjectCard, WorktreeSection } from '@/lib/data/fleet/board'
-import type { LauncherRepo } from '@/lib/data/fleet/types'
+import { buildProjectCards, cardSections } from '@/lib/data/vltra/board'
+import type { BoardRow, ProjectCard, WorktreeSection } from '@/lib/data/vltra/board'
+import type { LauncherRepo } from '@/lib/data/vltra/types'
 
 /** `2 need you · 1 working` (need you in green), zeros left out. */
 function CardCounts({ card }: { readonly card: ProjectCard }) {
@@ -52,7 +52,7 @@ function HandledFold({
   readonly cursor: string | undefined
   readonly onToggle: () => void
 }) {
-  const { now } = useFleet()
+  const { now } = useVltra()
   const newest = card.handled[0]
 
   if (newest === undefined) return null
@@ -87,7 +87,7 @@ function HandledFold({
 
 /**
  * A worktree section's heading line: its branch (else its folder), owner (`pi` for Pi/Herdr),
- * PR state, and Retire for Fleet/OpenCode worktrees.
+ * PR state, and Retire for Vltra/OpenCode worktrees.
  */
 function SectionHeading({
   section,
@@ -133,7 +133,7 @@ function Card({
   readonly expanded: boolean
   readonly onToggle: () => void
 }) {
-  const { now } = useFleet()
+  const { now } = useVltra()
   const launcher = useLauncher()
   const ref = useRef<HTMLElement>(null)
   const sections = useMemo(() => cardSections(card, entry), [card, entry])
@@ -211,14 +211,14 @@ const gridColumns = (grid: HTMLElement | null) => {
  * The Projects page (DESIGN.md "Clients" → Web): a grid of project cards by latest activity,
  * "Other" last. The header opens the Agents board (`?view=agents`) filtered to the project, its +
  * the launcher's new-worktree step for the repository; worktree sections list needs-me and working
- * sessions under the branch, owner (`pi`), PR state and Retire (Fleet/OpenCode worktrees), and the
+ * sessions under the branch, owner (`pi`), PR state and Retire (Vltra/OpenCode worktrees), and the
  * repository's other branch worktrees follow without sessions; handled ones fold into "N handled ·
  * last 2h". An open session (`?session=`) docks its chat on the right (`SessionSplit`) and the grid
  * loses a column when it gets too narrow. Keys: arrows move between cards, `j` / `k` within one,
  * `Enter` opens the session or, on the card, its board.
  */
 export function ProjectsGrid() {
-  const { view, selection, nav } = useFleet()
+  const { view, selection, nav } = useVltra()
   const launcher = useLauncher()
   const cards = useMemo(() => buildProjectCards(view), [view])
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())

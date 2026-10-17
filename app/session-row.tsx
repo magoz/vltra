@@ -8,12 +8,12 @@ import {
   relativeTime,
   sessionTitle,
   stuckText
-} from '@/app/fleet-format'
-import { sessionHref, useFleet } from '@/app/fleet-context'
+} from '@/app/vltra-format'
+import { sessionHref, useVltra } from '@/app/vltra-context'
 import { ReopenButton } from '@/app/handled-button'
 import { StateMarker } from '@/app/state-marker'
-import type { BoardRow } from '@/lib/data/fleet/board'
-import type { FleetRow } from '@/lib/data/fleet/types'
+import type { BoardRow } from '@/lib/data/vltra/board'
+import type { VltraRow } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
 // The pieces both pages build sessions from: the link that opens the session, the age, the fact
@@ -32,11 +32,11 @@ export function RowLink({
   className,
   children
 }: {
-  readonly row: FleetRow
+  readonly row: VltraRow
   readonly className?: string
   readonly children: ReactNode
 }) {
-  const { nav, selection } = useFleet()
+  const { nav, selection } = useVltra()
 
   return (
     <a
@@ -58,7 +58,7 @@ export function RowLink({
   )
 }
 
-export function Age({ row, now }: { readonly row: FleetRow; readonly now: number }) {
+export function Age({ row, now }: { readonly row: VltraRow; readonly now: number }) {
   return (
     <time dateTime={new Date(row.activeAt).toISOString()}>{relativeTime(row.activeAt, now)}</time>
   )
@@ -74,7 +74,7 @@ export function FactLine({ children }: { readonly children: ReactNode }) {
 }
 
 /** How the run ended, when it needs saying: failed (red) or stopped by OpenCode. */
-function EndLabel({ row }: { readonly row: FleetRow }) {
+function EndLabel({ row }: { readonly row: VltraRow }) {
   return (
     <span className={row.outcome === 'failed' ? 'text-destructive' : undefined}>
       {endText(row)}
@@ -88,11 +88,11 @@ export function GoneLabel() {
 }
 
 /** A handled session can be reopened unless it never ran or its folder is gone. */
-export const isReopenable = (row: FleetRow) =>
+export const isReopenable = (row: VltraRow) =>
   row.state === 'handled' && row.handled !== undefined && !row.gone
 
 /** The one-line state label of a Projects row. */
-function StateLabel({ row, now }: { readonly row: FleetRow; readonly now: number }) {
+function StateLabel({ row, now }: { readonly row: VltraRow; readonly now: number }) {
   switch (row.state) {
     case 'blocked':
       return <span className="text-attention">blocked · {pendingText(row)}</span>
@@ -130,7 +130,7 @@ export function ProjectRow({
   readonly cursor: boolean
 }) {
   const { row } = item
-  const { selection } = useFleet()
+  const { selection } = useVltra()
   const handled = row.state === 'handled'
 
   return (

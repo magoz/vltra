@@ -11,7 +11,7 @@ import type {
   Session,
   SessionMessage
 } from '@opencode/client/effect'
-import { FleetEvent, OpenCodeSignal } from '@/lib/data/fleet/events'
+import { VltraEvent, OpenCodeSignal } from '@/lib/data/vltra/events'
 import type { ResolvedLocation } from '@/lib/services/opencode/service'
 import type {
   FileChange,
@@ -26,45 +26,64 @@ import type {
   TokenCounts,
   Transcript,
   TranscriptEntry
-} from '@/lib/data/fleet/types'
+} from '@/lib/data/vltra/types'
 
-// OpenCode (v2.0.20 schema) → Fleet domain types. Everything OpenCode-shaped stops here.
+// OpenCode (v2.0.20 schema) → Vltra domain types. Everything OpenCode-shaped stops here.
 
 const millis = (value: DateTime.Utc | undefined) =>
   value === undefined ? undefined : DateTime.toEpochMillis(value)
 
 export const modelLabel = (model: Model.Ref): string => `${model.providerID}/${model.id}`
 
-/** Fleet's own metadata key; everything else in `metadata` belongs to other writers. */
-const FleetMetadata = Schema.Struct({ fleet: Schema.Struct({ handled: Schema.Finite }) })
+const HandledMarker = Schema.Struct({ handled: Schema.Finite })
 
-const decodeFleetMetadata = Schema.decodeUnknownOption(FleetMetadata)
+/** Vltra's own metadata key; everything else in `metadata` belongs to other writers. */
+const VltraMetadata = Schema.Struct({ vltra: HandledMarker })
+
+/**
+ * The marker's key from before the rename (Fleet). Read, never written: every write drops it, and
+ * `pnpm vltra:migrate-handled` moves the rest, after which this fallback can go.
+ */
+const LegacyMetadata = Schema.Struct({ fleet: HandledMarker })
+
+const decodeVltraMetadata = Schema.decodeUnknownOption(VltraMetadata)
+
+const decodeLegacyMetadata = Schema.decodeUnknownOption(LegacyMetadata)
 
 const isJsonObject = Schema.is(Schema.Record(Schema.String, Schema.Json))
 
-/** `metadata.fleet.handled`, when present and a number; anything else reads as unhandled. */
-export const fleetHandled = (metadata: Session.Metadata | undefined): number | undefined =>
-  Option.getOrUndefined(Option.map(decodeFleetMetadata(metadata), value => value.fleet.handled))
+/**
+ * `metadata.vltra.handled`, else the legacy `metadata.fleet.handled`, when present and a number;
+ * anything else reads as unhandled.
+ */
+export const vltraHandled = (metadata: Session.Metadata | undefined): number | undefined =>
+  Option.getOrUndefined(
+    Option.orElse(
+      Option.map(decodeVltraMetadata(metadata), value => value.vltra.handled),
+      () => Option.map(decodeLegacyMetadata(metadata), value => value.fleet.handled)
+    )
+  )
 
 /**
  * The whole metadata object to write back (OpenCode replaces it): every other key kept, only
- * `fleet.handled` replaced, or removed for `undefined` (and `fleet` dropped once empty).
+ * `vltra.handled` replaced, or removed for `undefined` (and `vltra` dropped once empty). The legacy
+ * `fleet` key is always dropped.
  */
-export const withFleetHandled = (
+export const withVltraHandled = (
   metadata: Session.Metadata | undefined,
   handled: number | undefined
 ): Session.Metadata => {
   const source: Session.Metadata = metadata ?? {}
-  const { fleet, ...others } = source
-  const { handled: _previous, ...kept } = isJsonObject(fleet) ? fleet : {}
+  const { vltra, fleet: _legacy, ...others } = source
+  const { handled: _previous, ...kept } = isJsonObject(vltra) ? vltra : {}
   const next = handled === undefined ? kept : { ...kept, handled }
 
-  return Object.keys(next).length === 0 ? others : { ...others, fleet: next }
+  return Object.keys(next).length === 0 ? others : { ...others, vltra: next }
 }
 
 type OpenCodeTokens = Session.Info['tokens']
 
-/** Tokens read or written anew: all but cache reads (Fleet's `freshTokens`). */
+/** Tokens read or written anew: all but cache reads (Vltra's `freshTokens`). */
 export const freshTokenCount = (tokens: OpenCodeTokens): number =>
   tokens.input + tokens.output + tokens.reasoning + tokens.cache.write
 
@@ -83,7 +102,7 @@ export const toSessionRecord = (info: Session.Info): SessionRecord => ({
   viewed: millis(info.time.viewed),
   archived: millis(info.time.archived),
   outcome: info.outcome,
-  handled: fleetHandled(info.metadata)
+  handled: vltraHandled(info.metadata)
 })
 
 export const toPendingPermission = (request: Permission.Request): PendingPermission => ({
@@ -146,7 +165,7 @@ export const toPendingForm = (form: Form.Info): PendingForm => ({
   id: form.id,
   sessionID: form.sessionID,
   title: form.title,
-  // Hidden fields take their default unless answered; Fleet does not ask for them.
+  // Hidden fields take their default unless answered; Vltra does not ask for them.
   fields: form.fields.flatMap(field =>
     field.type !== 'external' && field.hidden === true ? [] : [toFormField(field)]
   )
@@ -235,7 +254,7 @@ export const refusalMessage = (cause: unknown): Option.Option<string> =>
     Option.filter(message => message !== '')
   )
 
-const apply = (event: FleetEvent): ReadonlyArray<OpenCodeSignal> => [
+const apply = (event: VltraEvent): ReadonlyArray<OpenCodeSignal> => [
   OpenCodeSignal.Apply({ event })
 ]
 
@@ -464,7 +483,7 @@ export const latestRunEnd = (
 }
 
 /**
- * Narrows one OpenCode event to the Fleet signals it implies. Events Fleet does not track
+ * Narrows one OpenCode event to the Vltra signals it implies. Events Vltra does not track
  * (text deltas, tool calls, config updates, ...) map to nothing.
  */
 export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> => {
@@ -477,25 +496,25 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
       // Created/imported/forked/moved sessions carry partial data; read the stored row.
       return [OpenCodeSignal.RefreshSession({ sessionID: event.data.sessionID })]
     case 'session.deleted':
-      return apply(FleetEvent.SessionRemoved({ sessionID: event.data.sessionID }))
+      return apply(VltraEvent.SessionRemoved({ sessionID: event.data.sessionID }))
     case 'session.renamed':
       return apply(
-        FleetEvent.SessionRenamed({ sessionID: event.data.sessionID, title: event.data.title })
+        VltraEvent.SessionRenamed({ sessionID: event.data.sessionID, title: event.data.title })
       )
     case 'session.agent.selected':
       return apply(
-        FleetEvent.AgentSelected({ sessionID: event.data.sessionID, agent: event.data.agent })
+        VltraEvent.AgentSelected({ sessionID: event.data.sessionID, agent: event.data.agent })
       )
     case 'session.model.selected':
       return apply(
-        FleetEvent.ModelSelected({
+        VltraEvent.ModelSelected({
           sessionID: event.data.sessionID,
           model: modelLabel(event.data.model)
         })
       )
     case 'session.usage.updated':
       return apply(
-        FleetEvent.UsageUpdated({
+        VltraEvent.UsageUpdated({
           sessionID: event.data.sessionID,
           cost: event.data.cost,
           tokens: freshTokenCount(event.data.tokens)
@@ -503,11 +522,11 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
       )
     case 'session.execution.started':
       return apply(
-        FleetEvent.ExecutionStarted({ sessionID: event.data.sessionID, at: event.created })
+        VltraEvent.ExecutionStarted({ sessionID: event.data.sessionID, at: event.created })
       )
     case 'session.execution.succeeded':
       return apply(
-        FleetEvent.ExecutionEnded({
+        VltraEvent.ExecutionEnded({
           sessionID: event.data.sessionID,
           at: event.created,
           outcome: 'succeeded',
@@ -516,7 +535,7 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
       )
     case 'session.execution.failed':
       return apply(
-        FleetEvent.ExecutionEnded({
+        VltraEvent.ExecutionEnded({
           sessionID: event.data.sessionID,
           at: event.created,
           outcome: 'failed',
@@ -525,7 +544,7 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
       )
     case 'session.execution.interrupted':
       return apply(
-        FleetEvent.ExecutionEnded({
+        VltraEvent.ExecutionEnded({
           sessionID: event.data.sessionID,
           at: event.created,
           outcome: 'interrupted',
@@ -534,7 +553,7 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
       )
     case 'session.retry.scheduled':
       return apply(
-        FleetEvent.RetryScheduled({
+        VltraEvent.RetryScheduled({
           sessionID: event.data.sessionID,
           retry: {
             attempt: event.data.attempt,
@@ -547,7 +566,7 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
     case 'session.step.started':
     case 'session.reasoning.started':
       return apply(
-        FleetEvent.ActivityChanged({
+        VltraEvent.ActivityChanged({
           sessionID: event.data.sessionID,
           activity: { kind: 'thinking' },
           callID: undefined,
@@ -556,7 +575,7 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
       )
     case 'session.text.started':
       return apply(
-        FleetEvent.ActivityChanged({
+        VltraEvent.ActivityChanged({
           sessionID: event.data.sessionID,
           activity: { kind: 'writing' },
           callID: undefined,
@@ -565,7 +584,7 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
       )
     case 'session.tool.input.started':
       return apply(
-        FleetEvent.ActivityChanged({
+        VltraEvent.ActivityChanged({
           sessionID: event.data.sessionID,
           activity: { kind: 'tool', tool: event.data.name },
           callID: event.data.id,
@@ -574,7 +593,7 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
       )
     case 'session.tool.called':
       return apply(
-        FleetEvent.ToolCalled({
+        VltraEvent.ToolCalled({
           sessionID: event.data.sessionID,
           callID: event.data.id,
           detail: toolDetail(event.data.input),
@@ -583,25 +602,25 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
       )
     case 'session.status':
       return apply(
-        FleetEvent.StatusChanged({
+        VltraEvent.StatusChanged({
           sessionID: event.data.sessionID,
           status: event.data.status.type,
           at: event.created
         })
       )
     case 'session.viewed':
-      return apply(FleetEvent.Viewed({ sessionID: event.data.sessionID, idle: event.data.idle }))
+      return apply(VltraEvent.Viewed({ sessionID: event.data.sessionID, idle: event.data.idle }))
     case 'session.metadata.updated':
       // The event carries the whole (replaced) metadata object.
       return apply(
-        FleetEvent.HandledChanged({
+        VltraEvent.HandledChanged({
           sessionID: event.data.sessionID,
-          handled: fleetHandled(event.data.metadata)
+          handled: vltraHandled(event.data.metadata)
         })
       )
     case 'permission.asked':
       return apply(
-        FleetEvent.PermissionAsked({
+        VltraEvent.PermissionAsked({
           permission: {
             id: event.data.id,
             sessionID: event.data.sessionID,
@@ -612,15 +631,15 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
         })
       )
     case 'permission.replied':
-      return apply(FleetEvent.PermissionReplied({ requestID: event.data.requestID }))
+      return apply(VltraEvent.PermissionReplied({ requestID: event.data.requestID }))
     case 'form.created':
-      return apply(FleetEvent.FormCreated({ form: toPendingForm(event.data.form) }))
+      return apply(VltraEvent.FormCreated({ form: toPendingForm(event.data.form) }))
     case 'form.replied':
     case 'form.cancelled':
-      return apply(FleetEvent.FormSettled({ formID: event.data.id }))
+      return apply(VltraEvent.FormSettled({ formID: event.data.id }))
     case 'project.updated':
       return apply(
-        FleetEvent.ProjectUpserted({
+        VltraEvent.ProjectUpserted({
           project: { id: event.data.id, name: event.data.name, directory: event.data.canonical }
         })
       )

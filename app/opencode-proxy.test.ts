@@ -13,9 +13,9 @@ describe('OpenCode proxy', () => {
     const headers = proxiedHeaders(
       new Headers({
         'sec-fetch-site': 'same-origin',
-        origin: 'https://fleet.oox.sh',
+        origin: 'https://vltra.localhost',
         host: '127.0.0.1:3940',
-        'x-forwarded-host': 'fleet.oox.sh',
+        'x-forwarded-host': 'vltra.localhost',
         cookie: 'opencode_session_49374=token'
       }),
       target
@@ -26,14 +26,14 @@ describe('OpenCode proxy', () => {
   })
 
   it.each([
-    { 'sec-fetch-site': 'same-site', origin: 'https://aha.oox.sh', host: 'fleet.oox.sh' },
-    { origin: 'https://evil.example', host: 'fleet.oox.sh' }
+    { 'sec-fetch-site': 'same-site', origin: 'https://aha.oox.sh', host: 'vltra.localhost' },
+    { origin: 'https://evil.example', host: 'vltra.localhost' }
   ])('passes a foreign origin through for OpenCode to refuse: case %#', values => {
     expect(proxiedHeaders(new Headers(values), target).get('origin')).toBe(values.origin)
   })
 
   it('adds no origin to a request without one (plain GETs)', () => {
-    const headers = proxiedHeaders(new Headers({ host: 'fleet.oox.sh' }), target)
+    const headers = proxiedHeaders(new Headers({ host: 'vltra.localhost' }), target)
 
     expect(headers.has('origin')).toBe(false)
   })

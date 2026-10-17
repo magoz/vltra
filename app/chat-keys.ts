@@ -26,12 +26,12 @@ const scrollKeys: ReadonlyArray<string> = [
 ]
 
 /**
- * Fleet's chords, which win even while typing in the chat: `⌘K` (the launcher, `isLauncherKey`;
- * OpenCode's palette stays on `⌘P` / `⌘⇧P`), `⌘/` (Fleet's keys, `isHelpKey`) and
- * `commandKey`'s (OpenCode's own `⌘1`–`⌘9` pick its tab strip's tabs, which Fleet's one-session
+ * Vltra's chords, which win even while typing in the chat: `⌘K` (the launcher, `isLauncherKey`;
+ * OpenCode's palette stays on `⌘P` / `⌘⇧P`), `⌘/` (Vltra's keys, `isHelpKey`) and
+ * `commandKey`'s (OpenCode's own `⌘1`–`⌘9` pick its tab strip's tabs, which Vltra's one-session
  * chat has no use for).
  */
-const isFleetChord = (event: KeyboardEvent) =>
+const isVltraChord = (event: KeyboardEvent) =>
   isLauncherKey(event) || isHelpKey(event) || commandKey(event) !== undefined
 
 /**
@@ -41,7 +41,7 @@ const isFleetChord = (event: KeyboardEvent) =>
  * here: selectors only.
  */
 export const chatOwnsKey = (event: KeyboardEvent, active: Element | null): boolean => {
-  if (isFleetChord(event)) return false
+  if (isVltraChord(event)) return false
 
   if (event.isComposing || event.key === 'Escape' || scrollKeys.includes(event.key)) return true
 
@@ -55,12 +55,12 @@ export const chatOwnsKey = (event: KeyboardEvent, active: Element | null): boole
 }
 
 /**
- * Hands the keys pressed in the (same-origin) OpenCode chat that it does not own to Fleet: each
- * is replayed on Fleet's document, where `useKeys` and the launcher's listener see it, and when
- * Fleet takes it (`preventDefault`) the chat never does. Listens on the frame's window in the
+ * Hands the keys pressed in the (same-origin) OpenCode chat that it does not own to Vltra: each
+ * is replayed on Vltra's document, where `useKeys` and the launcher's listener see it, and when
+ * Vltra takes it (`preventDefault`) the chat never does. Listens on the frame's window in the
  * capture phase, ahead of OpenCode's own document listeners (its type-to-focus composer, its
  * keybinds). An `Escape` the chat leaves unused (back on the window, not `defaultPrevented`)
- * moves focus out of the frame to Fleet, where the next `Escape` closes the session. A
+ * moves focus out of the frame to Vltra, where the next `Escape` closes the session. A
  * cross-origin frame (no `contentDocument`) is left alone. Returns the cleanup; a new document in
  * the frame needs a new call.
  */
@@ -124,7 +124,7 @@ const hasLoaded = (frame: HTMLIFrameElement) => {
 }
 
 /**
- * Whether the chat frame has loaded, with its keys forwarded to Fleet (`forwardChatKeys`) for
+ * Whether the chat frame has loaded, with its keys forwarded to Vltra (`forwardChatKeys`) for
  * each document it loads, and its composer focused once, on the first (`autoFocusComposer`). A
  * native `load` listener, plus a check at mount: the frame comes in the server-rendered HTML and
  * can finish loading before hydration, so React's `onLoad` would miss it.

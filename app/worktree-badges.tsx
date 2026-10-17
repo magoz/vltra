@@ -1,12 +1,12 @@
 import { Fragment } from 'react'
-import type { PullRequest, WorktreeOwner } from '@/lib/data/fleet/types'
+import type { PullRequest, WorktreeOwner } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
 // A worktree's owner and PR state, as the launcher palette and the Projects cards show them.
 
 /**
  * Pi/Herdr worktrees (no dotfiles marker, on a branch) get a muted `pi`, detached checkouts
- * (OpenCode's own git strategy) a muted `detached`; Fleet/OpenCode (dotfiles) ones nothing.
+ * (OpenCode's own git strategy) a muted `detached`; Vltra/OpenCode (dotfiles) ones nothing.
  */
 export function OwnerBadge({
   owner,
@@ -18,7 +18,7 @@ export function OwnerBadge({
   if (owner === 'dotfiles') return null
 
   return branch === undefined ? (
-    <span className="text-muted-foreground" title="Detached checkout, not managed by Fleet">
+    <span className="text-muted-foreground" title="Detached checkout, not managed by Vltra">
       detached
     </span>
   ) : (

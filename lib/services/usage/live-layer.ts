@@ -2,14 +2,14 @@ import { Config, Duration, Effect, Layer, Schema } from 'effect'
 import { Usage, UsageUnavailableError } from '@/lib/services/usage/service'
 import type { QuotaAccount } from '@/lib/services/usage/service'
 
-/** The usage dashboard's base URL (`FLEET_USAGE_URL`), on loopback by default. */
-export const usageUrl = Config.string('FLEET_USAGE_URL').pipe(
+/** The usage dashboard's base URL (`VLTRA_USAGE_URL`), on loopback by default. */
+export const usageUrl = Config.string('VLTRA_USAGE_URL').pipe(
   Config.withDefault('http://127.0.0.1:8320')
 )
 
 const requestTimeout = Duration.seconds(10)
 
-/** The part of `GET /api/usage` Fleet reads. */
+/** The part of `GET /api/usage` Vltra reads. */
 const UsageResponse = Schema.Struct({
   accounts: Schema.Array(
     Schema.Struct({

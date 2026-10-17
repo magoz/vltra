@@ -2,9 +2,9 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fakeActions, TestDashboard } from '@/app/testing/dashboard-fixtures'
 import type { ActionCall } from '@/app/testing/dashboard-fixtures'
-import { fleetLive, now } from '@/app/testing/fleet-scenario'
+import { vltraLive, now } from '@/app/testing/vltra-scenario'
 import { deviceLabel, keyBytes } from '@/app/use-push'
-import type { PushDevice } from '@/lib/data/fleet/types'
+import type { PushDevice } from '@/lib/data/vltra/types'
 
 const publicKey = 'BFakeKey'
 
@@ -14,7 +14,7 @@ let devices: ReadonlyArray<PushDevice> = []
 
 const fetchSettings = vi.fn((input: RequestInfo | URL) =>
   Promise.resolve(
-    String(input) === '/api/fleet/notifications'
+    String(input) === '/api/vltra/notifications'
       ? Response.json({ publicKey, devices })
       : new Response(null, { status: 404 })
   )
@@ -94,7 +94,7 @@ class FakeBrowser {
 }
 
 const renderSettings = (actions = fakeActions()) => {
-  render(<TestDashboard live={fleetLive()} now={now} actions={actions.actions} screen="settings" />)
+  render(<TestDashboard live={vltraLive()} now={now} actions={actions.actions} screen="settings" />)
 
   return actions
 }
@@ -121,7 +121,7 @@ afterEach(() => {
 })
 
 describe('settings: notifications', () => {
-  it('turns them on from a click: asks, subscribes, and tells Fleet; then tests and turns off', async () => {
+  it('turns them on from a click: asks, subscribes, and tells Vltra; then tests and turns off', async () => {
     new FakeBrowser('default').install()
     vi.stubGlobal('fetch', fetchSettings)
 

@@ -2,9 +2,9 @@
 
 import { Option, Schema } from 'effect'
 import { useEffect, useState } from 'react'
-import { statsPeriodParams } from '@/lib/data/fleet/stats-period'
-import type { StatsPeriod } from '@/lib/data/fleet/stats-period'
-import { PromptsByProject, StatsHours, StatsReport } from '@/lib/data/fleet/types'
+import { statsPeriodParams } from '@/lib/data/vltra/stats-period'
+import type { StatsPeriod } from '@/lib/data/vltra/stats-period'
+import { PromptsByProject, StatsHours, StatsReport } from '@/lib/data/vltra/types'
 
 const decodeReport = Schema.decodeUnknownOption(Schema.fromJsonString(StatsReport))
 
@@ -48,17 +48,17 @@ const statsQuery = (period: StatsPeriod, project: string | undefined, timeZone: 
   return params.toString()
 }
 
-/** `GET /api/fleet/stats`'s URL. */
+/** `GET /api/vltra/stats`'s URL. */
 export const statsUrl = (period: StatsPeriod, project: string | undefined, timeZone: string) =>
-  `/api/fleet/stats?${statsQuery(period, project, timeZone)}`
+  `/api/vltra/stats?${statsQuery(period, project, timeZone)}`
 
-/** `GET /api/fleet/stats/projects`'s URL (prompts per bar by project; every project). */
+/** `GET /api/vltra/stats/projects`'s URL (prompts per bar by project; every project). */
 export const statsProjectsUrl = (period: StatsPeriod, timeZone: string) =>
-  `/api/fleet/stats/projects?${statsQuery(period, undefined, timeZone)}`
+  `/api/vltra/stats/projects?${statsQuery(period, undefined, timeZone)}`
 
-/** `GET /api/fleet/stats/hours`'s URL (prompts per hour). */
+/** `GET /api/vltra/stats/hours`'s URL (prompts per hour). */
 export const statsHoursUrl = (period: StatsPeriod, project: string | undefined, timeZone: string) =>
-  `/api/fleet/stats/hours?${statsQuery(period, project, timeZone)}`
+  `/api/vltra/stats/hours?${statsQuery(period, project, timeZone)}`
 
 type Settled<A> = Exclude<StatsState<A>, { readonly status: 'loading' }>
 
@@ -117,7 +117,7 @@ function useStatsRead<A>(url: string, decode: (text: string) => Option.Option<A>
         .catch(() => {
           if (controller.signal.aborted) return
 
-          settle(last => ({ status: 'failed', error: 'Fleet is not reachable', last }))
+          settle(last => ({ status: 'failed', error: 'Vltra is not reachable', last }))
         })
     }
 
@@ -139,17 +139,17 @@ function useStatsRead<A>(url: string, decode: (text: string) => Option.Option<A>
   return fetched.url === url ? fetched.state : { status: 'loading', last: lastOf(fetched.state) }
 }
 
-/** The Stats report (`GET /api/fleet/stats`). */
+/** The Stats report (`GET /api/vltra/stats`). */
 export const useStats = (url: string): StatsState<StatsReport> => useStatsRead(url, decodeReport)
 
 /**
- * Prompts per hour (`GET /api/fleet/stats/hours`), read apart from the report: up to 31 days of
+ * Prompts per hour (`GET /api/vltra/stats/hours`), read apart from the report: up to 31 days of
  * hours can take OpenCode a while the first time.
  */
 export const useStatsHours = (url: string): StatsState<StatsHours> => useStatsRead(url, decodeHours)
 
 /**
- * Prompts per bar by project (`GET /api/fleet/stats/projects`), read apart from the report: one
+ * Prompts per bar by project (`GET /api/vltra/stats/projects`), read apart from the report: one
  * call per project and per bar of the top five the first time.
  */
 export const useStatsProjects = (url: string): StatsState<PromptsByProject> =>

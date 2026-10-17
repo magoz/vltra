@@ -1,6 +1,6 @@
 import { Context } from 'effect'
 import type { Effect, Option } from 'effect'
-import type { PullRequest, RepoCheckout, WorktreeOwner } from '@/lib/data/fleet/types'
+import type { PullRequest, RepoCheckout, WorktreeOwner } from '@/lib/data/vltra/types'
 
 /** One checkout as git sees it (`Repos.inspect`). Paths are canonical (real). */
 export type CheckoutInfo = {
@@ -43,5 +43,5 @@ export type ReposOperations = {
   }) => Effect.Effect<PullRequest>
 }
 
-/** Git repositories and worktrees on Box, for the launcher. Fleet runs next to them. */
-export class Repos extends Context.Service<Repos, ReposOperations>()('@fleet/Repos') {}
+/** Git repositories and worktrees on Box, for the launcher. Vltra runs next to them. */
+export class Repos extends Context.Service<Repos, ReposOperations>()('@vltra/Repos') {}

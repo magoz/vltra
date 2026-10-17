@@ -54,7 +54,7 @@ export const findOpenCode = (): OpenCodeBinary => {
   if (!version.stdout.includes(requiredVersion)) {
     return {
       available: false,
-      reason: `Fleet pins OpenCode ${requiredVersion}; found ${version.stdout.trim()}`
+      reason: `Vltra pins OpenCode ${requiredVersion}; found ${version.stdout.trim()}`
     }
   }
 
@@ -115,7 +115,7 @@ export type OpenCodeServerOptions = {
 export const startOpenCodeServer = (binary: string, options: OpenCodeServerOptions = {}) =>
   Effect.gen(function* () {
     const root = yield* Effect.acquireRelease(
-      Effect.sync(() => mkdtempSync(path.join(tmpdir(), 'fleet-opencode-it-'))),
+      Effect.sync(() => mkdtempSync(path.join(tmpdir(), 'vltra-opencode-it-'))),
       directory => Effect.sync(() => rmSync(directory, { recursive: true, force: true }))
     )
 

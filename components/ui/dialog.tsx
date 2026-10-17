@@ -5,7 +5,7 @@ import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
 
 import { cn } from '@/lib/utils'
 
-// Fleet's dialog (Base UI), in the paper-and-ink look: hairline border, no shadow. The launcher
+// Vltra's dialog (Base UI), in the paper-and-ink look: hairline border, no shadow. The launcher
 // palette uses it; on phones it can fill the screen (`className`).
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {

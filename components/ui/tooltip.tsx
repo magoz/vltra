@@ -4,7 +4,7 @@ import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip'
 
 import { cn } from '@/lib/utils'
 
-// Fleet's tooltip (Base UI), in the paper-and-ink look: hairline border, no shadow. The header's
+// Vltra's tooltip (Base UI), in the paper-and-ink look: hairline border, no shadow. The header's
 // usage line shows each pool's accounts in one.
 
 function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {

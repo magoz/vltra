@@ -4,10 +4,10 @@ import { bucketTitle } from '@/app/stats-format'
 import { skeletonCards } from '@/app/stats-skeleton'
 import { fakeActions, TestDashboard, testLocation } from '@/app/testing/dashboard-fixtures'
 import type { NavCall } from '@/app/testing/dashboard-fixtures'
-import { fleetLive, now } from '@/app/testing/fleet-scenario'
-import { noActivity } from '@/lib/data/fleet/stats'
-import { HoursRead, HoursTooLong } from '@/lib/data/fleet/types'
-import type { PromptsByProject, StatsHours, StatsReport } from '@/lib/data/fleet/types'
+import { vltraLive, now } from '@/app/testing/vltra-scenario'
+import { noActivity } from '@/lib/data/vltra/stats'
+import { HoursRead, HoursTooLong } from '@/lib/data/vltra/types'
+import type { PromptsByProject, StatsHours, StatsReport } from '@/lib/data/vltra/types'
 
 const day = 24 * 60 * 60 * 1000
 
@@ -58,7 +58,7 @@ const hours: StatsHours = HoursRead.make({
   hours: [{ start: Date.UTC(2026, 9, 6, 14), prompts: 7 }]
 })
 
-/** Prompts per day by project: fleet and box, the rest unlisted. */
+/** Prompts per day by project: vltra and box, the rest unlisted. */
 const projects: PromptsByProject = {
   from: report.from,
   to: report.to,
@@ -70,39 +70,39 @@ const projects: PromptsByProject = {
     prompts: bucket.prompts
   })),
   projects: [
-    { projectID: 'prj_fleet', prompts: [300, 200] },
+    { projectID: 'prj_vltra', prompts: [300, 200] },
     { projectID: 'prj_box', prompts: [100, 3] }
   ]
 }
 
 /**
- * Answers `/api/fleet/stats` with `answer` and `.../hours` with `hoursAnswer`; everything else
+ * Answers `/api/vltra/stats` with `answer` and `.../hours` with `hoursAnswer`; everything else
  * (usage, launcher) is not found.
  */
 const statsFetch = (answer: () => Response, hoursAnswer = () => Response.json(hours)) =>
   vi.fn((input: RequestInfo | URL) => {
     const url = String(input)
 
-    if (url.startsWith('/api/fleet/stats/hours')) return Promise.resolve(hoursAnswer())
+    if (url.startsWith('/api/vltra/stats/hours')) return Promise.resolve(hoursAnswer())
 
-    if (url.startsWith('/api/fleet/stats/projects')) return Promise.resolve(Response.json(projects))
+    if (url.startsWith('/api/vltra/stats/projects')) return Promise.resolve(Response.json(projects))
 
     return Promise.resolve(
-      url.startsWith('/api/fleet/stats?') ? answer() : new Response('{}', { status: 404 })
+      url.startsWith('/api/vltra/stats?') ? answer() : new Response('{}', { status: 404 })
     )
   })
 
 const statsUrls = (fetch: ReturnType<typeof statsFetch>) =>
   fetch.mock.calls
     .map(([input]) => String(input))
-    .filter(url => url.startsWith('/api/fleet/stats?'))
+    .filter(url => url.startsWith('/api/vltra/stats?'))
 
 const renderStats = () => {
   const navigations: Array<NavCall> = []
 
   render(
     <TestDashboard
-      live={fleetLive()}
+      live={vltraLive()}
       now={now}
       actions={fakeActions().actions}
       screen="stats"
@@ -159,7 +159,7 @@ describe('stats tab', () => {
     const steps = await screen.findByText('Steps', { selector: 'dt' })
 
     expect(steps.nextElementSibling?.textContent).toBe('15.7K')
-    expect(statsUrls(fetch)[0]).toMatch(/^\/api\/fleet\/stats\?tz=[\w%/]+$/)
+    expect(statsUrls(fetch)[0]).toMatch(/^\/api\/vltra\/stats\?tz=[\w%/]+$/)
     expect(screen.getByText('806')).toBeTruthy()
     expect(screen.getByText('10% failed')).toBeTruthy()
     expect(screen.getByRole('status', { name: 'Range shown' }).textContent).toBe(
@@ -205,10 +205,10 @@ describe('stats tab', () => {
     renderStats()
 
     fireEvent.click(await screen.findByRole('combobox', { name: 'Project' }))
-    fireEvent.click(await screen.findByRole('option', { name: 'fleet' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'vltra' }))
 
-    await waitFor(() => expect(statsUrls(fetch).at(-1)).toContain('project=prj_fleet'))
-    expect(testLocation()).toBe('/?view=stats&project=prj_fleet')
+    await waitFor(() => expect(statsUrls(fetch).at(-1)).toContain('project=prj_vltra'))
+    expect(testLocation()).toBe('/?view=stats&project=prj_vltra')
   })
 
   it("says why it has nothing to show when OpenCode's stats fail", async () => {
@@ -262,7 +262,7 @@ describe('stats tab', () => {
       within(legend)
         .getAllByRole('listitem')
         .map(item => item.textContent)
-    ).toEqual(['fleet', 'box', 'rest'])
+    ).toEqual(['vltra', 'box', 'rest'])
 
     const sessions = screen.getByRole('region', { name: 'Sessions started' })
 
@@ -271,7 +271,7 @@ describe('stats tab', () => {
         .getAllByRole('listitem')
         .map(item => item.textContent)
         .slice(0, 2)
-    ).toEqual(['fleet', 'box'])
+    ).toEqual(['vltra', 'box'])
   })
 
   it('shows a heatmap cell on hover', async () => {
@@ -328,7 +328,7 @@ describe('stats tab', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn((input: RequestInfo | URL) =>
-        String(input).startsWith('/api/fleet/stats?')
+        String(input).startsWith('/api/vltra/stats?')
           ? pending
           : Promise.resolve(new Response('{}', { status: 404 }))
       )

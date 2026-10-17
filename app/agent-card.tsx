@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { sessionTitle, stuckText } from '@/app/fleet-format'
-import { useFleet } from '@/app/fleet-context'
+import { sessionTitle, stuckText } from '@/app/vltra-format'
+import { useVltra } from '@/app/vltra-context'
 import { useLauncher } from '@/app/launcher-context'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
 import { Age, FactLine, GoneLabel, isReopenable, RowLink } from '@/app/session-row'
@@ -10,16 +10,16 @@ import { StateMarker } from '@/app/state-marker'
 import { useHandled } from '@/app/use-handled'
 import { PrBadge } from '@/app/worktree-badges'
 import { useSwipeLeft } from '@/app/use-swipe'
-import type { BoardRow } from '@/lib/data/fleet/board'
-import { worktreeAt } from '@/lib/data/fleet/checkouts'
-import type { FleetRow } from '@/lib/data/fleet/types'
+import type { BoardRow } from '@/lib/data/vltra/board'
+import { worktreeAt } from '@/lib/data/vltra/checkouts'
+import type { VltraRow } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
 /**
  * What a card says beyond its title, if anything: why a working run looks stuck
  * (`retrying (n×, …)`, `quiet Nm`), and a deleted folder.
  */
-function Flags({ row, now }: { readonly row: FleetRow; readonly now: number }) {
+function Flags({ row, now }: { readonly row: VltraRow; readonly now: number }) {
   const stuck = row.state === 'working' ? stuckText(row, now) : undefined
 
   if (stuck === undefined && !row.gone) return null
@@ -73,7 +73,7 @@ export function AgentCard({
   readonly compact?: boolean
 }) {
   const { row } = item
-  const { now, selection } = useFleet()
+  const { now, selection } = useVltra()
   const { markHandled } = useHandled()
   const finished = row.state === 'finished'
   const swipe = useSwipeLeft(finished ? () => markHandled(row.id) : undefined)

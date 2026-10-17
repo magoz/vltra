@@ -1,7 +1,7 @@
 import { Context } from 'effect'
 import type { Effect, Option, Stream } from 'effect'
-import type { OpenCodeSignal } from '@/lib/data/fleet/events'
-import type { OpenCodeSnapshot } from '@/lib/data/fleet/model'
+import type { OpenCodeSignal } from '@/lib/data/vltra/events'
+import type { OpenCodeSnapshot } from '@/lib/data/vltra/model'
 import type {
   FileChange,
   InterruptReason,
@@ -9,7 +9,7 @@ import type {
   SessionRecord,
   SessionStats,
   Transcript
-} from '@/lib/data/fleet/types'
+} from '@/lib/data/vltra/types'
 import type {
   OpenCodeInvalidInputError,
   OpenCodeRejectedError,
@@ -36,7 +36,7 @@ export type OpenCodeConnection = {
   readonly url: string
   readonly version: string | undefined
   /**
-   * `GET /api/event`, narrowed to Fleet signals. Emits `Connected` once the server-side
+   * `GET /api/event`, narrowed to Vltra signals. Emits `Connected` once the server-side
    * subscription is open; ends or fails when the server goes away.
    */
   readonly signals: Stream.Stream<OpenCodeSignal, OpenCodeRequestError>
@@ -49,7 +49,7 @@ export type OpenCodeConnection = {
     projectID: string
   ) => Effect.Effect<ReadonlyArray<string>, OpenCodeRequestError>
   /**
-   * Set (a number) or remove (`undefined`) Fleet's handled marker, `metadata.fleet.handled`.
+   * Set (a number) or remove (`undefined`) Vltra's handled marker, `metadata.vltra.handled`.
    * OpenCode replaces the whole metadata object on write, so this reads the session, changes only
    * that key, and writes everything else back as it was.
    */
@@ -148,4 +148,4 @@ export type OpenCodeOperations = {
   >
 }
 
-export class OpenCode extends Context.Service<OpenCode, OpenCodeOperations>()('@fleet/OpenCode') {}
+export class OpenCode extends Context.Service<OpenCode, OpenCodeOperations>()('@vltra/OpenCode') {}

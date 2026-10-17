@@ -8,7 +8,7 @@ import { CommandKey, commandKey } from '@/app/command-keys'
  * and `n`, `?`, `Escape` (`⌘K` and `⌘/` are the shell's own listeners). Keys pressed in the
  * OpenCode chat that it does not own reach here too (`forwardChatKeys`).
  */
-export type FleetKey =
+export type VltraKey =
   | 'i'
   | 'n'
   | 'j'
@@ -32,9 +32,9 @@ export type FleetKey =
   | 'ArrowRight'
 
 /** A key's action; undefined leaves the key alone (no `preventDefault`). */
-export type KeyBindings = { readonly [Key in FleetKey]?: (() => void) | undefined }
+export type KeyBindings = { readonly [Key in VltraKey]?: (() => void) | undefined }
 
-const fleetKeys: ReadonlyArray<string> = [
+const vltraKeys: ReadonlyArray<string> = [
   'i',
   'n',
   'j',
@@ -58,7 +58,7 @@ const fleetKeys: ReadonlyArray<string> = [
   'ArrowRight'
 ]
 
-const isFleetKey = (key: string): key is FleetKey => fleetKeys.includes(key)
+const isVltraKey = (key: string): key is VltraKey => vltraKeys.includes(key)
 
 const closest = (target: EventTarget | null, selector: string) =>
   target instanceof Element && target.closest(selector) !== null
@@ -106,7 +106,7 @@ export function useKeys(bindings: KeyBindings) {
 
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return
 
-      if (!isFleetKey(event.key) || inDialog(event.target)) return
+      if (!isVltraKey(event.key) || inDialog(event.target)) return
 
       const run = latest.current[event.key]
 

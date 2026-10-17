@@ -3,15 +3,15 @@
 import { Data, Option, Predicate, Schema } from 'effect'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { FleetActionResult } from '@/app/fleet-action-result'
-import type { FleetActionValue } from '@/app/fleet-action-result'
-import { settled, useFleetActions } from '@/app/fleet-actions'
-import type { FleetActions } from '@/app/fleet-actions'
-import { PushSettings } from '@/lib/data/fleet/types'
-import type { PushDevice } from '@/lib/data/fleet/types'
+import { VltraActionResult } from '@/app/vltra-action-result'
+import type { VltraActionValue } from '@/app/vltra-action-result'
+import { settled, useVltraActions } from '@/app/vltra-actions'
+import type { VltraActions } from '@/app/vltra-actions'
+import { PushSettings } from '@/lib/data/vltra/types'
+import type { PushDevice } from '@/lib/data/vltra/types'
 import { BrowserSubscription } from '@/lib/services/push/service'
 
-// This browser's side of Fleet's notifications (DESIGN.md "Notifications"): the service worker
+// This browser's side of Vltra's notifications (DESIGN.md "Notifications"): the service worker
 // (`public/sw.js`), its push subscription, and the device the server keeps for it. The browser
 // owns the subscription and its permission; the server only keeps where to push.
 
@@ -81,14 +81,14 @@ const decodeSubscription = Schema.decodeUnknownOption(BrowserSubscription)
 
 const decodeSettings = Schema.decodeUnknownOption(Schema.fromJsonString(PushSettings))
 
-/** `GET /api/fleet/notifications`; undefined when Fleet cannot be reached. */
+/** `GET /api/vltra/notifications`; undefined when Vltra cannot be reached. */
 const loadSettings = (): Promise<PushSettings | undefined> =>
-  fetch('/api/fleet/notifications', { cache: 'no-store' })
+  fetch('/api/vltra/notifications', { cache: 'no-store' })
     .then(response => (response.ok ? response.text() : undefined))
     .then(text => (text === undefined ? undefined : Option.getOrUndefined(decodeSettings(text))))
     .catch(() => undefined)
 
-/** Fleet's worker at `/`; `updateViaCache: 'none'` so a deploy's new `sw.js` is picked up. */
+/** Vltra's worker at `/`; `updateViaCache: 'none'` so a deploy's new `sw.js` is picked up. */
 const registerWorker = async () => {
   await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
 
@@ -108,15 +108,15 @@ export type PushState = Data.TaggedEnum<{
 
 export const PushState = Data.taggedEnum<PushState>()
 
-/** Hands the browser's subscription to Fleet (new, or refreshed): this device. */
+/** Hands the browser's subscription to Vltra (new, or refreshed): this device. */
 const saveSubscription = async (
-  actions: FleetActions,
+  actions: VltraActions,
   subscription: PushSubscription
-): Promise<FleetActionValue<PushDevice>> => {
+): Promise<VltraActionValue<PushDevice>> => {
   const decoded = decodeSubscription(subscription.toJSON())
 
   if (Option.isNone(decoded)) {
-    return FleetActionResult.Error({ message: 'The browser gave an unusable subscription' })
+    return VltraActionResult.Error({ message: 'The browser gave an unusable subscription' })
   }
 
   return await settled(
@@ -133,16 +133,16 @@ const off = PushState.Off()
 
 const denied = PushState.Denied()
 
-/** The device Fleet saved, as this browser's state (off when Fleet refused). */
-const savedState = (saved: FleetActionValue<PushDevice>): PushState =>
+/** The device Vltra saved, as this browser's state (off when Vltra refused). */
+const savedState = (saved: VltraActionValue<PushDevice>): PushState =>
   Predicate.isTagged(saved, 'Error') ? off : PushState.On({ deviceID: saved.value.id })
 
 /**
- * Where this browser stands, telling Fleet its subscription again when it has one: a browser may
+ * Where this browser stands, telling Vltra its subscription again when it has one: a browser may
  * renew it on its own (Safari after a while), and only an app open says so. A subscription made
  * with another key (the server's push file was lost) is dropped: it can no longer be pushed to.
  */
-const syncDevice = async (actions: FleetActions, publicKey: string): Promise<PushState> => {
+const syncDevice = async (actions: VltraActions, publicKey: string): Promise<PushState> => {
   if (currentSupport() !== 'supported') return off
 
   if (Notification.permission === 'denied') return denied
@@ -166,7 +166,7 @@ const syncDevice = async (actions: FleetActions, publicKey: string): Promise<Pus
  * so a renewed one keeps getting pushes. Quiet: Settings shows what went wrong.
  */
 export function usePushRefresh() {
-  const actions = useFleetActions()
+  const actions = useVltraActions()
 
   useEffect(() => {
     if (currentSupport() !== 'supported' || Notification.permission !== 'granted') return
@@ -179,12 +179,12 @@ export function usePushRefresh() {
   }, [actions])
 }
 
-const OpenMessage = Schema.Struct({ type: Schema.Literal('fleet.open'), url: Schema.String })
+const OpenMessage = Schema.Struct({ type: Schema.Literal('vltra.open'), url: Schema.String })
 
 const decodeOpenMessage = Schema.decodeUnknownOption(OpenMessage)
 
 /**
- * A tapped notification in an open Fleet window (`sw.js` focuses it and says where): moves there
+ * A tapped notification in an open Vltra window (`sw.js` focuses it and says where): moves there
  * like any other move, a history entry Next syncs into the URL state, without a reload.
  */
 export function useOpenFromNotification() {
@@ -213,11 +213,11 @@ export function useOpenFromNotification() {
 
 export type Push = {
   readonly state: PushState
-  /** The key and the devices; undefined until loaded (or when Fleet cannot be reached). */
+  /** The key and the devices; undefined until loaded (or when Vltra cannot be reached). */
   readonly settings: PushSettings | undefined
   /** A change is running (the buttons wait). */
   readonly busy: boolean
-  /** Asks the browser, subscribes, and tells Fleet. From a click: Safari asks only then. */
+  /** Asks the browser, subscribes, and tells Vltra. From a click: Safari asks only then. */
   readonly turnOn: () => void
   readonly turnOff: () => void
   readonly test: () => void
@@ -228,12 +228,12 @@ export type Push = {
 /** A change's outcome: nothing went wrong, or what did (the toast's description). */
 type Problem = string | undefined
 
-const problemOf = (result: FleetActionResult | FleetActionValue<unknown>): Problem =>
+const problemOf = (result: VltraActionResult | VltraActionValue<unknown>): Problem =>
   Predicate.isTagged(result, 'Error') ? result.message : undefined
 
 /** Settings' notifications: this browser's state, the devices, and the changes. */
 export function usePush(): Push {
-  const actions = useFleetActions()
+  const actions = useVltraActions()
   const [state, setState] = useState<PushState>(loading)
   const [settings, setSettings] = useState<PushSettings>()
   const [busy, setBusy] = useState(false)

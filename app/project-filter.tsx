@@ -2,7 +2,7 @@
 
 import { useImperativeHandle, useMemo, useState } from 'react'
 import type { Ref } from 'react'
-import { useFleet } from '@/app/fleet-context'
+import { useVltra } from '@/app/vltra-context'
 import {
   Combobox,
   ComboboxContent,
@@ -14,7 +14,7 @@ import {
   ComboboxTrigger,
   ComboboxValue
 } from '@/components/ui/combobox'
-import { buildProjectCards, projectName } from '@/lib/data/fleet/board'
+import { buildProjectCards, projectName } from '@/lib/data/vltra/board'
 import { cn } from '@/lib/utils'
 
 /** What the page's `/` key reaches: opening the picker with its search field focused. */
@@ -36,7 +36,7 @@ export function ProjectFilter({
   readonly filterRef: Ref<ProjectFilterHandle>
   readonly className?: string
 }) {
-  const { view, nav } = useFleet()
+  const { view, nav } = useVltra()
   const [open, setOpen] = useState(false)
 
   useImperativeHandle(filterRef, () => ({ open: () => setOpen(true) }), [])

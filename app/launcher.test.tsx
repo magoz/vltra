@@ -1,35 +1,35 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { FleetScreen } from '@/app/fleet-href'
+import type { VltraScreen } from '@/app/vltra-href'
 import { fakeActions, TestDashboard, testLocation } from '@/app/testing/dashboard-fixtures'
 import type { FakeValues, NavCall } from '@/app/testing/dashboard-fixtures'
 import {
   anvil,
-  fleetDone,
-  fleetLive,
+  vltraDone,
+  vltraLive,
   launch,
   launcherFetch,
   launcherList,
   now
-} from '@/app/testing/fleet-scenario'
-import type { LiveFleet } from '@/lib/data/fleet/board'
-import type { Launch } from '@/lib/data/fleet/types'
+} from '@/app/testing/vltra-scenario'
+import type { LiveVltra } from '@/lib/data/vltra/board'
+import type { Launch } from '@/lib/data/vltra/types'
 
-const fleet = '/home/magoz/dev/repos/fleet'
+const vltra = '/home/me/dev/repos/vltra'
 
-const box = '/home/magoz/dev/repos/box'
+const box = '/home/me/dev/repos/box'
 
-const subs = '/home/magoz/subs'
+const subs = '/home/me/subs'
 
-const withLaunches = (launches: ReadonlyArray<Launch>): LiveFleet => ({
-  ...fleetLive(),
+const withLaunches = (launches: ReadonlyArray<Launch>): LiveVltra => ({
+  ...vltraLive(),
   launches
 })
 
 const renderDashboard = (
   options: {
-    readonly screen?: FleetScreen
-    readonly live?: LiveFleet
+    readonly screen?: VltraScreen
+    readonly live?: LiveVltra
     readonly failWith?: string
     readonly values?: Partial<FakeValues>
   } = {}
@@ -37,7 +37,7 @@ const renderDashboard = (
   const actions = fakeActions(options.failWith, options.values)
   const navigations: Array<NavCall> = []
 
-  const dashboard = (live: LiveFleet) => (
+  const dashboard = (live: LiveVltra) => (
     <TestDashboard
       live={live}
       now={now}
@@ -47,12 +47,12 @@ const renderDashboard = (
     />
   )
 
-  const view = render(dashboard(options.live ?? fleetLive()))
+  const view = render(dashboard(options.live ?? vltraLive()))
 
   // Opening a session also marks it viewed in OpenCode; these tests follow the other actions.
   const calls = () => actions.calls.filter(call => call.action !== 'markViewed')
 
-  return { calls, navigations, rerender: (live: LiveFleet) => view.rerender(dashboard(live)) }
+  return { calls, navigations, rerender: (live: LiveVltra) => view.rerender(dashboard(live)) }
 }
 
 const press = (
@@ -112,7 +112,7 @@ describe('launcher palette', () => {
     await openPalette()
 
     expect(rows().map(row => row.split(' ').slice(0, 2).join(' '))).toEqual([
-      'repo fleet4',
+      'repo vltra4',
       'worktree └',
       'worktree └',
       'worktree └',
@@ -124,7 +124,7 @@ describe('launcher palette', () => {
     expect(rows()[3]).toContain('pi/thing')
     expect(rows()[3]).toContain('pi')
     // Only the highlighted row shows what it starts; no open-latest, no separate New row.
-    expect(actionNames()).toEqual(['↵New session in fleet', '⇧↵New worktree in fleet…'])
+    expect(actionNames()).toEqual(['↵New session in vltra', '⇧↵New worktree in vltra…'])
     expect(document.activeElement).toBe(filter())
   })
 
@@ -148,16 +148,16 @@ describe('launcher palette', () => {
 
     fireEvent.change(filter(), { target: { value: 'done' } })
 
-    expect(rows().map(row => row.split('merged')[0])).toEqual(['worktree └ fleet · feat/done'])
-    expect(actionNames()).toEqual(['↵New session in fleet · feat/done', '⇧↵New worktree in fleet…'])
+    expect(rows().map(row => row.split('merged')[0])).toEqual(['worktree └ vltra · feat/done'])
+    expect(actionNames()).toEqual(['↵New session in vltra · feat/done', '⇧↵New worktree in vltra…'])
 
     fireEvent.keyDown(filter(), { key: 'Enter' })
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(calls()).toEqual([{ action: 'newSession', input: { directory: fleetDone } }])
+    expect(calls()).toEqual([{ action: 'newSession', input: { directory: vltraDone } }])
     expect(navigations).toEqual([{ kind: 'open', session: 'ses_opened' }])
     expect(testLocation()).toBe('/?session=ses_opened')
-    expect(await screen.findByText('New session in fleet · feat/done')).toBeTruthy()
+    expect(await screen.findByText('New session in vltra · feat/done')).toBeTruthy()
   })
 
   it('moves with ↑ ↓ (and j k from the list); the actions follow the highlight', async () => {
@@ -167,7 +167,7 @@ describe('launcher palette', () => {
 
     fireEvent.keyDown(filter(), { key: 'ArrowDown' })
     expect(highlighted()).toContain('feat/x')
-    expect(actionNames()[0]).toBe('↵New session in fleet · feat/x')
+    expect(actionNames()[0]).toBe('↵New session in vltra · feat/x')
 
     fireEvent.keyDown(filter(), { key: 'j' })
     expect(highlighted()).toContain('feat/x')
@@ -183,7 +183,7 @@ describe('launcher palette', () => {
     fireEvent.keyDown(list, { key: 'k' })
     fireEvent.keyDown(filter(), { key: 'ArrowUp' })
     expect(highlighted()).toContain('feat/done')
-    expect(actionNames()[1]).toBe('⇧↵New worktree in fleet…')
+    expect(actionNames()[1]).toBe('⇧↵New worktree in vltra…')
   })
 
   it('a tap highlights a row (hovering does not), then its action runs', async () => {
@@ -196,7 +196,7 @@ describe('launcher palette', () => {
     if (boxRow === undefined) throw new Error('missing box')
 
     fireEvent.mouseMove(boxRow)
-    expect(highlighted()).toContain('fleet')
+    expect(highlighted()).toContain('vltra')
 
     fireEvent.click(boxRow)
     expect(highlighted()).toContain('box')
@@ -302,7 +302,7 @@ describe('launcher palette', () => {
 
     await openPalette()
 
-    fireEvent.click(newWorktree('fleet'))
+    fireEvent.click(newWorktree('vltra'))
 
     const task = within(palette()).getByRole('textbox', { name: 'Task' })
 
@@ -320,7 +320,7 @@ describe('launcher palette', () => {
       { action: 'suggestBranch', input: { task: 'Add the launcher palette' } },
       {
         action: 'launch',
-        input: { repoDir: fleet, branch: 'feat/suggested-name', task: 'Add the launcher palette' }
+        input: { repoDir: vltra, branch: 'feat/suggested-name', task: 'Add the launcher palette' }
       }
     ])
   })
@@ -330,7 +330,7 @@ describe('launcher palette', () => {
 
     await openPalette()
 
-    fireEvent.click(newWorktree('fleet'))
+    fireEvent.click(newWorktree('vltra'))
 
     const task = within(palette()).getByRole('textbox', { name: 'Task' })
 
@@ -347,7 +347,7 @@ describe('launcher palette', () => {
 
     await openPalette()
 
-    fireEvent.click(newWorktree('fleet'))
+    fireEvent.click(newWorktree('vltra'))
     fireEvent.change(within(palette()).getByRole('textbox', { name: 'Task' }), {
       target: { value: 'x' }
     })
@@ -387,7 +387,7 @@ describe('pending launches', () => {
     const provisioning = within(sidebar).getByRole('region', { name: 'Provisioning' })
     const [first, second] = within(provisioning).getAllByRole('listitem')
 
-    expect(first?.textContent).toContain('fleet · feat/palette')
+    expect(first?.textContent).toContain('vltra · feat/palette')
     expect(within(first ?? provisioning).getByText('Add the launcher palette')).toBeTruthy()
     expect(first?.textContent).toContain('0:42')
     expect(first?.textContent).toContain('provisioning…')
@@ -405,7 +405,7 @@ describe('pending launches', () => {
     const working = screen.getByRole('region', { name: 'Working' })
 
     expect(within(working).getByRole('list', { name: 'Launches' }).textContent).toContain(
-      'fleet · feat/palette'
+      'vltra · feat/palette'
     )
   })
 
@@ -423,7 +423,7 @@ describe('pending launches', () => {
 
     await openPalette()
 
-    fireEvent.click(newWorktree('fleet'))
+    fireEvent.click(newWorktree('vltra'))
     fireEvent.change(within(palette()).getByRole('textbox', { name: 'Task' }), {
       target: { value: 'Add the launcher palette' }
     })
@@ -450,7 +450,7 @@ describe('pending launches', () => {
 
     await openPalette()
 
-    fireEvent.click(newWorktree('fleet'))
+    fireEvent.click(newWorktree('vltra'))
     fireEvent.change(within(palette()).getByRole('textbox', { name: 'Task' }), {
       target: { value: 'x' }
     })
@@ -482,14 +482,14 @@ describe('cards', () => {
     if (!(retry instanceof HTMLElement)) throw new Error('missing ses_retry')
 
     expect(within(retry).getByText('feat-x').getAttribute('title')).toBe(
-      '/home/magoz/.local/share/opencode/worktree/fleet/feat-x'
+      '/home/me/.local/share/opencode/worktree/vltra/feat-x'
     )
 
     const pr = await within(retry).findByRole('link', { name: '#7 open' })
 
-    expect(pr.getAttribute('href')).toBe('https://github.com/o/fleet/pull/7')
+    expect(pr.getAttribute('href')).toBe('https://github.com/o/vltra/pull/7')
     expect(within(retry).getByRole('link', { name: '#4' }).getAttribute('href')).toBe(
-      'https://github.com/o/fleet/issues/4'
+      'https://github.com/o/vltra/issues/4'
     )
     // A primary-checkout session has no worktree line.
     const run = document.querySelector('li[data-session="ses_run"]')
@@ -526,34 +526,34 @@ describe('Projects', () => {
 
     await waitFor(() =>
       expect(
-        within(card('fleet'))
+        within(card('vltra'))
           .getAllByRole('heading')
           .map(heading => heading.textContent)
-      ).toEqual(['feat/x', 'fleet', 'feat/done', 'pi/thing'])
+      ).toEqual(['feat/x', 'vltra', 'feat/done', 'pi/thing'])
     )
 
-    const open = within(section('/home/magoz/.local/share/opencode/worktree/fleet/feat-x'))
+    const open = within(section('/home/me/.local/share/opencode/worktree/vltra/feat-x'))
 
     expect(open.getByRole('link', { name: '#7 open' }).getAttribute('href')).toBe(
-      'https://github.com/o/fleet/pull/7'
+      'https://github.com/o/vltra/pull/7'
     )
-    expect(within(section(fleetDone)).getByText('merged · retire')).toBeTruthy()
+    expect(within(section(vltraDone)).getByText('merged · retire')).toBeTruthy()
 
-    const pi = within(section('/home/magoz/dev/repos/fleet-pi-thing'))
+    const pi = within(section('/home/me/dev/repos/vltra-pi-thing'))
 
     expect(pi.getByText('closed · retire')).toBeTruthy()
     expect(pi.getByText('pi')).toBeTruthy()
     expect(pi.queryByRole('button', { name: 'Retire' })).toBeNull()
-    expect(within(section(fleet)).queryByRole('button', { name: 'Retire' })).toBeNull()
+    expect(within(section(vltra)).queryByRole('button', { name: 'Retire' })).toBeNull()
     expect(within(card('box')).queryAllByRole('heading')).toHaveLength(0)
-    expect(box).toBe('/home/magoz/dev/repos/box')
+    expect(box).toBe('/home/me/dev/repos/box')
   })
 
   it('disables Retire with the reason while a session there works', async () => {
     renderDashboard({ screen: 'projects' })
 
     const retire = await within(
-      section('/home/magoz/.local/share/opencode/worktree/fleet/feat-x')
+      section('/home/me/.local/share/opencode/worktree/vltra/feat-x')
     ).findByRole('button', { name: 'Retire' })
 
     expect(retire.hasAttribute('disabled')).toBe(true)
@@ -566,13 +566,13 @@ describe('Projects', () => {
   it('confirms what happens, then retires with a toast', async () => {
     const { calls } = renderDashboard({ screen: 'projects' })
 
-    await waitFor(() => section(fleetDone))
-    fireEvent.click(within(section(fleetDone)).getByRole('button', { name: 'Retire' }))
+    await waitFor(() => section(vltraDone))
+    fireEvent.click(within(section(vltraDone)).getByRole('button', { name: 'Retire' }))
 
     const confirm = await screen.findByRole('alertdialog')
 
     expect(confirm.textContent).toContain('Retire feat/done?')
-    expect(confirm.textContent).toContain(fleetDone)
+    expect(confirm.textContent).toContain(vltraDone)
     expect(confirm.textContent).toContain('The branch feat/done is kept.')
     expect(confirm.textContent).toContain('Refused if the checkout has uncommitted')
     expect(calls()).toEqual([])
@@ -581,7 +581,7 @@ describe('Projects', () => {
 
     await waitFor(() =>
       expect(calls()).toEqual([
-        { action: 'retireWorktree', input: { projectID: 'prj_fleet', directory: fleetDone } }
+        { action: 'retireWorktree', input: { projectID: 'prj_vltra', directory: vltraDone } }
       ])
     )
     expect(await screen.findByText('Retired feat/done')).toBeTruthy()
@@ -590,8 +590,8 @@ describe('Projects', () => {
   it("shows OpenCode's refusal when retiring fails", async () => {
     renderDashboard({ screen: 'projects', failWith: 'worktree-manage: refusing dirty checkout' })
 
-    await waitFor(() => section(fleetDone))
-    fireEvent.click(within(section(fleetDone)).getByRole('button', { name: 'Retire' }))
+    await waitFor(() => section(vltraDone))
+    fireEvent.click(within(section(vltraDone)).getByRole('button', { name: 'Retire' }))
     fireEvent.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Retire' })
     )

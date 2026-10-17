@@ -7,7 +7,7 @@ import { DirectoriesLive } from '@/lib/services/directories/live-layer'
 import { Directories } from '@/lib/services/directories/service'
 
 // Real folders under a private temp directory.
-const root = mkdtempSync(path.join(tmpdir(), 'fleet-directories-'))
+const root = mkdtempSync(path.join(tmpdir(), 'vltra-directories-'))
 
 const present = path.join(root, 'present')
 

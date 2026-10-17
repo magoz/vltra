@@ -12,11 +12,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## OVERVIEW
 
-Fleet is one view of every OpenCode session on Box, built around attention: which need me
+Vltra is one view of every OpenCode session on Box, built around attention: which need me
 (blocked on a permission/form, or finished and not yet handled), which are working (and which of
 those look stuck), grouped project → worktree. It is an OpenCode **API client** (never a server
-plugin), stateless (OpenCode owns all state; Fleet's only state is its handled marker,
-`metadata.fleet.handled`, stored on the OpenCode session, plus its Web Push file: keys and
+plugin), stateless (OpenCode owns all state; Vltra's only state is its handled marker,
+`metadata.vltra.handled`, stored on the OpenCode session, plus its Web Push file: keys and
 subscribed devices, never session state), private and single-user (no auth, no database). `DESIGN.md` is the settled spec. Stack and conventions are 10x's (`../10x`): Next.js 16
 App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
@@ -24,58 +24,58 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
 | Task                             | Location                                                         | Notes                                                     |
 | -------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------- |
-| Session states / priority        | `lib/data/fleet/state.ts`, `model.ts`                            | blocked > working > finished > handled; stuck, order      |
-| Wire shapes (API, SSE)           | `lib/data/fleet/types.ts`                                        | Effect Schema; the ocb plugin decodes the same types      |
-| Snapshot rows / grouping         | `lib/data/fleet/snapshot.ts`, `links.ts`                         | Roll-up, projects → worktrees → rows, deep links          |
-| Watcher, resync, backoff         | `lib/data/fleet/watcher.ts`, `store.ts`                          | Also interrupt reasons; `LONG_LIVED_WATCHER.md`           |
-| Action Effects + inputs          | `lib/data/fleet/actions.ts`                                      | Handled, reopen, viewed (asks: in OpenCode's chat)        |
-| Rollout script                   | `scripts/import-handled.ts`                                      | `pnpm fleet:import-handled`, one-off, never auto-run      |
+| Session states / priority        | `lib/data/vltra/state.ts`, `model.ts`                            | blocked > working > finished > handled; stuck, order      |
+| Wire shapes (API, SSE)           | `lib/data/vltra/types.ts`                                        | Effect Schema; the ocb plugin decodes the same types      |
+| Snapshot rows / grouping         | `lib/data/vltra/snapshot.ts`, `links.ts`                         | Roll-up, projects → worktrees → rows, deep links          |
+| Watcher, resync, backoff         | `lib/data/vltra/watcher.ts`, `store.ts`                          | Also interrupt reasons; `LONG_LIVED_WATCHER.md`           |
+| Action Effects + inputs          | `lib/data/vltra/actions.ts`                                      | Handled, reopen, viewed (asks: in OpenCode's chat)        |
+| Rollout script                   | `scripts/import-handled.ts`                                      | `pnpm vltra:import-handled`, one-off, never auto-run      |
 | OpenCode client                  | `lib/services/opencode/`                                         | See `patterns/OPENCODE_SURFACE.md`                        |
-| Chat proxy, chat keys            | `proxy.ts`, `app/opencode-proxy.ts`, `app/chat-keys.ts`          | Same-origin OpenCode iframe; Fleet's keys inside it       |
+| Chat proxy, chat keys            | `proxy.ts`, `app/opencode-proxy.ts`, `app/chat-keys.ts`          | Same-origin OpenCode iframe; Vltra's keys inside it       |
 | Chat tab strip cleanup           | `app/chat-tabs.ts`                                               | Done sessions leave OpenCode's tabs (its own event)       |
-| Runtime (one per process)        | `lib/runtime/fleet-runtime.ts`                                   | `ManagedRuntime` on `globalThis`; `runFleet`              |
+| Runtime (one per process)        | `lib/runtime/vltra-runtime.ts`                                   | `ManagedRuntime` on `globalThis`; `runVltra`              |
 | Watcher start                    | `instrumentation.ts`                                             | Node runtime only; skipped during `next build`            |
 | Shutdown (SIGTERM deadline)      | `lib/runtime/shutdown.ts`                                        | Exits 3s after the signal; `LONG_LIVED_WATCHER.md`        |
-| Page / API routes / actions      | `app/`                                                           | `(fleet)/` one page, `api/fleet`, `*-action.ts`           |
-| Plugin mutation routes (JSON)    | `app/api/fleet/mutations.ts`, `json-request.ts`                  | handled, reopen, launches, dismiss, checkouts/open        |
-| Dashboard UI                     | `app/fleet-shell.tsx` and siblings                               | Layout's live tree (`fleet-live.tsx`); see below          |
+| Page / API routes / actions      | `app/`                                                           | `(vltra)/` one page, `api/vltra`, `*-action.ts`           |
+| Plugin mutation routes (JSON)    | `app/api/vltra/mutations.ts`, `json-request.ts`                  | handled, reopen, launches, dismiss, checkouts/open        |
+| Dashboard UI                     | `app/vltra-shell.tsx` and siblings                               | Layout's live tree (`vltra-live.tsx`); see below          |
 | Launcher UI                      | `app/launcher-dialog.tsx`, `pending-launches.tsx`                | Palette, launches, `retire-worktree.tsx`                  |
 | Agents (focus, board) / Projects | `app/agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`  | Cards: `agent-card.tsx`, rows: `session-row.tsx`          |
-| Board projections                | `lib/data/fleet/board.ts`                                        | Pure: live rows, needs-me list, columns, cards, filter    |
-| Run summaries (plugin page)      | `lib/data/fleet/session-detail.ts`                               | Latest answer + diff totals, cached by `idle`             |
-| Stats tab (data)                 | `lib/data/fleet/stats.ts`, `stats-period.ts`, `stats-view.ts`    | OpenCode `session.stats` per range + bucket; projections  |
+| Board projections                | `lib/data/vltra/board.ts`                                        | Pure: live rows, needs-me list, columns, cards, filter    |
+| Run summaries (plugin page)      | `lib/data/vltra/session-detail.ts`                               | Latest answer + diff totals, cached by `idle`             |
+| Stats tab (data)                 | `lib/data/vltra/stats.ts`, `stats-period.ts`, `stats-view.ts`    | OpenCode `session.stats` per range + bucket; projections  |
 | Stats tab (UI)                   | `app/stats-page.tsx`, `stats-charts.tsx`, `use-stats.ts`         | Recharts (lazy), `components/ui/chart.tsx`                |
 | Stats frames, heatmaps, skeleton | `app/stats-card.tsx`, `stats-heatmaps.tsx`, `stats-skeleton.tsx` | No Recharts: the skeleton shows while the tab loads       |
-| Notifications (what, when)       | `lib/data/fleet/notify.ts`, `notifier.ts`                        | Pure snapshot diff + grace recheck; forked in runtime     |
-| Web Push (keys, devices, send)   | `lib/services/push/`, `lib/data/fleet/push.ts`                   | `push.json` (0600), `web-push`; fake in `testing/`        |
+| Notifications (what, when)       | `lib/data/vltra/notify.ts`, `notifier.ts`                        | Pure snapshot diff + grace recheck; forked in runtime     |
+| Web Push (keys, devices, send)   | `lib/services/push/`, `lib/data/vltra/push.ts`                   | `push.json` (0600), `web-push`; fake in `testing/`        |
 | Settings tab, service worker     | `app/settings-page.tsx`, `use-push.ts`, `public/sw.js`           | Turn on/off, test, devices; DESIGN.md "Notifications"     |
-| Launcher list / open / retire    | `lib/data/fleet/launcher.ts`, `checkouts.ts`                     | Pure projection + guards; `GET /api/fleet/launcher`       |
-| Launches (worktree + session)    | `lib/data/fleet/launches.ts`, `lib/services/watcher/`            | Registry in store; Watcher runs them (backend), see below |
-| Branch names / palette rows      | `lib/data/fleet/branch.ts`, `palette.ts`                         | `--` encoding, suggestion check, fallback, fuzzy          |
+| Launcher list / open / retire    | `lib/data/vltra/launcher.ts`, `checkouts.ts`                     | Pure projection + guards; `GET /api/vltra/launcher`       |
+| Launches (worktree + session)    | `lib/data/vltra/launches.ts`, `lib/services/watcher/`            | Registry in store; Watcher runs them (backend), see below |
+| Branch names / palette rows      | `lib/data/vltra/branch.ts`, `palette.ts`                         | `--` encoding, suggestion check, fallback, fuzzy          |
 | Repos on Box (git, gh)           | `lib/services/repos/`                                            | Roots scan, worktrees + marker owner, cached PR status    |
-| Subscription usage (header)      | `lib/services/usage/`, `lib/data/fleet/usage.ts`                 | Reads `~/usage`'s `/api/usage`; one pool per provider     |
+| Subscription usage (header)      | `lib/services/usage/`, `lib/data/vltra/usage.ts`                 | Reads `~/usage`'s `/api/usage`; one pool per provider     |
 | Test doubles                     | `lib/**/testing/`                                                | Fake OpenCode / Repos layers, throwaway `opencode serve`  |
-| Conventions                      | `patterns/`, then `../10x/patterns/`                             | Fleet notes only where it differs from 10x                |
+| Conventions                      | `patterns/`, then `../10x/patterns/`                             | Vltra notes only where it differs from 10x                |
 
 ## CONVENTIONS
 
 - Same as 10x: no `src/`; root `app/`, `components/`, `lib/`; named exports (Next default files
   excepted); kebab-case files; `@/` imports; no barrels; strict TS (no `any`, no casts).
 - Data layer (`lib/data/**`) exports Effects and pure functions; only boundaries run them
-  (`runFleet` in routes, actions, the page; the runtime in `instrumentation.ts`).
+  (`runVltra` in routes, actions, the page; the runtime in `instrumentation.ts`).
 - Parse unknown input at boundaries with Effect Schema; `Schema.TaggedError` for shared errors.
-- Everything OpenCode-shaped stops in `lib/services/opencode/mapping.ts`; the rest of Fleet sees
+- Everything OpenCode-shaped stops in `lib/services/opencode/mapping.ts`; the rest of Vltra sees
   only its own domain types.
 - Browser mutations are server actions (`app/*-action.ts`) with typed inputs, a same-origin
-  check (`app/same-origin.ts`), and `FleetActionResult` tagged results. No API routes for them.
-- The terminal plugin's mutations are JSON `POST` routes (DESIGN.md "Fleet API"):
+  check (`app/same-origin.ts`), and `VltraActionResult` tagged results. No API routes for them.
+- The terminal plugin's mutations are JSON `POST` routes (DESIGN.md "Vltra API"):
   `sessions/:id/handled`, `sessions/:id/reopen`, `launches`, `launches/:id/dismiss`,
-  `checkouts/open` under `/api/fleet`. Handlers live in `app/api/fleet/mutations.ts` (route files
+  `checkouts/open` under `/api/vltra`. Handlers live in `app/api/vltra/mutations.ts` (route files
   only run them, so tests drive them with fake layers): `readJsonRequest` (same-origin, then JSON
   only, else 415; shared with `launcher/branch`), the actions' Effects and input Schemas, and
   `toMutationResponse` (`200` + result, else `{ error }` with `failureMessage` from
-  `fleet-action-result.ts` and `failureStatus`: 400 / 403 / 404 / 409 / 502 / 503). Result
-  schemas are in `lib/data/fleet/types.ts`.
+  `vltra-action-result.ts` and `failureStatus`: 400 / 403 / 404 / 409 / 502 / 503). Result
+  schemas are in `lib/data/vltra/types.ts`.
 - Cache Components: prerendered shell, request-time data behind the smallest `<Suspense>` with
   `await connection()`. Never export `dynamic`/`revalidate`/`fetchCache`/`dynamicParams`.
 - Never call `Service.ensure` (it can spawn a server); systemd owns `opencode.service`.
@@ -84,39 +84,39 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
 ## DASHBOARD
 
-- One page (`app/(fleet)/page.tsx` → `current-tab.tsx`) with five tabs in `?view=`: **Focus**
+- One page (`app/(vltra)/page.tsx` → `current-tab.tsx`) with five tabs in `?view=`: **Focus**
   (plain `/`, `agents-focus.tsx`), **Agents** (the board: `?view=agents`, `agents-board.tsx`; old
   `?view=board` links still open it), **Projects** (`?view=projects`, `projects-grid.tsx`; the old `/projects` redirects in
   `next.config.ts`), **Stats** (`?view=stats`, `stats-page.tsx`, loaded with `next/dynamic`) and **Settings** (`?view=settings`, `settings-page.tsx`). Keep it one route: Cache Components keeps up to three visited routes mounted
   in hidden `<Activity>` boundaries (`MAX_BF_CACHE_ENTRIES` in Next's `bfcache-state-manager`), so
   a second route kept a hidden copy of the other page alive (with its own OpenCode iframe) and
   restored its stale state on return. The page is static; the layout's `<Suspense>` holds the live
-  client tree (`fleet-live.tsx`: `await connection()`, the watcher's snapshot, then
-  `FleetDashboard`), and its fallback, the skeleton (`fleet-dashboard-skeleton.tsx`, Focus' frame
+  client tree (`vltra-live.tsx`: `await connection()`, the watcher's snapshot, then
+  `VltraDashboard`), and its fallback, the skeleton (`vltra-dashboard-skeleton.tsx`, Focus' frame
   for every tab, since the prerender cannot see `?view=`), is the prerendered shell. The live tree
-  holds the one `GET /api/fleet/events` stream (`use-fleet-live.ts`: reload the snapshot after
+  holds the one `GET /api/vltra/events` stream (`use-vltra-live.ts`: reload the snapshot after
   every `initial` event, apply other changes in place, reconnect with backoff and on visibility),
   the clock and Handled's undo state.
-- `FleetDashboard` wires server actions, the clock and the URL (`use-fleet-nav.ts`: the tab and
-  the filter, Stats' range; `use-selected-session.ts`: `?session=`; `fleet-href.ts` builds every
-  URL) around `FleetShell` (`fleet-shell.tsx`): the tabs `Focus | Agents | Projects | Stats | Settings`
-  (`fleet-header.tsx`; on the phone Settings is a `⚙`), in
+- `VltraDashboard` wires server actions, the clock and the URL (`use-vltra-nav.ts`: the tab and
+  the filter, Stats' range; `use-selected-session.ts`: `?session=`; `vltra-href.ts` builds every
+  URL) around `VltraShell` (`vltra-shell.tsx`): the tabs `Focus | Agents | Projects | Stats | Settings`
+  (`vltra-header.tsx`; on the phone Settings is a `⚙`), in
   the desktop header (no visible title, the tabs first; the count line `N need you · N working · N stuck`, centred; on the right the usage
   line, New, `?` and the connection) or the phone's bottom tab bar (`BottomTabs`, with `+`; no header there, only
   `ConnectionLine`: a slim `reconnecting…` line on top once a reconnect lasts 3s, the wait starting
   over when the page shows again), and each tab shows the open session itself (Focus' pane,
-  Agents' and Projects' split). Every tab reads `useFleet()` (`fleet-context.tsx`: live fleet with
+  Agents' and Projects' split). Every tab reads `useVltra()` (`vltra-context.tsx`: live vltra with
   overrides, clock, selection, nav). Tab links are `nav-link.tsx` (plain links; a plain click goes through
   `nav.show`).
 - Usage line (desktop header, right side, `UsageLine`; under 84rem it leaves, so the centred count line keeps room): the subscription quotas from the `usage` dashboard
   (`~/usage`, `GET /api/usage` on loopback; `lib/services/usage/`, projected by `usage.ts` into
-  `GET /api/fleet/usage`, polled by `use-usage.ts` every minute while the page shows):
+  `GET /api/vltra/usage`, polled by `use-usage.ts` every minute while the page shows):
   `Claude 106% 2d · Codex 184% 4d · Go 32% 5d`, each the % left of the longest window
   (weekly, Go's monthly, as `~/usage` shows it; model-scoped weekly limits excluded; a pool's accounts summed, 100% each), red at 10% of the pool or less,
   then the time to that window's first reset; hovering a pool shows its accounts' windows as `~/usage`-style bars (`UsagePoolDetail`, in `components/ui/tooltip.tsx`), the account the proxy routes to first, marked `active` (`~/usage`'s `routing`, from the proxy's sticky-fill-first pins; none when unknown). Hidden until it loads; a failed load keeps the last.
 - Every move is a history write that Next syncs into `useSearchParams` (no router navigation, no
   fetch, no remount): `nav.show` pushes an entry (Back returns), `setProject` replaces it,
-  `openSession` (the launcher) pushes Focus with the session. `moveTo` in `fleet-href.ts` decides
+  `openSession` (the launcher) pushes Focus with the session. `moveTo` in `vltra-href.ts` decides
   the filter: given (Projects card headers, and `Enter` on a card, open the board filtered), else
   kept between Focus (which ignores it), Agents and Stats; Projects and Settings have none
   (`hasFilter`), so from them they start unfiltered. Stats' range (`?range=` / `?from=&to=`) lives
@@ -167,17 +167,17 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   2 from 48rem, 3 from 80rem), so it loses one beside the chat. **Delete** in the header
   (`delete-project.tsx`, `deleteProject` in `actions.ts`) clears out old projects: disabled with
   "N sessions there are working or blocked" while busy; after a confirmation, OpenCode removes
-  every session Fleet files under the card (`projectKey`; subagents and archived ones too,
+  every session Vltra files under the card (`projectKey`; subagents and archived ones too,
   also with the folder gone) for good, and the card leaves with their `session.deleted`. OpenCode
   has no project delete; files, worktrees and branches are untouched.
-- **Stats** (`?view=stats`, `stats-page.tsx`): charts of OpenCode's own data, no Fleet state.
+- **Stats** (`?view=stats`, `stats-page.tsx`): charts of OpenCode's own data, no Vltra state.
   Range: presets `24h · 7d · 30d · 90d · All` (default 7d, no param; `[` / `]` step) or Custom
   days (`?from=&to=`, `stats-period.ts`); project filter shared with Agents (`?project=`, mapped
-  to OpenCode's project id, `other` → `global`). `GET /api/fleet/stats` (`stats.ts`) reads
+  to OpenCode's project id, `other` → `global`). `GET /api/vltra/stats` (`stats.ts`) reads
   `session.stats` for the range (tools in detail), the as long range before (tiles' change) and
   per bucket (hours ≤ 48h, days ≤ 92, else weeks from Monday, in the browser's zone); buckets
   settled 10 min are cached in the runtime (`Stats` service). Two more reads load apart so the
-  page never waits: `/api/fleet/stats/projects` (prompts by project: one `tools: none` call per
+  page never waits: `/api/vltra/stats/projects` (prompts by project: one `tools: none` call per
   OpenCode project to rank them, then the top three's bars) and `/hours` (prompts per hour, up
   to 31 days, else `TooLong`). `use-stats.ts`
   refetches each every minute while shown, keeping the last value. Top to bottom: 7 tiles (Done, prompts, steps, tool calls, tokens,
@@ -186,14 +186,14 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   2 from 56rem, 3 from 80rem; the tools table takes 2 of 3): Done (root sessions marked
   done by project, the same projects as below, by their latest run's end, the `handled` marker's own time; when Done was pressed is not
   recorded), sessions started and prompts (both by the same top three
-  projects, so each keeps one ink), the year calendar (sessions done per day from the live fleet, whatever the
+  projects, so each keeps one ink), the year calendar (sessions done per day from the live vltra, whatever the
   range, `doneByDay` / `yearWeeks`; in a card under 36rem the last 26 weeks),
   time of day (weekday × hour heatmap, hour bars; sessions started past 31
   days), steps and steps per prompt, tokens by model and model share, tool calls and failure
   rate, cache hits and run outcomes over time, session length and subagents per session (bins),
   tokens × length (a dot per session, log scales), then the models, tools and outcomes tables.
   Pure projections in `stats-view.ts`; session-based charts (started, outcomes, lengths,
-  subagents, scatter) read the live fleet, rows carrying `tokens` (fresh tokens, no cache reads).
+  subagents, scatter) read the live vltra, rows carrying `tokens` (fresh tokens, no cache reads).
   The skeleton (`stats-skeleton.tsx`, also the lazy chunk's `loading`) draws the same tiles and
   cards (`skeletonCards`, held to the page's order by a test) at their sizes, the heatmaps empty.
   Stacks keep three series and "rest" (more grey shades are hard to tell apart); heatmaps use
@@ -203,9 +203,9 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   OpenCode's palette stays on `⌘P` / `⌘⇧P`, which on a session page is the same dialog as its
   `⌘K`), the phone tab bar's
   **+** (full screen), and each Projects card's **+** (new-worktree step, repo preselected). The list
-  is `GET /api/fleet/launcher` (`use-launcher-list.ts`: on mount, on open, after a launch or a
+  is `GET /api/vltra/launcher` (`use-launcher-list.ts`: on mount, on open, after a launch or a
   retirement, again while PR lookups are still `unknown`, every 5 minutes): repos under
-  `FLEET_LAUNCHER_ROOTS` (plus OpenCode's project folders) with their linked worktrees, owner (the
+  `VLTRA_LAUNCHER_ROOTS` (plus OpenCode's project folders) with their linked worktrees, owner (the
   dotfiles marker, else `pi`; `detached` for OpenCode's own git-strategy checkouts) and PR state,
   plus roots that are plain folders (no git, no repos in them, e.g. `~/subs`: `Repos.folders`,
   entries of `kind: 'folder'`, marked `folder`, new session only, no `⇧↵`; `newSession` accepts
@@ -220,7 +220,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   suggestion asks for it at once and launches with it). Create calls `launch` (returns at once), closes
   the palette and toasts; the launch's session opens when it is ready if the user is still on the
   same page and mode and has not opened anything else meanwhile.
-- **Launches** (`live.launches`, from the snapshot and `fleet.changed`) show only while they have
+- **Launches** (`live.launches`, from the snapshot and `vltra.changed`) show only while they have
   no session of their own (`pendingLaunches` in `board.ts`): setting up, or failed. Once ready, a
   launch is just its session, listed like any other (working, so on the board, not in focus mode's
   list). Cards shaped like `AgentCard` (`pending-launches.tsx`: pulsing dashed marker,
@@ -228,12 +228,12 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   failures red with what was kept and ×): focus mode's **Provisioning** above its list (compact),
   the board at the top of Working. The registry is in memory, but the launches themselves run in
   **Watcher** (`~/dev/repos/watcher`, `watcher.service`; `POST /launches` on its unix socket, watch id
-  `manual`, no guardrails): a Fleet restart (`pnpm ship`) no longer cuts `worktree.create`, which
-  OpenCode cancels with its client. Fleet follows each run (`GET /runs/:id`, every second, through
+  `manual`, no guardrails): a Vltra restart (`pnpm ship`) no longer cuts `worktree.create`, which
+  OpenCode cancels with its client. Vltra follows each run (`GET /runs/:id`, every second, through
   Watcher's own restarts) and, at boot, lists and follows the ones still running. Watcher down:
   launching fails with "Watcher is not running" (503). Backends in `launches.ts`: `watcher`, and
   `opencode` (in-process, the old path) for tests and whenever `OPENCODE_URL` is set, so `pnpm dev`
-  against a throwaway server never launches through the live Watcher (`FLEET_LAUNCHER` overrides).
+  against a throwaway server never launches through the live Watcher (`VLTRA_LAUNCHER` overrides).
   Ready ones stay in the registry 10 minutes (the page's auto-open, the plugin) but no longer show
   on the web.
 - **Projects worktrees**: a card for a launcher repo shows each worktree section under its branch
@@ -246,7 +246,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   writes bump.
 - The web says **Done** for handled: the outlined `✔ Done` button (`handled-button.tsx`, "Mark done
   (h)"), the board's Done column, the "Done" toast, "N done · last 2h" in Projects, the `done`
-  state label. Code, the stored marker (`metadata.fleet.handled`), the API and the plugin keep
+  state label. Code, the stored marker (`metadata.vltra.handled`), the API and the plugin keep
   "handled".
 - Handled / Undo / Reopen (`use-handled.tsx`, provided by the shell): applied at once as
   optimistic overrides (until the server's next word on that row, `withOverrides`), Handled
@@ -254,7 +254,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   and drop. Phone: swipe a finished card left (`use-swipe.ts`); the board's cards keep the `✔ Done`
   button, Focus' list rows do not (swipe only).
 - Keys (`use-keys.ts`, desktop; ignored while typing (except `Escape`), with modifiers and in
-  dialogs; in the chat, `chat-keys.ts` hands Fleet the keys the chat does not own, see the
+  dialogs; in the chat, `chat-keys.ts` hands Vltra the keys the chat does not own, see the
   session panel): shell `1`–`5` the tabs, `n` the launcher (and `⌘K` / `Ctrl+K`,
   `isLauncherKey`, its own listener, also while typing),
   `?` / `⌘/` (`isHelpKey`, also while typing) the tab's keys (`shortcuts-dialog.tsx`,
@@ -262,7 +262,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   `Escape` closes the session (the palette closes itself). `⌘1`–`⌘9` open Focus' Nth session
   (in Focus from another tab) and `⌘⌥1`–`⌘⌥5` pick a tab, `⌘U` is the tab's `u` (`useKeys`),
   `⌘I` / `i` put the caret in the chat's composer (`useInsertKeys`; `chat-composer.ts`, which also
-  focuses it once when a chat loads, on a fine pointer, unless a Fleet field or dialog has focus),
+  focuses it once when a chat loads, on a fine pointer, unless a Vltra field or dialog has focus),
   `⌘D` marks the open finished session done (`useDoneKey` in
   `session-panel.tsx`, through `markHandled`, so Focus opens the next) (`command-keys.ts`, read by
   `code`; `useCommandKeys` in the shell, from anywhere but dialogs, in the chat even while typing;
@@ -277,45 +277,45 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
 - The open session lives in the URL (`?session=<id>`, kept across tabs), next to the tab from
   `lg`: Focus' pane, and on Agents and Projects a split (`SessionSplit` in `session-panel.tsx`: the
   chat docks on the right, `min(52rem, 42vw)`, and the tab narrows beside it, still clickable);
-  full screen below `lg`, so the phone's back button closes it (closing goes back only when Fleet
+  full screen below `lg`, so the phone's back button closes it (closing goes back only when Vltra
   pushed the entry on this tab).
 - The session panel (`session-panel.tsx`, the same on every tab) is the session's chat alone,
   no Summary tab: an iframe of OpenCode's web UI (`row.links.web`), with full app chrome since
-  upstream has no embed mode. Fleet serves OpenCode's web UI and API from its own origin
-  (`proxy.ts`: OpenCode's root paths, `/api/*` but `/api/fleet/*`, to the loopback service;
+  upstream has no embed mode. Vltra serves OpenCode's web UI and API from its own origin
+  (`proxy.ts`: OpenCode's root paths, `/api/*` but `/api/vltra/*`, to the loopback service;
   `/sw.js` stays out; `opencode-proxy.ts` gives same-origin requests the target's `Origin` so
   OpenCode honours its cookie; Next buffers every proxied body, silently cut at
   `proxyClientMaxBodySize`, `1gb` in `next.config.ts` for pasted images and files), so the chat
   is same-origin, signed in by OpenCode's pairing cookie
-  (`opencode pair --url https://fleet.oox.sh`, once per browser). Same-origin lets Fleet take the
+  (`opencode pair --url https://vltra.oox.sh`, once per browser). Same-origin lets Vltra take the
   chat's keys (`useChatFrame` / `forwardChatKeys` in `chat-keys.ts`: a capture listener on the
-  frame's window replays each key on Fleet's document unless the chat owns it: typing, its
-  overlays, scroll keys, `Enter` on a control; `⌘K`, `⌘/` and the `⌘` chords are always Fleet's,
+  frame's window replays each key on Vltra's document unless the chat owns it: typing, its
+  overlays, scroll keys, `Enter` on a control; `⌘K`, `⌘/` and the `⌘` chords are always Vltra's,
   `⌘P` OpenCode's; `Escape` goes to the chat
-  first and an unused one moves focus to Fleet, where the next closes the session). Every
+  first and an unused one moves focus to Vltra, where the next closes the session). Every
   session opened leaves a tab in OpenCode's own tab strip (browser localStorage; its server knows
   nothing of tabs), so done sessions leave it (`useCloseDoneTabs` in `chat-tabs.ts`): once the chat
-  loads and whenever the done set changes, Fleet sends OpenCode's internal
+  loads and whenever the done set changes, Vltra sends OpenCode's internal
   `opencode:session-tabs-removed` event into the frame (made in the frame's realm: OpenCode checks
   `instanceof CustomEvent`), all done sessions but the open one; it reads the saved strip back,
   resends while tabs stay, then warns (OpenCode changed). Each browser cleans its own. Its
-  slim toolbar has only what Fleet adds: the phone's back button, state and title, where it runs (`project · worktree`, then the PR, as on its card; shrinks before the title), `✔ Done`
+  slim toolbar has only what Vltra adds: the phone's back button, state and title, where it runs (`project · worktree`, then the PR, as on its card; shrinks before the title), `✔ Done`
   (finished; phone only, the desktop card has its own) / Reopen (handled; neither for "folder deleted"), open in the terminal (`ocb://`,
   fine pointers only) or a new tab, close (desktop). Messages, asks, follow-ups and Stop happen in
-  the chat. Being same-site, the iframe runs on Fleet's main thread: keep one chat mounted at a
+  the chat. Being same-site, the iframe runs on Vltra's main thread: keep one chat mounted at a
   time (no hidden pages, no pools). The panel is not keyed by session: switching moves that one
   frame inside OpenCode's router (`showInChat` in `chat-navigation.ts`: `replaceState` +
   `popstate`, ~40ms) instead of a new frame starting OpenCode again (a second and more); a frame
   not loaded yet loads the URL instead.
-- Mutations go through `FleetActions` (`app/fleet-actions.tsx`): the dashboard provides the server
+- Mutations go through `VltraActions` (`app/vltra-actions.tsx`): the dashboard provides the server
   actions (the launcher's `launch`, `newSession`, `retireWorktree`, `dismissLaunch` and
-  `suggestBranch` return `FleetActionValue`s when they carry a value), component tests provide
+  `suggestBranch` return `VltraActionValue`s when they carry a value), component tests provide
   recording fakes (`app/testing/dashboard-fixtures.tsx`:
-  `WithFleet` for one card, `TestDashboard` for the whole dashboard with the URL in state, read
-  back with `testLocation()`; `fleet-scenario.ts` is the shared fleet).
+  `WithVltra` for one card, `TestDashboard` for the whole dashboard with the URL in state, read
+  back with `testLocation()`; `vltra-scenario.ts` is the shared vltra).
 - Opening a session's panel marks its latest run viewed in OpenCode when it is unread there
-  (`viewed` missing or `< idle`; its unread dots only, never Fleet state). The web shows no
-  answer excerpts; `GET /api/fleet/sessions/:id/summary?idle=` (answer excerpt + change totals,
+  (`viewed` missing or `< idle`; its unread dots only, never Vltra state). The web shows no
+  answer excerpts; `GET /api/vltra/sessions/:id/summary?idle=` (answer excerpt + change totals,
   cached in the runtime by `(id, idle)`; see `patterns/LONG_LIVED_WATCHER.md`) serves the
   terminal plugin's page.
 - Look: the approved paper-and-ink mock (`app/globals.css` tokens, mono type, `attention` green
@@ -327,10 +327,10 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   click only, never a `fetch` handler), its subscription and permission (`PushState`: on, off,
   denied, unsupported or iPhone-Safari-needs-the-Home-Screen-app). Turn on asks from the click
   (`Notification.requestPermission` before any `await`: Safari asks only within the gesture),
-  subscribes with the server's VAPID key (`GET /api/fleet/notifications`) and saves the device
+  subscribes with the server's VAPID key (`GET /api/vltra/notifications`) and saves the device
   (`savePushDevice`); Send a test (`testPush`); Turn off; other devices removable. The shell
   re-saves the subscription on every app open (`usePushRefresh`) and moves to a tapped
-  notification's session without a reload (`useOpenFromNotification`, the worker's `fleet.open`
+  notification's session without a reload (`useOpenFromNotification`, the worker's `vltra.open`
   message). Server: the notifier (`notifier.ts`, forked in the runtime) diffs consecutive store
   snapshots (`store.snapshots`) with `notify.ts` (blocked, or a new finished run, among rows in
   both, so the first snapshot is the baseline), rechecks each after 45 s / 2 min (still blocked;
@@ -339,9 +339,9 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
 - Deploys reload open pages (`use-reload-on-deploy.ts`): the live tree passes the build that
   rendered the page (`.next/BUILD_ID`, read once at boot: `lib/runtime/build-id.ts`, warmed in
   `instrumentation.ts`, since `pnpm ship` rewrites it under the running server); every time the
-  event stream goes live the page asks `GET /api/fleet/version` and, on a different build,
+  event stream goes live the page asks `GET /api/vltra/version` and, on a different build,
   reloads at once when hidden or idle, else (focus in the chat iframe, a field, an open dialog)
-  toasts "Fleet was updated" with Reload and reloads the next time the page is hidden.
+  toasts "Vltra was updated" with Reload and reloads the next time the page is hidden.
 - Favicon dot (`use-favicon.ts`): brand orange when any session needs you, else amber while any
   works, else green (`app/icon.svg` as is).
 
@@ -361,20 +361,20 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
 ## COMMANDS
 
 ```bash
-pnpm dev               # portless run next dev (https://fleet.localhost); set OPENCODE_URL to a throwaway server
+pnpm dev               # portless run next dev (https://vltra.localhost); set OPENCODE_URL to a throwaway server
 pnpm typecheck         # tsc --noEmit
 pnpm lint              # oxlint, zero warnings
 pnpm format:check      # oxfmt
 pnpm test              # unit + integration (vitest)
 pnpm build             # next build
 pnpm verify            # format + typecheck + lint + test + build
-pnpm ship              # build + systemctl --user restart fleet (Box only)
-pnpm fleet:import-handled [--dry-run]  # one-off rollout: viewed root runs → handled (never auto-run)
-systemctl --user restart fleet  # serve the current .next again (~3s; Caddy holds requests)
+pnpm ship              # build + systemctl --user restart vltra (Box only)
+pnpm vltra:import-handled [--dry-run]  # one-off rollout: viewed root runs → handled (never auto-run)
+systemctl --user restart vltra  # serve the current .next again (~3s; Caddy holds requests)
 ```
 
-**This checkout is production.** `fleet.service` runs `next start` on `~/dev/repos/fleet/.next`
-(behind Caddy at `fleet.oox.sh`; runbook `~/.box/fleet.md`). `pnpm build` and `pnpm verify`
+**This checkout is production.** `vltra.service` runs `next start` on `~/dev/repos/vltra/.next`
+(behind Caddy at `vltra.oox.sh`; runbook `~/.box/vltra.md`). `pnpm build` and `pnpm verify`
 rewrite `.next` under the running server: its HTML keeps pointing at hashed CSS/JS that no longer
 exist, they answer 500, and the live page renders unstyled until a restart (2026-10-06). So here:
 checks without the build (`pnpm format:check && pnpm typecheck && pnpm lint && pnpm test --run`),
@@ -388,11 +388,11 @@ Commit before shipping: the working tree at build time is what goes live.
 | ----------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------- |
 | `OPENCODE_URL`, `OPENCODE_PASSWORD` | unset → `Service.discover`                       | Explicit endpoint (tests, dev)                                                  |
 | `OPENCODE_SERVICE_FILE`             | `$XDG_STATE_HOME/opencode/service.json`          | Registration file for discovery                                                 |
-| `FLEET_OPENCODE_WEB_URL`            | `https://fleet.oox.sh`                           | OpenCode web UI base for deep links (Fleet's own origin, `proxy.ts`)            |
-| `FLEET_SESSION_LIMIT`               | unset → every session                            | Optional cap on sessions loaded                                                 |
-| `FLEET_LAUNCHER_ROOTS`              | `~/dev/repos:~/.dotfiles:~/aha:~/collie:~/subs`  | Launcher roots (`:` list, `~` ok): a repo, a folder of repos, or a plain folder |
-| `FLEET_BRANCH_MODEL`                | `opencode-go/qwen3.8-flash#none`                 | Launcher branch suggestions (`generate.text` model, `#variant` ok)              |
-| `FLEET_USAGE_URL`                   | `http://127.0.0.1:8320`                          | The `usage` dashboard (`~/usage`) for the header's usage line                   |
-| `FLEET_PUSH_FILE`                   | `$XDG_STATE_HOME/fleet/push.json`                | Web Push keys + devices (`push.dev.json` under `next dev`)                      |
-| `FLEET_LAUNCHER`                    | `watcher`; `opencode` when `OPENCODE_URL` is set | Where launches run: Watcher's daemon, or in-process                             |
-| `FLEET_WATCHER_SOCKET`              | `$XDG_RUNTIME_DIR/watcher.sock`                  | Watcher's API socket                                                            |
+| `VLTRA_OPENCODE_WEB_URL`            | `https://vltra.oox.sh`                           | OpenCode web UI base for deep links (Vltra's own origin, `proxy.ts`)            |
+| `VLTRA_SESSION_LIMIT`               | unset → every session                            | Optional cap on sessions loaded                                                 |
+| `VLTRA_LAUNCHER_ROOTS`              | `~/dev/repos:~/.dotfiles:~/aha:~/collie:~/subs`  | Launcher roots (`:` list, `~` ok): a repo, a folder of repos, or a plain folder |
+| `VLTRA_BRANCH_MODEL`                | `opencode-go/qwen3.8-flash#none`                 | Launcher branch suggestions (`generate.text` model, `#variant` ok)              |
+| `VLTRA_USAGE_URL`                   | `http://127.0.0.1:8320`                          | The `usage` dashboard (`~/usage`) for the header's usage line                   |
+| `VLTRA_PUSH_FILE`                   | `$XDG_STATE_HOME/vltra/push.json`                | Web Push keys + devices (`push.dev.json` under `next dev`)                      |
+| `VLTRA_LAUNCHER`                    | `watcher`; `opencode` when `OPENCODE_URL` is set | Where launches run: Watcher's daemon, or in-process                             |
+| `VLTRA_WATCHER_SOCKET`              | `$XDG_RUNTIME_DIR/watcher.sock`                  | Watcher's API socket                                                            |

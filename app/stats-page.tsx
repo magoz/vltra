@@ -3,7 +3,7 @@
 import { Option, Schema } from 'effect'
 import { useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { useFleet } from '@/app/fleet-context'
+import { useVltra } from '@/app/vltra-context'
 import { ProjectFilter } from '@/app/project-filter'
 import type { ProjectFilterHandle } from '@/app/project-filter'
 import { SessionSplit } from '@/app/session-panel'
@@ -34,9 +34,9 @@ import {
   useStatsProjects
 } from '@/app/use-stats'
 import type { StatsState } from '@/app/use-stats'
-import type { LiveFleet } from '@/lib/data/fleet/board'
-import { calendarDayParts, StatsPeriod, statsPresets } from '@/lib/data/fleet/stats-period'
-import type { StatsPreset } from '@/lib/data/fleet/stats-period'
+import type { LiveVltra } from '@/lib/data/vltra/board'
+import { calendarDayParts, StatsPeriod, statsPresets } from '@/lib/data/vltra/stats-period'
+import type { StatsPreset } from '@/lib/data/vltra/stats-period'
 import {
   cacheHitRatio,
   changePercent,
@@ -66,10 +66,10 @@ import {
   tokensByModel,
   toolCalls,
   toolFailureRate
-} from '@/lib/data/fleet/stats-view'
-import type { HourGrid, SeriesChart } from '@/lib/data/fleet/stats-view'
-import { HoursRead } from '@/lib/data/fleet/types'
-import type { PromptsByProject, StatsHours, StatsReport } from '@/lib/data/fleet/types'
+} from '@/lib/data/vltra/stats-view'
+import type { HourGrid, SeriesChart } from '@/lib/data/vltra/stats-view'
+import { HoursRead } from '@/lib/data/vltra/types'
+import type { PromptsByProject, StatsHours, StatsReport } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
 const presetLabels: Readonly<Record<StatsPreset, string>> = {
@@ -98,7 +98,7 @@ const segment =
  * apply once both hold days in order. Every change replaces the URL (`nav.setPeriod`).
  */
 function RangePicker({ timeZone }: { readonly timeZone: string }) {
-  const { nav, now } = useFleet()
+  const { nav, now } = useVltra()
   const { period } = nav
   const today = calendarDay(now, timeZone)
   const days = StatsPeriod.$is('Days')(period) ? period : undefined
@@ -206,7 +206,7 @@ function Tiles({
   /** The Done chart: its bars feed the Done tile's sparkline. */
   readonly done: SeriesChart
 }) {
-  const { view, nav } = useFleet()
+  const { view, nav } = useVltra()
   const { totals, previous } = report
   const doneNow = doneCount(view, report, nav.project)
   const doneBefore = previous === undefined ? undefined : doneCount(view, previous, nav.project)
@@ -303,7 +303,7 @@ function Outcomes({
   report,
   filter
 }: {
-  readonly view: LiveFleet
+  readonly view: LiveVltra
   readonly report: StatsReport
   readonly filter: string | undefined
 }) {
@@ -330,7 +330,7 @@ const isHoursRead = Schema.is(HoursRead)
 
 /**
  * When in the day and week: prompts per hour (their own read, up to 31 days), else sessions
- * started from Fleet's list (free for any range), as a weekday × hour heatmap and 24 hour bars.
+ * started from Vltra's list (free for any range), as a weekday × hour heatmap and 24 hour bars.
  */
 function TimeOfDay({
   report,
@@ -341,7 +341,7 @@ function TimeOfDay({
   readonly hours: StatsState<StatsHours>
   readonly filter: string | undefined
 }) {
-  const { view } = useFleet()
+  const { view } = useVltra()
   const shown = shownValue(hours)
 
   const source = useMemo(() => {
@@ -399,11 +399,11 @@ function TimeOfDay({
 }
 
 /**
- * Sessions done per day over the last year, whatever the range (Fleet's list, like the Done
+ * Sessions done per day over the last year, whatever the range (Vltra's list, like the Done
  * chart), recounted as the list changes.
  */
 function YearCalendar({ timeZone }: { readonly timeZone: string }) {
-  const { view, now, nav } = useFleet()
+  const { view, now, nav } = useVltra()
 
   const weeks = useMemo(
     () => yearWeeks(doneByDay(view, nav.project, timeZone), now, timeZone),
@@ -428,7 +428,7 @@ function StatsBody({
   readonly projects: StatsState<PromptsByProject>
   readonly filter: string | undefined
 }) {
-  const { view } = useFleet()
+  const { view } = useVltra()
   const { unit, timezone: timeZone, totals } = report
 
   // Prompts by project once that read answers for this range, and only unfiltered (filtered, the
@@ -485,7 +485,7 @@ function StatsBody({
         <StatsCard title="Done" detail="sessions marked done by project, by their last run's end">
           <TimeBars chart={charts.done} unit={unit} timeZone={timeZone} format={compactNumber} />
         </StatsCard>
-        <StatsCard title="Sessions started" detail="by project, from Fleet's list">
+        <StatsCard title="Sessions started" detail="by project, from Vltra's list">
           <TimeBars
             chart={charts.projects}
             unit={unit}
@@ -624,16 +624,16 @@ function StatsBody({
 /**
  * The Stats tab (`?view=stats`): OpenCode's own numbers for a range (default the last 7 days,
  * `?range=` / `?from=&to=`) and project (`?project=`, shared with Agents), with no state of
- * Fleet's. Headline tiles, then bars per hour / day / week (sessions started, prompts),
- * both by project (prompts from `/api/fleet/stats/projects`, the same projects and inks for
- * both), time of day (prompts by weekday × hour and by hour, `/api/fleet/stats/hours`), more bars
+ * Vltra's. Headline tiles, then bars per hour / day / week (sessions started, prompts),
+ * both by project (prompts from `/api/vltra/stats/projects`, the same projects and inks for
+ * both), time of day (prompts by weekday × hour and by hour, `/api/vltra/stats/hours`), more bars
  * (steps, tokens by model, tool calls) and whole-range tables (models, tools, run
- * outcomes). Sessions started and outcomes come from Fleet's session list, the rest from
+ * outcomes). Sessions started and outcomes come from Vltra's session list, the rest from
  * OpenCode's stats. An open session docks beside it (`SessionSplit`). Keys: `[` / `]` a shorter
  * / longer preset, `/` the filter.
  */
 export function StatsPage() {
-  const { view, nav } = useFleet()
+  const { view, nav } = useVltra()
   const filterRef = useRef<ProjectFilterHandle>(null)
   const [timeZone] = useState(browserTimeZone)
   const project = statsProjectID(view, nav.project)

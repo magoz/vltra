@@ -5,7 +5,7 @@ import { CheckIcon, ChevronsUpDownIcon, SearchIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
-// Fleet's combobox (Base UI, shadcn's parts), in the paper-and-ink look: hairline border, no
+// Vltra's combobox (Base UI, shadcn's parts), in the paper-and-ink look: hairline border, no
 // shadow. Shaped as a searchable select: a trigger button showing the value, and a popup with the
 // search field on top of the list (Base UI's "input inside popup"). The project filter uses it.
 

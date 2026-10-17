@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
-import type { LauncherList, LauncherRepo } from '@/lib/data/fleet/types'
+import type { LauncherList, LauncherRepo } from '@/lib/data/vltra/types'
 
 /** What the launcher opens on: the repository picker, or a new worktree in `repo`. */
 export type LauncherRequest =

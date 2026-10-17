@@ -4,9 +4,9 @@ import { Option, Predicate } from 'effect'
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import type { KeyboardEvent } from 'react'
 import { toast } from 'sonner'
-import { settled, useFleetActions } from '@/app/fleet-actions'
-import { useFleet } from '@/app/fleet-context'
-import { relativeTime } from '@/app/fleet-format'
+import { settled, useVltraActions } from '@/app/vltra-actions'
+import { useVltra } from '@/app/vltra-context'
+import { relativeTime } from '@/app/vltra-format'
 import { launcherRepos } from '@/app/launcher-context'
 import type { LauncherRequest } from '@/app/launcher-context'
 import { OwnerBadge, PrBadge } from '@/app/worktree-badges'
@@ -14,15 +14,15 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { branchToName, fallbackBranch } from '@/lib/data/fleet/branch'
-import { paletteItems, worktreeName } from '@/lib/data/fleet/palette'
-import type { PaletteItem } from '@/lib/data/fleet/palette'
+import { branchToName, fallbackBranch } from '@/lib/data/vltra/branch'
+import { paletteItems, worktreeName } from '@/lib/data/vltra/palette'
+import type { PaletteItem } from '@/lib/data/vltra/palette'
 import type {
   BranchSuggestion,
   LauncherList,
   LauncherRepo,
   SessionTally
-} from '@/lib/data/fleet/types'
+} from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
 /** Quiet time after typing the task before a branch is suggested. */
@@ -173,8 +173,8 @@ function PickStep({
   readonly onNew: (repo: string) => void
   readonly onClose: () => void
 }) {
-  const actions = useFleetActions()
-  const { now, nav } = useFleet()
+  const actions = useVltraActions()
+  const { now, nav } = useVltra()
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
   const [starting, setStarting] = useState<string>()
@@ -303,7 +303,7 @@ function NewStep({
   readonly onLaunched: (launchID: string, branch: string) => void
   readonly onClose: () => void
 }) {
-  const actions = useFleetActions()
+  const actions = useVltraActions()
   const [task, setTask] = useState('')
   const [typed, setTyped] = useState<string>()
   const [suggestion, setSuggestion] = useState<BranchSuggestion & { readonly task: string }>()

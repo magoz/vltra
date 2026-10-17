@@ -1,5 +1,5 @@
 import { Effect, Layer, Ref } from 'effect'
-import type { PushDevice } from '@/lib/data/fleet/types'
+import type { PushDevice } from '@/lib/data/vltra/types'
 import { Push, PushDeviceNotFoundError } from '@/lib/services/push/service'
 import type { PushMessage } from '@/lib/services/push/service'
 

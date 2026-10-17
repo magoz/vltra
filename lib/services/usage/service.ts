@@ -29,7 +29,7 @@ export type QuotaAccount = {
   readonly windows: ReadonlyArray<QuotaWindow>
 }
 
-/** The usage dashboard is down, unreachable, or answered something Fleet cannot read. */
+/** The usage dashboard is down, unreachable, or answered something Vltra cannot read. */
 export class UsageUnavailableError extends Schema.TaggedError<UsageUnavailableError>()(
   'UsageUnavailableError',
   { message: Schema.String }
@@ -44,4 +44,4 @@ export type UsageOperations = {
  * The subscription quotas behind the model proxy, read from the `usage` dashboard (`~/usage`) on
  * this machine. Read-only.
  */
-export class Usage extends Context.Service<Usage, UsageOperations>()('@fleet/Usage') {}
+export class Usage extends Context.Service<Usage, UsageOperations>()('@vltra/Usage') {}

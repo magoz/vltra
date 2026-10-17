@@ -3,9 +3,9 @@
 import { Predicate } from 'effect'
 import { useId, useMemo, useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { settled, useFleetActions } from '@/app/fleet-actions'
-import { useFleet } from '@/app/fleet-context'
-import { plural } from '@/app/fleet-format'
+import { settled, useVltraActions } from '@/app/vltra-actions'
+import { useVltra } from '@/app/vltra-context'
+import { plural } from '@/app/vltra-format'
 import { useLauncher } from '@/app/launcher-context'
 import {
   AlertDialog,
@@ -19,16 +19,16 @@ import {
   AlertDialogTrigger
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { busySessions, isWithin } from '@/lib/data/fleet/checkouts'
-import { worktreeName } from '@/lib/data/fleet/palette'
-import type { LauncherWorktree } from '@/lib/data/fleet/types'
+import { busySessions, isWithin } from '@/lib/data/vltra/checkouts'
+import { worktreeName } from '@/lib/data/vltra/palette'
+import type { LauncherWorktree } from '@/lib/data/vltra/types'
 
 /** Why Retire is disabled: sessions there still work or wait on me. */
 export const busyReason = (count: number) =>
   `${count} ${count === 1 ? 'session there is' : 'sessions there are'} working or blocked`
 
 /**
- * Retire for a Fleet/OpenCode (dotfiles-owned) worktree: disabled with the reason while any
+ * Retire for a Vltra/OpenCode (dotfiles-owned) worktree: disabled with the reason while any
  * session there is working or blocked; otherwise a confirmation that says what happens, then
  * OpenCode `worktree.remove` (never forced) with a toast.
  */
@@ -39,9 +39,9 @@ export function RetireWorktree({
   readonly projectID: string
   readonly worktree: LauncherWorktree
 }) {
-  const actions = useFleetActions()
+  const actions = useVltraActions()
   const launcher = useLauncher()
-  const { view } = useFleet()
+  const { view } = useVltra()
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const reasonID = useId()

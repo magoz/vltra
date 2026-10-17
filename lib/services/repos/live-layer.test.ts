@@ -23,7 +23,7 @@ import { Repos } from '@/lib/services/repos/service'
 // Real git repositories with linked worktrees under a private temp directory, and a fake `gh`
 // first on PATH. Nothing here touches a real repository or GitHub.
 
-const base = realpathSync(mkdtempSync(path.join(tmpdir(), 'fleet-repos-')))
+const base = realpathSync(mkdtempSync(path.join(tmpdir(), 'vltra-repos-')))
 
 const root = path.join(base, 'repos')
 
@@ -32,7 +32,7 @@ const bin = path.join(base, 'bin')
 const ghLog = path.join(base, 'gh.log')
 
 const git = (cwd: string, ...args: ReadonlyArray<string>) =>
-  execFileSync('git', ['-c', 'user.name=Fleet', '-c', 'user.email=fleet@example.com', ...args], {
+  execFileSync('git', ['-c', 'user.name=Vltra', '-c', 'user.email=vltra@example.com', ...args], {
     cwd,
     stdio: 'pipe',
     env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' }
@@ -322,7 +322,7 @@ describe('launcherRoots', () => {
     ])
   })
 
-  it('reads FLEET_LAUNCHER_ROOTS as a path list, expanding ~ and dropping relative entries', () => {
+  it('reads VLTRA_LAUNCHER_ROOTS as a path list, expanding ~ and dropping relative entries', () => {
     expect(launcherRoots(Option.some('~/code: /srv/repos ::relative:~'), '/home/me')).toEqual([
       '/home/me/code',
       '/srv/repos',
