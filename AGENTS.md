@@ -320,12 +320,14 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   answer excerpts; `GET /api/vltra/sessions/:id/summary?idle=` (answer excerpt + change totals,
   cached in the runtime by `(id, idle)`; see `patterns/LONG_LIVED_WATCHER.md`) serves the
   terminal plugin's page.
-- Look: the approved paper-and-ink mock (`app/globals.css` tokens, mono type, `attention` green
-  and `destructive` red only, hairline borders, no shadows); light/dark follow the system
-  (`prefers-color-scheme`), no toggle.
+- Look: the paper-and-ink style (`app/globals.css` tokens, mono type, `attention` green and
+  `destructive` red only, hairline borders, no shadows) in pure neutral greys, no warm tint (page
+  `#fcfcfc` / `#131313`; dark cards `#1a1a1a`, slightly lifted); light/dark follow the system
+  (`prefers-color-scheme`), no toggle. The same page colours are hard-coded in `layout.tsx`
+  (`themeColor`), `manifest.ts` and the icons: change them together.
 - PWA: `app/manifest.ts`, `app/icon.svg`, `app/apple-icon.png`, `public/icon-*.png` (no offline).
   Icons are the wordmark's pixel `v` (sizes as vltra-old's): light on dark for the home screen
-  (`#e4e2dd` on `#1d1d1c`, 29%), rendered from `app/home-screen-icon.svg` with `rsvg-convert`;
+  (`#eeeeee` on `#131313`, 29%), rendered from `app/home-screen-icon.svg` with `rsvg-convert`;
   the favicon (`app/icon.svg`) at 42% on transparent, ink following the light/dark scheme; static
   (no status dot).
 - **Settings** (`?view=settings`, `settings-page.tsx`): notifications (DESIGN.md "Notifications").

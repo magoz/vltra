@@ -13,8 +13,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: '/',
     display: 'standalone',
     // The launch splash (Android) shows the icon on this: the icon's own dark.
-    background_color: '#1d1d1c',
-    theme_color: '#faf8f4',
+    background_color: '#131313',
+    theme_color: '#fcfcfc',
     // The wordmark's pixel `v`, light on dark at 29% (as vltra-old's): rendered from
     // app/home-screen-icon.svg with `rsvg-convert -w <size> -h <size>`, like app/apple-icon.png
     // (180 px). The favicon, app/icon.svg, is the same `v` at 42% on transparent.

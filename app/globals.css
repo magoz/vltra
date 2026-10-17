@@ -34,56 +34,57 @@
 }
 
 /*
- * Paper and ink, from the approved mock: a warm off-white page, hairline rules, and two signal
- * colours only. `attention` (green) marks what needs you and primary actions; `destructive` (red)
- * marks failures and deny/interrupt.
+ * Ink on neutral grey: pure greys (no tint), hairline rules, and two signal colours only.
+ * `attention` (green) marks what needs you and primary actions; `destructive` (red) marks failures
+ * and deny/interrupt. The greys sit halfway in lightness between the first warm paper-and-ink
+ * palette and vltra-old's shadcn neutrals; in dark mode cards lift slightly off the page.
  */
 :root {
-  --background: #faf8f4;
-  --foreground: #1b1a18;
-  --card: #faf8f4;
-  --card-foreground: #1b1a18;
-  --popover: #fffdf9;
-  --popover-foreground: #1b1a18;
-  --primary: #1b1a18;
-  --primary-foreground: #faf8f4;
-  --secondary: #f0ede6;
-  --secondary-foreground: #1b1a18;
-  --muted: #efece5;
-  --muted-foreground: #6b6862;
-  --accent: #f0ede6;
-  --accent-foreground: #1b1a18;
+  --background: #fcfcfc;
+  --foreground: #121212;
+  --card: #fcfcfc;
+  --card-foreground: #121212;
+  --popover: #fefefe;
+  --popover-foreground: #121212;
+  --primary: #191919;
+  --primary-foreground: #f9f9f9;
+  --secondary: #f1f1f1;
+  --secondary-foreground: #191919;
+  --muted: #f1f1f1;
+  --muted-foreground: #6e6e6e;
+  --accent: #f1f1f1;
+  --accent-foreground: #191919;
   --attention: #3f6b4a;
-  --destructive: #b3261e;
-  --border: #d8d4cc;
-  --hairline: #e8e5de;
-  --input: #d8d4cc;
-  --ring: #6b6862;
+  --destructive: #c92521;
+  --border: #dddddd;
+  --hairline: #e5e5e5;
+  --input: #dddddd;
+  --ring: #848484;
   --radius: 0.25rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #1d1d1c;
-    --foreground: #e4e2dd;
-    --card: #1d1d1c;
-    --card-foreground: #e4e2dd;
-    --popover: #252524;
-    --popover-foreground: #e4e2dd;
-    --primary: #e4e2dd;
-    --primary-foreground: #1d1d1c;
-    --secondary: #2a2a28;
-    --secondary-foreground: #e4e2dd;
-    --muted: #2a2a28;
-    --muted-foreground: #9a9790;
-    --accent: #2a2a28;
-    --accent-foreground: #e4e2dd;
+    --background: #131313;
+    --foreground: #eeeeee;
+    --card: #1a1a1a;
+    --card-foreground: #eeeeee;
+    --popover: #1e1e1e;
+    --popover-foreground: #eeeeee;
+    --primary: #dbdbdb;
+    --primary-foreground: #1a1a1a;
+    --secondary: #282828;
+    --secondary-foreground: #eeeeee;
+    --muted: #282828;
+    --muted-foreground: #9c9c9c;
+    --accent: #353535;
+    --accent-foreground: #eeeeee;
     --attention: #8fbf98;
-    --destructive: #e0705f;
-    --border: #3c3b38;
-    --hairline: #2d2c2a;
-    --input: #3c3b38;
-    --ring: #9a9790;
+    --destructive: #f06b63;
+    --border: #2e2e2e;
+    --hairline: #272727;
+    --input: #343434;
+    --ring: #858585;
   }
 }
 
