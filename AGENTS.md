@@ -18,9 +18,8 @@ those look stuck), grouped project → worktree. It is an OpenCode **API client*
 plugin), stateless (OpenCode owns all state; Vltra's only state is its handled marker,
 `metadata.vltra.handled`, stored on the OpenCode session, plus its Web Push file: keys and
 subscribed devices, never session state), private and single-user (no auth, no database: a
-private network is the boundary). The legacy `metadata.fleet.handled` (from before the rename) is
-read, never written. `DESIGN.md` is the settled spec. Stack: Next.js 16 App Router, React 19,
-Effect 4, shadcn/ui (Base UI), Tailwind v4.
+private network is the boundary). `DESIGN.md` is the settled spec. Stack: Next.js 16 App
+Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
 ## WHERE TO LOOK
 
@@ -374,8 +373,7 @@ pnpm test              # unit + integration (vitest)
 pnpm build             # next build
 pnpm verify            # format + typecheck + lint + test + build
 pnpm ship              # build + systemctl --user restart vltra (a service run from this checkout)
-pnpm vltra:import-handled [--dry-run]   # one-off rollout: viewed root runs → handled (never auto-run)
-pnpm vltra:migrate-handled [--dry-run]  # one-off after the rename: metadata.fleet → metadata.vltra
+pnpm vltra:import-handled [--dry-run]  # one-off rollout: viewed root runs → handled (never auto-run)
 ```
 
 **A checkout may be production.** If a `vltra` service runs `next start` from this checkout's

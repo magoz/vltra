@@ -567,21 +567,6 @@ describe('handled marker in session metadata', () => {
     expect(withVltraHandled({ vltra: { handled: 1 }, other: 1 }, undefined)).toEqual({ other: 1 })
     expect(withVltraHandled(undefined, undefined)).toEqual({})
   })
-
-  it('reads the legacy fleet key when vltra has none; vltra wins', () => {
-    expect(vltraHandled({ fleet: { handled: 7 } })).toBe(7)
-    expect(vltraHandled({ fleet: { handled: 7 }, vltra: { handled: 42 } })).toBe(42)
-    expect(vltraHandled({ fleet: { handled: '7' } })).toBeUndefined()
-  })
-
-  it('every write drops the legacy fleet key', () => {
-    expect(withVltraHandled({ fleet: { handled: 7 }, other: 1 }, 7)).toEqual({
-      other: 1,
-      vltra: { handled: 7 }
-    })
-
-    expect(withVltraHandled({ fleet: { handled: 7 }, other: 1 }, undefined)).toEqual({ other: 1 })
-  })
 })
 
 describe('session log → latest run end', () => {

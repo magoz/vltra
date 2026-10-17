@@ -23,8 +23,7 @@
     "test:lint": "vitest run --project unit tools/oxlint/anti-slop.test.js eslint-local-rules/rules.test.js",
     "verify": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test --run && pnpm build",
     "ship": "pnpm build && systemctl --user restart vltra",
-    "vltra:import-handled": "tsx scripts/import-handled.ts",
-    "vltra:migrate-handled": "tsx scripts/migrate-handled.ts"
+    "vltra:import-handled": "tsx scripts/import-handled.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

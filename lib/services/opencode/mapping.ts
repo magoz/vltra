@@ -35,47 +35,27 @@ const millis = (value: DateTime.Utc | undefined) =>
 
 export const modelLabel = (model: Model.Ref): string => `${model.providerID}/${model.id}`
 
-const HandledMarker = Schema.Struct({ handled: Schema.Finite })
-
 /** Vltra's own metadata key; everything else in `metadata` belongs to other writers. */
-const VltraMetadata = Schema.Struct({ vltra: HandledMarker })
-
-/**
- * The marker's key from before the rename (Fleet). Read, never written: every write drops it, and
- * `pnpm vltra:migrate-handled` moved the rest (2026-10-17; only folder-gone sessions, which read
- * as handled regardless, kept the old key), so this fallback can go.
- */
-const LegacyMetadata = Schema.Struct({ fleet: HandledMarker })
+const VltraMetadata = Schema.Struct({ vltra: Schema.Struct({ handled: Schema.Finite }) })
 
 const decodeVltraMetadata = Schema.decodeUnknownOption(VltraMetadata)
 
-const decodeLegacyMetadata = Schema.decodeUnknownOption(LegacyMetadata)
-
 const isJsonObject = Schema.is(Schema.Record(Schema.String, Schema.Json))
 
-/**
- * `metadata.vltra.handled`, else the legacy `metadata.fleet.handled`, when present and a number;
- * anything else reads as unhandled.
- */
+/** `metadata.vltra.handled`, when present and a number; anything else reads as unhandled. */
 export const vltraHandled = (metadata: Session.Metadata | undefined): number | undefined =>
-  Option.getOrUndefined(
-    Option.orElse(
-      Option.map(decodeVltraMetadata(metadata), value => value.vltra.handled),
-      () => Option.map(decodeLegacyMetadata(metadata), value => value.fleet.handled)
-    )
-  )
+  Option.getOrUndefined(Option.map(decodeVltraMetadata(metadata), value => value.vltra.handled))
 
 /**
  * The whole metadata object to write back (OpenCode replaces it): every other key kept, only
- * `vltra.handled` replaced, or removed for `undefined` (and `vltra` dropped once empty). The legacy
- * `fleet` key is always dropped.
+ * `vltra.handled` replaced, or removed for `undefined` (and `vltra` dropped once empty).
  */
 export const withVltraHandled = (
   metadata: Session.Metadata | undefined,
   handled: number | undefined
 ): Session.Metadata => {
   const source: Session.Metadata = metadata ?? {}
-  const { vltra, fleet: _legacy, ...others } = source
+  const { vltra, ...others } = source
   const { handled: _previous, ...kept } = isJsonObject(vltra) ? vltra : {}
   const next = handled === undefined ? kept : { ...kept, handled }
 
