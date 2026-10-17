@@ -2,7 +2,7 @@ import { describe, expect, it } from '@effect/vitest'
 import { openCodeWebSessionUrl, sessionLinks } from '@/lib/data/vltra/links'
 
 describe('OpenCode web deep link', () => {
-  it('encodes the page origin as unpadded base64url (verified live on Box)', () => {
+  it('encodes the page origin as unpadded base64url (verified live)', () => {
     expect(openCodeWebSessionUrl(new URL('https://vltra.localhost'), 'ses_abc')).toBe(
       'https://vltra.localhost/server/aHR0cHM6Ly92bHRyYS5sb2NhbGhvc3Q/session/ses_abc'
     )

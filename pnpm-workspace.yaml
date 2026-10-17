@@ -2,7 +2,7 @@
 # @opencode/protocol and @opencode/schema dependencies) requires, so the app and the client share
 # one Effect instance. @effect/vitest rc.112 declares vitest <5, hence vitest 4.
 # @effect/platform-node rc.112 depends on platform-node-shared ^rc.112, which floats to a release
-# that peers on a newer Effect; pin it to rc.112 so it stays on the shared runtime (as 10x does).
+# that peers on a newer Effect; pin it to rc.112 so it stays on the shared runtime.
 overrides:
   '@effect/platform-node@4.0.0-rc.112>@effect/platform-node-shared': 4.0.0-rc.112
 

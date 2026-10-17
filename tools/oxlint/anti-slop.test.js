@@ -129,7 +129,7 @@ describe('vendored anti-slop integration', () => {
   )
 
   it.each(probes)('reaches $namespace/$rule as an error through the actual root config', probe => {
-    const directory = mkdtempSync(path.join(tmpdir(), '10x-anti-slop-reachability-'))
+    const directory = mkdtempSync(path.join(tmpdir(), 'vltra-anti-slop-reachability-'))
     const filename = path.join(directory, 'runtime.ts')
 
     try {
@@ -156,7 +156,7 @@ describe('vendored anti-slop integration', () => {
   })
 
   it('accepts compliant code with all plugins loaded and honors upstream path-sensitive defaults', () => {
-    const directory = mkdtempSync(path.join(tmpdir(), '10x-anti-slop-valid-'))
+    const directory = mkdtempSync(path.join(tmpdir(), 'vltra-anti-slop-valid-'))
     const filename = path.join(directory, 'service.test.ts')
 
     try {
@@ -175,7 +175,7 @@ describe('vendored anti-slop integration', () => {
   })
 
   it('converges Oxfmt and spacing fixes without detaching comments, overloads, or ASI protection', () => {
-    const directory = mkdtempSync(path.join(tmpdir(), '10x-anti-slop-format-'))
+    const directory = mkdtempSync(path.join(tmpdir(), 'vltra-anti-slop-format-'))
     const config = path.join(directory, 'spacing.json')
     const files = Object.keys(spacingSources).map(name => path.join(directory, name))
 

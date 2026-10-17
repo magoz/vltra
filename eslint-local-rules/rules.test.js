@@ -189,7 +189,7 @@ describe('local Oxlint JavaScript rules', () => {
   })
 
   it('loads the plugin through the root config and honors legacy suppression namespaces', () => {
-    const directory = mkdtempSync(path.join(tmpdir(), '10x-oxlint-root-probe-'))
+    const directory = mkdtempSync(path.join(tmpdir(), 'vltra-oxlint-root-probe-'))
     const filename = path.join(directory, 'root-probe.tsx')
 
     try {

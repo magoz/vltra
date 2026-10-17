@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Vltra',
-  description: 'Every OpenCode session on Box',
+  description: 'Every OpenCode session in one view',
   applicationName: 'Vltra',
   appleWebApp: { capable: true, title: 'Vltra', statusBarStyle: 'default' }
 }

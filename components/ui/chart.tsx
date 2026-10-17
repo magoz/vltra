@@ -4,7 +4,7 @@ import type { ComponentProps } from 'react'
 import { ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
 
-/** Responsive shadcn-style chart frame (as in 10x); chart colors come from theme variables. */
+/** Responsive shadcn-style chart frame ; chart colors come from theme variables. */
 export const ChartContainer = ({
   className,
   children,

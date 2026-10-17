@@ -436,7 +436,7 @@ export const RepoWorktree = Schema.Struct({
 
 export type RepoWorktree = typeof RepoWorktree.Type
 
-/** A git repository's primary checkout on Box and its linked worktrees. */
+/** A git repository's primary checkout on the host and its linked worktrees. */
 export const RepoCheckout = Schema.Struct({
   name: Schema.String,
   /** Canonical (real) path of the primary checkout. */
@@ -447,7 +447,7 @@ export const RepoCheckout = Schema.Struct({
 export type RepoCheckout = typeof RepoCheckout.Type
 
 /**
- * A worktree branch's pull request, from `gh` on Box: `unknown` when the lookup failed (or is
+ * A worktree branch's pull request, from `gh` on the host: `unknown` when the lookup failed (or is
  * still running), `none` when the branch has no PR.
  */
 /** An issue a pull request closes (GitHub's closing references: "Closes #12", linked issues). */

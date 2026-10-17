@@ -343,7 +343,7 @@ describe('launcher palette', () => {
   })
 
   it('keeps the step open with the reason when the launch is refused', async () => {
-    renderDashboard({ failWith: 'Not a git checkout on Box' })
+    renderDashboard({ failWith: 'Not a git checkout' })
 
     await openPalette()
 
@@ -356,9 +356,7 @@ describe('launcher palette', () => {
     })
     fireEvent.click(within(palette()).getByRole('button', { name: 'Create' }))
 
-    expect((await within(palette()).findByRole('alert')).textContent).toBe(
-      'Not a git checkout on Box'
-    )
+    expect((await within(palette()).findByRole('alert')).textContent).toBe('Not a git checkout')
   })
 })
 

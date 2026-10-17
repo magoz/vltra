@@ -355,12 +355,10 @@ describe('POST /api/vltra/launches', () => {
         expect(yield* launch(repo, 'Not A Branch', 'x')).toEqual(failure(400, 'Invalid input'))
         expect(yield* launch(repo, 'feat/y', '   ')).toEqual(failure(400, 'Invalid input'))
         expect(yield* launch('/tmp/elsewhere', 'feat/y', 'x')).toEqual(
-          failure(400, 'Not a git checkout on Box')
+          failure(400, 'Not a git checkout')
         )
         // A linked worktree is not a repository to branch from.
-        expect(yield* launch(featX, 'feat/y', 'x')).toEqual(
-          failure(400, 'Not a git checkout on Box')
-        )
+        expect(yield* launch(featX, 'feat/y', 'x')).toEqual(failure(400, 'Not a git checkout'))
         expect(yield* answer(body, crossSite)).toEqual(failure(403, 'Request rejected'))
         expect(yield* answer(body, notJson)).toEqual(failure(415, 'JSON only'))
 
@@ -454,7 +452,7 @@ describe('POST /api/vltra/checkouts/open', () => {
           failure(400, 'Invalid input')
         )
         expect(yield* answer(JSON.stringify({ directory: '/tmp/elsewhere' }))).toEqual(
-          failure(400, 'Not a git checkout on Box')
+          failure(400, 'Not a git checkout')
         )
         expect(yield* answer(body, crossSite)).toEqual(failure(403, 'Request rejected'))
         expect(yield* answer(body, notJson)).toEqual(failure(415, 'JSON only'))
@@ -477,7 +475,7 @@ describe('failure statuses', () => {
         400,
         'No exact worktree name'
       ],
-      [new NotACheckoutError({ directory: '/x' }), 400, 'Not a git checkout on Box'],
+      [new NotACheckoutError({ directory: '/x' }), 400, 'Not a git checkout'],
       [new SessionNotFoundError({ sessionID: 'ses_1' }), 404, 'Session not found'],
       [new LaunchNotFoundError({ id: 'l' }), 404, 'That launch is gone'],
       [

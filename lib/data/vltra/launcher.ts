@@ -22,7 +22,7 @@ import type {
 import { Repos } from '@/lib/services/repos/service'
 import type { CheckoutInfo } from '@/lib/services/repos/service'
 
-// The launcher (DESIGN.md "Launcher and worktrees"): the repositories on Box merged with
+// The launcher (DESIGN.md "Launcher and worktrees"): the repositories on the host merged with
 // OpenCode's projects and the live rows, branch suggestions, opening a checkout, and retiring a
 // worktree. The projection and the guards are pure; the Effects run at the boundaries.
 
@@ -252,7 +252,7 @@ export const suggestBranch = (input: SuggestBranchInput) =>
     Effect.withSpan('launcher.suggest-branch')
   )
 
-/** Where the launcher may start a session: a git checkout on Box, else a plain-folder root. */
+/** Where the launcher may start a session: a git checkout on the host, else a plain-folder root. */
 const sessionDirectory = (directory: string) =>
   Effect.gen(function* () {
     const repos = yield* Repos
@@ -315,7 +315,7 @@ export const retireRefusal = (
   info: Option.Option<CheckoutInfo>,
   rows: ReadonlyArray<VltraRow>
 ): Option.Option<string> => {
-  if (Option.isNone(info)) return Option.some('Not a git checkout on Box')
+  if (Option.isNone(info)) return Option.some('Not a git checkout')
 
   if (!info.value.linked) return Option.some('The primary checkout cannot be retired')
 

@@ -126,7 +126,7 @@ function Card({
   onToggle
 }: {
   readonly card: ProjectCard
-  /** The card's repository in the launcher, when it is one on Box. */
+  /** The card's repository in the launcher, when it is one on the host. */
   readonly entry: LauncherRepo | undefined
   readonly cursor: boolean
   readonly rowCursor: string | undefined

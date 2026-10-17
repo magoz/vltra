@@ -19,7 +19,7 @@ export class SessionFolderGoneError extends Schema.TaggedError<SessionFolderGone
   { sessionID: Schema.String, directory: Schema.String }
 ) {}
 
-/** The directory is not a git checkout on Box (or not the kind the call needs). */
+/** The directory is not a git checkout on the host (or not the kind the call needs). */
 export class NotACheckoutError extends Schema.TaggedError<NotACheckoutError>()(
   'NotACheckoutError',
   { directory: Schema.String }

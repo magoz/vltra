@@ -26,7 +26,7 @@ describe('OpenCode proxy', () => {
   })
 
   it.each([
-    { 'sec-fetch-site': 'same-site', origin: 'https://aha.oox.sh', host: 'vltra.localhost' },
+    { 'sec-fetch-site': 'same-site', origin: 'https://docs.example.com', host: 'vltra.localhost' },
     { origin: 'https://evil.example', host: 'vltra.localhost' }
   ])('passes a foreign origin through for OpenCode to refuse: case %#', values => {
     expect(proxiedHeaders(new Headers(values), target).get('origin')).toBe(values.origin)

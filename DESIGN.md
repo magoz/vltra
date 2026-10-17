@@ -1,11 +1,11 @@
-# Vltra: one view of every OpenCode session on Box
+# Vltra: one view of every OpenCode session
 
-Status: built (stages 1–4 live at https://vltra.oox.sh; terminal view in the dotfiles). Single user (magoz), private, Box only.
-Redesign in progress (2026-10-03): attention model (working / needs me / handled), see Session state.
+Status: built and in daily use (stages 1–4; the terminal view lives in the author's dotfiles).
+Single user, self-hosted on one machine behind a private network.
 
 ## Problem
 
-6–10 OpenCode agents run at once across projects and worktrees on Box. OpenCode's
+6–10 OpenCode agents run at once across projects and worktrees on one host. OpenCode's
 built-in session list (`ctrl+x l`) knows only `idle`/`running`: it cannot show which
 sessions are waiting on me, which finished while I was away, or group them by
 project/worktree, and it only exists while a client is open.
@@ -13,22 +13,23 @@ project/worktree, and it only exists while a client is open.
 ## Shape
 
 ```text
-Box
-  opencode.service  127.0.0.1:49374            (unchanged)
+Host (the machine the agents run on)
+  opencode serve    127.0.0.1:<port>           (OpenCode's own service, unchanged)
         ▲ loopback HTTP, auth via @opencode/client Service.discover/headers
-  vltra.service     127.0.0.1:<port>           (new: Next.js app, `next start`, systemd user unit)
-        ▲ Portless static route vltra.oox.sh → <port>   (like usage.oox.sh)
-Mac browser / phone → https://vltra.oox.sh     (web dashboard)
-Mac ocb             → vltra CLI plugin in dotfiles cli.json (terminal view)
+  vltra             127.0.0.1:<port>           (Next.js app, `next start`, e.g. a systemd user unit)
+        ▲ HTTPS reverse proxy (e.g. Caddy) on a private-network hostname
+Desktop browser / phone → https://<vltra host>  (web dashboard)
+Terminal (opencode)     → Vltra CLI plugin       (terminal view, not in this repo)
 ```
 
 - Vltra is an OpenCode **API client**, not an OpenCode server plugin. Server plugins and
   plugin RPC are per location in 2.0.20 (`makeLocationNode` in `core/src/plugin/instance.ts`,
   `core/src/rpc.ts`), so a global aggregator does not fit there, and nothing new runs inside
   OpenCode.
-- No login: private tailnet, one user. Mutating endpoints reject cross-site requests
-  (`Sec-Fetch-Site`/`Origin` must be same-origin, JSON only, no CORS).
-- Vltra only discovers the systemd-owned OpenCode service; it never starts one
+- No login: one user, reachable only on a private network (e.g. a Tailscale tailnet); **never
+  expose it publicly**. Mutating endpoints reject cross-site requests (`Sec-Fetch-Site`/`Origin`
+  must be same-origin, JSON only, no CORS). OpenCode keeps its own auth for the proxied chat.
+- Vltra only discovers the running OpenCode service; it never starts one
   (`Service.discover`, never `Service.ensure`).
 
 ## Session state
@@ -101,10 +102,10 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
   model, updated, cost, pending permission/form summary, children).
 - `GET /api/vltra/events` → SSE: `vltra.changed` with changed rows (clients refetch on
   reconnect).
-- Actions for the web UI are server actions (typed inputs, per 10x conventions): mark handled,
+- Actions for the web UI are server actions (typed inputs): mark handled,
   reopen, mark viewed (OpenCode's unread marker). Asks, follow-ups and Stop happen in OpenCode's
   own chat.
-- The terminal plugin (runs on the Mac, talks to Vltra over HTTPS) uses the GET routes for
+- The terminal plugin (runs in a remote `opencode` TUI, talks to Vltra over HTTPS) uses the GET routes for
   states (it never recomputes them) and Vltra's JSON mutation routes for handled / reopen /
   launch / dismiss (`POST /api/vltra/sessions/:id/handled`, `.../reopen`, `/api/vltra/launches`,
   `/api/vltra/launches/:id/dismiss`), same rules and same-origin check as the web's server
@@ -144,12 +145,12 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
 
 ## Clients
 
-**Web (vltra.oox.sh, Mac + phone):** one full-width page with five tabs in the URL: **Focus**
+**Web (desktop + phone):** one full-width page with five tabs in the URL: **Focus**
 (plain `/`), **Agents** (the board, `?view=agents`), **Projects** (`?view=projects`; the old
 `/projects` redirects), **Stats** (`?view=stats`) and **Settings** (`?view=settings`), `1`–`5`. One page on purpose: tabs switch in place, instantly,
 and Next's Cache Components never keeps a hidden copy of another page alive. Desktop: the tabs sit
 in the header, which also carries the count line (`6 need you · 17 working · 2 stuck`) and a
-condensed usage line from the `usage` dashboard (`Claude 45% · Codex 96% · Go 34% left`: each
+condensed usage line from the optional [`usage`](https://github.com/magoz/usage) dashboard (`Claude 45% · Codex 96% · Go 34% left`: each
 subscription's % left of its longest window (weekly, Go's monthly), red at 10% or less, details on hover). Phone: no
 header; a bottom tab bar `Focus | Agents | Projects | Stats | ⚙ | +` (⚙ is Settings), plus a slim `reconnecting…` line on top
 only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
@@ -204,21 +205,22 @@ Tap a session for its panel (next to the tab: Focus' pane, a split on Agents and
 screen on the phone): the session's chat, nothing else (no Summary tab; messages, changes, the
 prompt and subagents are all in the chat):
 - **The chat** → OpenCode's own web UI on the same server, framed, verified deep link
-  `https://vltra.oox.sh/server/<base64url(origin)>/session/<id>`
+  `https://<vltra host>/server/<base64url(origin)>/session/<id>`
   (`app/src/shell/routes/session.ts`; server key = page origin). Vltra proxies OpenCode's web UI
   and API (its root paths, `/api/*` except `/api/vltra/*`) to the loopback service, so the chat is
   same-origin with Vltra: Vltra's keys work while the chat has focus (keys the chat does not own:
   not while typing, `⌘K`, `⌘/` and Vltra's `⌘` chords always (OpenCode's palette is `⌘P`), `Esc` leaves the chat). OpenCode's own auth stays: a one-time
-  `opencode pair --url https://vltra.oox.sh` per browser (30-day cookie); Vltra never adds the
+  `opencode pair --url https://<vltra host>` per browser (30-day cookie); Vltra never adds the
   password.
 - **Toolbar**: only what Vltra adds: ✔ Done (phone only; on desktop the card beside it has it) / Reopen, open the chat in a new tab, and
-  **Open in terminal** (Mac only) → `ocb://session/<id>`, handled by a tiny URL-scheme app that
-  `macos/setup-box` installs and that opens a new Ghostty window running `ocb -s <id>`.
+  **Open in terminal** (Mac only) → `ocb://session/<id>`, handled by a tiny URL-scheme app (in
+  the author's dotfiles) that opens a new Ghostty window running `ocb -s <id>` (`ocb`: a wrapper
+  that runs the `opencode` TUI against the remote server).
   The OpenCode desktop app registers no URL scheme, so it cannot be targeted.
 - Live via SSE. Installable to the phone home screen.
 
 **Launcher and worktrees (web; the terminal plugin uses the same Vltra routes):** a
-sessionizer for agents. Everything that touches disk runs on Box; clients only call Vltra and
+sessionizer for agents. Everything that touches disk runs on the host; clients only call Vltra and
 OpenCode.
 - **Open it**: header **New** + `n` / `⌘K` (palette), phone **+** in the tab bar, **+** on each
   Projects card (repo preselected). Type to fuzzy-match repos and their worktrees, most recent
@@ -232,30 +234,30 @@ OpenCode.
   `chore/` `docs/` + short kebab, via OpenCode `generate.text`, falling back to a slug; always
   editable) → OpenCode `worktree.create({ projectID, name })` with `name =
   branch.replaceAll('/', '--')` → `session.create` in the returned directory →
-  `session.prompt(task)` → land in that session. The dotfiles `worktrees` server plugin turns the
-  create into the provisioned sibling checkout `<repo>-<branch-slug>` on a named branch from
-  origin's fresh default tip (env/db/setup); it can take minutes, so the launch shows as a
-  "provisioning…" entry until the session exists (or an error with what was preserved).
-  These steps run in **Watcher** (`~/dev/repos/watcher`): Vltra asks it to launch (`POST
-  /launches` on its unix socket) and follows the run, so a launch survives Vltra restarts (OpenCode
-  cancels `worktree.create` when its client disconnects; Vltra exits 3s after SIGTERM), drains on
-  Watcher's own restarts and is recovered after a crash. In-process launching remains for tests
-  and an explicit `OPENCODE_URL`.
+  `session.prompt(task)` → land in that session. An OpenCode server plugin may turn the create
+  into a provisioned checkout (the author's `worktrees` plugin: a sibling `<repo>-<branch-slug>`
+  on a named branch from origin's fresh default tip, with env/db/setup); it can take minutes, so
+  the launch shows as a "provisioning…" entry until the session exists (or an error with what was
+  preserved). By default these steps run in-process. With `VLTRA_LAUNCHER=watcher` they run in
+  **Watcher** (the author's separate launch daemon): Vltra asks it to launch (`POST /launches` on
+  its unix socket) and follows the run, so a launch survives Vltra restarts (OpenCode cancels
+  `worktree.create` when its client disconnects; Vltra exits 3s after SIGTERM), drains on
+  Watcher's own restarts and is recovered after a crash.
   Repos OpenCode has never opened are registered first (`location.get` with the directory).
-- **List source**: `GET /api/vltra/launcher` — the sessionizer roots (`~/dev/repos/*`,
-  `~/.dotfiles`, `~/aha`, `~/collie`, `~/subs`; configurable) that are git repos, merged with
-  OpenCode's projects; each repo with its linked worktrees (branch, directory, owner: `dotfiles`
-  marker = Vltra/OpenCode-managed, else Pi/Herdr), sessions and states. A root that is a plain
-  folder (no git, no repos in it, e.g. `~/subs`) is listed too, marked `folder`: New session only
+- **List source**: `GET /api/vltra/launcher` — the sessionizer roots (`VLTRA_LAUNCHER_ROOTS`,
+  default `~/dev/repos/*`) that are git repos, merged with OpenCode's projects; each repo with its
+  linked worktrees (branch, directory, owner: `dotfiles` marker = Vltra/OpenCode-managed, else
+  `pi`, made by other tools), sessions and states. A root that is a plain folder (no git, no repos
+  in it, e.g. a scratch folder) is listed too, marked `folder`: New session only
   (its sessions land in OpenCode's global project, "Other").
 - **Retire**: on worktree sections (Projects), only for marker-owned worktrees, disabled while
   any session there is working or blocked; confirms, then OpenCode `worktree.remove({ force:
   false })` → `worktree-manage` retirement (database leases released, never forced, branch
   kept). Sessions there become "folder deleted" (handled).
-- **PR status**: Vltra looks up each worktree branch's PR with `gh` on Box (cached) and marks
+- **PR status**: Vltra looks up each worktree branch's PR with `gh` on the host (cached) and marks
   `merged · retire` / `closed · retire`. Automatic cleanup on merge/close is a later switch.
 
-**Terminal (CLI plugin in the dotfiles, runs inside `ocb` on the Mac):**
+**Terminal (a CLI plugin in the author's dotfiles, not in this repo; runs inside `ocb` on the Mac):**
 - **Focus sidebar**: a Vltra section prepended above OpenCode's own sections in the session
   sidebar (`sidebar.content` slot, `prepend`; Context/MCP/LSP/todos stay below). One "Vltra"
   title with working/stuck counts, then one line per entry: launches, then blocked (oldest wait
@@ -283,7 +285,7 @@ OpenCode.
 **Later (not part of the redesign):** mute for sessions to ignore forever, and a "handle this batch" action per worktree. Video attachments (deferred): OpenCode forwards only images/PDF/text to the model
 (`core/src/session/runner/to-llm-message.ts`) and the TUI composer only attaches images/PDF
 (`tui/src/component/prompt/local-attachment.ts`; no plugin can extend it). Plan: a dotfiles
-server plugin on the documented `session.prompt` hook that saves a video on Box and replaces it
+server plugin on the documented `session.prompt` hook that saves a video on the host and replaces it
 with `ffmpeg` key frames (as image attachments) plus a note with the saved path; inputs via a
 terminal-plugin "Attach video" command (inline, ≤20 MB) and/or Taildrop (`tailscale file get`
 into `~/Taildrop`) with video paths in the prompt text resolved there.
@@ -326,24 +328,23 @@ OpenCode's state as Vltra already projects it; no notification state of its own.
 
 ## Stack and repo
 
-Same stack and conventions as `~/dev/repos/10x` (copy its tooling, not its product code):
 Next.js 16 App Router, React 19, Effect v4, shadcn/ui (Base UI) + Tailwind v4, oxlint (with
-the vendored anti-slop rules) + oxfmt, Vitest + `@effect/vitest`, Playwright, pnpm 11,
-Node 24, `portless run next dev`, root-level `app/` `components/` `lib/` (no `src/`),
-`AGENTS.md` + `patterns/` conventions.
+the vendored anti-slop rules) + oxfmt, Vitest + `@effect/vitest`, pnpm 11, Node 24,
+`portless run next dev`, root-level `app/` `components/` `lib/` (no `src/`), `AGENTS.md` +
+`patterns/` conventions.
 
-Differences from 10x, on purpose:
-- **No auth** (private, single user).
+On purpose:
+- **No auth** (private network, single user).
 - **No database**: all state comes from OpenCode (including "seen"); vltra is stateless (its
   one file holds the Web Push keys and devices, "Notifications").
 - **Effect pinned to `4.0.0-rc.112`**, the exact version `@opencode/client@2.0.20` depends on,
-  so there is one Effect runtime and no overrides (10x is on rc.115 because of Yolk).
+  so there is one Effect runtime and no overrides.
 - **Long-lived watcher inside Next**: `instrumentation.ts` `register()` (Node runtime) starts
   the OpenCode watcher once in a `ManagedRuntime` (guarded against dev reloads); route
-  handlers and server actions read its state. Box runs `next start`, never serverless.
-  10x has no precedent for this, so it gets its own pattern note.
+  handlers and server actions read its state. Runs as `next start`, never serverless
+  (`patterns/LONG_LIVED_WATCHER.md`).
 
-Effect everywhere (10x `patterns/EFFECT_*.md`, `TYPESCRIPT_CONVENTIONS.md`):
+Effect everywhere:
 - OpenCode access via `@opencode/client/effect` (typed Effects/Streams), wrapped in an
   `OpenCode` `Context.Service` + `Layer` with `Schema.TaggedError` errors.
 - Watcher = one scoped Effect program: `Stream` over `/api/event`, `Schedule` backoff on
@@ -351,13 +352,13 @@ Effect everywhere (10x `patterns/EFFECT_*.md`, `TYPESCRIPT_CONVENTIONS.md`):
   changes fanned out through a `PubSub` that the SSE route consumes.
 - Vltra state machine is a pure function (event → state), tested exhaustively.
 - Everything composed into one `ManagedRuntime` started from `instrumentation.ts`; pages,
-  route handlers and server actions run Effects against it (10x `NextEffect` helpers,
-  `catchTag` chains, `Schema` parsing at every boundary).
+  route handlers and server actions run Effects against it (`runVltra`, tagged results,
+  `Schema` parsing at every boundary).
 - Tests: `@effect/vitest`, `TestClock` for backoff/timeouts, fake services via typed
   layers (no module mocking), plus an integration suite against a real throwaway
   `opencode serve`.
 
-Cache Components (as in 10x `next.config.ts` and `patterns/EFFECT_PAGES.md`):
+Cache Components:
 - `cacheComponents: true`, `partialPrefetching: true`; no removed route-segment options
   (`dynamic`, `revalidate`, `fetchCache`, `dynamicParams`).
 - Dashboard route shell (header, section chrome, filters) is prerendered. The live vltra
@@ -379,31 +380,26 @@ Layout:
 - `lib/services/opencode/` OpenCode client (discover, never ensure) + event stream.
 - `lib/data/vltra/` state machine, snapshot/resync, types (Effect Schema).
 - `app/` dashboard page, API routes, server actions.
-- Terminal view: an OpenCode CLI plugin in the dotfiles (`home/opencode/.config/opencode/plugins/
-  vltra/`, auto-discovered, plain JS), so both Macs get it; it only reads `/api/vltra` and
-  `/api/vltra/events`. Keys: `ctrl+x f` page, `ctrl+x j` next needs-you. Notifications only
-  fill gaps in OpenCode's built-in ones (subagent-originated needs-you).
+- Terminal view: an OpenCode CLI plugin (in the author's dotfiles, auto-discovered, plain JS);
+  it reads `/api/vltra` and `/api/vltra/events` and uses the JSON mutation routes. Keys:
+  `ctrl+x f` page, `ctrl+x j` next needs-you. Notifications only fill gaps in OpenCode's
+  built-in ones (subagent-originated needs-you).
 
-Runs entirely on Box from this one checkout (`~/dev/repos/vltra`); no Vercel, no separate
-deployment copy:
-- `vltra.service` user unit runs `next start` from this checkout on a loopback port, in
-  `session.slice` like opencode.service, `Restart=always`. Unit lives in the box repo.
-- Iterate: edit, then `pnpm ship` (`pnpm build && systemctl --user restart vltra`).
-- Portless static route `vltra.oox.sh` in the box repo's `portless/static-routes.json`, DNS
-  A record `vltra.oox.sh` → 100.122.135.127.
+Deployment: one long-running `next start` on the same machine as OpenCode (it reads session
+folders and runs `git`/`gh` there), e.g. a systemd user unit with `Restart=always`, behind an
+HTTPS reverse proxy on a private network. No serverless. Iterate with `pnpm dev` or a separate
+worktree; when the service runs from the working checkout, `pnpm ship` (`pnpm build &&
+systemctl --user restart vltra`) builds and restarts together.
 
 ## Build order
 
-1. Scaffold from 10x tooling; watcher + state machine + API routes, with
-   tests against a throwaway `opencode serve` (state transitions, resync after disconnect).
-2. Dashboard page on the Mac browser.
+1. Watcher + state machine + API routes, with tests against a throwaway `opencode serve`
+   (state transitions, resync after disconnect).
+2. Dashboard page on the desktop browser.
 3. Terminal plugin in `ocb`.
-4. Phone: needs a certificate the phone trusts (Portless CA is Mac-only today; reuse the
-   aha.oox.sh Let's Encrypt renewal or install the CA on the phone).
+4. Phone: needs a certificate the phone trusts (a publicly trusted one, e.g. Let's Encrypt via
+   DNS-01, or a local CA installed on the phone).
 
 ## Open questions
 
-- `ocb://` handler: how Ghostty launches a new window with a command on macOS (test on a Mac).
 - Can a background task outside a request call `revalidateTag` (see Cache Components)?
-- Does the CLI plugin's fetch trust the Portless CA on the Mac (Bun runtime; may need
-  `NODE_USE_SYSTEM_CA=1` or `NODE_EXTRA_CA_CERTS` in `ocb`)?

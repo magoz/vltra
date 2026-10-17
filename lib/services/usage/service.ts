@@ -41,7 +41,7 @@ export type UsageOperations = {
 }
 
 /**
- * The subscription quotas behind the model proxy, read from the `usage` dashboard (`~/usage`) on
+ * The subscription quotas behind the model proxy, read from the `usage` dashboard (magoz/usage) on
  * this machine. Read-only.
  */
 export class Usage extends Context.Service<Usage, UsageOperations>()('@vltra/Usage') {}

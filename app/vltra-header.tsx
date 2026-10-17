@@ -158,7 +158,7 @@ const isLow = (reading: UsageReading) => (reading.left / reading.capacity) * 100
 const capacityText = (reading: UsageReading) =>
   reading.capacity > 100 ? ` of ${reading.capacity}%` : ''
 
-/** One window as `~/usage` draws it: label, time to reset and % left, then a bar of what is left. */
+/** One window as the `usage` dashboard draws it: label, time to reset and % left, then a bar of what is left. */
 function UsageWindowMeter({ window, now }: { readonly window: UsageWindow; readonly now: number }) {
   const low = window.left <= lowUsage
 

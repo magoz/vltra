@@ -11,7 +11,7 @@ type HeaderReader = { readonly get: (name: string) => string | null }
 const firstValue = (value: string | null) => value?.split(',')[0]?.trim() ?? null
 
 /**
- * Same-origin check for mutations (no auth, private tailnet): `Sec-Fetch-Site` must be
+ * Same-origin check for mutations (no auth, private network): `Sec-Fetch-Site` must be
  * `same-origin` when the browser sends it, and `Origin` must match the served host.
  */
 export const isSameOrigin = (headers: HeaderReader): boolean => {

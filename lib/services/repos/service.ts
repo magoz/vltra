@@ -43,5 +43,5 @@ export type ReposOperations = {
   }) => Effect.Effect<PullRequest>
 }
 
-/** Git repositories and worktrees on Box, for the launcher. Vltra runs next to them. */
+/** Git repositories and worktrees on the host, for the launcher. Vltra runs next to them. */
 export class Repos extends Context.Service<Repos, ReposOperations>()('@vltra/Repos') {}

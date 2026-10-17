@@ -476,7 +476,7 @@ function NewStep({
 }
 
 /**
- * The launcher (DESIGN.md "Launcher and worktrees"): a palette over the repositories on Box and
+ * The launcher (DESIGN.md "Launcher and worktrees"): a palette over the repositories on the host and
  * their worktrees, most recent agent activity first. Type to filter, `↑`/`↓` (or `j`/`k` from the
  * list) to move. `Enter` starts a new empty session in the highlighted repository or worktree;
  * `Shift+Enter` a new worktree in its repository: a task, a suggested branch, Create. Full screen

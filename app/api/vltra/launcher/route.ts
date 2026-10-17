@@ -7,7 +7,7 @@ import { runVltra } from '@/lib/runtime/vltra-runtime'
 const encodeList = Schema.encodeEffect(LauncherList)
 
 /**
- * The launcher's list: git repositories on Box (the launcher roots and OpenCode's projects) with
+ * The launcher's list: git repositories on the host (the launcher roots and OpenCode's projects) with
  * their worktrees, owners, PR status and sessions, most recent agent activity first. Shared with
  * the terminal plugin, which decodes the same `LauncherList`.
  */

@@ -12,13 +12,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## OVERVIEW
 
-Vltra is one view of every OpenCode session on Box, built around attention: which need me
+Vltra is one view of every OpenCode session on one host, built around attention: which need me
 (blocked on a permission/form, or finished and not yet handled), which are working (and which of
 those look stuck), grouped project → worktree. It is an OpenCode **API client** (never a server
 plugin), stateless (OpenCode owns all state; Vltra's only state is its handled marker,
 `metadata.vltra.handled`, stored on the OpenCode session, plus its Web Push file: keys and
-subscribed devices, never session state), private and single-user (no auth, no database). `DESIGN.md` is the settled spec. Stack and conventions are 10x's (`../10x`): Next.js 16
-App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
+subscribed devices, never session state), private and single-user (no auth, no database: a
+private network is the boundary). The legacy `metadata.fleet.handled` (from before the rename) is
+read, never written. `DESIGN.md` is the settled spec. Stack: Next.js 16 App Router, React 19,
+Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
 ## WHERE TO LOOK
 
@@ -52,14 +54,14 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | Launcher list / open / retire    | `lib/data/vltra/launcher.ts`, `checkouts.ts`                     | Pure projection + guards; `GET /api/vltra/launcher`       |
 | Launches (worktree + session)    | `lib/data/vltra/launches.ts`, `lib/services/watcher/`            | Registry in store; Watcher runs them (backend), see below |
 | Branch names / palette rows      | `lib/data/vltra/branch.ts`, `palette.ts`                         | `--` encoding, suggestion check, fallback, fuzzy          |
-| Repos on Box (git, gh)           | `lib/services/repos/`                                            | Roots scan, worktrees + marker owner, cached PR status    |
-| Subscription usage (header)      | `lib/services/usage/`, `lib/data/vltra/usage.ts`                 | Reads `~/usage`'s `/api/usage`; one pool per provider     |
+| Repos on the host (git, gh)      | `lib/services/repos/`                                            | Roots scan, worktrees + marker owner, cached PR status    |
+| Subscription usage (header)      | `lib/services/usage/`, `lib/data/vltra/usage.ts`                 | Reads `usage`'s `/api/usage`; one pool per provider       |
 | Test doubles                     | `lib/**/testing/`                                                | Fake OpenCode / Repos layers, throwaway `opencode serve`  |
-| Conventions                      | `patterns/`, then `../10x/patterns/`                             | Vltra notes only where it differs from 10x                |
+| Conventions                      | `patterns/`                                                      | Effect, TypeScript, testing, long-lived watcher, OpenCode |
 
 ## CONVENTIONS
 
-- Same as 10x: no `src/`; root `app/`, `components/`, `lib/`; named exports (Next default files
+- No `src/`; root `app/`, `components/`, `lib/`; named exports (Next default files
   excepted); kebab-case files; `@/` imports; no barrels; strict TS (no `any`, no casts).
 - Data layer (`lib/data/**`) exports Effects and pure functions; only boundaries run them
   (`runVltra` in routes, actions, the page; the runtime in `instrumentation.ts`).
@@ -78,7 +80,7 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   schemas are in `lib/data/vltra/types.ts`.
 - Cache Components: prerendered shell, request-time data behind the smallest `<Suspense>` with
   `await connection()`. Never export `dynamic`/`revalidate`/`fetchCache`/`dynamicParams`.
-- Never call `Service.ensure` (it can spawn a server); systemd owns `opencode.service`.
+- Never call `Service.ensure` (it can spawn a server); the host's service manager owns OpenCode.
 - Code style: no semicolons, single quotes, no trailing commas, 100 columns (oxfmt).
   `DESIGN.md` is excluded from formatting.
 
@@ -109,11 +111,11 @@ App Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   overrides, clock, selection, nav). Tab links are `nav-link.tsx` (plain links; a plain click goes through
   `nav.show`).
 - Usage line (desktop header, right side, `UsageLine`; under 84rem it leaves, so the centred count line keeps room): the subscription quotas from the `usage` dashboard
-  (`~/usage`, `GET /api/usage` on loopback; `lib/services/usage/`, projected by `usage.ts` into
+  ([magoz/usage](https://github.com/magoz/usage), `GET /api/usage` on loopback; `lib/services/usage/`, projected by `usage.ts` into
   `GET /api/vltra/usage`, polled by `use-usage.ts` every minute while the page shows):
   `Claude 106% 2d · Codex 184% 4d · Go 32% 5d`, each the % left of the longest window
-  (weekly, Go's monthly, as `~/usage` shows it; model-scoped weekly limits excluded; a pool's accounts summed, 100% each), red at 10% of the pool or less,
-  then the time to that window's first reset; hovering a pool shows its accounts' windows as `~/usage`-style bars (`UsagePoolDetail`, in `components/ui/tooltip.tsx`), the account the proxy routes to first, marked `active` (`~/usage`'s `routing`, from the proxy's sticky-fill-first pins; none when unknown). Hidden until it loads; a failed load keeps the last.
+  (weekly, Go's monthly, as `usage` shows it; model-scoped weekly limits excluded; a pool's accounts summed, 100% each), red at 10% of the pool or less,
+  then the time to that window's first reset; hovering a pool shows its accounts' windows as `usage`-style bars (`UsagePoolDetail`, in `components/ui/tooltip.tsx`), the account the proxy routes to first, marked `active` (`usage`'s `routing`, from the proxy's sticky-fill-first pins; none when unknown). Hidden until it loads; a failed load keeps the last.
 - Every move is a history write that Next syncs into `useSearchParams` (no router navigation, no
   fetch, no remount): `nav.show` pushes an entry (Back returns), `setProject` replaces it,
   `openSession` (the launcher) pushes Focus with the session. `moveTo` in `vltra-href.ts` decides
@@ -207,7 +209,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   retirement, again while PR lookups are still `unknown`, every 5 minutes): repos under
   `VLTRA_LAUNCHER_ROOTS` (plus OpenCode's project folders) with their linked worktrees, owner (the
   dotfiles marker, else `pi`; `detached` for OpenCode's own git-strategy checkouts) and PR state,
-  plus roots that are plain folders (no git, no repos in them, e.g. `~/subs`: `Repos.folders`,
+  plus roots that are plain folders (no git, no repos in them, e.g. a scratch folder: `Repos.folders`,
   entries of `kind: 'folder'`, marked `folder`, new session only, no `⇧↵`; `newSession` accepts
   them), most recent agent activity first. Type to fuzzy-filter (`palette.ts`), `↑`/`↓` (`j`/`k` once the
   list has focus) to move. The bar under the list (`ActionBar`) shows the highlighted row's two
@@ -226,14 +228,14 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   list). Cards shaped like `AgentCard` (`pending-launches.tsx`: pulsing dashed marker,
   repo · branch, a ticking clock, the task as title, `provisioning…` / `starting the session…`;
   failures red with what was kept and ×): focus mode's **Provisioning** above its list (compact),
-  the board at the top of Working. The registry is in memory, but the launches themselves run in
-  **Watcher** (`~/dev/repos/watcher`, `watcher.service`; `POST /launches` on its unix socket, watch id
-  `manual`, no guardrails): a Vltra restart (`pnpm ship`) no longer cuts `worktree.create`, which
-  OpenCode cancels with its client. Vltra follows each run (`GET /runs/:id`, every second, through
-  Watcher's own restarts) and, at boot, lists and follows the ones still running. Watcher down:
-  launching fails with "Watcher is not running" (503). Backends in `launches.ts`: `watcher`, and
-  `opencode` (in-process, the old path) for tests and whenever `OPENCODE_URL` is set, so `pnpm dev`
-  against a throwaway server never launches through the live Watcher (`VLTRA_LAUNCHER` overrides).
+  the board at the top of Working. The registry is in memory. Backends in `launches.ts`
+  (`VLTRA_LAUNCHER`): `opencode` (default, in-process; a Vltra restart cuts a running
+  `worktree.create`, which OpenCode cancels with its client) and `watcher`: the launches run in a
+  **Watcher** daemon (`POST /launches` on its unix socket, watch id `manual`, no guardrails), so a
+  Vltra restart (`pnpm ship`) does not cut them. Vltra follows each run (`GET /runs/:id`, every
+  second, through Watcher's own restarts) and, at boot, lists and follows the ones still running.
+  Watcher down: launching fails with "Watcher is not running" (503). `pnpm dev` against a
+  throwaway server never sets `watcher`, so it never launches through a live Watcher.
   Ready ones stay in the registry 10 minutes (the page's auto-open, the plugin) but no longer show
   on the web.
 - **Projects worktrees**: a card for a launcher repo shows each worktree section under its branch
@@ -287,7 +289,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   OpenCode honours its cookie; Next buffers every proxied body, silently cut at
   `proxyClientMaxBodySize`, `1gb` in `next.config.ts` for pasted images and files), so the chat
   is same-origin, signed in by OpenCode's pairing cookie
-  (`opencode pair --url https://vltra.oox.sh`, once per browser). Same-origin lets Vltra take the
+  (`opencode pair --url <VLTRA_OPENCODE_WEB_URL>`, once per browser). Same-origin lets Vltra take the
   chat's keys (`useChatFrame` / `forwardChatKeys` in `chat-keys.ts`: a capture listener on the
   frame's window replays each key on Vltra's document unless the chat owns it: typing, its
   overlays, scroll keys, `Enter` on a control; `⌘K`, `⌘/` and the `⌘` chords are always Vltra's,
@@ -368,31 +370,31 @@ pnpm format:check      # oxfmt
 pnpm test              # unit + integration (vitest)
 pnpm build             # next build
 pnpm verify            # format + typecheck + lint + test + build
-pnpm ship              # build + systemctl --user restart vltra (Box only)
-pnpm vltra:import-handled [--dry-run]  # one-off rollout: viewed root runs → handled (never auto-run)
-systemctl --user restart vltra  # serve the current .next again (~3s; Caddy holds requests)
+pnpm ship              # build + systemctl --user restart vltra (a service run from this checkout)
+pnpm vltra:import-handled [--dry-run]   # one-off rollout: viewed root runs → handled (never auto-run)
+pnpm vltra:migrate-handled [--dry-run]  # one-off after the rename: metadata.fleet → metadata.vltra
 ```
 
-**This checkout is production.** `vltra.service` runs `next start` on `~/dev/repos/vltra/.next`
-(behind Caddy at `vltra.oox.sh`; runbook `~/.box/vltra.md`). `pnpm build` and `pnpm verify`
-rewrite `.next` under the running server: its HTML keeps pointing at hashed CSS/JS that no longer
-exist, they answer 500, and the live page renders unstyled until a restart (2026-10-06). So here:
-checks without the build (`pnpm format:check && pnpm typecheck && pnpm lint && pnpm test --run`),
-or `pnpm ship` to build and restart together; never a bare `pnpm build` / `pnpm verify`. Full
-`pnpm verify` belongs in a separate worktree. `pnpm dev` is safe (Next 16 writes `.next/dev`).
-Commit before shipping: the working tree at build time is what goes live.
+**A checkout may be production.** If a `vltra` service runs `next start` from this checkout's
+`.next` (check `systemctl --user status vltra`), `pnpm build` and `pnpm verify` rewrite `.next`
+under the running server: its HTML keeps pointing at hashed CSS/JS that no longer exist, they
+answer 500, and the live page renders unstyled until a restart. There: checks without the build
+(`pnpm format:check && pnpm typecheck && pnpm lint && pnpm test --run`), or `pnpm ship` to build
+and restart together; never a bare `pnpm build` / `pnpm verify`. Full `pnpm verify` belongs in a
+separate worktree. `pnpm dev` is safe (Next 16 writes `.next/dev`). Commit before shipping: the
+working tree at build time is what goes live.
 
 ## CONFIGURATION
 
-| Variable                            | Default                                          | Purpose                                                                         |
-| ----------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------- |
-| `OPENCODE_URL`, `OPENCODE_PASSWORD` | unset → `Service.discover`                       | Explicit endpoint (tests, dev)                                                  |
-| `OPENCODE_SERVICE_FILE`             | `$XDG_STATE_HOME/opencode/service.json`          | Registration file for discovery                                                 |
-| `VLTRA_OPENCODE_WEB_URL`            | `https://vltra.oox.sh`                           | OpenCode web UI base for deep links (Vltra's own origin, `proxy.ts`)            |
-| `VLTRA_SESSION_LIMIT`               | unset → every session                            | Optional cap on sessions loaded                                                 |
-| `VLTRA_LAUNCHER_ROOTS`              | `~/dev/repos:~/.dotfiles:~/aha:~/collie:~/subs`  | Launcher roots (`:` list, `~` ok): a repo, a folder of repos, or a plain folder |
-| `VLTRA_BRANCH_MODEL`                | `opencode-go/qwen3.8-flash#none`                 | Launcher branch suggestions (`generate.text` model, `#variant` ok)              |
-| `VLTRA_USAGE_URL`                   | `http://127.0.0.1:8320`                          | The `usage` dashboard (`~/usage`) for the header's usage line                   |
-| `VLTRA_PUSH_FILE`                   | `$XDG_STATE_HOME/vltra/push.json`                | Web Push keys + devices (`push.dev.json` under `next dev`)                      |
-| `VLTRA_LAUNCHER`                    | `watcher`; `opencode` when `OPENCODE_URL` is set | Where launches run: Watcher's daemon, or in-process                             |
-| `VLTRA_WATCHER_SOCKET`              | `$XDG_RUNTIME_DIR/watcher.sock`                  | Watcher's API socket                                                            |
+| Variable                            | Default                                 | Purpose                                                                         |
+| ----------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------- |
+| `OPENCODE_URL`, `OPENCODE_PASSWORD` | unset → `Service.discover`              | Explicit endpoint (tests, dev)                                                  |
+| `OPENCODE_SERVICE_FILE`             | `$XDG_STATE_HOME/opencode/service.json` | Registration file for discovery                                                 |
+| `VLTRA_OPENCODE_WEB_URL`            | `https://vltra.localhost`               | Vltra's own public origin: OpenCode web UI base for deep links (`proxy.ts`)     |
+| `VLTRA_SESSION_LIMIT`               | unset → every session                   | Optional cap on sessions loaded                                                 |
+| `VLTRA_LAUNCHER_ROOTS`              | `~/dev/repos`                           | Launcher roots (`:` list, `~` ok): a repo, a folder of repos, or a plain folder |
+| `VLTRA_BRANCH_MODEL`                | `opencode-go/qwen3.8-flash#none`        | Launcher branch suggestions (`generate.text` model, `#variant` ok)              |
+| `VLTRA_USAGE_URL`                   | `http://127.0.0.1:8320`                 | The optional `usage` dashboard (magoz/usage); unreachable → no usage line       |
+| `VLTRA_PUSH_FILE`                   | `$XDG_STATE_HOME/vltra/push.json`       | Web Push keys + devices (`push.dev.json` under `next dev`)                      |
+| `VLTRA_LAUNCHER`                    | `opencode`                              | Where launches run: in-process, or `watcher` (a Watcher daemon)                 |
+| `VLTRA_WATCHER_SOCKET`              | `$XDG_RUNTIME_DIR/watcher.sock`         | Watcher's API socket                                                            |

@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Vltra',
     short_name: 'Vltra',
-    description: 'Every OpenCode session on Box',
+    description: 'Every OpenCode session in one view',
     start_url: '/',
     scope: '/',
     display: 'standalone',

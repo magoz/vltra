@@ -1,4 +1,4 @@
-// Starts the one long-lived OpenCode watcher when the Next server boots (`next start` on Box, or
+// Starts the one long-lived OpenCode watcher when the Next server boots (`next start` on the host, or
 // `next dev`). The runtime lives on `globalThis`, so dev reloads reuse it instead of starting a
 // second watcher. See patterns/LONG_LIVED_WATCHER.md.
 export async function register() {

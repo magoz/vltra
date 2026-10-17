@@ -226,7 +226,7 @@ describe('retireRefusal', () => {
     expect(retireRefusal(worktreeInfo({ directory: vltra, linked: false }), rows)).toEqual(
       Option.some('The primary checkout cannot be retired')
     )
-    expect(retireRefusal(Option.none(), rows)).toEqual(Option.some('Not a git checkout on Box'))
+    expect(retireRefusal(Option.none(), rows)).toEqual(Option.some('Not a git checkout'))
   })
 })
 

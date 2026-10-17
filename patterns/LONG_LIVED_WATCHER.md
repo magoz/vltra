@@ -1,7 +1,7 @@
 # Long-lived watcher inside Next
 
-10x has no precedent for this: Vltra keeps one OpenCode event subscription open for the whole
-life of the Next server (`next start` on Box, never serverless) and serves its state to pages,
+Vltra keeps one OpenCode event subscription open for the whole
+life of the Next server (`next start` on the host, never serverless) and serves its state to pages,
 route handlers and server actions.
 
 ## Runtime

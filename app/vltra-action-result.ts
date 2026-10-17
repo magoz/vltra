@@ -117,7 +117,7 @@ export const failureMessage = (error: VltraActionError): string =>
       OpenCodeUnavailableError: () => 'OpenCode is not reachable',
       // OpenCode's own words (sanitized), e.g. the worktree plugin's refusals.
       OpenCodeRejectedError: rejected => rejected.message,
-      NotACheckoutError: () => 'Not a git checkout on Box',
+      NotACheckoutError: () => 'Not a git checkout',
       RetireRefusedError: refused => refused.reason,
       ProjectBusyError: ({ busy }) =>
         `${busy} ${busy === 1 ? 'session there is' : 'sessions there are'} working or blocked`,
