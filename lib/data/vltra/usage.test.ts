@@ -12,6 +12,7 @@ const account = (
   account: `${provider}@x.com`,
   fresh: true,
   active: false,
+  loggedOut: false,
   windows,
   ...overrides
 })
@@ -135,7 +136,31 @@ describe('usage summary', () => {
       reading: undefined,
       stale: true,
       activeAccounts: [],
+      loggedOutAccounts: [],
       windows: []
     })
+  })
+
+  it('leaves logged-out accounts out of every figure and lists them last', () => {
+    const [claude] = usageSummary([
+      account('anthropic', [window('weekly', 90, 1000, week)], {
+        account: 'gone@x.com',
+        fresh: false,
+        loggedOut: true
+      }),
+      account('anthropic', [window('weekly', 78, 5000, week)], {
+        account: 'me@x.com',
+        active: true
+      })
+    ]).pools
+
+    expect(claude).toMatchObject({
+      reading: { left: 78, capacity: 100 },
+      resetAt: 5000,
+      stale: false,
+      activeAccounts: ['me@x.com'],
+      loggedOutAccounts: ['gone@x.com']
+    })
+    expect(claude?.windows.map(window => window.account)).toEqual(['me@x.com', 'gone@x.com'])
   })
 })

@@ -26,6 +26,8 @@ export type QuotaAccount = {
    * sticky-fill-first pins); false when it does not or nobody knows.
    */
   readonly active: boolean
+  /** The proxy can no longer use its credential (refresh token rejected) until it logs in again. */
+  readonly loggedOut: boolean
   readonly windows: ReadonlyArray<QuotaWindow>
 }
 

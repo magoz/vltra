@@ -637,6 +637,11 @@ export const UsagePool = Schema.Struct({
   stale: Schema.Boolean,
   /** The accounts the proxy currently routes this pool to (usually one); their windows come first. */
   activeAccounts: Schema.Array(Schema.String),
+  /**
+   * The accounts whose login expired: they serve nothing until someone logs in again, so they
+   * count in neither `reading`, `resetAt` nor `stale`. Their last windows come last.
+   */
+  loggedOutAccounts: Schema.Array(Schema.String),
   windows: Schema.Array(UsageWindow)
 })
 

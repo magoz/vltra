@@ -18,6 +18,8 @@ const UsageResponse = Schema.Struct({
       providerName: Schema.String,
       account: Schema.String,
       status: Schema.String,
+      /** `ok` or `logged-out`; absent from dashboards older than it. */
+      login: Schema.optional(Schema.String),
       windows: Schema.Array(
         Schema.Struct({
           id: Schema.String,
@@ -62,6 +64,7 @@ export const toAccounts = (response: UsageResponse): ReadonlyArray<QuotaAccount>
     account: account.account,
     fresh: account.status === 'fresh',
     active: active.has(account.id),
+    loggedOut: account.login === 'logged-out',
     windows: account.windows.map(window => ({
       id: window.id,
       label: window.label,

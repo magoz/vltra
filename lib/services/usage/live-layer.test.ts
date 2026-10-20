@@ -43,6 +43,7 @@ describe('UsageLive', () => {
               providerName: 'Claude',
               account: 'me@x.com',
               status: 'fresh',
+              login: 'ok',
               plan: null,
               windows: [
                 {
@@ -87,6 +88,7 @@ describe('UsageLive', () => {
           account: 'me@x.com',
           fresh: true,
           active: true,
+          loggedOut: false,
           windows: [
             {
               id: 'weekly',
@@ -110,9 +112,36 @@ describe('UsageLive', () => {
           account: 'key',
           fresh: false,
           active: false,
+          // A dashboard older than `login` says nothing: still logged in.
+          loggedOut: false,
           windows: []
         }
       ])
+    })
+  )
+
+  it.effect('reads a logged-out account', () =>
+    Effect.gen(function* () {
+      answer(
+        200,
+        JSON.stringify({
+          accounts: [
+            {
+              id: 'anthropic:gone@x.com',
+              provider: 'anthropic',
+              providerName: 'Claude',
+              account: 'gone@x.com',
+              status: 'stale',
+              login: 'logged-out',
+              windows: []
+            }
+          ]
+        })
+      )
+
+      const [gone] = yield* makeUsage(base).accounts
+
+      expect(gone?.loggedOut).toBe(true)
     })
   )
 

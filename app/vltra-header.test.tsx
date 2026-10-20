@@ -11,7 +11,7 @@ import {
 } from '@/app/vltra-header'
 import type { VltraScreen } from '@/app/vltra-href'
 import { fakeActions, WithVltra } from '@/app/testing/dashboard-fixtures'
-import type { VltraConnection, VltraCounts, UsageSummary } from '@/lib/data/vltra/types'
+import type { VltraConnection, VltraCounts, UsagePool, UsageSummary } from '@/lib/data/vltra/types'
 
 const connected: VltraConnection = { status: 'connected', since: 0, failures: 0, version: '2.0.20' }
 
@@ -190,6 +190,7 @@ describe('usage line', () => {
         resetAt: 5 * 24 * hour,
         stale: false,
         activeAccounts: ['me@x.com'],
+        loggedOutAccounts: [],
         windows: [
           { account: 'me@x.com', label: '5-hour', left: 89, resetsAt: 3 * hour },
           { account: 'me@x.com', label: 'Weekly', left: 45, resetsAt: 5 * 24 * hour }
@@ -203,6 +204,7 @@ describe('usage line', () => {
         stale: false,
         // The proxy routes Codex to b, so its windows come first.
         activeAccounts: ['b@x.com'],
+        loggedOutAccounts: [],
         windows: [
           { account: 'b@x.com', label: 'Weekly', left: 15 },
           { account: 'a@x.com', label: 'Weekly', left: 0 }
@@ -214,6 +216,7 @@ describe('usage line', () => {
         reading: undefined,
         stale: true,
         activeAccounts: [],
+        loggedOutAccounts: [],
         windows: []
       }
     ]
@@ -257,6 +260,39 @@ describe('usage line', () => {
     expect(b.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(b).getByRole('heading').textContent).toBe('b@x.comactive')
     expect(within(a).getByRole('heading').textContent).toBe('a@x.com')
+  })
+
+  it('flags logged-out accounts in red, on the line and in the details', async () => {
+    const claude: UsagePool = {
+      provider: 'anthropic',
+      name: 'Claude',
+      reading: { left: 78, capacity: 100 },
+      resetAt: 4 * 24 * hour,
+      stale: false,
+      activeAccounts: ['me@x.com'],
+      loggedOutAccounts: ['gone@x.com'],
+      windows: [
+        { account: 'me@x.com', label: 'Weekly', left: 78 },
+        { account: 'gone@x.com', label: 'Weekly', left: 90 }
+      ]
+    }
+
+    render(<UsageLine usage={{ pools: [claude] }} now={0} />)
+
+    const line = screen.getByLabelText('Usage left')
+
+    expect(line.textContent).toBe('Claude 78% 4d (1 logged out)')
+    expect(within(line).getByText('(1 logged out)').className).toContain('text-destructive')
+
+    fireEvent.focus(screen.getByRole('button', { name: /Claude/ }))
+
+    const gone = await screen.findByRole('region', { name: 'gone@x.com' })
+
+    expect(within(gone).getByRole('heading').textContent).toBe('gone@x.comlogged out')
+    expect(within(gone).getByText('logged out').className).toContain('text-destructive')
+    expect(
+      within(screen.getByRole('region', { name: 'me@x.com' })).getByRole('heading').textContent
+    ).toBe('me@x.comactive')
   })
 
   it('names each window with its time to reset, and says when a pool has no reading', () => {

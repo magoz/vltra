@@ -196,7 +196,8 @@ function UsageWindowMeter({ window, now }: { readonly window: UsageWindow; reado
 /**
  * A pool on hover: `Claude 85% of 200% left`, then each account with its windows as bars (5-hour,
  * weekly, monthly…), the same rows as the `usage` dashboard's account cards. The account the
- * proxy routes to comes first, marked `active`.
+ * proxy routes to comes first, marked `active`; a logged-out one comes last, marked `logged out`,
+ * its last reading dimmed.
  */
 export function UsagePoolDetail({ pool, now }: { readonly pool: UsagePool; readonly now: number }) {
   const accounts = Array.from(Map.groupBy(pool.windows, window => window.account))
@@ -212,19 +213,27 @@ export function UsagePoolDetail({ pool, now }: { readonly pool: UsagePool; reado
           {pool.stale ? ' (last reading)' : null}
         </span>
       </p>
-      {accounts.map(([account, windows]) => (
-        <section key={account} aria-label={account} className="flex flex-col gap-2.5">
-          <h3 className="flex justify-between gap-4">
-            <span className="truncate">{account}</span>
-            {pool.activeAccounts.includes(account) ? (
-              <span className="text-muted-foreground shrink-0">active</span>
-            ) : null}
-          </h3>
-          {windows.map(window => (
-            <UsageWindowMeter key={window.label} window={window} now={now} />
-          ))}
-        </section>
-      ))}
+      {accounts.map(([account, windows]) => {
+        const loggedOut = pool.loggedOutAccounts.includes(account)
+
+        return (
+          <section key={account} aria-label={account} className="flex flex-col gap-2.5">
+            <h3 className="flex justify-between gap-4">
+              <span className="truncate">{account}</span>
+              {loggedOut ? (
+                <span className="text-destructive shrink-0">logged out</span>
+              ) : pool.activeAccounts.includes(account) ? (
+                <span className="text-muted-foreground shrink-0">active</span>
+              ) : null}
+            </h3>
+            <div className={cn('flex flex-col gap-2.5', loggedOut && 'opacity-40')}>
+              {windows.map(window => (
+                <UsageWindowMeter key={window.label} window={window} now={now} />
+              ))}
+            </div>
+          </section>
+        )
+      })}
     </div>
   )
 }
@@ -232,7 +241,8 @@ export function UsagePoolDetail({ pool, now }: { readonly pool: UsagePool; reado
 /**
  * The subscription quotas, condensed: `Claude 106% 2d · Codex 184% 4d · Go 32% 5d`,
  * each the % left of the longest window (weekly, Go's monthly), summed over a pool's accounts (red
- * at 10% of the capacity or less), then the time to that window's first reset; hovering (or focusing) a
+ * at 10% of the capacity or less), then the time to that window's first reset and, in red, how many
+ * of its accounts are logged out (`Claude 78% 4d (1 logged out)`); hovering (or focusing) a
  * pool shows its accounts' windows as bars (`UsagePoolDetail`). Desktops under 84rem leave it
  * out, where the count line could no longer sit centred beside it.
  */
@@ -265,6 +275,11 @@ export function UsageLine({ usage, now }: { readonly usage: UsageSummary; readon
               {pool.resetAt === undefined || pool.resetAt <= now
                 ? null
                 : ` ${relativeTime(now, pool.resetAt)}`}
+              {pool.loggedOutAccounts.length === 0 ? null : (
+                <span className="text-destructive">
+                  {` (${pool.loggedOutAccounts.length} logged out)`}
+                </span>
+              )}
             </TooltipTrigger>
             <TooltipContent className="w-72 p-3">
               <UsagePoolDetail pool={pool} now={now} />

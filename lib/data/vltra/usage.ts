@@ -59,14 +59,20 @@ const providerRank = (provider: string) => {
   return rank === -1 ? knownProviders.length : rank
 }
 
-/** The accounts the proxy routes to first, the rest in the dashboard's order. */
-const activeFirst = (accounts: ReadonlyArray<QuotaAccount>) => [
-  ...accounts.filter(account => account.active),
-  ...accounts.filter(account => !account.active)
-]
+/** The accounts the proxy routes to first, then the rest in the dashboard's order, logged-out last. */
+const activeFirst = (accounts: ReadonlyArray<QuotaAccount>) => {
+  const serving = accounts.filter(account => !account.loggedOut)
+
+  return [
+    ...serving.filter(account => account.active),
+    ...serving.filter(account => !account.active),
+    ...accounts.filter(account => account.loggedOut)
+  ]
+}
 
 const toPool = (pool: ReadonlyArray<QuotaAccount>, provider: string): UsagePool => {
   const accounts = activeFirst(pool)
+  const serving = accounts.filter(account => !account.loggedOut)
 
   const name =
     knownProviders.find(known => known.provider === provider)?.name ??
@@ -74,7 +80,7 @@ const toPool = (pool: ReadonlyArray<QuotaAccount>, provider: string): UsagePool 
     provider
 
   const reading = pooled(
-    accounts.flatMap(account => {
+    serving.flatMap(account => {
       const value = headline(account)?.remainingPercent
 
       return value === undefined ? [] : [value]
@@ -85,9 +91,12 @@ const toPool = (pool: ReadonlyArray<QuotaAccount>, provider: string): UsagePool 
     provider,
     name,
     reading,
-    resetAt: firstReset(accounts),
-    stale: accounts.some(account => !account.fresh),
-    activeAccounts: accounts.filter(account => account.active).map(account => account.account),
+    resetAt: firstReset(serving),
+    stale: serving.some(account => !account.fresh),
+    activeAccounts: serving.filter(account => account.active).map(account => account.account),
+    loggedOutAccounts: accounts
+      .filter(account => account.loggedOut)
+      .map(account => account.account),
     windows: accounts.flatMap(account =>
       account.windows.map(window => ({
         account: account.account,
@@ -103,7 +112,7 @@ const toPool = (pool: ReadonlyArray<QuotaAccount>, provider: string): UsagePool 
  * One pool per provider, Claude, Codex and Go first: how much is left of the headline window
  * (the longest: weekly, Go's monthly; summed over the pool's accounts, out of 100% each), its
  * first reset, the accounts the proxy routes to, and every window for the details, those
- * accounts' first.
+ * accounts' first. Logged-out accounts count in none of the figures and are only listed.
  */
 export const usageSummary = (accounts: ReadonlyArray<QuotaAccount>): UsageSummary => {
   const providers = Array.from(new Set(accounts.map(account => account.provider))).toSorted(
