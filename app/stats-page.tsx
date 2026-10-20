@@ -54,7 +54,6 @@ import {
   runOutcomes,
   sessionLengths,
   sessionPoints,
-  sessionsByProject,
   sessionStartPoints,
   sessionsStarted,
   singleSeries,
@@ -448,12 +447,6 @@ function StatsBody({
             },
       tokens: tokensByModel(report),
       tools: toolCalls(report),
-      projects: sessionsByProject(
-        view,
-        report,
-        filter,
-        byProject === undefined ? undefined : promptProjectKeys(view, byProject)
-      ),
       stepsPerPrompt: stepsPerPrompt(report),
       modelShare: modelShare(report),
       cacheHits: cacheHitRatio(report),
@@ -484,14 +477,6 @@ function StatsBody({
       <div className={cardGrid}>
         <StatsCard title="Done" detail="sessions marked done by project, by their last run's end">
           <TimeBars chart={charts.done} unit={unit} timeZone={timeZone} format={compactNumber} />
-        </StatsCard>
-        <StatsCard title="Sessions started" detail="by project, from Vltra's list">
-          <TimeBars
-            chart={charts.projects}
-            unit={unit}
-            timeZone={timeZone}
-            format={compactNumber}
-          />
         </StatsCard>
         <StatsCard title="Prompts" detail="your messages, by project">
           <TimeBars
@@ -624,12 +609,11 @@ function StatsBody({
 /**
  * The Stats tab (`?view=stats`): OpenCode's own numbers for a range (default the last 7 days,
  * `?range=` / `?from=&to=`) and project (`?project=`, shared with Agents), with no state of
- * Vltra's. Headline tiles, then bars per hour / day / week (sessions started, prompts),
- * both by project (prompts from `/api/vltra/stats/projects`, the same projects and inks for
- * both), time of day (prompts by weekday × hour and by hour, `/api/vltra/stats/hours`), more bars
- * (steps, tokens by model, tool calls) and whole-range tables (models, tools, run
- * outcomes). Sessions started and outcomes come from Vltra's session list, the rest from
- * OpenCode's stats. An open session docks beside it (`SessionSplit`). Keys: `[` / `]` a shorter
+ * Vltra's. Headline tiles, then bars per hour / day / week (done, prompts), both by project
+ * (prompts from `/api/vltra/stats/projects`, the same projects and inks for both), time of day
+ * (prompts by weekday × hour and by hour, `/api/vltra/stats/hours`), more bars (steps, tokens by
+ * model, tool calls) and whole-range tables (models, tools, run outcomes). Done, sessions started
+ * and outcomes come from Vltra's session list, the rest from OpenCode's stats. An open session docks beside it (`SessionSplit`). Keys: `[` / `]` a shorter
  * / longer preset, `/` the filter.
  */
 export function StatsPage() {

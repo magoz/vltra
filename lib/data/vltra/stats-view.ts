@@ -163,18 +163,6 @@ const filteredRows = (live: LiveVltra, filter: string | undefined) =>
   )
 
 /**
- * Root sessions started per bucket by project (Vltra's session list: deleted sessions are gone):
- * `order`'s projects when given (the Prompts chart's, so a project has one colour on both), else
- * the top three, then the rest.
- */
-export const sessionsByProject = (
-  live: LiveVltra,
-  report: StatsReport,
-  filter: string | undefined,
-  order?: ReadonlyArray<string>
-): SeriesChart => rowsByProject(live, report, filter, row => row.created, order)
-
-/**
  * Root rows counted per bucket of `at` (none: left out) by project: `order`'s projects when
  * given, else the top three, then the rest.
  */
@@ -404,7 +392,8 @@ export const toolFailureRate = (report: StatsReport): SeriesChart =>
 /**
  * Root sessions done (marked done, or counting as done, their folder gone) by project, by when
  * their latest run ended (the time of its last message): Vltra does not record when Done was
- * pressed, and keeps only the latest run's marker. `order` as for `sessionsByProject`.
+ * pressed, and keeps only the latest run's marker. `order`'s projects when given (the Prompts
+ * chart's, so a project has one colour on both), else the top three, then the rest.
  */
 export const doneOverTime = (
   live: LiveVltra,

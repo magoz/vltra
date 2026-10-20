@@ -24,7 +24,6 @@ import {
   sessionLengths,
   sessionPoints,
   sessionStartPoints,
-  sessionsByProject,
   sessionsStarted,
   statsProjectID,
   stepsPerPrompt,
@@ -170,27 +169,9 @@ describe('stats charts', () => {
 
   const report = reportOf([bucket(0), bucket(1)])
 
-  it('counts root sessions started per bucket by project', () => {
-    const chart = sessionsByProject(live, report, undefined)
-
-    // Most sessions first; ties by key.
-    expect(chart.series).toEqual([
-      { key: 'prj_vltra', name: 'vltra' },
-      { key: otherProjectID, name: 'Other' },
-      { key: 'prj_box', name: 'box' }
-    ])
-
-    expect(chart.rows.map(row => row.values)).toEqual([
-      [1, 1, 0],
-      [1, 0, 1]
-    ])
-
-    expect(sessionsByProject(live, report, 'prj_box').rows.map(row => row.values)).toEqual([
-      [0],
-      [1]
-    ])
-
+  it('counts root sessions started in the range', () => {
     expect(sessionsStarted(live, report, undefined)).toBe(4)
+    expect(sessionsStarted(live, report, 'prj_box')).toBe(1)
   })
 
   it('tallies how latest runs that ended in range ended', () => {
@@ -266,17 +247,6 @@ describe('stats charts', () => {
     expect(chart.rows.map(row => row.values)).toEqual([
       [6, 1, 3],
       [1, 3, 0]
-    ])
-  })
-
-  it("gives Sessions started the Prompts chart's projects, in its order", () => {
-    const chart = sessionsByProject(live, report, undefined, promptProjectKeys(live, byProject))
-
-    // box is not among them: it goes to the rest.
-    expect(chart.series.map(series => series.key)).toEqual(['prj_vltra', otherProjectID, restKey])
-    expect(chart.rows.map(row => row.values)).toEqual([
-      [1, 1, 0],
-      [1, 0, 1]
     ])
   })
 

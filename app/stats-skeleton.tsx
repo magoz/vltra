@@ -38,7 +38,6 @@ export const skeletonCards: ReadonlyArray<CardSpec> = [
     detail: "sessions marked done by project, by their last run's end",
     body: bars(1)
   },
-  { title: 'Sessions started', detail: "by project, from Vltra's list", body: bars(1) },
   { title: 'Prompts', detail: 'your messages, by project', body: bars(1) },
   {
     title: 'Last year',

@@ -186,9 +186,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   cache reads, active days; Done: sessions done in the range with the subagents count under it; each with sparkline, its bar's
   date and value on hover, and change, `24×` past doubling), then cards in a grid by the page's width (1 column,
   2 from 56rem, 3 from 80rem; the tools table takes 2 of 3): Done (root sessions marked
-  done by project, the same projects as below, by their latest run's end, the `handled` marker's own time; when Done was pressed is not
-  recorded), sessions started and prompts (both by the same top three
-  projects, so each keeps one ink), the year calendar (sessions done per day from the live vltra, whatever the
+  done by project, the same top three projects as prompts, so each keeps one ink, by their latest run's end, the `handled` marker's own time; when Done was pressed is not
+  recorded), prompts (by project), the year calendar (sessions done per day from the live vltra, whatever the
   range, `doneByDay` / `yearWeeks`; in a card under 36rem the last 26 weeks),
   time of day (weekday × hour heatmap, hour bars; sessions started past 31
   days), steps and steps per prompt, tokens by model and model share, tool calls and failure

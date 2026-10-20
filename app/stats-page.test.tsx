@@ -248,7 +248,7 @@ describe('stats tab', () => {
     ).toBeTruthy()
   })
 
-  it('splits the Prompts bars by project, with the same projects in Sessions started', async () => {
+  it('splits the Prompts bars by project', async () => {
     vi.stubGlobal(
       'fetch',
       statsFetch(() => Response.json(report))
@@ -263,15 +263,6 @@ describe('stats tab', () => {
         .getAllByRole('listitem')
         .map(item => item.textContent)
     ).toEqual(['vltra', 'box', 'rest'])
-
-    const sessions = screen.getByRole('region', { name: 'Sessions started' })
-
-    expect(
-      within(within(sessions).getByRole('list', { name: 'Legend' }))
-        .getAllByRole('listitem')
-        .map(item => item.textContent)
-        .slice(0, 2)
-    ).toEqual(['vltra', 'box'])
   })
 
   it('shows a heatmap cell on hover', async () => {
