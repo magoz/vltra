@@ -14,11 +14,16 @@ import {
   freshTokens,
   hourGrid,
   inkLevel,
+  medianMergeTime,
+  mergedByDay,
+  mergedByRepo,
+  mergeTimes,
   modelShare,
   outcomesOverTime,
   promptPoints,
   promptProjectKeys,
   promptsByProjectChart,
+  repoCount,
   restKey,
   runOutcomes,
   sessionLengths,
@@ -36,6 +41,7 @@ import {
 } from '@/lib/data/vltra/stats-view'
 import { baseTime, sessionRecord, webUrl } from '@/lib/data/vltra/testing/fixtures'
 import type {
+  MergedPullRequest,
   ModelUsage,
   PromptsByProject,
   SessionRecord,
@@ -422,5 +428,72 @@ describe('stats charts', () => {
       { date: '2026-10-05', count: 0 },
       { date: '2026-10-06', count: 4 }
     ])
+  })
+})
+
+describe('merged pull requests', () => {
+  const minute = 60 * 1000
+
+  /** Opened `open` ms before its merge. */
+  const merged = (repo: string, mergedAt: number, open = 10 * minute): MergedPullRequest => ({
+    repo,
+    number: mergedAt,
+    createdAt: mergedAt - open,
+    mergedAt
+  })
+
+  it('stacks merges per bar by repo, by short name, the rest summed', () => {
+    const chart = mergedByRepo(reportOf([bucket(0), bucket(1)]), [
+      merged('magoz/vltra', baseTime + 5),
+      merged('magoz/vltra', baseTime + hour + 5),
+      merged('shhhlabs/10x', baseTime + 6),
+      merged('magoz/o-o', baseTime + 7),
+      merged('magoz/eat', baseTime + hour + 6),
+      merged('magoz/eat', baseTime + hour + 7),
+      // Outside every bar.
+      merged('magoz/vltra', baseTime + 2 * hour)
+    ])
+
+    expect(chart.series).toEqual([
+      { key: 'magoz/eat', name: 'eat' },
+      { key: 'magoz/vltra', name: 'vltra' },
+      { key: 'magoz/o-o', name: 'o-o' },
+      { key: restKey, name: 'rest' }
+    ])
+    expect(chart.rows.map(row => row.values)).toEqual([
+      [0, 1, 1, 1],
+      [2, 1, 0, 0]
+    ])
+  })
+
+  it('bins and takes the median of opened → merged, and counts repos', () => {
+    const pulls = [
+      merged('a/x', baseTime, 5 * minute),
+      merged('a/x', baseTime, 40 * minute),
+      merged('a/y', baseTime, 3 * hour),
+      merged('a/z', baseTime, 4 * 24 * hour)
+    ]
+
+    expect(mergeTimes(pulls).map(bin => bin.count)).toEqual([1, 1, 1, 0, 0, 1])
+    expect(mergeTimes(pulls)[0]?.label).toBe('<30m')
+    expect(medianMergeTime(pulls)).toBe((40 * minute + 3 * hour) / 2)
+    expect(medianMergeTime(pulls.slice(0, 3))).toBe(40 * minute)
+    expect(medianMergeTime([])).toBeUndefined()
+    expect(repoCount(pulls)).toBe(3)
+  })
+
+  it('counts merges per day in the zone', () => {
+    // 22:30 UTC on Oct 5 is already Oct 6 in Madrid.
+    const pulls = [
+      merged('a/x', Date.UTC(2026, 9, 5, 22, 30)),
+      merged('a/x', Date.UTC(2026, 9, 5, 12))
+    ]
+
+    expect(mergedByDay(pulls, 'Europe/Madrid')).toEqual(
+      new Map([
+        ['2026-10-06', 1],
+        ['2026-10-05', 1]
+      ])
+    )
   })
 })

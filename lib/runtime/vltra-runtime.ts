@@ -1,4 +1,6 @@
 import { Effect, Layer, ManagedRuntime } from 'effect'
+import { GitHubStatsLive } from '@/lib/data/vltra/github-stats'
+import type { GitHubStats } from '@/lib/data/vltra/github-stats'
 import { LaunchesLive } from '@/lib/data/vltra/launches'
 import type { Launches } from '@/lib/data/vltra/launches'
 import { NotifierLive } from '@/lib/data/vltra/notifier'
@@ -10,6 +12,8 @@ import { VltraWatcherLive } from '@/lib/data/vltra/watcher'
 import { exitOnSignals } from '@/lib/runtime/shutdown'
 import { DirectoriesLive } from '@/lib/services/directories/live-layer'
 import type { Directories } from '@/lib/services/directories/service'
+import { GitHubLive } from '@/lib/services/github/live-layer'
+import type { GitHub } from '@/lib/services/github/service'
 import { OpenCodeLive } from '@/lib/services/opencode/live-layer'
 import type { OpenCodeUnavailableError } from '@/lib/services/opencode/errors'
 import type { OpenCode } from '@/lib/services/opencode/service'
@@ -25,22 +29,26 @@ export type VltraServices =
   | OpenCode
   | SessionSummaries
   | Stats
+  | GitHubStats
   | Directories
   | Repos
   | Launches
   | Usage
+  | GitHub
   | Push
 
 /**
- * Store + OpenCode client + session folder checks + finished-run summary and stats caches + the
- * launcher's repositories and launch registry + the subscription quotas + Web Push, with the
- * watcher, the notifier (and any running launch) forked for the lifetime of the runtime.
+ * Store + OpenCode client + session folder checks + finished-run summary and stats caches (GitHub's
+ * merged pull requests too) + the launcher's repositories and launch registry + the subscription
+ * quotas + Web Push, with the watcher, the notifier (and any running launch) forked for the
+ * lifetime of the runtime.
  */
 export const VltraLayer = Layer.mergeAll(
   VltraWatcherLive(),
   NotifierLive,
   SessionSummariesLive,
   StatsLive,
+  GitHubStatsLive,
   LaunchesLive()
 ).pipe(
   Layer.provideMerge(VltraStoreLive),
@@ -48,7 +56,8 @@ export const VltraLayer = Layer.mergeAll(
   Layer.provideMerge(OpenCodeLive),
   Layer.provideMerge(DirectoriesLive),
   Layer.provideMerge(ReposLive),
-  Layer.provideMerge(UsageLive)
+  Layer.provideMerge(UsageLive),
+  Layer.provideMerge(GitHubLive)
 )
 
 // Fails to build only on invalid configuration (e.g. a malformed OPENCODE_URL).

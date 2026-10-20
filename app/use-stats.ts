@@ -2,11 +2,12 @@
 
 import { Option, Schema } from 'effect'
 import { useEffect, useState } from 'react'
-import { statsPeriodParams } from '@/lib/data/vltra/stats-period'
-import type { StatsPeriod } from '@/lib/data/vltra/stats-period'
-import { PromptsByProject, StatsHours, StatsReport } from '@/lib/data/vltra/types'
+import { StatsPeriod, statsPeriodParams } from '@/lib/data/vltra/stats-period'
+import { MergedPulls, PromptsByProject, StatsHours, StatsReport } from '@/lib/data/vltra/types'
 
 const decodeReport = Schema.decodeUnknownOption(Schema.fromJsonString(StatsReport))
+
+const decodeMerged = Schema.decodeUnknownOption(Schema.fromJsonString(MergedPulls))
 
 const decodeHours = Schema.decodeUnknownOption(Schema.fromJsonString(StatsHours))
 
@@ -56,6 +57,14 @@ export const statsUrl = (period: StatsPeriod, project: string | undefined, timeZ
 export const statsProjectsUrl = (period: StatsPeriod, timeZone: string) =>
   `/api/vltra/stats/projects?${statsQuery(period, undefined, timeZone)}`
 
+/** `GET /api/vltra/stats/github`'s URL (merged pull requests; every project). */
+export const statsGitHubUrl = (period: StatsPeriod, timeZone: string) =>
+  `/api/vltra/stats/github?${statsQuery(period, undefined, timeZone)}`
+
+/** The same for the days `from` to `to` (`YYYY-MM-DD`), whatever the tab's range. */
+export const statsGitHubDaysUrl = (from: string, to: string, timeZone: string) =>
+  statsGitHubUrl(StatsPeriod.Days({ from, to }), timeZone)
+
 /** `GET /api/vltra/stats/hours`'s URL (prompts per hour). */
 export const statsHoursUrl = (period: StatsPeriod, project: string | undefined, timeZone: string) =>
   `/api/vltra/stats/hours?${statsQuery(period, project, timeZone)}`
@@ -69,13 +78,18 @@ const lastOf = <A>(state: Settled<A>) => (state.status === 'ready' ? state.value
 
 /**
  * Loads `url` on mount and whenever it changes, then every minute while the page shows and when it
- * shows again. Until the URL's first answer it is loading, showing the last value; a failed
- * refresh keeps the last value on screen too.
+ * shows again; nothing while it is undefined (not wanted yet). Until the URL's first answer it is
+ * loading, showing the last value; a failed refresh keeps the last value on screen too.
  */
-function useStatsRead<A>(url: string, decode: (text: string) => Option.Option<A>): StatsState<A> {
+function useStatsRead<A>(
+  url: string | undefined,
+  decode: (text: string) => Option.Option<A>
+): StatsState<A> {
   const [fetched, setFetched] = useState<Fetched<A>>()
 
   useEffect(() => {
+    if (url === undefined) return
+
     let controller = new AbortController()
 
     const settle = (next: (last: A | undefined) => Settled<A>) =>
@@ -154,3 +168,11 @@ export const useStatsHours = (url: string): StatsState<StatsHours> => useStatsRe
  */
 export const useStatsProjects = (url: string): StatsState<PromptsByProject> =>
   useStatsRead(url, decodeProjects)
+
+/**
+ * The user's merged pull requests (`GET /api/vltra/stats/github`), read apart from the report:
+ * GitHub's search takes seconds, more the first time for a long range. None while `url` is
+ * undefined.
+ */
+export const useStatsGitHub = (url: string | undefined): StatsState<MergedPulls> =>
+  useStatsRead(url, decodeMerged)

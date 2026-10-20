@@ -1,27 +1,28 @@
 import { Effect, Schema } from 'effect'
 import type { NextRequest } from 'next/server'
-import { Stats, StatsQueryParams } from '@/lib/data/vltra/stats'
-import type { StatsError, StatsOperations, StatsQuery } from '@/lib/data/vltra/stats'
+import { StatsQueryParams } from '@/lib/data/vltra/stats'
+import type { StatsError, StatsQuery } from '@/lib/data/vltra/stats'
 import type { StatsRangeError } from '@/lib/data/vltra/errors'
 import { statsPeriodOf } from '@/lib/data/vltra/stats-period'
+import type { GitHubUnavailableError } from '@/lib/services/github/service'
 
 const noStore = { 'cache-control': 'no-store' }
 
 const json = (body: Readonly<Record<string, string>>, status: number) =>
   Response.json(body, { status, headers: noStore })
 
+/** What a Stats route's read can fail with. */
+export type StatsReadError = StatsError | StatsRangeError | GitHubUnavailableError
+
 /**
- * A Stats route (`/api/vltra/stats`, `.../hours`): the query (`?range=` or `?from=&to=`, `?tz=`,
- * `?project=`), `read` from the `Stats` service, encoded with `schema`; failures as `{ error }`
- * with a fitting status.
+ * A Stats route (`/api/vltra/stats`, `.../hours`, ...): the query (`?range=` or `?from=&to=`,
+ * `?tz=`, `?project=`), `read`, encoded with `schema`; failures as `{ error }` with a fitting
+ * status.
  */
-export const statsResponse = <A, I>(
+export const statsResponse = <A, I, R>(
   request: NextRequest,
   operation: string,
-  read: (
-    stats: StatsOperations,
-    query: StatsQuery
-  ) => Effect.Effect<A, StatsError | StatsRangeError>,
+  read: (query: StatsQuery) => Effect.Effect<A, StatsReadError, R>,
   schema: Schema.Codec<A, I>
 ) => {
   const params = request.nextUrl.searchParams
@@ -31,13 +32,7 @@ export const statsResponse = <A, I>(
     project: params.get('project') ?? undefined
   }).pipe(
     Effect.flatMap(input =>
-      Effect.flatMap(Stats, stats =>
-        read(stats, {
-          period: statsPeriodOf(params),
-          timezone: input.timezone,
-          project: input.project
-        })
-      )
+      read({ period: statsPeriodOf(params), timezone: input.timezone, project: input.project })
     ),
     Effect.flatMap(Schema.encodeEffect(schema)),
     Effect.map(body => Response.json(body, { headers: noStore })),
@@ -53,6 +48,10 @@ export const statsResponse = <A, I>(
       OpenCodeRequestError: error =>
         Effect.logWarning(`${operation} failed`, error.operation, error.message).pipe(
           Effect.as(json({ error: 'OpenCode request failed' }, 502))
+        ),
+      GitHubUnavailableError: error =>
+        Effect.logWarning(`${operation} unavailable`, error.message).pipe(
+          Effect.as(json({ error: error.message }, 503))
         )
     })
   )

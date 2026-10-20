@@ -12,26 +12,32 @@ import { cn } from '@/lib/utils'
 export function StatsCard({
   title,
   detail,
+  actions,
   className,
   children
 }: {
   readonly title: string
   /** Muted text after the title: what is counted. */
   readonly detail?: string | undefined
+  /** Controls at the title row's end (the year calendar's layers). */
+  readonly actions?: ReactNode
   readonly className?: string
   readonly children: ReactNode
 }) {
   return (
     <section aria-label={title} className={cn('bg-background min-w-0 border', className)}>
-      <h3 className="flex items-baseline gap-2 border-b px-3 py-2">
-        {/* The title stays on one line; the detail gives way (in full on hover). */}
-        <span className="shrink-0 font-semibold whitespace-nowrap">{title}</span>
-        {detail === undefined ? null : (
-          <span title={detail} className="text-muted-foreground min-w-0 truncate text-xs">
-            {detail}
-          </span>
-        )}
-      </h3>
+      <div className="flex items-center gap-2 border-b px-3 py-2">
+        <h3 className="flex min-w-0 flex-1 items-baseline gap-2">
+          {/* The title stays on one line; the detail gives way (in full on hover). */}
+          <span className="shrink-0 font-semibold whitespace-nowrap">{title}</span>
+          {detail === undefined ? null : (
+            <span title={detail} className="text-muted-foreground min-w-0 truncate text-xs">
+              {detail}
+            </span>
+          )}
+        </h3>
+        {actions}
+      </div>
       <div className="p-3">{children}</div>
     </section>
   )
@@ -167,6 +173,9 @@ export function Tile({
     </div>
   )
 }
+
+/** The tiles' grid: two, four, then all eight in a row. */
+export const tileGrid = 'grid grid-cols-2 gap-2 @lg:grid-cols-4 @5xl:grid-cols-8'
 
 /**
  * The cards' grid by the page's own width: one column, two from 56rem, three from 80rem (two

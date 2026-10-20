@@ -828,3 +828,27 @@ export const PromptsByProject = Schema.Struct({
 })
 
 export type PromptsByProject = typeof PromptsByProject.Type
+
+/** One of the user's pull requests that was merged (epoch ms). */
+export const MergedPullRequest = Schema.Struct({
+  repo: Schema.String,
+  number: Schema.Number,
+  createdAt: Schema.Number,
+  mergedAt: Schema.Number
+})
+
+export type MergedPullRequest = typeof MergedPullRequest.Type
+
+/**
+ * `GET /api/vltra/stats/github` (same range; `?project=` is ignored): the user's pull requests
+ * merged in the range, in any repository, and how many in the as long range before (none for all
+ * time, which starts at OpenCode's first message like the report).
+ */
+export const MergedPulls = Schema.Struct({
+  from: Schema.Number,
+  to: Schema.Number,
+  pulls: Schema.Array(MergedPullRequest),
+  previous: Schema.optional(Schema.Number)
+})
+
+export type MergedPulls = typeof MergedPulls.Type

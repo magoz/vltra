@@ -7,11 +7,16 @@ import { useVltra } from '@/app/vltra-context'
 import { ProjectFilter } from '@/app/project-filter'
 import type { ProjectFilterHandle } from '@/app/project-filter'
 import { SessionSplit } from '@/app/session-panel'
-import { cardGrid, StatsCard, Tile, wide } from '@/app/stats-card'
+import { cardGrid, StatsCard, Tile, tileGrid, wide } from '@/app/stats-card'
 import type { TrendLine } from '@/app/stats-card'
 import { CategoryBars, HourBars, SessionScatter, ShareTable, TimeBars } from '@/app/stats-charts'
 import { CalendarHeatmap, HourHeatmap } from '@/app/stats-heatmaps'
-import { BarsPlaceholder, HeatmapPlaceholder, StatsSkeleton } from '@/app/stats-skeleton'
+import {
+  BarsPlaceholder,
+  CalendarPlaceholder,
+  HeatmapPlaceholder,
+  StatsSkeleton
+} from '@/app/stats-skeleton'
 import {
   bucketTitle,
   calendarDay,
@@ -26,10 +31,13 @@ import { useKeys } from '@/app/use-keys'
 import {
   browserTimeZone,
   shownValue,
+  statsGitHubDaysUrl,
+  statsGitHubUrl,
   statsHoursUrl,
   statsProjectsUrl,
   statsUrl,
   useStats,
+  useStatsGitHub,
   useStatsHours,
   useStatsProjects
 } from '@/app/use-stats'
@@ -45,12 +53,17 @@ import {
   doneOverTime,
   freshTokens,
   hourGrid,
+  medianMergeTime,
+  mergedByDay,
+  mergedByRepo,
+  mergeTimes,
   modelShare,
   modelsByTokens,
   outcomesOverTime,
   promptPoints,
   promptProjectKeys,
   promptsByProjectChart,
+  repoCount,
   runOutcomes,
   sessionLengths,
   sessionPoints,
@@ -68,7 +81,7 @@ import {
 } from '@/lib/data/vltra/stats-view'
 import type { HourGrid, SeriesChart } from '@/lib/data/vltra/stats-view'
 import { HoursRead } from '@/lib/data/vltra/types'
-import type { PromptsByProject, StatsHours, StatsReport } from '@/lib/data/vltra/types'
+import type { MergedPulls, PromptsByProject, StatsHours, StatsReport } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
 const presetLabels: Readonly<Record<StatsPreset, string>> = {
@@ -195,15 +208,68 @@ function StatusLine({
   )
 }
 
+/** The GitHub cards' read and its chart, once it answered (perhaps for another range). */
+type MergedRead = {
+  readonly state: StatsState<MergedPulls>
+  readonly value: MergedValue | undefined
+}
+
+type MergedValue = {
+  readonly merged: MergedPulls
+  /** PRs merged by repo per bucket. */
+  readonly byRepo: SeriesChart
+}
+
+/** The PRs merged tile: every project, whatever the filter; `–` until GitHub answers. */
+function MergedTile({
+  merged,
+  labels
+}: {
+  readonly merged: MergedRead
+  readonly labels: ReadonlyArray<string>
+}) {
+  const { value, state } = merged
+
+  if (value === undefined) {
+    // Why not, muted: the rest of the page is OpenCode's and unaffected.
+    return (
+      <Tile
+        label="PRs merged"
+        value="–"
+        detail={state.status === 'failed' ? state.error : 'loading…'}
+      />
+    )
+  }
+
+  const count = value.merged.pulls.length
+  const repos = repoCount(value.merged.pulls)
+
+  return (
+    <Tile
+      label="PRs merged"
+      value={compactNumber(count)}
+      detail={`${repos} ${repos === 1 ? 'repo' : 'repos'}`}
+      title={`${wholeNumber(count)} of your pull requests merged, in ${wholeNumber(repos)} repositories (every project)`}
+      change={changePercent(count, value.merged.previous)}
+      trend={{
+        values: value.byRepo.rows.map(row => row.values.reduce((sum, bar) => sum + bar, 0)),
+        labels
+      }}
+    />
+  )
+}
+
 function Tiles({
   report,
   started,
-  done
+  done,
+  merged
 }: {
   readonly report: StatsReport
   readonly started: number
   /** The Done chart: its bars feed the Done tile's sparkline. */
   readonly done: SeriesChart
+  readonly merged: MergedRead
 }) {
   const { view, nav } = useVltra()
   const { totals, previous } = report
@@ -220,7 +286,7 @@ function Tiles({
   const line = (values: ReadonlyArray<number>): TrendLine => ({ values, labels })
 
   return (
-    <dl className="grid grid-cols-2 gap-2 @lg:grid-cols-4 @5xl:grid-cols-7">
+    <dl className={tileGrid}>
       <Tile
         label="Done"
         value={compactNumber(doneNow)}
@@ -229,6 +295,7 @@ function Tiles({
         change={changePercent(doneNow, doneBefore)}
         trend={line(done.rows.map(row => row.values.reduce((sum, value) => sum + value, 0)))}
       />
+      <MergedTile merged={merged} labels={labels} />
       <Tile
         label="Prompts"
         value={compactNumber(totals.prompts)}
@@ -397,22 +464,113 @@ function TimeOfDay({
   )
 }
 
+/** What the year calendar counts. */
+type CalendarLayer = 'sessions' | 'merges'
+
+const calendarLayers: ReadonlyArray<{ readonly layer: CalendarLayer; readonly detail: string }> = [
+  { layer: 'sessions', detail: 'sessions done per day, whatever the range' },
+  { layer: 'merges', detail: 'your PRs merged per day, whatever the range' }
+]
+
 /**
- * Sessions done per day over the last year, whatever the range (Vltra's list, like the Done
- * chart), recounted as the list changes.
+ * Per day over the last year, whatever the range: sessions done (Vltra's list, like the Done
+ * chart, recounted as the list changes), or your merged pull requests (GitHub, read only once
+ * picked; every project).
  */
 function YearCalendar({ timeZone }: { readonly timeZone: string }) {
   const { view, now, nav } = useVltra()
+  const [layer, setLayer] = useState<CalendarLayer>('sessions')
 
   const weeks = useMemo(
     () => yearWeeks(doneByDay(view, nav.project, timeZone), now, timeZone),
     [view, nav.project, now, timeZone]
   )
 
+  // The calendar's own days: from its first Monday to today.
+  const first = weeks[0]?.[0]?.date
+  const today = calendarDay(now, timeZone)
+
+  const github = useStatsGitHub(
+    layer === 'merges' && first !== undefined
+      ? statsGitHubDaysUrl(first, today, timeZone)
+      : undefined
+  )
+
+  const shown = shownValue(github)
+
+  const mergedWeeks = useMemo(
+    () =>
+      shown === undefined
+        ? undefined
+        : yearWeeks(mergedByDay(shown.pulls, timeZone), now, timeZone),
+    [shown, now, timeZone]
+  )
+
+  const body = () => {
+    if (layer === 'sessions') return <CalendarHeatmap weeks={weeks} noun="done" />
+
+    if (mergedWeeks !== undefined) {
+      return (
+        <div className={cn('transition-opacity', github.status === 'loading' && 'opacity-50')}>
+          <CalendarHeatmap weeks={mergedWeeks} noun="merged" />
+        </div>
+      )
+    }
+
+    return github.status === 'failed' ? (
+      <p className="text-muted-foreground text-xs">{github.error}</p>
+    ) : (
+      <CalendarPlaceholder />
+    )
+  }
+
   return (
-    <StatsCard title="Last year" detail="sessions done per day, whatever the range">
-      <CalendarHeatmap weeks={weeks} noun="done" />
+    <StatsCard
+      title="Last year"
+      detail={calendarLayers.find(entry => entry.layer === layer)?.detail}
+      actions={
+        <div role="group" aria-label="Count" className="flex shrink-0 border">
+          {calendarLayers.map(entry => (
+            <button
+              key={entry.layer}
+              type="button"
+              aria-pressed={layer === entry.layer}
+              onClick={() => setLayer(entry.layer)}
+              className={cn(segment, 'h-5 px-1.5 text-[11px]')}
+            >
+              {entry.layer}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      {body()}
     </StatsCard>
+  )
+}
+
+/** A GitHub card's chart once GitHub answered, else a placeholder or why it could not. */
+function GitHubBody({
+  merged,
+  children
+}: {
+  readonly merged: MergedRead
+  readonly children: (value: MergedValue) => ReactNode
+}) {
+  const { value, state } = merged
+
+  if (value !== undefined) {
+    return (
+      <div className={cn('transition-opacity', state.status === 'loading' && 'opacity-50')}>
+        {children(value)}
+      </div>
+    )
+  }
+
+  return state.status === 'failed' ? (
+    <p className="text-muted-foreground text-xs">{state.error}</p>
+  ) : (
+    <BarsPlaceholder legendLines={1} />
   )
 }
 
@@ -420,11 +578,13 @@ function StatsBody({
   report,
   hours,
   projects,
+  github,
   filter
 }: {
   readonly report: StatsReport
   readonly hours: StatsState<StatsHours>
   readonly projects: StatsState<PromptsByProject>
+  readonly github: StatsState<MergedPulls>
   readonly filter: string | undefined
 }) {
   const { view } = useVltra()
@@ -465,18 +625,46 @@ function StatsBody({
     [report, view, filter, byProject, unit, timeZone]
   )
 
+  // Every project's, whatever the filter (GitHub knows no OpenCode projects).
+  const mergedShown = shownValue(github)
+
+  const merged = useMemo(
+    (): MergedRead => ({
+      state: github,
+      value:
+        mergedShown === undefined
+          ? undefined
+          : { merged: mergedShown, byRepo: mergedByRepo(report, mergedShown.pulls) }
+    }),
+    [github, mergedShown, report]
+  )
+
   const started = sessionsStarted(view, report, filter)
 
   if (report.buckets.length === 0) {
     return <p className="text-muted-foreground py-10 text-center">No activity in this range.</p>
   }
 
+  const medianMerge = mergedShown === undefined ? undefined : medianMergeTime(mergedShown.pulls)
+
   return (
     <>
-      <Tiles report={report} started={started} done={charts.done} />
+      <Tiles report={report} started={started} done={charts.done} merged={merged} />
       <div className={cardGrid}>
         <StatsCard title="Done" detail="sessions marked done by project, by their last run's end">
           <TimeBars chart={charts.done} unit={unit} timeZone={timeZone} format={compactNumber} />
+        </StatsCard>
+        <StatsCard title="PRs merged" detail="yours, by repo, every project">
+          <GitHubBody merged={merged}>
+            {value => (
+              <TimeBars
+                chart={value.byRepo}
+                unit={unit}
+                timeZone={timeZone}
+                format={compactNumber}
+              />
+            )}
+          </GitHubBody>
         </StatsCard>
         <StatsCard title="Prompts" detail="your messages, by project">
           <TimeBars
@@ -488,6 +676,18 @@ function StatsBody({
         </StatsCard>
         <YearCalendar timeZone={timeZone} />
         <TimeOfDay report={report} hours={hours} filter={filter} />
+        <StatsCard
+          title="Time to merge"
+          detail={
+            medianMerge === undefined
+              ? 'your PRs, opened → merged'
+              : `your PRs, opened → merged · median ${durationText(medianMerge)}`
+          }
+        >
+          <GitHubBody merged={merged}>
+            {value => <CategoryBars data={mergeTimes(value.merged.pulls)} noun="PRs" />}
+          </GitHubBody>
+        </StatsCard>
         <StatsCard title="Steps" detail="model calls">
           <TimeBars chart={charts.steps} unit={unit} timeZone={timeZone} format={compactNumber} />
         </StatsCard>
@@ -610,11 +810,12 @@ function StatsBody({
  * The Stats tab (`?view=stats`): OpenCode's own numbers for a range (default the last 7 days,
  * `?range=` / `?from=&to=`) and project (`?project=`, shared with Agents), with no state of
  * Vltra's. Headline tiles, then bars per hour / day / week (done, prompts), both by project
- * (prompts from `/api/vltra/stats/projects`, the same projects and inks for both), time of day
- * (prompts by weekday × hour and by hour, `/api/vltra/stats/hours`), more bars (steps, tokens by
- * model, tool calls) and whole-range tables (models, tools, run outcomes). Done, sessions started
- * and outcomes come from Vltra's session list, the rest from OpenCode's stats. An open session docks beside it (`SessionSplit`). Keys: `[` / `]` a shorter
- * / longer preset, `/` the filter.
+ * (prompts from `/api/vltra/stats/projects`, the same projects and inks for both), your merged
+ * PRs (`/api/vltra/stats/github`, every project), time of day (prompts by weekday × hour and by
+ * hour, `/api/vltra/stats/hours`), more bars (steps, tokens by model, tool calls) and whole-range
+ * tables (models, tools, run outcomes). Done, sessions started and outcomes come from Vltra's
+ * session list, the rest from OpenCode's stats. An open session docks beside it
+ * (`SessionSplit`). Keys: `[` / `]` a shorter / longer preset, `/` the filter.
  */
 export function StatsPage() {
   const { view, nav } = useVltra()
@@ -624,6 +825,7 @@ export function StatsPage() {
   const state = useStats(statsUrl(nav.period, project, timeZone))
   const hours = useStatsHours(statsHoursUrl(nav.period, project, timeZone))
   const projects = useStatsProjects(statsProjectsUrl(nav.period, timeZone))
+  const github = useStatsGitHub(statsGitHubUrl(nav.period, timeZone))
   const report = shownValue(state)
 
   useKeys({
@@ -653,7 +855,13 @@ export function StatsPage() {
                 state.status === 'loading' && 'opacity-50'
               )}
             >
-              <StatsBody report={report} hours={hours} projects={projects} filter={nav.project} />
+              <StatsBody
+                report={report}
+                hours={hours}
+                projects={projects}
+                github={github}
+                filter={nav.project}
+              />
             </div>
           )}
         </div>

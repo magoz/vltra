@@ -1,6 +1,8 @@
+import { Effect } from 'effect'
 import { connection } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { statsResponse } from '@/app/api/vltra/stats/stats-request'
+import { Stats } from '@/lib/data/vltra/stats'
 import { StatsHours } from '@/lib/data/vltra/types'
 import { runVltra } from '@/lib/runtime/vltra-runtime'
 
@@ -15,7 +17,7 @@ export async function GET(request: NextRequest) {
     statsResponse(
       request,
       'api.vltra.stats.hours',
-      (stats, query) => stats.hours(query),
+      query => Effect.flatMap(Stats, stats => stats.hours(query)),
       StatsHours
     )
   )

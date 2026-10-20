@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useVltra } from '@/app/vltra-context'
-import { cardGrid, StatsCard, wide } from '@/app/stats-card'
+import { cardGrid, StatsCard, tileGrid, wide } from '@/app/stats-card'
 import { CalendarHeatmap, HourHeatmap } from '@/app/stats-heatmaps'
 import { browserTimeZone } from '@/app/use-stats'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -38,6 +38,7 @@ export const skeletonCards: ReadonlyArray<CardSpec> = [
     detail: "sessions marked done by project, by their last run's end",
     body: bars(1)
   },
+  { title: 'PRs merged', detail: 'yours, by repo, every project', body: bars(1) },
   { title: 'Prompts', detail: 'your messages, by project', body: bars(1) },
   {
     title: 'Last year',
@@ -46,6 +47,7 @@ export const skeletonCards: ReadonlyArray<CardSpec> = [
   },
   { title: 'Time of day', detail: 'by weekday and hour', body: { kind: 'heatmap' } },
   { title: 'By hour of day', detail: 'whole range', body: bars(0) },
+  { title: 'Time to merge', detail: 'your PRs, opened → merged', body: bars(0) },
   { title: 'Steps', detail: 'model calls', body: bars(0) },
   { title: 'Steps per prompt', detail: 'how much the agents do per message', body: bars(0) },
   { title: 'Tokens by model', detail: 'excl. cache reads', body: bars(2) },
@@ -159,14 +161,14 @@ function TilePlaceholder() {
   )
 }
 
-/** The seven tiles and every card, empty. */
+/** The eight tiles and every card, empty. */
 export function StatsSkeleton() {
   return (
     <div role="status" aria-label="Loading stats" className="flex flex-col gap-3">
       {/* Placeholders only: the status names it; the frames stay out of the accessibility tree. */}
       <div aria-hidden="true" className="contents">
-        <div className="grid grid-cols-2 gap-2 @lg:grid-cols-4 @5xl:grid-cols-7">
-          {Array.from({ length: 7 }, (_, index) => (
+        <div className={tileGrid}>
+          {Array.from({ length: 8 }, (_, index) => (
             <TilePlaceholder key={index} />
           ))}
         </div>

@@ -45,6 +45,7 @@ Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | Board projections                | `lib/data/vltra/board.ts`                                        | Pure: live rows, needs-me list, columns, cards, filter    |
 | Run summaries (plugin page)      | `lib/data/vltra/session-detail.ts`                               | Latest answer + diff totals, cached by `idle`             |
 | Stats tab (data)                 | `lib/data/vltra/stats.ts`, `stats-period.ts`, `stats-view.ts`    | OpenCode `session.stats` per range + bucket; projections  |
+| Stats tab (GitHub merged PRs)    | `lib/data/vltra/github-stats.ts`, `lib/services/github/`         | `gh api graphql` search; settled part cached              |
 | Stats tab (UI)                   | `app/stats-page.tsx`, `stats-charts.tsx`, `use-stats.ts`         | Recharts (lazy), `components/ui/chart.tsx`                |
 | Stats frames, heatmaps, skeleton | `app/stats-card.tsx`, `stats-heatmaps.tsx`, `stats-skeleton.tsx` | No Recharts: the skeleton shows while the tab loads       |
 | Notifications (what, when)       | `lib/data/vltra/notify.ts`, `notifier.ts`                        | Pure snapshot diff + grace recheck; forked in runtime     |
@@ -181,16 +182,21 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   settled 10 min are cached in the runtime (`Stats` service). Two more reads load apart so the
   page never waits: `/api/vltra/stats/projects` (prompts by project: one `tools: none` call per
   OpenCode project to rank them, then the top three's bars) and `/hours` (prompts per hour, up
-  to 31 days, else `TooLong`). `use-stats.ts`
-  refetches each every minute while shown, keeping the last value. Top to bottom: 7 tiles (Done, prompts, steps, tool calls, tokens,
-  cache reads, active days; Done: sessions done in the range with the subagents count under it; each with sparkline, its bar's
+  to 31 days, else `TooLong`). A third, `/github` (`github-stats.ts`, the `GitHub` service in
+  `lib/services/github/`: `gh api graphql` search `is:pr author:@me is:merged merged:A..B`, 100 a
+  page, halves past the search's 1000 cap), is the user's merged PRs in any repo, the project
+  filter ignored; all time from OpenCode's first message; the range up to the start of today
+  (UTC) cached in the runtime, today read every time; `gh` failing (missing, signed out) leaves a
+  muted note in the tile and cards, the rest unaffected. `use-stats.ts`
+  refetches each every minute while shown, keeping the last value. Top to bottom: 8 tiles (Done, PRs merged, prompts, steps, tool calls, tokens,
+  cache reads, active days; Done: sessions done in the range with the subagents count under it; PRs merged: repos under it; each with sparkline, its bar's
   date and value on hover, and change, `24×` past doubling), then cards in a grid by the page's width (1 column,
   2 from 56rem, 3 from 80rem; the tools table takes 2 of 3): Done (root sessions marked
   done by project, the same top three projects as prompts, so each keeps one ink, by their latest run's end, the `handled` marker's own time; when Done was pressed is not
-  recorded), prompts (by project), the year calendar (sessions done per day from the live vltra, whatever the
-  range, `doneByDay` / `yearWeeks`; in a card under 36rem the last 26 weeks),
+  recorded), PRs merged (by repo, its own top three), prompts (by project), the year calendar (sessions done per day from the live vltra, whatever the
+  range, `doneByDay` / `yearWeeks`, or with its `merges` toggle PRs merged per day, read for the calendar's own days only once picked; in a card under 36rem the last 26 weeks),
   time of day (weekday × hour heatmap, hour bars; sessions started past 31
-  days), steps and steps per prompt, tokens by model and model share, tool calls and failure
+  days), time to merge (opened → merged bins, median in the title), steps and steps per prompt, tokens by model and model share, tool calls and failure
   rate, cache hits and run outcomes over time, session length and subagents per session (bins),
   tokens × length (a dot per session, log scales), then the models, tools and outcomes tables.
   Pure projections in `stats-view.ts`; session-based charts (started, outcomes, lengths,

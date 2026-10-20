@@ -133,6 +133,11 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
   `GET /api/vltra/stats/projects` (same range) → `PromptsByProject`: prompts per bar, all
   projects and the three with most (the Prompts chart's split). The Done chart, the Done tile and
   the year calendar (sessions done per day) come from Vltra's own session list, no call.
+  `GET /api/vltra/stats/github` (same range, `?project=` ignored) → `MergedPulls`: the user's
+  pull requests merged in the range in any repository, and the count of the range before, from
+  GitHub's search through the host's `gh` (its signed-in user); the PRs merged tile and card,
+  time to merge, and the year calendar's `merges` layer. The only Stats data not OpenCode's;
+  `503` with why when `gh` fails, which the page shows as a muted note.
 - Notifications: `GET /api/vltra/notifications` → `PushSettings` (the VAPID public key and the
   subscribed devices, never their endpoints); the web turns a browser on or off, and tests it,
   with the server actions `savePushDevice`, `removePushDevice` and `testPush`.

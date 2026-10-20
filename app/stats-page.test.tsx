@@ -7,7 +7,7 @@ import type { NavCall } from '@/app/testing/dashboard-fixtures'
 import { vltraLive, now } from '@/app/testing/vltra-scenario'
 import { noActivity } from '@/lib/data/vltra/stats'
 import { HoursRead, HoursTooLong } from '@/lib/data/vltra/types'
-import type { PromptsByProject, StatsHours, StatsReport } from '@/lib/data/vltra/types'
+import type { MergedPulls, PromptsByProject, StatsHours, StatsReport } from '@/lib/data/vltra/types'
 
 const day = 24 * 60 * 60 * 1000
 
@@ -75,15 +75,38 @@ const projects: PromptsByProject = {
   ]
 }
 
+/** Three PRs merged: two in vltra on the first day (one opened 2h before), one in 10x on the next. */
+const merged: MergedPulls = {
+  from: report.from,
+  to: report.to,
+  previous: 2,
+  pulls: [
+    { repo: 'magoz/vltra', number: 1, createdAt: now - 2 * day, mergedAt: now - 2 * day + 600_000 },
+    {
+      repo: 'magoz/vltra',
+      number: 2,
+      createdAt: now - 2 * day,
+      mergedAt: now - 2 * day + 7_200_000
+    },
+    { repo: 'shhhlabs/10x', number: 3, createdAt: now - day, mergedAt: now - day + 600_000 }
+  ]
+}
+
 /**
- * Answers `/api/vltra/stats` with `answer` and `.../hours` with `hoursAnswer`; everything else
- * (usage, launcher) is not found.
+ * Answers `/api/vltra/stats` with `answer`, `.../hours` with `hoursAnswer` and `.../github` with
+ * `githubAnswer`; everything else (usage, launcher) is not found.
  */
-const statsFetch = (answer: () => Response, hoursAnswer = () => Response.json(hours)) =>
+const statsFetch = (
+  answer: () => Response,
+  hoursAnswer = () => Response.json(hours),
+  githubAnswer = () => Response.json(merged)
+) =>
   vi.fn((input: RequestInfo | URL) => {
     const url = String(input)
 
     if (url.startsWith('/api/vltra/stats/hours')) return Promise.resolve(hoursAnswer())
+
+    if (url.startsWith('/api/vltra/stats/github')) return Promise.resolve(githubAnswer())
 
     if (url.startsWith('/api/vltra/stats/projects')) return Promise.resolve(Response.json(projects))
 
@@ -263,6 +286,101 @@ describe('stats tab', () => {
         .getAllByRole('listitem')
         .map(item => item.textContent)
     ).toEqual(['vltra', 'box', 'rest'])
+  })
+
+  it('shows your merged PRs: the tile, by repo, time to merge, every project', async () => {
+    const fetch = statsFetch(() => Response.json(report))
+
+    vi.stubGlobal('fetch', fetch)
+    renderStats()
+
+    const label = await screen.findByText('PRs merged', { selector: 'dt' })
+    const tile = label.parentElement ?? label
+
+    await waitFor(() => expect(within(tile).getByText('3')).toBeTruthy())
+    expect(within(tile).getByText('2 repos')).toBeTruthy()
+    expect(within(tile).getByText('+50%')).toBeTruthy()
+
+    const card = screen.getByRole('region', { name: 'PRs merged' })
+    const legend = await within(card).findByRole('list', { name: 'Legend' })
+
+    expect(
+      within(legend)
+        .getAllByRole('listitem')
+        .map(item => item.textContent)
+    ).toEqual(['vltra', '10x'])
+
+    const times = screen.getByRole('region', { name: 'Time to merge' })
+
+    expect(within(times).getByText('your PRs, opened → merged · median 10m')).toBeTruthy()
+
+    const urls = fetch.mock.calls
+      .map(([input]) => String(input))
+      .filter(url => url.startsWith('/api/vltra/stats/github'))
+
+    expect(urls[0]).toMatch(/^\/api\/vltra\/stats\/github\?tz=[\w%/]+$/)
+
+    // The project filter leaves GitHub alone.
+    fireEvent.click(screen.getByRole('combobox', { name: 'Project' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'vltra' }))
+
+    await waitFor(() => expect(statsUrls(fetch).at(-1)).toContain('project=prj_vltra'))
+    expect(
+      fetch.mock.calls
+        .map(([input]) => String(input))
+        .some(url => url.startsWith('/api/vltra/stats/github') && url.includes('project='))
+    ).toBe(false)
+  })
+
+  it('says, muted, why GitHub has nothing; the rest shows', async () => {
+    vi.stubGlobal(
+      'fetch',
+      statsFetch(
+        () => Response.json(report),
+        () => Response.json(hours),
+        () => Response.json({ error: 'gh is not signed in' }, { status: 503 })
+      )
+    )
+    renderStats()
+
+    const label = await screen.findByText('PRs merged', { selector: 'dt' })
+
+    await waitFor(() =>
+      expect(within(label.parentElement ?? label).getByText('gh is not signed in')).toBeTruthy()
+    )
+
+    const card = screen.getByRole('region', { name: 'PRs merged' })
+    const note = within(card).getByText('gh is not signed in')
+
+    expect(note.className).toContain('text-muted-foreground')
+    expect(screen.getByText('806')).toBeTruthy()
+  })
+
+  it('switches the year calendar to merges, read for its own days', async () => {
+    const fetch = statsFetch(() => Response.json(report))
+
+    vi.stubGlobal('fetch', fetch)
+    renderStats()
+
+    const calendar = await screen.findByRole('region', { name: 'Last year' })
+
+    expect(within(calendar).getByRole('table', { name: 'done per day, last year' })).toBeTruthy()
+
+    fireEvent.click(within(calendar).getByRole('button', { name: 'merges' }))
+
+    const merges = await within(calendar).findByRole('table', {
+      name: 'merged per day, last year'
+    })
+
+    expect(within(merges).getAllByLabelText(/: 2$/)).toHaveLength(1)
+    expect(within(calendar).getByText('your PRs merged per day, whatever the range')).toBeTruthy()
+    expect(
+      fetch.mock.calls.some(([input]) =>
+        /^\/api\/vltra\/stats\/github\?from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}&tz=/.test(
+          String(input)
+        )
+      )
+    ).toBe(true)
   })
 
   it('shows a heatmap cell on hover', async () => {

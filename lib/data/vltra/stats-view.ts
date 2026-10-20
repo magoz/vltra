@@ -3,6 +3,7 @@ import type { LiveVltra } from '@/lib/data/vltra/board'
 import type {
   VltraRow,
   HourActivity,
+  MergedPullRequest,
   ModelUsage,
   Outcome,
   StatsBucket,
@@ -11,8 +12,9 @@ import type {
   TokenCounts
 } from '@/lib/data/vltra/types'
 
-// The Stats tab's charts, from a `StatsReport` (OpenCode's numbers) and the live vltra (Vltra's
-// own session list: sessions started, how runs ended). Pure, so it runs (and is tested) anywhere.
+// The Stats tab's charts, from a `StatsReport` (OpenCode's numbers), the live vltra (Vltra's own
+// session list: sessions started, how runs ended) and GitHub's merged pull requests. Pure, so it
+// runs (and is tested) anywhere.
 
 /** OpenCode's project for sessions outside any repository (Vltra's "Other"). */
 export const globalProjectID = 'global'
@@ -653,3 +655,79 @@ export const doneCount = (
       row.idle >= range.from &&
       row.idle < range.to
   ).length
+
+/** A repository's short name: `owner/name` → `name`. */
+const repoName = (repo: string) => repo.slice(repo.indexOf('/') + 1)
+
+/** Merged pull requests per bucket of their merge by repository: the top three, then the rest. */
+export const mergedByRepo = (
+  report: StatsReport,
+  pulls: ReadonlyArray<MergedPullRequest>
+): SeriesChart => {
+  const perBucket = report.buckets.map(() => new Map<string, number>())
+
+  for (const pull of pulls) {
+    const counts = perBucket[bucketIndex(report.buckets, pull.mergedAt)]
+
+    if (counts !== undefined) counts.set(pull.repo, (counts.get(pull.repo) ?? 0) + 1)
+  }
+
+  return seriesChart(report.buckets, perBucket, stackLimit, repoName)
+}
+
+/** Repositories with a merge among `pulls`. */
+export const repoCount = (pulls: ReadonlyArray<MergedPullRequest>): number =>
+  new Set(pulls.map(pull => pull.repo)).size
+
+/** Time to merge's bins: within half an hour up to over three days. */
+const mergeBins: ReadonlyArray<{ readonly label: string; readonly below: number }> = [
+  { label: '<30m', below: 30 * minute },
+  { label: '30m–2h', below: 2 * hourMs },
+  { label: '2–8h', below: 8 * hourMs },
+  { label: '8–24h', below: 24 * hourMs },
+  { label: '1–3d', below: 72 * hourMs },
+  { label: '>3d', below: Number.POSITIVE_INFINITY }
+]
+
+/** How long merged pull requests stayed open: opened to merged. */
+export const mergeTimes = (
+  pulls: ReadonlyArray<MergedPullRequest>
+): ReadonlyArray<CategoryCount> => {
+  const counts = mergeBins.map(() => 0)
+
+  for (const pull of pulls) {
+    const bin = mergeBins.findIndex(candidate => pull.mergedAt - pull.createdAt < candidate.below)
+
+    counts[bin] = (counts[bin] ?? 0) + 1
+  }
+
+  return mergeBins.map((bin, index) => ({ label: bin.label, count: counts[index] ?? 0 }))
+}
+
+/** The median time from opened to merged; none without pulls. */
+export const medianMergeTime = (pulls: ReadonlyArray<MergedPullRequest>): number | undefined => {
+  const times = pulls.map(pull => pull.mergedAt - pull.createdAt).toSorted((a, b) => a - b)
+  const middle = Math.floor(times.length / 2)
+  const upper = times[middle]
+
+  if (upper === undefined) return undefined
+
+  return times.length % 2 === 1 ? upper : ((times[middle - 1] ?? upper) + upper) / 2
+}
+
+/** Merged pull requests per day (`YYYY-MM-DD` in `timeZone`) of their merge. */
+export const mergedByDay = (
+  pulls: ReadonlyArray<MergedPullRequest>,
+  timeZone: string
+): ReadonlyMap<string, number> => {
+  const format = new Intl.DateTimeFormat('en-CA', { timeZone })
+  const counts = new Map<string, number>()
+
+  for (const pull of pulls) {
+    const day = format.format(pull.mergedAt)
+
+    counts.set(day, (counts.get(day) ?? 0) + 1)
+  }
+
+  return counts
+}
