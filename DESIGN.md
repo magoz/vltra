@@ -197,7 +197,7 @@ only once a reconnect lasts 3s (page loads and a woken phone stay quiet).
   shows one column at a time via a segmented control (`Need you 6 · Working 5 · Done`),
   opening on Need you when it has cards. Swipe left on a finished card marks
   it handled (focus mode's list has no ✔ Done button on the phone, only the swipe) (no horizontal column scrolling, so the gesture stays unambiguous).
-- **Keyboard (Mac)**: `1` / `2` / `3` (or `⌘⌥1`–`⌘⌥3`, also inside the chat) the tabs; `⌘1`–`⌘9`
+- **Keyboard (Mac)**: `1` / `2` / `3` (or `⌘⌥1`–`⌘⌥3`, also inside the chat) the tabs; `⌘1`–`⌘9` (or `⌃1`–`⌃9`)
   open Focus' Nth session from anywhere, inside the chat too; `⌘D` marks the open session done, `⌘U` undoes; opening a
   chat puts the caret in its composer (desktop), and `i` / `⌘I` put it back after `Esc`. Focus: `j`/`k` move through the list, `Enter`
   opens the session on the right, `h` handled (the next needs-me session opens), `u` undo. Agents: `j`/`k` (`↓`/`↑`) within a column, `←`/`→` between columns, `h` handled (and the

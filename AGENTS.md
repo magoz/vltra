@@ -266,7 +266,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   `isLauncherKey`, its own listener, also while typing),
   `?` / `⌘/` (`isHelpKey`, also while typing) the tab's keys (`shortcuts-dialog.tsx`,
   `keyHints`; also the header's `?`; no hints line),
-  `Escape` closes the session (the palette closes itself). `⌘1`–`⌘9` open Focus' Nth session
+  `Escape` closes the session (the palette closes itself). `⌘1`–`⌘9` (or `Ctrl+1`–`Ctrl+9`) open Focus' Nth session
   (in Focus from another tab) and `⌘⌥1`–`⌘⌥5` pick a tab, `⌘U` is the tab's `u` (`useKeys`),
   `⌘I` / `i` put the caret in the chat's composer (`useInsertKeys`; `chat-composer.ts`, which also
   focuses it once when a chat loads, on a fine pointer, unless a Vltra field or dialog has focus),

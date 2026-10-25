@@ -136,6 +136,33 @@ describe('forwardChatKeys', () => {
     expect(chatFrame.vltra).toEqual(['™'])
   })
 
+  it("takes Ctrl + digits ahead of OpenCode's own (its `mod+N` tab keys off the Mac)", () => {
+    const textarea = chatFrame.frameDocument.querySelector('textarea')
+
+    if (textarea === null) throw new Error('missing fixture')
+
+    const opencode: Array<string> = []
+
+    const takeDigit = (event: KeyboardEvent) => {
+      if (event.code === 'Digit3') event.preventDefault()
+    }
+
+    // OpenCode's keybinds listen on its document in the capture phase (`command.tsx`).
+    chatFrame.frameDocument.addEventListener('keydown', event => opencode.push(event.code), {
+      capture: true
+    })
+    document.addEventListener('keydown', takeDigit)
+
+    const event = chatFrame.press('3', textarea, { code: 'Digit3', ctrlKey: true })
+
+    document.removeEventListener('keydown', takeDigit)
+
+    expect(event.defaultPrevented).toBe(true)
+    expect(chatFrame.vltra).toEqual(['3'])
+    expect(opencode).toEqual([])
+    expect(chatFrame.chat).toEqual([])
+  })
+
   it('stops forwarding once detached', () => {
     chatFrame.detach?.()
     chatFrame.press('j')

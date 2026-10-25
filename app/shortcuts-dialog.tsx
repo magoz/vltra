@@ -8,7 +8,7 @@ type KeyHint = { readonly keys: string; readonly label: string }
 /**
  * Each tab's keys (`agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`, `stats-page.tsx`),
  * plus the shell's: `n` (the launcher, also `⌘K`), `1`–`5` and `⌘⌥1`–`⌘⌥5`
- * (the tabs), `⌘1`–`⌘9` (Focus' Nth session), `Escape` (close the session) and `?` / `⌘/` (this list), plus OpenCode's
+ * (the tabs), `⌘1`–`⌘9` / `⌃1`–`⌃9` (Focus' Nth session), `Escape` (close the session) and `?` / `⌘/` (this list), plus OpenCode's
  * own palette in the chat (`⌘P`).
  */
 export const keyHints: Readonly<Record<VltraScreen, ReadonlyArray<KeyHint>>> = {
@@ -18,7 +18,7 @@ export const keyHints: Readonly<Record<VltraScreen, ReadonlyArray<KeyHint>>> = {
     { keys: 'h ⌘D', label: 'done' },
     { keys: 'u ⌘U', label: 'undo' },
     { keys: 'n ⌘K', label: 'new' },
-    { keys: '⌘1–9', label: 'Nth session (Focus)' },
+    { keys: '⌘1–9 ⌃1–9', label: 'Nth session (Focus)' },
     { keys: '1 2 3 4 5 ⌘⌥1–5', label: 'tabs' },
     { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
@@ -33,7 +33,7 @@ export const keyHints: Readonly<Record<VltraScreen, ReadonlyArray<KeyHint>>> = {
     { keys: 'u ⌘U', label: 'undo' },
     { keys: 'n ⌘K', label: 'new' },
     { keys: '/', label: 'filter' },
-    { keys: '⌘1–9', label: 'Nth session (Focus)' },
+    { keys: '⌘1–9 ⌃1–9', label: 'Nth session (Focus)' },
     { keys: '1 2 3 4 5 ⌘⌥1–5', label: 'tabs' },
     { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
@@ -45,7 +45,7 @@ export const keyHints: Readonly<Record<VltraScreen, ReadonlyArray<KeyHint>>> = {
     { keys: 'j k', label: 'session' },
     { keys: '↵', label: 'open' },
     { keys: 'n ⌘K', label: 'new' },
-    { keys: '⌘1–9', label: 'Nth session (Focus)' },
+    { keys: '⌘1–9 ⌃1–9', label: 'Nth session (Focus)' },
     { keys: '1 2 3 4 5 ⌘⌥1–5', label: 'tabs' },
     { keys: 'i ⌘I', label: 'type in the chat' },
     { keys: 'esc', label: 'close the session' },
@@ -56,14 +56,14 @@ export const keyHints: Readonly<Record<VltraScreen, ReadonlyArray<KeyHint>>> = {
     { keys: '[ ]', label: 'shorter / longer range' },
     { keys: '/', label: 'filter' },
     { keys: 'n ⌘K', label: 'new' },
-    { keys: '⌘1–9', label: 'Nth session (Focus)' },
+    { keys: '⌘1–9 ⌃1–9', label: 'Nth session (Focus)' },
     { keys: '1 2 3 4 5 ⌘⌥1–5', label: 'tabs' },
     { keys: 'esc', label: 'close the session' },
     { keys: '? ⌘/', label: 'shortcuts' }
   ],
   settings: [
     { keys: 'n ⌘K', label: 'new' },
-    { keys: '⌘1–9', label: 'Nth session (Focus)' },
+    { keys: '⌘1–9 ⌃1–9', label: 'Nth session (Focus)' },
     { keys: '1 2 3 4 5 ⌘⌥1–5', label: 'tabs' },
     { keys: '? ⌘/', label: 'shortcuts' }
   ]

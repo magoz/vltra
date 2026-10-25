@@ -42,7 +42,7 @@ describe('shortcuts', () => {
       'u ⌘U undo',
       'n ⌘K new',
       '/ filter',
-      '⌘1–9 Nth session (Focus)',
+      '⌘1–9 ⌃1–9 Nth session (Focus)',
       '1 2 3 4 5 ⌘⌥1–5 tabs',
       'i ⌘I type in the chat',
       'esc close the session',

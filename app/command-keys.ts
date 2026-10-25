@@ -2,7 +2,7 @@ import { Data } from 'effect'
 import type { VltraScreen } from '@/app/vltra-href'
 
 /**
- * Vltra's `⌘` chords: `⌘1`–`⌘9` the Nth session of Focus' list, `⌘⌥1`–`⌘⌥5` a tab, `⌘D` the open
+ * Vltra's `⌘` chords: `⌘1`–`⌘9` (or `Ctrl+1`–`Ctrl+9`) the Nth session of Focus' list, `⌘⌥1`–`⌘⌥5` a tab, `⌘D` the open
  * session done, `⌘U` undo (the tab's `u`), `⌘I` into the chat's composer. They work everywhere but dialogs, in the OpenCode chat
  * too, even while typing.
  */
@@ -20,13 +20,24 @@ const tabs: ReadonlyArray<VltraScreen> = ['focus', 'agents', 'projects', 'stats'
 
 type ChordEvent = Pick<KeyboardEvent, 'code' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>
 
+const sessionDigit = (code: string): CommandKey | undefined => {
+  const digit = /^Digit([1-9])$/.exec(code)?.[1]
+
+  return digit === undefined ? undefined : CommandKey.Session({ index: Number(digit) - 1 })
+}
+
 /**
  * The chord a key press makes, if any. Read by `code`, the physical key: with Option, `key` is the
- * layout's character (`¡`, `|`, `@`…). `⌘` only: `Ctrl` + digits belong to the OS, and `⌘⇧3`–`⌘⇧5`
- * are macOS screenshots, so Shift chords stay out.
+ * layout's character (`¡`, `|`, `@`…). `⌘`, plus `Ctrl+1`–`Ctrl+9` for the sessions alone (`⌃⌥` and
+ * `Ctrl` + letters stay the OS's and the fields'). `⌘⇧3`–`⌘⇧5` are macOS screenshots, so Shift
+ * chords stay out.
  */
 export const commandKey = (event: ChordEvent): CommandKey | undefined => {
-  if (!event.metaKey || event.ctrlKey || event.shiftKey) return undefined
+  if (event.shiftKey) return undefined
+
+  if (event.ctrlKey && !event.metaKey) return event.altKey ? undefined : sessionDigit(event.code)
+
+  if (!event.metaKey || event.ctrlKey) return undefined
 
   if (event.code === 'KeyD') return event.altKey ? undefined : CommandKey.Done()
 

@@ -15,6 +15,22 @@ describe('commandKey', () => {
     expect(commandKey(chord('Digit9'))).toEqual(CommandKey.Session({ index: 8 }))
   })
 
+  it('Ctrl+1–Ctrl+9 pick the Nth session too, and nothing else', () => {
+    const ctrl = (code: string, mods: { shift?: boolean; alt?: boolean } = {}) => ({
+      ...chord(code, { ...mods, ctrl: true }),
+      metaKey: false
+    })
+
+    expect(commandKey(ctrl('Digit1'))).toEqual(CommandKey.Session({ index: 0 }))
+    expect(commandKey(ctrl('Digit9'))).toEqual(CommandKey.Session({ index: 8 }))
+    expect(commandKey(ctrl('Digit0'))).toBeUndefined()
+    expect(commandKey(ctrl('Digit1', { alt: true }))).toBeUndefined()
+    expect(commandKey(ctrl('Digit1', { shift: true }))).toBeUndefined()
+    expect(commandKey(ctrl('KeyD'))).toBeUndefined()
+    expect(commandKey(ctrl('KeyU'))).toBeUndefined()
+    expect(commandKey(ctrl('KeyI'))).toBeUndefined()
+  })
+
   it('⌘⌥1–⌘⌥5 pick a tab, by physical key whatever the layout prints', () => {
     expect(commandKey(chord('Digit1', { alt: true }))).toEqual(CommandKey.Tab({ screen: 'focus' }))
     expect(commandKey(chord('Digit2', { alt: true }))).toEqual(CommandKey.Tab({ screen: 'agents' }))
@@ -40,7 +56,7 @@ describe('commandKey', () => {
     expect(commandKey(chord('KeyU', { alt: true }))).toBeUndefined()
   })
 
-  it('leaves everything else alone: no ⌘, Ctrl or ⇧ too (⌘⇧3 is a screenshot), 0, letters', () => {
+  it('leaves everything else alone: no ⌘, ⌘ with Ctrl or ⇧ (⌘⇧3 is a screenshot), 0, letters', () => {
     expect(commandKey({ ...chord('Digit1'), metaKey: false })).toBeUndefined()
     expect(commandKey(chord('Digit1', { ctrl: true }))).toBeUndefined()
     expect(commandKey(chord('Digit1', { shift: true }))).toBeUndefined()

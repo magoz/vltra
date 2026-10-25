@@ -345,7 +345,7 @@ describe('tabs', () => {
     ])
   })
 
-  it('⌘1–⌘9 open the Nth session of the list, from any tab; ⌘⌥1–⌘⌥3 switch tabs', () => {
+  it('⌘1–⌘9 (or ⌃1–⌃9) open the Nth session of the list, from any tab; ⌘⌥1–⌘⌥3 switch tabs', () => {
     renderFocus()
 
     const chord = (code: string, altKey = false) =>
@@ -381,6 +381,11 @@ describe('tabs', () => {
 
     expect(past.defaultPrevented).toBe(true)
     expect(testLocation()).toBe('/?view=projects&session=ses_wait_new')
+
+    // Ctrl does the same.
+    fireEvent.keyDown(document.body, { key: '3', code: 'Digit3', ctrlKey: true })
+
+    expect(testLocation()).toBe('/?session=ses_done_new')
   })
 
   it("switches with the phone's tabs, keeping the filter between Focus and Agents", () => {
