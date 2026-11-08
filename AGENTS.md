@@ -362,10 +362,10 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   Testing Library component tests, and the anti-slop/local lint rule suites) and `integration` (`*.integration.test.ts`, node).
 - Effect tests use `@effect/vitest`; backoff/timeouts use `TestClock`. Fake services with typed
   layers (`lib/services/opencode/testing/fake-opencode.ts`); `vi.mock` is a lint error.
-- The integration suite starts a real, isolated `opencode serve` (v2.0.20) on a random loopback
+- The integration suite starts a real, isolated `opencode serve` (v2.2.6) on a random loopback
   port: temp HOME/XDG/TMPDIR/config, rebuilt env (no provider keys), dead outbound proxy, and an
   unavailable model, so it never calls a model or touches `~/.local/share/opencode` or the live
-  service. It skips with a message when the binary is missing or not 2.0.20 (`OPENCODE_BIN`).
+  service. It skips with a message when the binary is missing or not 2.2.6 (`OPENCODE_BIN`).
 - Never point any test at the live service (127.0.0.1:49374). Tests must pass `OPENCODE_URL` /
   `OPENCODE_PASSWORD` through the layer config and assert the connection URL.
 

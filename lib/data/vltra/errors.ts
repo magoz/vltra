@@ -11,8 +11,8 @@ export class SessionNotFinishedError extends Schema.TaggedError<SessionNotFinish
 ) {}
 
 /**
- * The session's folder no longer exists, so OpenCode cannot write its metadata (it resolves the
- * folder for every write). Such a session counts as handled and cannot be reopened.
+ * The session's folder no longer exists. Such a session counts as handled and cannot be reopened
+ * (Vltra's rule: OpenCode up to 2.0.22 refused its metadata writes; 2.2.6 accepts them).
  */
 export class SessionFolderGoneError extends Schema.TaggedError<SessionFolderGoneError>()(
   'SessionFolderGoneError',

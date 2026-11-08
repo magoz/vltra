@@ -62,7 +62,7 @@ const readSession = (connection: OpenCodeConnection, sessionID: string) =>
  * Mark the latest run of a finished root session handled: `metadata.vltra.handled = idle`, with
  * `idle` read fresh from OpenCode. Rejected unless the watcher sees the root row finished (not
  * running, nothing pending in its subtree); already handled runs are left alone, and so are
- * sessions whose folder is gone (handled by definition; OpenCode cannot write to them).
+ * sessions whose folder is gone (handled by definition: `SessionFolderGoneError`).
  */
 export const markHandled = (input: MarkHandledInput) =>
   Effect.gen(function* () {
@@ -107,7 +107,7 @@ export const markHandled = (input: MarkHandledInput) =>
 
 /**
  * Undo / Reopen: remove the handled marker, so the latest run is finished again. A session whose
- * folder is gone stays handled (OpenCode cannot write to it): `SessionFolderGoneError`.
+ * folder is gone stays handled: `SessionFolderGoneError`.
  */
 export const reopen = (input: ReopenInput) =>
   withConnection(connection =>

@@ -19,7 +19,7 @@ import {
 } from '@/lib/services/opencode/testing/opencode-server'
 import type { JsonValue, OpenCodeServer } from '@/lib/services/opencode/testing/opencode-server'
 
-// Runs Vltra against a real, isolated, throwaway `opencode serve` (v2.0.22). No model is ever
+// Runs Vltra against a real, isolated, throwaway `opencode serve` (v2.2.6). No model is ever
 // called: sessions use an unavailable model so prompts fail fast, and outbound HTTP is blocked.
 
 const binary = findOpenCode()
@@ -388,14 +388,11 @@ describe.skipIf(!binary.available)('Vltra against a real opencode serve', () => 
           expect(summary.sessionID).toBe(sessionID)
           expect(summary.changes).toBeUndefined()
 
-          // Why: once OpenCode has to resolve the location again (here after a restart), every
-          // location-scoped write fails on the missing folder (500 on 2.0.20, 404 on 2.0.22).
+          // Still handled after OpenCode resolves the location again (here after a restart). Up to
+          // 2.0.22 OpenCode refused writes to the missing folder; 2.2.6 accepts them, so this is
+          // Vltra's own rule.
           yield* server.stop
           yield* server.start
-
-          const write = yield* writeMetadata(server, sessionID, { vltra: { handled: 1 } })
-
-          expect(write.ok).toBe(false)
 
           yield* eventually(
             value =>

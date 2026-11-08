@@ -25,7 +25,7 @@ import type { OpenCodeServer } from '@/lib/services/opencode/testing/opencode-se
 import { makeRepos } from '@/lib/services/repos/live-layer'
 import { Repos } from '@/lib/services/repos/service'
 
-// The launcher against a real, isolated, throwaway `opencode serve` (v2.0.22) with OpenCode's
+// The launcher against a real, isolated, throwaway `opencode serve` (v2.2.6) with OpenCode's
 // DEFAULT git worktree strategy: the dotfiles plugin is not loaded there. Temp repositories only;
 // the default model is unavailable, so no prompt ever reaches a model.
 
