@@ -39,7 +39,7 @@ import {
   toSessionStats,
   toSignals,
   toTranscript,
-  withVltraHandled
+  withVltraMarker
 } from '@/lib/services/opencode/mapping'
 import type { RunEnd } from '@/lib/services/opencode/mapping'
 import { OpenCode } from '@/lib/services/opencode/service'
@@ -384,7 +384,7 @@ const makeConnection = (
           Effect.map(list => list.map(entry => entry.directory)),
           request('worktree.list')
         ),
-      setHandled: ({ sessionID, handled }) =>
+      setHandled: ({ sessionID, ...marker }) =>
         Effect.gen(function* () {
           const id = yield* decodeSessionId(sessionID)
 
@@ -394,7 +394,7 @@ const makeConnection = (
             .pipe(action('session.get', sessionID))
 
           yield* client.session
-            .update({ sessionID: id, metadata: withVltraHandled(info.metadata, handled) })
+            .update({ sessionID: id, metadata: withVltraMarker(info.metadata, marker) })
             .pipe(action('session.update', sessionID))
         }),
       interruptReason: sessionID =>

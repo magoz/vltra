@@ -82,14 +82,17 @@ function EndLabel({ row }: { readonly row: VltraRow }) {
   )
 }
 
-/** The session's folder was deleted: it counts as handled and cannot be reopened. */
+/** The session's folder was deleted: it counts as handled until I reopen it. */
 export function GoneLabel() {
   return <span className="text-muted-foreground">folder deleted</span>
 }
 
-/** A handled session can be reopened unless it never ran or its folder is gone. */
+/**
+ * A handled session can be reopened unless it never ran: by its marker, or (without one) because
+ * its folder is gone.
+ */
 export const isReopenable = (row: VltraRow) =>
-  row.state === 'handled' && row.handled !== undefined && !row.gone
+  row.state === 'handled' && (row.gone ? row.idle !== undefined : row.handled !== undefined)
 
 /** The one-line state label of a Projects row. */
 function StateLabel({ row, now }: { readonly row: VltraRow; readonly now: number }) {

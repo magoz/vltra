@@ -16,7 +16,6 @@ import {
   LaunchNotFoundError,
   NotACheckoutError,
   RetireRefusedError,
-  SessionFolderGoneError,
   SessionNotFinishedError
 } from '@/lib/data/vltra/errors'
 import { InProcessBackendLive, Launches, makeLaunches } from '@/lib/data/vltra/launches'
@@ -244,7 +243,7 @@ describe('POST /api/vltra/sessions/:id/handled', () => {
 })
 
 describe('POST /api/vltra/sessions/:id/reopen', () => {
-  it.effect('200: removes the marker; not-handled when there is none', () =>
+  it.effect('200: removes the marker (reopened for a gone folder); not-handled when none', () =>
     Effect.gen(function* () {
       const { fake, layer } = yield* setUp()
 
@@ -255,18 +254,22 @@ describe('POST /api/vltra/sessions/:id/reopen', () => {
         expect(yield* answer('ses_handled')).toEqual(
           ok({ sessionID: 'ses_handled', outcome: 'reopened' })
         )
+        expect(yield* answer('ses_gone_handled')).toEqual(
+          ok({ sessionID: 'ses_gone_handled', outcome: 'reopened' })
+        )
         expect(yield* answer('ses_finished')).toEqual(
           ok({ sessionID: 'ses_finished', outcome: 'not-handled' })
         )
       }).pipe(Effect.provide(layer))
 
       expect(yield* fake.calls).toEqual([
-        { op: 'setHandled', sessionID: 'ses_handled', handled: undefined }
+        { op: 'setHandled', sessionID: 'ses_handled', handled: undefined },
+        { op: 'setHandled', sessionID: 'ses_gone_handled', handled: undefined, reopened: idle }
       ])
     })
   )
 
-  it.effect('400 invalid, 404 unknown, 409 folder gone, 403, 415, 503', () =>
+  it.effect('400 invalid, 404 unknown, 403, 415, 503', () =>
     Effect.gen(function* () {
       const { fake, layer } = yield* setUp()
 
@@ -280,9 +283,6 @@ describe('POST /api/vltra/sessions/:id/reopen', () => {
         expect(yield* answer('')).toEqual(failure(400, 'Invalid input'))
         expect(yield* answer('ses_handled', 'not json')).toEqual(failure(400, 'Invalid input'))
         expect(yield* answer('ses_missing')).toEqual(failure(404, 'Session not found'))
-        expect(yield* answer('ses_gone_handled')).toEqual(
-          failure(409, "The session's folder no longer exists")
-        )
         expect(yield* answer('ses_handled', '{}', crossSite)).toEqual(
           failure(403, 'Request rejected')
         )
@@ -482,11 +482,6 @@ describe('failure statuses', () => {
         new SessionNotFinishedError({ sessionID: 'ses_1', state: 'working' }),
         409,
         'Only a finished session can be marked done'
-      ],
-      [
-        new SessionFolderGoneError({ sessionID: 'ses_1', directory: '/x' }),
-        409,
-        "The session's folder no longer exists"
       ],
       [new LaunchInProgressError({ id: 'l' }), 409, 'The launch is still running'],
       [new RetireRefusedError({ directory: '/x', reason: 'Busy' }), 409, 'Busy'],

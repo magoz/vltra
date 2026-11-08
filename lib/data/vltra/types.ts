@@ -56,7 +56,9 @@ export const SessionRecord = Schema.Struct({
   archived: Schema.optional(Schema.Number),
   outcome: Schema.optional(Outcome),
   /** Vltra's marker (`metadata.vltra.handled`): the `idle` of the last run I handled. */
-  handled: Schema.optional(Schema.Number)
+  handled: Schema.optional(Schema.Number),
+  /** Vltra's marker (`metadata.vltra.reopened`): the `idle` of a gone-folder run I reopened. */
+  reopened: Schema.optional(Schema.Number)
 })
 
 export type SessionRecord = typeof SessionRecord.Type
@@ -212,7 +214,7 @@ const rowFields = {
   viewed: Schema.optional(Schema.Number),
   /**
    * The session's folder no longer exists on disk (e.g. a deleted worktree or scratch folder).
-   * OpenCode cannot write its metadata any more, so it counts as handled and cannot be reopened.
+   * It counts as handled unless I reopened its latest run (`metadata.vltra.reopened`).
    */
   gone: Schema.Boolean,
   /** State from this session alone. */

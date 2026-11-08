@@ -23,6 +23,14 @@ export type ActionError = OpenCodeRequestError | OpenCodeInvalidInputError | Ses
 /** Calls OpenCode may refuse with a message of its own (worktrees, location registration). */
 export type RejectableError = ActionError | OpenCodeRejectedError
 
+/**
+ * Vltra's markers on a session, never both: `handled` (the `idle` of the run I handled), or
+ * `reopened` (the `idle` of a gone-folder session's run I reopened), or neither.
+ */
+export type VltraMarker =
+  | { readonly handled: number | undefined; readonly reopened?: undefined }
+  | { readonly handled: undefined; readonly reopened: number }
+
 /** The project OpenCode resolves (registering it if needed) for a directory. */
 export type ResolvedLocation = {
   readonly directory: string
@@ -49,14 +57,13 @@ export type OpenCodeConnection = {
     projectID: string
   ) => Effect.Effect<ReadonlyArray<string>, OpenCodeRequestError>
   /**
-   * Set (a number) or remove (`undefined`) Vltra's handled marker, `metadata.vltra.handled`.
-   * OpenCode replaces the whole metadata object on write, so this reads the session, changes only
-   * that key, and writes everything else back as it was.
+   * Replace Vltra's markers, `metadata.vltra.handled` and `.reopened`, with `marker` (absent ones
+   * removed). OpenCode replaces the whole metadata object on write, so this reads the session,
+   * changes only those keys, and writes everything else back as it was.
    */
-  readonly setHandled: (input: {
-    readonly sessionID: string
-    readonly handled: number | undefined
-  }) => Effect.Effect<void, ActionError>
+  readonly setHandled: (
+    input: { readonly sessionID: string } & VltraMarker
+  ) => Effect.Effect<void, ActionError>
   /**
    * Why the session's latest run was interrupted, from its durable log
    * (`GET /api/experimental/session/:id/log`); none when it did not end interrupted.

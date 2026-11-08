@@ -226,7 +226,7 @@ describe('handled cards', () => {
     )
   })
 
-  it('says "folder deleted" and offers no Reopen once the folder is gone', () => {
+  it('says "folder deleted" and still offers Reopen once the folder is gone', () => {
     const row = rowFrom(
       {
         sessions: [
@@ -246,7 +246,7 @@ describe('handled cards', () => {
 
     expect(row.state).toBe('handled')
     expect(screen.getByText('folder deleted').className).toContain('text-muted-foreground')
-    expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Reopen' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Done' })).toBeNull()
   })
 

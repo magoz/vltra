@@ -337,7 +337,7 @@ describe.skipIf(!binary.available)('Vltra against a real opencode serve', () => 
   )
 
   it.live(
-    'a session whose folder was deleted counts as handled and is never written to',
+    'a session whose folder was deleted counts as handled until reopened, also after a restart',
     () =>
       Effect.gen(function* () {
         const server = yield* startOpenCodeServer(binary.available ? binary.path : 'opencode')
@@ -374,12 +374,8 @@ describe.skipIf(!binary.available)('Vltra against a real opencode serve', () => 
 
           expect(gone.handled).toBeUndefined()
 
-          // No marker write: Handled is a no-op, Reopen is refused, metadata stays untouched.
+          // Handled needs no marker: Done is a no-op and metadata stays untouched.
           expect(yield* markHandled({ sessionID })).toBe('already-handled')
-
-          const refused = yield* reopen({ sessionID }).pipe(Effect.flip)
-
-          expect(refused._tag).toBe('SessionFolderGoneError')
           expect((yield* storedSession(server, sessionID)).metadata).toBeUndefined()
 
           // The run's summary still loads (messages); the diff is skipped.
@@ -388,9 +384,8 @@ describe.skipIf(!binary.available)('Vltra against a real opencode serve', () => 
           expect(summary.sessionID).toBe(sessionID)
           expect(summary.changes).toBeUndefined()
 
-          // Still handled after OpenCode resolves the location again (here after a restart). Up to
-          // 2.0.22 OpenCode refused writes to the missing folder; 2.2.6 accepts them, so this is
-          // Vltra's own rule.
+          // Once OpenCode resolves the location again (here after a restart), writes to the missing
+          // folder still land (2.0.x refused them), so Reopen and Done work.
           yield* server.stop
           yield* server.start
 
@@ -402,8 +397,17 @@ describe.skipIf(!binary.available)('Vltra against a real opencode serve', () => 
             'resync after restart'
           )
 
-          expect(yield* markHandled({ sessionID })).toBe('already-handled')
-          expect((yield* storedSession(server, sessionID)).metadata).toBeUndefined()
+          expect(yield* reopen({ sessionID })).toBe('reopened')
+          expect((yield* storedSession(server, sessionID)).metadata).toEqual({
+            vltra: { reopened: finished.idle }
+          })
+          yield* eventually(rowIn(sessionID, 'finished'), 'reopened row finished')
+
+          expect(yield* markHandled({ sessionID })).toBe('handled')
+          expect((yield* storedSession(server, sessionID)).metadata).toEqual({
+            vltra: { handled: finished.idle }
+          })
+          yield* eventually(rowIn(sessionID, 'handled'), 'done again')
 
           // Deleting still works with the folder gone (the projects cleanup relies on it), and
           // deleting it again is a no-op.

@@ -15,7 +15,8 @@ import {
   toSessionRecord,
   toSignals,
   toTranscript,
-  withVltraHandled
+  vltraReopened,
+  withVltraMarker
 } from '@/lib/services/opencode/mapping'
 import type { RunEnd } from '@/lib/services/opencode/mapping'
 import type { JsonValue } from '@/lib/services/opencode/testing/opencode-server'
@@ -529,7 +530,7 @@ describe('session row mapping', () => {
   )
 })
 
-describe('handled marker in session metadata', () => {
+describe('Vltra markers in session metadata', () => {
   it('reads metadata.vltra.handled; absent or malformed reads as unhandled', () => {
     expect(vltraHandled({ vltra: { handled: 42 } })).toBe(42)
     expect(vltraHandled({ vltra: { handled: 42, note: 'x' }, other: [1] })).toBe(42)
@@ -539,33 +540,55 @@ describe('handled marker in session metadata', () => {
     expect(vltraHandled({ vltra: 'handled' })).toBeUndefined()
     expect(vltraHandled({ vltra: { handled: '42' } })).toBeUndefined()
     expect(vltraHandled({ vltra: [42] })).toBeUndefined()
+    expect(vltraHandled({ vltra: { reopened: 42 } })).toBeUndefined()
   })
 
-  it('sets only vltra.handled and keeps every other key', () => {
-    expect(withVltraHandled(undefined, 42)).toEqual({ vltra: { handled: 42 } })
+  it('reads metadata.vltra.reopened; absent or malformed reads as not reopened', () => {
+    expect(vltraReopened({ vltra: { reopened: 42, note: 'x' } })).toBe(42)
+    expect(vltraReopened({ vltra: { handled: 42 } })).toBeUndefined()
+    expect(vltraReopened({ vltra: { reopened: '42' } })).toBeUndefined()
+    expect(vltraReopened(undefined)).toBeUndefined()
+  })
+
+  it('sets only Vltra markers and keeps every other key', () => {
+    expect(withVltraMarker(undefined, { handled: 42 })).toEqual({ vltra: { handled: 42 } })
 
     expect(
-      withVltraHandled({ plugin: { a: 1 }, tags: ['x'], vltra: { handled: 1, note: 'n' } }, 42)
+      withVltraMarker(
+        { plugin: { a: 1 }, tags: ['x'], vltra: { handled: 1, note: 'n' } },
+        { handled: 42 }
+      )
     ).toEqual({ plugin: { a: 1 }, tags: ['x'], vltra: { handled: 42, note: 'n' } })
   })
 
+  it('writes one marker: reopened replaces handled, and handled replaces reopened', () => {
+    expect(
+      withVltraMarker({ vltra: { handled: 1, note: 'n' } }, { handled: undefined, reopened: 42 })
+    ).toEqual({ vltra: { note: 'n', reopened: 42 } })
+
+    expect(withVltraMarker({ vltra: { reopened: 1 } }, { handled: 42 })).toEqual({
+      vltra: { handled: 42 }
+    })
+  })
+
   it('replaces a malformed vltra value', () => {
-    expect(withVltraHandled({ vltra: 'oops', other: 1 }, 42)).toEqual({
+    expect(withVltraMarker({ vltra: 'oops', other: 1 }, { handled: 42 })).toEqual({
       other: 1,
       vltra: { handled: 42 }
     })
 
-    expect(withVltraHandled({ vltra: [1, 2] }, 42)).toEqual({ vltra: { handled: 42 } })
+    expect(withVltraMarker({ vltra: [1, 2] }, { handled: 42 })).toEqual({ vltra: { handled: 42 } })
   })
 
-  it('clearing deletes the key, and vltra once it is empty', () => {
-    expect(withVltraHandled({ vltra: { handled: 1, note: 'n' }, other: 1 }, undefined)).toEqual({
-      vltra: { note: 'n' },
+  it('clearing deletes the markers, and vltra once it is empty', () => {
+    expect(
+      withVltraMarker({ vltra: { handled: 1, note: 'n' }, other: 1 }, { handled: undefined })
+    ).toEqual({ vltra: { note: 'n' }, other: 1 })
+
+    expect(withVltraMarker({ vltra: { reopened: 1 }, other: 1 }, { handled: undefined })).toEqual({
       other: 1
     })
-
-    expect(withVltraHandled({ vltra: { handled: 1 }, other: 1 }, undefined)).toEqual({ other: 1 })
-    expect(withVltraHandled(undefined, undefined)).toEqual({})
+    expect(withVltraMarker(undefined, { handled: undefined })).toEqual({})
   })
 })
 

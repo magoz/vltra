@@ -150,7 +150,7 @@ describe('mark handled', () => {
     })
   )
 
-  it.effect('a session whose folder is gone is already handled, without any OpenCode call', () =>
+  it.effect('a session whose folder is gone is already handled, without any write', () =>
     Effect.gen(function* () {
       const fake = yield* makeFakeOpenCode(snapshot)
       const directories = yield* makeFakeDirectories([gone])
@@ -246,20 +246,55 @@ describe('reopen', () => {
 })
 
 describe('reopen a session whose folder is gone', () => {
-  it.effect('fails with SessionFolderGoneError and writes nothing', () =>
-    Effect.gen(function* () {
-      const fake = yield* makeFakeOpenCode(snapshot)
-      const directories = yield* makeFakeDirectories([gone])
+  it.effect(
+    'marks its run reopened (it counts as handled without a marker); done again clears it',
+    () =>
+      Effect.gen(function* () {
+        const fake = yield* makeFakeOpenCode(snapshot)
+        const directories = yield* makeFakeDirectories([gone])
 
-      const error = yield* reopen({ sessionID: 'ses_gone_handled' }).pipe(
-        Effect.provide(services(fake, directories.layer)),
-        Effect.flip
-      )
+        yield* fake.setMetadata('ses_gone', foreign)
 
-      expect(error._tag).toBe('SessionFolderGoneError')
-      expect(error).toMatchObject({ sessionID: 'ses_gone_handled', directory: gone })
-      expect(yield* fake.calls).toEqual([])
-    })
+        yield* Effect.gen(function* () {
+          expect(yield* reopen({ sessionID: 'ses_gone' })).toBe('reopened')
+          expect(yield* fake.metadata('ses_gone')).toEqual({
+            ...foreign,
+            vltra: { reopened: idle }
+          })
+
+          // Reopened already: nothing to write.
+          expect(yield* reopen({ sessionID: 'ses_gone' })).toBe('not-handled')
+
+          // The watcher sees the marker: the row is finished again, so it can be marked done.
+          yield* Effect.flatMap(VltraStore, store =>
+            store.commit(view => ({
+              ...view,
+              model: fromSnapshot(
+                {
+                  ...snapshot,
+                  sessions: snapshot.sessions.map(session =>
+                    session.id === 'ses_gone' ? { ...session, reopened: idle } : session
+                  )
+                },
+                baseTime
+              )
+            }))
+          )
+
+          expect(yield* markHandled({ sessionID: 'ses_gone' })).toBe('handled')
+          expect(yield* fake.metadata('ses_gone')).toEqual({ ...foreign, vltra: { handled: idle } })
+
+          // A handled marker from before the folder went is replaced the same way.
+          expect(yield* reopen({ sessionID: 'ses_gone_handled' })).toBe('reopened')
+          expect(yield* fake.metadata('ses_gone_handled')).toEqual({ vltra: { reopened: idle } })
+        }).pipe(Effect.provide(services(fake, directories.layer)))
+
+        expect(yield* fake.calls).toEqual([
+          { op: 'setHandled', sessionID: 'ses_gone', handled: undefined, reopened: idle },
+          { op: 'setHandled', sessionID: 'ses_gone', handled: idle },
+          { op: 'setHandled', sessionID: 'ses_gone_handled', handled: undefined, reopened: idle }
+        ])
+      })
   )
 })
 

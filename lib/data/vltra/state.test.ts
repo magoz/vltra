@@ -8,6 +8,7 @@ import {
   highestPriority,
   isHandled,
   isQuiet,
+  isReopened,
   isStuck,
   ownState,
   quietAfter,
@@ -18,8 +19,16 @@ import { vltraStatePriority } from '@/lib/data/vltra/types'
 import type { VltraRow, VltraState, Outcome, SessionRecord } from '@/lib/data/vltra/types'
 import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 
-/** Where Vltra's handled marker stands relative to the latest run (`idle = baseTime + 10`). */
-type Marker = 'never-ran' | 'none' | 'older-run' | 'this-run' | 'newer'
+/** Where Vltra's markers stand relative to the latest run (`idle = baseTime + 10`). */
+type Marker =
+  | 'never-ran'
+  | 'none'
+  | 'older-run'
+  | 'this-run'
+  | 'newer'
+  | 'reopened'
+  | 'reopened-older-run'
+  | 'reopened-then-handled'
 
 const markerFields = (marker: Marker): Partial<SessionRecord> => {
   switch (marker) {
@@ -33,11 +42,18 @@ const markerFields = (marker: Marker): Partial<SessionRecord> => {
       return { idle: baseTime + 10, handled: baseTime + 10 }
     case 'newer':
       return { idle: baseTime + 10, handled: baseTime + 11 }
+    case 'reopened':
+      return { idle: baseTime + 10, reopened: baseTime + 10 }
+    case 'reopened-older-run':
+      return { idle: baseTime + 10, reopened: baseTime + 5 }
+    case 'reopened-then-handled':
+      return { idle: baseTime + 10, reopened: baseTime + 10, handled: baseTime + 10 }
   }
 }
 
 // The DESIGN.md table, written independently of the implementation's branch order.
-// A gone folder makes the session handled, but never hides what OpenCode reports.
+// A gone folder makes the session handled unless I reopened its latest run, but never hides
+// what OpenCode reports. The reopened marker means nothing while the folder exists.
 const expected = (input: {
   readonly pending: number
   readonly running: boolean
@@ -50,7 +66,9 @@ const expected = (input: {
 
   if (input.running) candidates.push('working')
 
-  if (!input.gone && (input.marker === 'none' || input.marker === 'older-run')) {
+  const unhandled: ReadonlyArray<Marker> = ['none', 'older-run', 'reopened', 'reopened-older-run']
+
+  if (input.gone ? input.marker === 'reopened' : unhandled.includes(input.marker)) {
     candidates.push('finished')
   }
 
@@ -79,6 +97,15 @@ describe('isHandled', () => {
   })
 })
 
+describe('isReopened', () => {
+  it('is run-scoped: reopened while reopened >= idle and not handled since', () => {
+    expect(isReopened(sessionRecord('ses_1', { reopened: 5 }))).toBe(false)
+    expect(isReopened(sessionRecord('ses_1', { idle: 10, reopened: 9 }))).toBe(false)
+    expect(isReopened(sessionRecord('ses_1', { idle: 10, reopened: 10 }))).toBe(true)
+    expect(isReopened(sessionRecord('ses_1', { idle: 10, reopened: 10, handled: 10 }))).toBe(false)
+  })
+})
+
 describe('ownState', () => {
   const outcomes: ReadonlyArray<Outcome | undefined> = [
     undefined,
@@ -87,7 +114,16 @@ describe('ownState', () => {
     'interrupted'
   ]
 
-  const markers: ReadonlyArray<Marker> = ['never-ran', 'none', 'older-run', 'this-run', 'newer']
+  const markers: ReadonlyArray<Marker> = [
+    'never-ran',
+    'none',
+    'older-run',
+    'this-run',
+    'newer',
+    'reopened',
+    'reopened-older-run',
+    'reopened-then-handled'
+  ]
 
   const cases = [0, 2].flatMap(pending =>
     [false, true].flatMap(running =>
@@ -102,7 +138,7 @@ describe('ownState', () => {
   )
 
   it('covers every combination of pending, running, outcome, marker, viewed and gone', () => {
-    expect(cases).toHaveLength(320)
+    expect(cases).toHaveLength(512)
   })
 
   it.each(cases)(
@@ -144,6 +180,7 @@ describe('ownState', () => {
     expect(ownState(trackedSession(ended), 0, true)).toBe('handled')
     expect(ownState(trackedSession(ended), 2, true)).toBe('blocked')
     expect(ownState(trackedSession(ended, { running: true }), 0, true)).toBe('working')
+    expect(ownState(trackedSession({ ...ended, reopened: 10 }), 0, true)).toBe('finished')
   })
 })
 

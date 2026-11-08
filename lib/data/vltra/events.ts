@@ -53,8 +53,12 @@ export type VltraEvent = Data.TaggedEnum<{
     readonly at: number
   }
   Viewed: { readonly sessionID: string; readonly idle: number }
-  /** Vltra's handled marker changed (`session.metadata.updated`); undefined when removed. */
-  HandledChanged: { readonly sessionID: string; readonly handled: number | undefined }
+  /** Vltra's markers changed (`session.metadata.updated`); undefined when removed. */
+  HandledChanged: {
+    readonly sessionID: string
+    readonly handled: number | undefined
+    readonly reopened?: number | undefined
+  }
   /** The interrupt reason of the run ending at `idle`, recovered from the session log. */
   InterruptRecovered: {
     readonly sessionID: string

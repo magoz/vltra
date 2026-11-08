@@ -63,7 +63,7 @@ Priority: blocked > working > finished > handled.
   by OpenCode"; `shutdown` → ignored (no `time.idle`, resumes after restart); `superseded` is
   declared but unused. If Vltra missed the event, it recovers the reason from `session.log`.
 - **Failed** runs are `finished` with a red mark, not their own state.
-- **Folder gone = handled**: a session whose folder no longer exists (a deleted `/tmp/tmp.*` scratch folder, a worktree removed after merge) is `handled` unless it is blocked or working, because OpenCode cannot write metadata for a session whose folder was deleted (so the marker could never be set); Vltra checks the folders itself (same machine) on every snapshot and every minute, and offers no Handled/Reopen for them ("folder deleted").
+- **Folder gone = handled**: a session whose folder no longer exists (a deleted `/tmp/tmp.*` scratch folder, a worktree removed after merge) is `handled` unless it is blocked or working: deleting the folder retires its sessions, so they need no marker ("folder deleted"). Vltra checks the folders itself (same machine) on every snapshot and every minute. Reopen still works (OpenCode accepts metadata writes to a gone folder since 2.2.6; 2.0.x refused them): it sets `metadata.vltra.reopened = <time.idle>` (and drops `handled`), so the run is `finished` again until Done writes `handled` (and drops `reopened`). Vltra writes one marker or none, never both.
 - **Stuck** is not a state: a working session shows `retrying (n×, reason)`
   (`session.retry.scheduled`) or `quiet Nm` (no step/tool activity for 10+ minutes). Shown in
   Projects and counted, never in the needs-me list.
@@ -123,7 +123,7 @@ events; on any disconnect, repeat. Pin OpenCode 2.0.20 and test against a real
     there, else a new empty one)
   - Failures are `{ error }` with the server action's message: 400 invalid input / not a
     checkout, 403 cross-site (or no `Origin`), 404 unknown session / launch, 409 not finished /
-    folder gone / launch still running / OpenCode refused, 415 not JSON, 502 an OpenCode call
+    launch still running / OpenCode refused, 415 not JSON, 502 an OpenCode call
     failed, 503 OpenCode unreachable.
 - Stats: `GET /api/vltra/stats?range=24h|7d|30d|90d|all` (or `?from=&to=` days)`&tz=&project=`
   → `StatsReport`: OpenCode's own `GET /api/experimental/session/stats` for the range and per

@@ -40,7 +40,8 @@ export type VltraModel = {
   readonly worktrees: ReadonlyMap<string, ReadonlyArray<string>>
   /**
    * Whether each session directory is gone from disk (checked by Vltra, not reported by
-   * OpenCode); absent until checked. A session whose folder is gone counts as handled.
+   * OpenCode); absent until checked. A session whose folder is gone counts as handled
+   * unless reopened.
    */
   readonly directoryGone: ReadonlyMap<string, boolean>
 }
@@ -291,8 +292,8 @@ export const applyEvent = (model: VltraModel, event: VltraEvent): VltraModel =>
       updateSession(model, sessionID, session => describeCall(touch(session, at), callID, detail)),
     Viewed: ({ sessionID, idle }) =>
       updateSession(model, sessionID, session => markViewed(session, idle)),
-    HandledChanged: ({ sessionID, handled }) =>
-      updateSession(model, sessionID, session => patchInfo(session, { handled })),
+    HandledChanged: ({ sessionID, handled, reopened }) =>
+      updateSession(model, sessionID, session => patchInfo(session, { handled, reopened })),
     InterruptRecovered: ({ sessionID, idle, reason }) =>
       updateSession(model, sessionID, session => recoverInterrupt(session, idle, reason)),
     PermissionAsked: ({ permission }) => ({

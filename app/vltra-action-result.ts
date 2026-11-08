@@ -7,7 +7,6 @@ import type {
   NotACheckoutError,
   ProjectBusyError,
   RetireRefusedError,
-  SessionFolderGoneError,
   SessionNotFinishedError
 } from '@/lib/data/vltra/errors'
 import type {
@@ -75,7 +74,6 @@ export type VltraActionError =
   | OpenCodeUnavailableError
   | SessionNotFoundError
   | SessionNotFinishedError
-  | SessionFolderGoneError
   | OpenCodeRejectedError
   | NotACheckoutError
   | RetireRefusedError
@@ -113,7 +111,6 @@ export const failureMessage = (error: VltraActionError): string =>
       OpenCodeInvalidInputError: invalid => invalid.message,
       SessionNotFoundError: () => 'Session not found',
       SessionNotFinishedError: () => 'Only a finished session can be marked done',
-      SessionFolderGoneError: () => "The session's folder no longer exists",
       OpenCodeUnavailableError: () => 'OpenCode is not reachable',
       // OpenCode's own words (sanitized), e.g. the worktree plugin's refusals.
       OpenCodeRejectedError: rejected => rejected.message,

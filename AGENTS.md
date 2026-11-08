@@ -152,7 +152,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   title, then for worktree sessions a line with the worktree (`worktreeLabel`: its folder minus
   the repo's `<name>-` prefix) left and its PR plus the issues it closes right, linked
   (`worktreeAt` in the launcher list; none before it loads or for the primary checkout), flags for
-  `retrying (n×, …)` / `quiet Nm` and "folder deleted", Reopen (handled, not for "folder
+  `retrying (n×, …)` / `quiet Nm` and "folder deleted", Reopen (handled, also "folder
   deleted"). Asks, answers and live activity are left to the chat. `?project=<projectKey>`
   (`other` = the global project) narrows every column: a searchable select (`project-filter.tsx`,
   `components/ui/combobox.tsx`, Base UI Combobox; `/` opens it on its search) and a chip with ×
@@ -307,7 +307,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   `instanceof CustomEvent`), all done sessions but the open one; it reads the saved strip back,
   resends while tabs stay, then warns (OpenCode changed). Each browser cleans its own. Its
   slim toolbar has only what Vltra adds: the phone's back button, state and title, where it runs (`project · worktree`, then the PR, as on its card; shrinks before the title), `✔ Done`
-  (finished; phone only, the desktop card has its own) / Reopen (handled; neither for "folder deleted"), open in the terminal (`ocb://`,
+  (finished; phone only, the desktop card has its own) / Reopen (handled), open in the terminal (`ocb://`,
   fine pointers only) or a new tab, close (desktop). Messages, asks, follow-ups and Stop happen in
   the chat. Being same-site, the iframe runs on Vltra's main thread: keep one chat mounted at a
   time (no hidden pages, no pools). The panel is not keyed by session: switching moves that one

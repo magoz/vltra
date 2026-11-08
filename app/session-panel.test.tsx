@@ -155,34 +155,36 @@ describe('session panel', () => {
   it.each([
     ['finished', {}],
     ['handled', { handled: baseTime + 1 }]
-  ] as const)(
-    'offers neither Handled nor Reopen for a %s run whose folder is gone',
-    (_, fields) => {
-      const row = rowFrom(
-        {
-          sessions: [
-            sessionRecord('ses_1', {
-              title: 'Scratch',
-              directory: '/tmp/tmp.gone',
-              idle: baseTime + 1,
-              viewed: baseTime + 1,
-              outcome: 'succeeded',
-              ...fields
-            })
-          ]
-        },
-        'ses_1',
-        {},
-        ['/tmp/tmp.gone']
-      )
+  ] as const)('offers Reopen, not Done, for a %s run whose folder is gone', async (_, fields) => {
+    const row = rowFrom(
+      {
+        sessions: [
+          sessionRecord('ses_1', {
+            title: 'Scratch',
+            directory: '/tmp/tmp.gone',
+            idle: baseTime + 1,
+            viewed: baseTime + 1,
+            outcome: 'succeeded',
+            ...fields
+          })
+        ]
+      },
+      'ses_1',
+      {},
+      ['/tmp/tmp.gone']
+    )
 
-      renderPanel(row)
+    const { calls } = renderPanel(row)
 
-      expect(row.state).toBe('handled')
-      expect(screen.queryByRole('button', { name: 'Done' })).toBeNull()
-      expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull()
-    }
-  )
+    expect(row.state).toBe('handled')
+    expect(screen.queryByRole('button', { name: 'Done' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen' }))
+
+    await vi.waitFor(() =>
+      expect(calls).toEqual([{ action: 'reopen', input: { sessionID: 'ses_1' } }])
+    )
+  })
 
   it('opens the session in the terminal or in a new tab', () => {
     const row = doneRow()

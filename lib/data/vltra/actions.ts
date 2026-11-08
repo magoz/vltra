@@ -1,14 +1,10 @@
 import { Effect, Option, Schema } from 'effect'
 import { fromSnapshot, projectKey } from '@/lib/data/vltra/board'
 import { busyStates } from '@/lib/data/vltra/checkouts'
-import {
-  ProjectBusyError,
-  SessionFolderGoneError,
-  SessionNotFinishedError
-} from '@/lib/data/vltra/errors'
+import { ProjectBusyError, SessionNotFinishedError } from '@/lib/data/vltra/errors'
 import { folderGone } from '@/lib/data/vltra/folders'
 import { snapshotRows } from '@/lib/data/vltra/snapshot'
-import { isHandled } from '@/lib/data/vltra/state'
+import { isHandled, isReopened } from '@/lib/data/vltra/state'
 import { VltraStore } from '@/lib/data/vltra/store'
 import type { VltraRow, MarkHandledOutcome, ReopenOutcome } from '@/lib/data/vltra/types'
 import { SessionNotFoundError } from '@/lib/services/opencode/errors'
@@ -60,9 +56,9 @@ const readSession = (connection: OpenCodeConnection, sessionID: string) =>
 
 /**
  * Mark the latest run of a finished root session handled: `metadata.vltra.handled = idle`, with
- * `idle` read fresh from OpenCode. Rejected unless the watcher sees the root row finished (not
- * running, nothing pending in its subtree); already handled runs are left alone, and so are
- * sessions whose folder is gone (handled by definition: `SessionFolderGoneError`).
+ * `idle` read fresh from OpenCode (clearing a `reopened` marker). Rejected unless the watcher sees
+ * the root row finished (not running, nothing pending in its subtree); already handled runs are
+ * left alone, and so are sessions whose folder is gone unless I reopened them.
  */
 export const markHandled = (input: MarkHandledInput) =>
   Effect.gen(function* () {
@@ -80,17 +76,13 @@ export const markHandled = (input: MarkHandledInput) =>
       return yield* new SessionNotFinishedError({ sessionID: input.sessionID, state: row.state })
     }
 
-    if (yield* folderGone(row.directory)) {
-      const outcome: MarkHandledOutcome = 'already-handled'
-
-      return outcome
-    }
+    const gone = yield* folderGone(row.directory)
 
     return yield* withConnection(connection =>
       Effect.gen(function* () {
         const info = yield* readSession(connection, input.sessionID)
 
-        if (info.idle === undefined || isHandled(info)) {
+        if (info.idle === undefined || isHandled(info) || (gone && !isReopened(info))) {
           const outcome: MarkHandledOutcome = 'already-handled'
 
           return outcome
@@ -107,7 +99,8 @@ export const markHandled = (input: MarkHandledInput) =>
 
 /**
  * Undo / Reopen: remove the handled marker, so the latest run is finished again. A session whose
- * folder is gone stays handled: `SessionFolderGoneError`.
+ * folder is gone counts as handled without one, so its run is marked reopened instead
+ * (`metadata.vltra.reopened = idle`).
  */
 export const reopen = (input: ReopenInput) =>
   withConnection(connection =>
@@ -115,10 +108,21 @@ export const reopen = (input: ReopenInput) =>
       const info = yield* readSession(connection, input.sessionID)
 
       if (yield* folderGone(info.directory)) {
-        return yield* new SessionFolderGoneError({
+        if (info.idle === undefined || isReopened(info)) {
+          const outcome: ReopenOutcome = 'not-handled'
+
+          return outcome
+        }
+
+        yield* connection.setHandled({
           sessionID: input.sessionID,
-          directory: info.directory
+          handled: undefined,
+          reopened: info.idle
         })
+
+        const outcome: ReopenOutcome = 'reopened'
+
+        return outcome
       }
 
       if (info.handled === undefined) {

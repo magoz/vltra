@@ -12,7 +12,7 @@ import type {
   SessionMessage
 } from '@opencode/client/effect'
 import { VltraEvent, OpenCodeSignal } from '@/lib/data/vltra/events'
-import type { ResolvedLocation } from '@/lib/services/opencode/service'
+import type { ResolvedLocation, VltraMarker } from '@/lib/services/opencode/service'
 import type {
   FileChange,
   FormField,
@@ -36,28 +36,37 @@ const millis = (value: DateTime.Utc | undefined) =>
 export const modelLabel = (model: Model.Ref): string => `${model.providerID}/${model.id}`
 
 /** Vltra's own metadata key; everything else in `metadata` belongs to other writers. */
-const VltraMetadata = Schema.Struct({ vltra: Schema.Struct({ handled: Schema.Finite }) })
+const decodeVltraHandled = Schema.decodeUnknownOption(
+  Schema.Struct({ vltra: Schema.Struct({ handled: Schema.Finite }) })
+)
 
-const decodeVltraMetadata = Schema.decodeUnknownOption(VltraMetadata)
+const decodeVltraReopened = Schema.decodeUnknownOption(
+  Schema.Struct({ vltra: Schema.Struct({ reopened: Schema.Finite }) })
+)
 
 const isJsonObject = Schema.is(Schema.Record(Schema.String, Schema.Json))
 
 /** `metadata.vltra.handled`, when present and a number; anything else reads as unhandled. */
 export const vltraHandled = (metadata: Session.Metadata | undefined): number | undefined =>
-  Option.getOrUndefined(Option.map(decodeVltraMetadata(metadata), value => value.vltra.handled))
+  Option.getOrUndefined(Option.map(decodeVltraHandled(metadata), value => value.vltra.handled))
+
+/** `metadata.vltra.reopened`, when present and a number; anything else reads as not reopened. */
+export const vltraReopened = (metadata: Session.Metadata | undefined): number | undefined =>
+  Option.getOrUndefined(Option.map(decodeVltraReopened(metadata), value => value.vltra.reopened))
 
 /**
- * The whole metadata object to write back (OpenCode replaces it): every other key kept, only
- * `vltra.handled` replaced, or removed for `undefined` (and `vltra` dropped once empty).
+ * The whole metadata object to write back (OpenCode replaces it): every other key kept, Vltra's
+ * markers replaced by `marker` (absent ones removed, and `vltra` dropped once empty).
  */
-export const withVltraHandled = (
+export const withVltraMarker = (
   metadata: Session.Metadata | undefined,
-  handled: number | undefined
+  marker: VltraMarker
 ): Session.Metadata => {
   const source: Session.Metadata = metadata ?? {}
   const { vltra, ...others } = source
-  const { handled: _previous, ...kept } = isJsonObject(vltra) ? vltra : {}
-  const next = handled === undefined ? kept : { ...kept, handled }
+  const { handled: _handled, reopened: _reopened, ...kept } = isJsonObject(vltra) ? vltra : {}
+  const handled = marker.handled === undefined ? kept : { ...kept, handled: marker.handled }
+  const next = marker.reopened === undefined ? handled : { ...handled, reopened: marker.reopened }
 
   return Object.keys(next).length === 0 ? others : { ...others, vltra: next }
 }
@@ -83,7 +92,8 @@ export const toSessionRecord = (info: Session.Info): SessionRecord => ({
   viewed: millis(info.time.viewed),
   archived: millis(info.time.archived),
   outcome: info.outcome,
-  handled: vltraHandled(info.metadata)
+  handled: vltraHandled(info.metadata),
+  reopened: vltraReopened(info.metadata)
 })
 
 export const toPendingPermission = (request: Permission.Request): PendingPermission => ({
@@ -596,7 +606,8 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
       return apply(
         VltraEvent.HandledChanged({
           sessionID: event.data.sessionID,
-          handled: vltraHandled(event.data.metadata)
+          handled: vltraHandled(event.data.metadata),
+          reopened: vltraReopened(event.data.metadata)
         })
       )
     case 'permission.asked':

@@ -16,20 +16,21 @@ import {
   OpenCodeUnavailableError,
   SessionNotFoundError
 } from '@/lib/services/opencode/errors'
-import { vltraHandled, withVltraHandled } from '@/lib/services/opencode/mapping'
+import { vltraHandled, vltraReopened, withVltraMarker } from '@/lib/services/opencode/mapping'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type {
   ActionError,
   OpenCodeConnection,
   RejectableError,
   ResolvedLocation,
-  StatsInput
+  StatsInput,
+  VltraMarker
 } from '@/lib/services/opencode/service'
 
 /** A call Vltra made against the fake, for assertions. */
 export type FakeCall =
   | { readonly op: 'view'; readonly sessionID: string; readonly idle: number }
-  | { readonly op: 'setHandled'; readonly sessionID: string; readonly handled: number | undefined }
+  | ({ readonly op: 'setHandled'; readonly sessionID: string } & VltraMarker)
   | { readonly op: 'interruptReason'; readonly sessionID: string }
   | { readonly op: 'prompt'; readonly sessionID: string; readonly text: string }
   | { readonly op: 'transcript'; readonly sessionID: string; readonly assistantOnly: boolean }
@@ -181,31 +182,42 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
     const storeMetadata = (sessionID: string, next: Session.Metadata) =>
       Effect.andThen(
         Ref.update(metadata, map => new Map(map).set(sessionID, next)),
-        patchSession(sessionID, { handled: vltraHandled(next) })
+        patchSession(sessionID, { handled: vltraHandled(next), reopened: vltraReopened(next) })
       )
 
     const metadataOf = (session: SessionRecord) =>
       Effect.map(
         Ref.get(metadata),
-        map => map.get(session.id) ?? withVltraHandled(undefined, session.handled)
+        map =>
+          map.get(session.id) ??
+          withVltraMarker(
+            undefined,
+            session.reopened === undefined
+              ? { handled: session.handled }
+              : { handled: undefined, reopened: session.reopened }
+          )
       )
 
     /** Like OpenCode: replace the whole object, then emit `session.metadata.updated`. */
-    const setHandled = (sessionID: string, handled: number | undefined) =>
+    const setHandled = (sessionID: string, marker: VltraMarker) =>
       Effect.gen(function* () {
-        yield* record({ op: 'setHandled', sessionID, handled })
+        yield* record({ op: 'setHandled', sessionID, ...marker })
 
         const found = yield* readSession(sessionID)
 
         if (Option.isNone(found)) return yield* new SessionNotFoundError({ sessionID })
 
-        const next = withVltraHandled(yield* metadataOf(found.value), handled)
+        const next = withVltraMarker(yield* metadataOf(found.value), marker)
 
         yield* storeMetadata(sessionID, next)
 
         yield* emit(
           OpenCodeSignal.Apply({
-            event: VltraEvent.HandledChanged({ sessionID, handled: vltraHandled(next) })
+            event: VltraEvent.HandledChanged({
+              sessionID,
+              handled: vltraHandled(next),
+              reopened: vltraReopened(next)
+            })
           })
         )
       })
@@ -290,7 +302,7 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
           Ref.get(snapshot),
           value => value.worktrees.find(entry => entry.projectID === projectID)?.directories ?? []
         ),
-      setHandled: ({ sessionID, handled }) => setHandled(sessionID, handled),
+      setHandled: ({ sessionID, ...marker }) => setHandled(sessionID, marker),
       interruptReason: sessionID =>
         Effect.andThen(
           record({ op: 'interruptReason', sessionID }),

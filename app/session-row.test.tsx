@@ -142,7 +142,7 @@ describe('project rows', () => {
     )
   })
 
-  it('a finished run whose folder is gone shows as handled, labelled, with no Reopen', () => {
+  it('a finished run whose folder is gone shows as handled, labelled, with Reopen', () => {
     const row = rowFrom(
       {
         sessions: [
@@ -162,6 +162,29 @@ describe('project rows', () => {
 
     expect(screen.getByRole('listitem').dataset.state).toBe('handled')
     expect(screen.getByText('folder deleted').className).toContain('text-muted-foreground')
+    expect(screen.getByRole('button', { name: 'Reopen' })).toBeTruthy()
+  })
+
+  it('a reopened run whose folder is gone is finished again', () => {
+    const row = rowFrom(
+      {
+        sessions: [
+          sessionRecord('ses_1', {
+            directory: '/tmp/tmp.gone',
+            idle: baseTime + 1,
+            reopened: baseTime + 1,
+            outcome: 'failed'
+          })
+        ]
+      },
+      'ses_1',
+      {},
+      ['/tmp/tmp.gone']
+    )
+
+    renderRow(row)
+
+    expect(screen.getByRole('listitem').dataset.state).toBe('finished')
     expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull()
   })
 

@@ -138,7 +138,7 @@ const handleUserInterrupt = (connection: OpenCodeConnection, sessionID: string) 
     )
   )
 
-/** A root session whose folder still exists (OpenCode cannot write to one whose folder is gone). */
+/** A root session whose folder still exists (one whose folder is gone is handled already). */
 const writableRoot = (model: VltraModel, sessionID: string): TrackedSession | undefined => {
   const session = model.sessions.get(sessionID)
 

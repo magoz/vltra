@@ -50,7 +50,6 @@ export const failureStatus = (error: VltraActionError): number =>
       SessionNotFoundError: () => 404,
       LaunchNotFoundError: () => 404,
       SessionNotFinishedError: () => 409,
-      SessionFolderGoneError: () => 409,
       LaunchInProgressError: () => 409,
       RetireRefusedError: () => 409,
       ProjectBusyError: () => 409,

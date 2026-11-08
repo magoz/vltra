@@ -10,15 +10,6 @@ export class SessionNotFinishedError extends Schema.TaggedError<SessionNotFinish
   { sessionID: Schema.String, state: Schema.optional(VltraState) }
 ) {}
 
-/**
- * The session's folder no longer exists. Such a session counts as handled and cannot be reopened
- * (Vltra's rule: OpenCode up to 2.0.22 refused its metadata writes; 2.2.6 accepts them).
- */
-export class SessionFolderGoneError extends Schema.TaggedError<SessionFolderGoneError>()(
-  'SessionFolderGoneError',
-  { sessionID: Schema.String, directory: Schema.String }
-) {}
-
 /** The directory is not a git checkout on the host (or not the kind the call needs). */
 export class NotACheckoutError extends Schema.TaggedError<NotACheckoutError>()(
   'NotACheckoutError',
