@@ -23,43 +23,43 @@ Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 
 ## WHERE TO LOOK
 
-| Task                             | Location                                                         | Notes                                                     |
-| -------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------- |
-| Session states / priority        | `lib/data/vltra/state.ts`, `model.ts`                            | blocked > working > finished > handled; stuck, order      |
-| Wire shapes (API, SSE)           | `lib/data/vltra/types.ts`                                        | Effect Schema; the ocb plugin decodes the same types      |
-| Snapshot rows / grouping         | `lib/data/vltra/snapshot.ts`, `links.ts`                         | Roll-up, projects → worktrees → rows, deep links          |
-| Watcher, resync, backoff         | `lib/data/vltra/watcher.ts`, `store.ts`                          | Also interrupt reasons; `LONG_LIVED_WATCHER.md`           |
-| Waits (scripts, `until` watches) | `snapshot.ts` (`waitsAndServices`), `state.ts` (`waitingOn`)     | `until` contract: `mapping.ts`; DESIGN.md "Waits"         |
+| Task                             | Location                                                         | Notes                                                      |
+| -------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------- |
+| Session states / priority        | `lib/data/vltra/state.ts`, `model.ts`                            | blocked > working > finished > handled; stuck, order       |
+| Wire shapes (API, SSE)           | `lib/data/vltra/types.ts`                                        | Effect Schema; the ocb plugin decodes the same types       |
+| Snapshot rows / grouping         | `lib/data/vltra/snapshot.ts`, `links.ts`                         | Roll-up, projects → worktrees → rows, deep links           |
+| Watcher, resync, backoff         | `lib/data/vltra/watcher.ts`, `store.ts`                          | Also interrupt reasons; `LONG_LIVED_WATCHER.md`            |
+| Waits (scripts, `until` watches) | `snapshot.ts` (`waitsAndServices`), `state.ts` (`waitingOn`)     | `until` contract: `mapping.ts`; DESIGN.md "Waits"          |
 | Scripts vs services (ports)      | `lib/data/vltra/shell-ports.ts`, `lib/services/processes/`       | Ports a shell's tree listens on; test runners stay scripts |
-| Action Effects + inputs          | `lib/data/vltra/actions.ts`                                      | Handled, reopen, viewed (asks: in OpenCode's chat)        |
-| Rollout script                   | `scripts/import-handled.ts`                                      | `pnpm vltra:import-handled`, one-off, never auto-run      |
-| OpenCode client                  | `lib/services/opencode/`                                         | See `patterns/OPENCODE_SURFACE.md`                        |
-| Chat proxy, chat keys            | `proxy.ts`, `app/opencode-proxy.ts`, `app/chat-keys.ts`          | Same-origin OpenCode iframe; Vltra's keys inside it       |
-| Chat tab strip cleanup           | `app/chat-tabs.ts`                                               | Done sessions leave OpenCode's tabs (its own event)       |
-| Runtime (one per process)        | `lib/runtime/vltra-runtime.ts`                                   | `ManagedRuntime` on `globalThis`; `runVltra`              |
-| Watcher start                    | `instrumentation.ts`                                             | Node runtime only; skipped during `next build`            |
-| Shutdown (SIGTERM deadline)      | `lib/runtime/shutdown.ts`                                        | Exits 3s after the signal; `LONG_LIVED_WATCHER.md`        |
-| Page / API routes / actions      | `app/`                                                           | `(vltra)/` one page, `api/vltra`, `*-action.ts`           |
-| Plugin mutation routes (JSON)    | `app/api/vltra/mutations.ts`, `json-request.ts`                  | handled, reopen, launches, dismiss, checkouts/open        |
-| Dashboard UI                     | `app/vltra-shell.tsx` and siblings                               | Layout's live tree (`vltra-live.tsx`); see below          |
-| Launcher UI                      | `app/launcher-dialog.tsx`, `pending-launches.tsx`                | Palette, launches, `retire-worktree.tsx`                  |
-| Agents (focus, board) / Projects | `app/agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`  | Cards: `agent-card.tsx`, rows: `session-row.tsx`          |
-| Board projections                | `lib/data/vltra/board.ts`                                        | Pure: live rows, needs-me list, columns, cards, filter    |
-| Run summaries (plugin page)      | `lib/data/vltra/session-detail.ts`                               | Latest answer + diff totals, cached by `idle`             |
-| Stats tab (data)                 | `lib/data/vltra/stats.ts`, `stats-period.ts`, `stats-view.ts`    | OpenCode `session.stats` per range + bucket; projections  |
-| Stats tab (GitHub merged PRs)    | `lib/data/vltra/github-stats.ts`, `lib/services/github/`         | `gh api graphql` search; settled part cached              |
-| Stats tab (UI)                   | `app/stats-page.tsx`, `stats-charts.tsx`, `use-stats.ts`         | Recharts (lazy), `components/ui/chart.tsx`                |
-| Stats frames, heatmaps, skeleton | `app/stats-card.tsx`, `stats-heatmaps.tsx`, `stats-skeleton.tsx` | No Recharts: the skeleton shows while the tab loads       |
-| Notifications (what, when)       | `lib/data/vltra/notify.ts`, `notifier.ts`                        | Pure snapshot diff + grace recheck; forked in runtime     |
-| Web Push (keys, devices, send)   | `lib/services/push/`, `lib/data/vltra/push.ts`                   | `push.json` (0600), `web-push`; fake in `testing/`        |
-| Settings tab, service worker     | `app/settings-page.tsx`, `use-push.ts`, `public/sw.js`           | Turn on/off, test, devices; DESIGN.md "Notifications"     |
-| Launcher list / open / retire    | `lib/data/vltra/launcher.ts`, `checkouts.ts`                     | Pure projection + guards; `GET /api/vltra/launcher`       |
-| Launches (worktree + session)    | `lib/data/vltra/launches.ts`, `lib/services/watcher/`            | Registry in store; Watcher runs them (backend), see below |
-| Branch names / palette rows      | `lib/data/vltra/branch.ts`, `palette.ts`                         | `--` encoding, suggestion check, fallback, fuzzy          |
-| Repos on the host (git, gh)      | `lib/services/repos/`                                            | Roots scan, worktrees + marker owner, cached PR status    |
-| Subscription usage (header)      | `lib/services/usage/`, `lib/data/vltra/usage.ts`                 | Reads `usage`'s `/api/usage`; one pool per provider       |
-| Test doubles                     | `lib/**/testing/`                                                | Fake OpenCode / Repos layers, throwaway `opencode serve`  |
-| Conventions                      | `patterns/`                                                      | Effect, TypeScript, testing, long-lived watcher, OpenCode |
+| Action Effects + inputs          | `lib/data/vltra/actions.ts`                                      | Handled, reopen, viewed (asks: in OpenCode's chat)         |
+| Rollout script                   | `scripts/import-handled.ts`                                      | `pnpm vltra:import-handled`, one-off, never auto-run       |
+| OpenCode client                  | `lib/services/opencode/`                                         | See `patterns/OPENCODE_SURFACE.md`                         |
+| Chat proxy, chat keys            | `proxy.ts`, `app/opencode-proxy.ts`, `app/chat-keys.ts`          | Same-origin OpenCode iframe; Vltra's keys inside it        |
+| Chat tab strip cleanup           | `app/chat-tabs.ts`                                               | Done sessions leave OpenCode's tabs (its own event)        |
+| Runtime (one per process)        | `lib/runtime/vltra-runtime.ts`                                   | `ManagedRuntime` on `globalThis`; `runVltra`               |
+| Watcher start                    | `instrumentation.ts`                                             | Node runtime only; skipped during `next build`             |
+| Shutdown (SIGTERM deadline)      | `lib/runtime/shutdown.ts`                                        | Exits 3s after the signal; `LONG_LIVED_WATCHER.md`         |
+| Page / API routes / actions      | `app/`                                                           | `(vltra)/` one page, `api/vltra`, `*-action.ts`            |
+| Plugin mutation routes (JSON)    | `app/api/vltra/mutations.ts`, `json-request.ts`                  | handled, reopen, launches, dismiss, checkouts/open         |
+| Dashboard UI                     | `app/vltra-shell.tsx` and siblings                               | Layout's live tree (`vltra-live.tsx`); see below           |
+| Launcher UI                      | `app/launcher-dialog.tsx`, `pending-launches.tsx`                | Palette, launches, `retire-worktree.tsx`                   |
+| Agents (focus, board) / Projects | `app/agents-focus.tsx`, `agents-board.tsx`, `projects-grid.tsx`  | Cards: `agent-card.tsx`, rows: `session-row.tsx`           |
+| Board projections                | `lib/data/vltra/board.ts`                                        | Pure: live rows, needs-me list, columns, cards, filter     |
+| Run summaries (plugin page)      | `lib/data/vltra/session-detail.ts`                               | Latest answer + diff totals, cached by `idle`              |
+| Stats tab (data)                 | `lib/data/vltra/stats.ts`, `stats-period.ts`, `stats-view.ts`    | OpenCode `session.stats` per range + bucket; projections   |
+| Stats tab (GitHub merged PRs)    | `lib/data/vltra/github-stats.ts`, `lib/services/github/`         | `gh api graphql` search; settled part cached               |
+| Stats tab (UI)                   | `app/stats-page.tsx`, `stats-charts.tsx`, `use-stats.ts`         | Recharts (lazy), `components/ui/chart.tsx`                 |
+| Stats frames, heatmaps, skeleton | `app/stats-card.tsx`, `stats-heatmaps.tsx`, `stats-skeleton.tsx` | No Recharts: the skeleton shows while the tab loads        |
+| Notifications (what, when)       | `lib/data/vltra/notify.ts`, `notifier.ts`                        | Pure snapshot diff + grace recheck; forked in runtime      |
+| Web Push (keys, devices, send)   | `lib/services/push/`, `lib/data/vltra/push.ts`                   | `push.json` (0600), `web-push`; fake in `testing/`         |
+| Settings tab, service worker     | `app/settings-page.tsx`, `use-push.ts`, `public/sw.js`           | Turn on/off, test, devices; DESIGN.md "Notifications"      |
+| Launcher list / open / retire    | `lib/data/vltra/launcher.ts`, `checkouts.ts`                     | Pure projection + guards; `GET /api/vltra/launcher`        |
+| Launches (worktree + session)    | `lib/data/vltra/launches.ts`, `lib/services/watcher/`            | Registry in store; Watcher runs them (backend), see below  |
+| Branch names / palette rows      | `lib/data/vltra/branch.ts`, `palette.ts`                         | `--` encoding, suggestion check, fallback, fuzzy           |
+| Repos on the host (git, gh)      | `lib/services/repos/`                                            | Roots scan, worktrees + marker owner, cached PR status     |
+| Subscription usage (header)      | `lib/services/usage/`, `lib/data/vltra/usage.ts`                 | Reads `usage`'s `/api/usage`; one pool per provider        |
+| Test doubles                     | `lib/**/testing/`                                                | Fake OpenCode / Repos layers, throwaway `opencode serve`   |
+| Conventions                      | `patterns/`                                                      | Effect, TypeScript, testing, long-lived watcher, OpenCode  |
 
 ## CONVENTIONS
 
