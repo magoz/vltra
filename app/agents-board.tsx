@@ -276,11 +276,6 @@ function Board({ project }: { readonly project: string | undefined }) {
       position?.item.row.state === 'finished'
         ? () => snoozePicker.pick(position.item.row.id)
         : undefined,
-    u: () => {
-      const id = flow.undo()
-
-      if (id !== undefined) setCursor({ column: 'needsYou', id, index: 0 })
-    },
     '/': () => filterRef.current?.open()
   })
 
@@ -325,7 +320,7 @@ function Board({ project }: { readonly project: string | undefined }) {
  * one at a time on the phone. Cards are minimal (`agent-card.tsx`); asks are answered in the
  * chat. The open session (`?session=`) is a split: its chat docks on the right and the columns
  * narrow beside it, so cards stay clickable; the phone shows it full screen. Keys: `j`/`k`
- * (`↓`/`↑`) within a column, `←`/`→` between columns, `h` done (and the next card), `u` undo,
+ * (`↓`/`↑`) within a column, `←`/`→` between columns, `h` done (and the next card),
  * `Enter` opens the focused card's chat, `/` focuses the project filter (the tabs and
  * `Escape`, closing the chat, are the shell's).
  */

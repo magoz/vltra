@@ -27,7 +27,6 @@ describe('commandKey', () => {
     expect(commandKey(ctrl('Digit1', { alt: true }))).toBeUndefined()
     expect(commandKey(ctrl('Digit1', { shift: true }))).toBeUndefined()
     expect(commandKey(ctrl('KeyD'))).toBeUndefined()
-    expect(commandKey(ctrl('KeyU'))).toBeUndefined()
     expect(commandKey(ctrl('KeyI'))).toBeUndefined()
   })
 
@@ -50,10 +49,9 @@ describe('commandKey', () => {
     expect(commandKey(chord('KeyD', { shift: true }))).toBeUndefined()
   })
 
-  it('⌘U undoes, ⌘I goes into the composer', () => {
-    expect(commandKey(chord('KeyU'))).toEqual(CommandKey.Undo())
+  it('⌘I goes into the composer; ⌘U stays the browser’s', () => {
     expect(commandKey(chord('KeyI'))).toEqual(CommandKey.Insert())
-    expect(commandKey(chord('KeyU', { alt: true }))).toBeUndefined()
+    expect(commandKey(chord('KeyU'))).toBeUndefined()
   })
 
   it('leaves everything else alone: no ⌘, ⌘ with Ctrl or ⇧ (⌘⇧3 is a screenshot), 0, letters', () => {

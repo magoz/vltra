@@ -17,7 +17,7 @@ const undoWindow = 6000
 /**
  * Handled, Snooze, Undo and Reopen for the whole dashboard. Each shows at once (an optimistic
  * override until the server's next word on that row), and Handled and Snooze raise a toast with
- * Undo. `undo` with no session undoes the last Handled or Snooze (the `u` key).
+ * Undo.
  */
 export type HandledFlow = {
   readonly overrides: ReadonlyMap<string, RowOverride>
@@ -27,8 +27,6 @@ export type HandledFlow = {
   readonly snooze: (sessionID: string, until: number) => void
   /** Bring a snoozed session back now. */
   readonly unsnooze: (sessionID: string) => void
-  /** Undoes the given session's Done, or the last Done or Snooze here; returns its id. */
-  readonly undo: (sessionID?: string) => string | undefined
 }
 
 const HandledContext = createContext<HandledFlow | undefined>(undefined)
@@ -60,9 +58,6 @@ const current = (
 ): Map<string, RowOverride> =>
   new Map(Array.from(overrides).filter(([id, override]) => rows.get(id) === override.base))
 
-/** The last Done or Snooze here, which `u` undoes. */
-type Last = { readonly sessionID: string; readonly kind: 'handled' | 'snoozed' }
-
 /** Owns the overrides; `rows` is the live (server) row map the overrides are checked against. */
 export function useHandledFlow(
   actions: VltraActions,
@@ -72,7 +67,6 @@ export function useHandledFlow(
   const rowsRef = useRef(rows)
   // Mark handled and snooze calls in flight, so Undo waits for the write it undoes.
   const writing = useRef(new Map<string, Promise<VltraActionResult>>())
-  const last = useRef<Last | undefined>(undefined)
 
   useEffect(() => {
     rowsRef.current = rows
@@ -151,37 +145,14 @@ export function useHandledFlow(
     [actions, undoAfterWrite]
   )
 
-  const forget = (sessionID: string) => {
-    if (last.current?.sessionID === sessionID) last.current = undefined
-  }
-
-  const undo = useCallback(
-    (sessionID?: string) => {
-      const target: Last | undefined =
-        sessionID === undefined ? last.current : { sessionID, kind: 'handled' }
-
-      if (target === undefined) return undefined
-
-      forget(target.sessionID)
-      toast.dismiss(toastID(target.sessionID))
-
-      if (target.kind === 'snoozed') wakeAfterSnooze(target.sessionID, 'Could not undo')
-      else reopenAfterHandled(target.sessionID, 'Could not undo')
-
-      return target.sessionID
-    },
-    [reopenAfterHandled, wakeAfterSnooze]
-  )
-
-  /** Starts a write shown at once as `change`, with a toast offering `onUndo`. */
+  /** Starts a write shown at once as `change`, with a toast whose Undo runs `undoing`. */
   const write = useCallback(
     (input: {
       readonly sessionID: string
       readonly change: RowChange
-      readonly kind: Last['kind']
       readonly call: () => Promise<VltraActionResult>
       readonly title: string
-      readonly onUndo: () => void
+      readonly undoing: (sessionID: string, failure: string) => void
       readonly failure: string
     }) => {
       const { sessionID } = input
@@ -189,13 +160,18 @@ export function useHandledFlow(
       const call = settled(input.call())
 
       writing.current.set(sessionID, call)
-      last.current = { sessionID, kind: input.kind }
 
       toast(input.title, {
         id: toastID(sessionID),
         description: base?.title ?? sessionID,
         duration: undoWindow,
-        action: { label: 'Undo', onClick: input.onUndo }
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            toast.dismiss(toastID(sessionID))
+            input.undoing(sessionID, 'Could not undo')
+          }
+        }
       })
 
       call.then(result => {
@@ -203,7 +179,6 @@ export function useHandledFlow(
 
         if (writing.current.get(sessionID) === call) writing.current.delete(sessionID)
 
-        forget(sessionID)
         drop(sessionID, input.change.target)
         toast.dismiss(toastID(sessionID))
         toast.error(`${input.failure}: ${result.message}`)
@@ -217,13 +192,12 @@ export function useHandledFlow(
       write({
         sessionID,
         change: { target: 'handled' },
-        kind: 'handled',
         call: () => actions.markHandled({ sessionID }),
         title: 'Done',
-        onUndo: () => undo(sessionID),
+        undoing: reopenAfterHandled,
         failure: 'Could not mark done'
       }),
-    [actions, write, undo]
+    [actions, write, reopenAfterHandled]
   )
 
   const snooze = useCallback(
@@ -231,14 +205,9 @@ export function useHandledFlow(
       write({
         sessionID,
         change: { target: 'snoozed', until },
-        kind: 'snoozed',
         call: () => actions.snooze({ sessionID, until }),
         title: `Snoozed until ${wakeText(until, Date.now())}`,
-        onUndo: () => {
-          forget(sessionID)
-          toast.dismiss(toastID(sessionID))
-          wakeAfterSnooze(sessionID, 'Could not undo')
-        },
+        undoing: wakeAfterSnooze,
         failure: 'Could not snooze'
       }),
     [actions, write, wakeAfterSnooze]
@@ -255,7 +224,7 @@ export function useHandledFlow(
   )
 
   return useMemo(
-    () => ({ overrides, markHandled, reopen, snooze, unsnooze, undo }),
-    [overrides, markHandled, reopen, snooze, unsnooze, undo]
+    () => ({ overrides, markHandled, reopen, snooze, unsnooze }),
+    [overrides, markHandled, reopen, snooze, unsnooze]
   )
 }

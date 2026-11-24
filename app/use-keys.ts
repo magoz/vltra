@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { CommandKey, commandKey } from '@/app/command-keys'
 
 /**
  * The dashboard's keys (desktop). Each page binds its own; the shell binds the tabs' `1`–`5`,
@@ -15,7 +14,6 @@ export type VltraKey =
   | 'k'
   | 'h'
   | 's'
-  | 'u'
   | '1'
   | '2'
   | '3'
@@ -42,7 +40,6 @@ const vltraKeys: ReadonlyArray<string> = [
   'k',
   'h',
   's',
-  'u',
   '1',
   '2',
   '3',
@@ -80,9 +77,7 @@ const inDialog = (target: EventTarget | null) =>
 
 /**
  * Listens on the document for the bound keys. Ignores keys with modifiers, inside dialogs, and
- * while typing (except `Escape`); `Enter` on a link or button is left to it. `⌘U` runs the `u`
- * binding from anywhere but dialogs, while typing too (the shell's `useCommandKeys` may have
- * taken it from the browser already).
+ * while typing (except `Escape`); `Enter` on a link or button is left to it.
  */
 export function useKeys(bindings: KeyBindings) {
   const latest = useRef(bindings)
@@ -93,19 +88,6 @@ export function useKeys(bindings: KeyBindings) {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      const chord = commandKey(event)
-
-      if (chord !== undefined && CommandKey.$is('Undo')(chord)) {
-        const undo = latest.current.u
-
-        if (undo === undefined || inDialog(event.target)) return
-
-        event.preventDefault()
-        undo()
-
-        return
-      }
-
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return
 
       if (!isVltraKey(event.key) || inDialog(event.target)) return

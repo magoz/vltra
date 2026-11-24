@@ -447,7 +447,7 @@ describe('keyboard', () => {
     expect(testLocation()).toBe('/')
   })
 
-  it('h marks the focused finished session handled and opens the next; u undoes', async () => {
+  it('h marks the focused finished session handled and opens the next', async () => {
     const { live, calls } = renderFocus()
 
     // Blocked sessions are answered, not handled.
@@ -463,17 +463,9 @@ describe('keyboard', () => {
     expect(row('ses_done_old').querySelector('[data-selected="true"]')).not.toBeNull()
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_old'))
 
-    press('u')
-
     await waitFor(() =>
-      expect(calls()).toEqual([
-        { action: 'markHandled', input: { sessionID: 'ses_done_new' } },
-        { action: 'reopen', input: { sessionID: 'ses_done_new' } }
-      ])
+      expect(calls()).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_done_new' } }])
     )
-    expect(rowIDs(list())).toEqual(['ses_wait_new', 'ses_wait_old', 'ses_done_new', 'ses_done_old'])
-    expect(row('ses_done_new').querySelector('[data-selected="true"]')).not.toBeNull()
-    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
   })
 
   it('h handles the open session when the focused row is blocked', async () => {
@@ -496,7 +488,7 @@ describe('keyboard', () => {
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
   })
 
-  it('⌘D marks the open session done and opens the next, not a blocked one; ⌘U undoes', async () => {
+  it('⌘D marks the open session done and opens the next, not a blocked one', async () => {
     const { live, calls } = renderFocus({ session: 'ses_done_new' })
 
     // `fireEvent` is false once the default is prevented.
@@ -515,21 +507,6 @@ describe('keyboard', () => {
       expect(calls()).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_done_new' } }])
     )
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_wait_old'))
-
-    // ⌘U undoes it, even from a field, and reopens it.
-    const field = document.createElement('textarea')
-
-    document.body.append(field)
-    expect(fireEvent.keyDown(field, { key: 'u', code: 'KeyU', metaKey: true })).toBe(false)
-    field.remove()
-
-    await waitFor(() =>
-      expect(calls()).toEqual([
-        { action: 'markHandled', input: { sessionID: 'ses_done_new' } },
-        { action: 'reopen', input: { sessionID: 'ses_done_new' } }
-      ])
-    )
-    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
   })
 })
 
@@ -580,7 +557,7 @@ describe('snooze', () => {
     expect(rowIDs(list())).toEqual(['ses_done_new', 'ses_done_old'])
   })
 
-  it('s opens the picker for the open finished session; 2 picks Monday; u undoes', async () => {
+  it("s opens the picker for the open finished session; 2 picks Monday; the toast's Undo wakes it", async () => {
     const { calls } = renderFocus({ session: 'ses_done_new' })
 
     press('s')
@@ -589,7 +566,18 @@ describe('snooze', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(rowIDs(list())).not.toContain('ses_done_new')
 
-    press('u')
+    // Sonner's toasts outlive a test: take this session's.
+    const toast = await waitFor(() => {
+      const found = Array.from(document.querySelectorAll('[data-sonner-toast]')).find(
+        item => item.textContent?.includes('Snoozed until') && item.textContent.includes('Done new')
+      )
+
+      if (!(found instanceof HTMLElement)) throw new Error('no toast for Done new')
+
+      return found
+    })
+
+    fireEvent.click(within(toast).getByRole('button', { name: 'Undo' }))
 
     await waitFor(() => expect(calls().map(call => call.action)).toEqual(['snooze', 'unsnooze']))
     expect(rowIDs(list())).toContain('ses_done_new')

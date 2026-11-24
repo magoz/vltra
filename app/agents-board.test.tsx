@@ -243,7 +243,7 @@ describe('keyboard', () => {
     expect(cursorID()).toBe('ses_wait_new')
   })
 
-  it('marks the focused card handled with h, moves to the next card, u undoes', async () => {
+  it('marks the focused card handled with h and moves to the next card', async () => {
     const { calls } = renderBoard()
 
     press('j')
@@ -255,21 +255,9 @@ describe('keyboard', () => {
     expect(rowIDs(column('Need you'))).toEqual(['ses_wait_new', 'ses_wait_old', 'ses_done_old'])
     expect(cursorID()).toBe('ses_done_old')
 
-    press('u')
-
     await waitFor(() =>
-      expect(calls).toEqual([
-        { action: 'markHandled', input: { sessionID: 'ses_done_new' } },
-        { action: 'reopen', input: { sessionID: 'ses_done_new' } }
-      ])
+      expect(calls).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_done_new' } }])
     )
-    expect(rowIDs(column('Need you'))).toEqual([
-      'ses_wait_new',
-      'ses_wait_old',
-      'ses_done_new',
-      'ses_done_old'
-    ])
-    expect(cursorID()).toBe('ses_done_new')
   })
 
   it('leaves blocked cards to the chat: h does nothing there', () => {

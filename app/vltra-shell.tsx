@@ -118,8 +118,8 @@ function useShellShortcuts(launcher: () => void, help: () => void) {
 /**
  * Vltra's `⌘` chords (`commandKey`) from anywhere, in the OpenCode chat too (`forwardChatKeys`),
  * even while typing; not in a dialog. Always taken, so the browser never acts instead (switching
- * tabs, `⌘D`'s bookmark); `⌘D` itself is the open session panel's (`useDoneKey`), `⌘U` the tab's
- * `u` (`useKeys`), `⌘I` the chat's (`useInsertKeys`).
+ * tabs, `⌘D`'s bookmark); `⌘D` itself is the open session panel's (`useDoneKey`), `⌘I` the
+ * chat's (`useInsertKeys`).
  */
 function useCommandKeys(run: (chord: CommandKey) => void) {
   const latest = useRef(run)
@@ -217,7 +217,6 @@ export function VltraShell({
         }
       },
       Done: () => undefined,
-      Undo: () => undefined,
       Insert: () => undefined
     })
   )

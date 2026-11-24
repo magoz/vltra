@@ -40,7 +40,6 @@ describe('shortcuts', () => {
       '↵ open',
       'h ⌘D done',
       's snooze',
-      'u ⌘U undo',
       'n ⌘K new',
       '/ filter',
       '⌘1–9 ⌃1–9 Nth session (Focus)',

@@ -186,12 +186,7 @@ function Focus() {
     Enter: () => {
       if (focused !== undefined) selection.select(focused.row.id)
     },
-    h: handledKey,
-    u: () => {
-      const id = flow.undo()
-
-      if (id !== undefined) selection.select(id)
-    }
+    h: handledKey
   })
 
   return (
@@ -235,7 +230,7 @@ function SnoozeKey({ rows }: { readonly rows: ReadonlyArray<BoardRow['row'] | un
  * opens the next one in list order. The list marks the open session only; `j` / `k` add a cursor
  * until another session opens. Phone: the list; a session opens full screen. Keys: `j`/`k`
  * (`↓`/`↑`) move, `Enter` opens, `h` done (the cursor's finished session, else the open one;
- * the next opens), `s` snooze (the same session: the picker, then the next opens), `u` undo
+ * the next opens), `s` snooze (the same session: the picker, then the next opens)
  * (the shell adds the tabs and `Escape` closes). Snoozed sessions leave the list for a collapsed
  * Snoozed section at its foot (`snoozed-list.tsx`).
  */

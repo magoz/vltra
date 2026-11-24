@@ -266,8 +266,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   raises a sonner toast with Undo (= reopen, after the handled write). No "handle all", no drag
   and drop. Phone: swipe a finished card left (`use-swipe.ts`); the board's cards keep the `✔ Done`
   button, Focus' list rows do not (swipe only). Snooze / Wake go through the same flow
-  (`snooze`, `unsnooze`: overrides `snoozed` / `awake`, a `Snoozed until …` toast with Undo; `u`
-  undoes the last Done or Snooze). `SnoozeProvider` (`snooze-dialog.tsx`, in the shell and again
+  (`snooze`, `unsnooze`: overrides `snoozed` / `awake`, a `Snoozed until …` toast with Undo; no
+  undo key). `SnoozeProvider` (`snooze-dialog.tsx`, in the shell and again
   in Focus) holds the picker: tomorrow, Monday, in a week (`1`–`3`) at the wake time
   (`use-wake-time.ts`, localStorage, Settings; pure date math in `snooze-time.ts`), or a day
   of the calendar (`components/ui/calendar.tsx`, react-day-picker) at a typed time
@@ -280,7 +280,7 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   `?` / `⌘/` (`isHelpKey`, also while typing) the tab's keys (`shortcuts-dialog.tsx`,
   `keyHints`; also the header's `?`; no hints line),
   `Escape` closes the session (the palette closes itself). `⌘1`–`⌘9` (or `Ctrl+1`–`Ctrl+9`) open Focus' Nth session
-  (in Focus from another tab) and `⌘⌥1`–`⌘⌥5` pick a tab, `⌘U` is the tab's `u` (`useKeys`),
+  (in Focus from another tab) and `⌘⌥1`–`⌘⌥5` pick a tab,
   `⌘I` / `i` put the caret in the chat's composer (`useInsertKeys`; `chat-composer.ts`, which also
   focuses it once when a chat loads, on a fine pointer, unless a Vltra field or dialog has focus),
   `⌘D` marks the open finished session done (`useDoneKey` in
@@ -288,9 +288,9 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   `code`; `useCommandKeys` in the shell, from anywhere but dialogs, in the chat even while typing;
   always `preventDefault`, so the browser does not switch tabs). Focus: `j`/`k` (`↓`/`↑`) through
   the list, `Enter` opens the focused session on the right, `h` handled (the cursor's finished
-  session, else the open one; the next opens), `u` undo (reopens and opens it); no
+  session, else the open one; the next opens); no
   cursor until `j`/`k`, which start from the open session's row. Agents (board): `j`/`k` (`↓`/`↑`) within a
-  column, `←`/`→` between columns, `h` handled + next card, `u` undo, `Enter` opens,
+  column, `←`/`→` between columns, `h` handled + next card, `Enter` opens,
   `/` filter; focus starts on the first needs-me card and follows clicks. No key answers asks:
   they are answered in the chat. Projects: arrows between cards (up/down by grid row), `j`/`k`
   within a card (fold rows when open), `Enter` opens the focused session, else the card's board.

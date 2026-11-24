@@ -3,14 +3,13 @@ import type { VltraScreen } from '@/app/vltra-href'
 
 /**
  * Vltra's `⌘` chords: `⌘1`–`⌘9` (or `Ctrl+1`–`Ctrl+9`) the Nth session of Focus' list, `⌘⌥1`–`⌘⌥5` a tab, `⌘D` the open
- * session done, `⌘U` undo (the tab's `u`), `⌘I` into the chat's composer. They work everywhere but dialogs, in the OpenCode chat
+ * session done, `⌘I` into the chat's composer. They work everywhere but dialogs, in the OpenCode chat
  * too, even while typing.
  */
 export type CommandKey = Data.TaggedEnum<{
   Session: { readonly index: number }
   Tab: { readonly screen: VltraScreen }
   Done: Record<never, never>
-  Undo: Record<never, never>
   Insert: Record<never, never>
 }>
 
@@ -40,8 +39,6 @@ export const commandKey = (event: ChordEvent): CommandKey | undefined => {
   if (!event.metaKey || event.ctrlKey) return undefined
 
   if (event.code === 'KeyD') return event.altKey ? undefined : CommandKey.Done()
-
-  if (event.code === 'KeyU') return event.altKey ? undefined : CommandKey.Undo()
 
   if (event.code === 'KeyI') return event.altKey ? undefined : CommandKey.Insert()
 
