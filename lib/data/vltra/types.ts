@@ -36,6 +36,14 @@ export const InterruptReason = Schema.Literals(['user', 'inactivity', 'shutdown'
 
 export type InterruptReason = typeof InterruptReason.Type
 
+/**
+ * A snooze: the run ending at `idle` stays out of the needs-me list until `until` (epoch ms). A
+ * new run (another `idle`) ends it, like a new run ends `handled`.
+ */
+export const Snooze = Schema.Struct({ idle: Schema.Number, until: Schema.Number })
+
+export type Snooze = typeof Snooze.Type
+
 /** The OpenCode session fields Vltra reads. Times are epoch milliseconds. */
 export const SessionRecord = Schema.Struct({
   id: Schema.String,
@@ -58,7 +66,9 @@ export const SessionRecord = Schema.Struct({
   /** Vltra's marker (`metadata.vltra.handled`): the `idle` of the last run I handled. */
   handled: Schema.optional(Schema.Number),
   /** Vltra's marker (`metadata.vltra.reopened`): the `idle` of a gone-folder run I reopened. */
-  reopened: Schema.optional(Schema.Number)
+  reopened: Schema.optional(Schema.Number),
+  /** Vltra's marker (`metadata.vltra.snoozed`): see `Snooze`. */
+  snoozed: Schema.optional(Snooze)
 })
 
 export type SessionRecord = typeof SessionRecord.Type
@@ -272,6 +282,11 @@ const rowFields = {
   interrupt: Schema.optional(InterruptReason),
   /** Vltra's handled marker: the `idle` of the last run I handled (handled while `>= idle`). */
   handled: Schema.optional(Schema.Number),
+  /**
+   * When the latest run's snooze ends (its `metadata.vltra.snoozed` is for this run); a finished
+   * row is out of the needs-me list until then (`isSnoozed`).
+   */
+  snoozedUntil: Schema.optional(Schema.Number),
   /** OpenCode's read marker; Vltra never derives state from it (only for mark viewed). */
   viewed: Schema.optional(Schema.Number),
   /**
@@ -350,13 +365,14 @@ export const VltraProject = Schema.Struct({
 export type VltraProject = typeof VltraProject.Type
 
 /**
- * Root rows by rolled-up state (needs me = blocked + finished). `stuck` counts working rows that
- * are retrying, quiet or wait on an overdue watch; `waiting` those that only wait (scripts,
- * `until` watches); both overlap `working`.
+ * Root rows by rolled-up state (needs me = blocked + finished). `finished` leaves out the snoozed
+ * ones, which `snoozed` counts. `stuck` counts working rows that are retrying, quiet or wait on an
+ * overdue watch; `waiting` those that only wait (scripts, `until` watches); both overlap `working`.
  */
 export const VltraCounts = Schema.Struct({
   blocked: Schema.Number,
   finished: Schema.Number,
+  snoozed: Schema.Number,
   working: Schema.Number,
   stuck: Schema.Number,
   waiting: Schema.Number,

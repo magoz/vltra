@@ -1,6 +1,15 @@
 import { describe, expect, it } from '@effect/vitest'
 import { Effect, Layer } from 'effect'
-import { deleteProject, markHandled, markViewed, reopen } from '@/lib/data/vltra/actions'
+import * as TestClock from 'effect/testing/TestClock'
+import {
+  deleteProject,
+  markHandled,
+  markViewed,
+  maxSnooze,
+  reopen,
+  snooze,
+  unsnooze
+} from '@/lib/data/vltra/actions'
 import { ProjectBusyError } from '@/lib/data/vltra/errors'
 import { fromSnapshot } from '@/lib/data/vltra/model'
 import type { OpenCodeSnapshot } from '@/lib/data/vltra/model'
@@ -213,6 +222,102 @@ describe('mark handled', () => {
       )
 
       expect(error._tag).toBe('SessionNotFoundError')
+    })
+  )
+})
+
+describe('snooze', () => {
+  const day = 24 * 60 * 60 * 1000
+  const until = baseTime + 2 * day
+
+  it.effect('writes the stored idle and the time, keeping the other markers and keys', () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(baseTime)
+
+      const fake = yield* makeFakeOpenCode(snapshot)
+
+      yield* fake.setMetadata('ses_finished', { ...foreign, vltra: { note: 'kept' } })
+      yield* snooze({ sessionID: 'ses_finished', until }).pipe(Effect.provide(services(fake)))
+
+      expect(yield* fake.calls).toEqual([
+        { op: 'setSnoozed', sessionID: 'ses_finished', snoozed: { idle, until } }
+      ])
+      expect(yield* fake.metadata('ses_finished')).toEqual({
+        ...foreign,
+        vltra: { note: 'kept', snoozed: { idle, until } }
+      })
+    })
+  )
+
+  it.effect('refuses what is not finished: blocked, working, handled, a subagent', () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(baseTime)
+
+      const fake = yield* makeFakeOpenCode(snapshot)
+
+      const errors = yield* Effect.forEach(
+        ['ses_blocked', 'ses_working', 'ses_handled', 'ses_child'],
+        sessionID => snooze({ sessionID, until }).pipe(Effect.provide(services(fake)), Effect.flip)
+      )
+
+      expect(errors.map(error => error._tag)).toEqual([
+        'SessionNotFinishedError',
+        'SessionNotFinishedError',
+        'SessionNotFinishedError',
+        'SessionNotFinishedError'
+      ])
+      expect(yield* fake.calls).toEqual([])
+    })
+  )
+
+  it.effect('refuses a time that passed, or more than a year ahead', () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(baseTime)
+
+      const fake = yield* makeFakeOpenCode(snapshot)
+
+      const errors = yield* Effect.forEach([baseTime, baseTime + maxSnooze + 1], at =>
+        snooze({ sessionID: 'ses_finished', until: at }).pipe(
+          Effect.provide(services(fake)),
+          Effect.flip
+        )
+      )
+
+      expect(errors.map(error => error._tag)).toEqual([
+        'OpenCodeInvalidInputError',
+        'OpenCodeInvalidInputError'
+      ])
+      expect(yield* fake.calls).toEqual([])
+    })
+  )
+
+  it.effect('unsnooze removes it (and nothing when there is none); Done ends it too', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode({
+        ...snapshot,
+        sessions: snapshot.sessions.map(session =>
+          session.id === 'ses_finished' ? { ...session, snoozed: { idle, until } } : session
+        )
+      })
+
+      yield* unsnooze({ sessionID: 'ses_finished' }).pipe(Effect.provide(services(fake)))
+      yield* unsnooze({ sessionID: 'ses_finished' }).pipe(Effect.provide(services(fake)))
+
+      expect(yield* fake.calls).toEqual([
+        { op: 'setSnoozed', sessionID: 'ses_finished', snoozed: undefined }
+      ])
+      expect(yield* fake.metadata('ses_finished')).toEqual({})
+
+      const done = yield* makeFakeOpenCode({
+        ...snapshot,
+        sessions: snapshot.sessions.map(session =>
+          session.id === 'ses_finished' ? { ...session, snoozed: { idle, until } } : session
+        )
+      })
+
+      yield* markHandled({ sessionID: 'ses_finished' }).pipe(Effect.provide(services(done)))
+
+      expect(yield* done.metadata('ses_finished')).toEqual({ vltra: { handled: idle } })
     })
   )
 })

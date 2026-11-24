@@ -8,7 +8,9 @@ import type {
   DeleteProjectInput,
   MarkHandledInput,
   MarkViewedInput,
-  ReopenInput
+  ReopenInput,
+  SnoozeInput,
+  UnsnoozeInput
 } from '@/lib/data/vltra/actions'
 import type {
   DismissLaunchInput,
@@ -25,6 +27,8 @@ import type { BranchSuggestion, PushDevice } from '@/lib/data/vltra/types'
 export type VltraActions = {
   readonly markHandled: (input: MarkHandledInput) => Promise<VltraActionResult>
   readonly reopen: (input: ReopenInput) => Promise<VltraActionResult>
+  readonly snooze: (input: SnoozeInput) => Promise<VltraActionResult>
+  readonly unsnooze: (input: UnsnoozeInput) => Promise<VltraActionResult>
   readonly markViewed: (input: MarkViewedInput) => Promise<VltraActionResult>
   /** Start a new worktree + session (returns at once; progress comes with the vltra). */
   readonly launch: (input: LaunchInput) => Promise<VltraActionValue<{ readonly launchID: string }>>

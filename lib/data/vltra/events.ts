@@ -9,7 +9,8 @@ import type {
   RunningShell,
   RunningWatch,
   SessionActivity,
-  SessionRecord
+  SessionRecord,
+  Snooze
 } from '@/lib/data/vltra/types'
 
 /**
@@ -60,6 +61,7 @@ export type VltraEvent = Data.TaggedEnum<{
     readonly sessionID: string
     readonly handled: number | undefined
     readonly reopened?: number | undefined
+    readonly snoozed?: Snooze | undefined
   }
   /** The interrupt reason of the run ending at `idle`, recovered from the session log. */
   InterruptRecovered: {

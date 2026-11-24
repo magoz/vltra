@@ -5,6 +5,7 @@ import { servingText, sessionTitle, stuckText, waitText } from '@/app/vltra-form
 import { useVltra } from '@/app/vltra-context'
 import { useLauncher } from '@/app/launcher-context'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
+import { SnoozeButton } from '@/app/snooze-dialog'
 import { Age, FactLine, GoneLabel, isReopenable, RowLink } from '@/app/session-row'
 import { StateMarker } from '@/app/state-marker'
 import { useHandled } from '@/app/use-handled'
@@ -43,6 +44,18 @@ function Flags({ row, now }: { readonly row: VltraRow; readonly now: number }) {
     </FactLine>
   )
 }
+
+/**
+ * A card's own buttons (Snooze, Done): with a mouse only on hover, left of the age (the project
+ * name gives way). Touch: always, but in focus mode's list, where a swipe marks it done and the
+ * open session's toolbar snoozes.
+ */
+const hoverOnly = (compact: boolean) =>
+  cn(
+    'relative z-10 -my-1 self-center',
+    compact ? 'hidden' : 'pointer-fine:hidden',
+    'pointer-fine:group-hover/card:inline-flex'
+  )
 
 /**
  * Where a worktree session runs, under its title: the worktree (its folder without the
@@ -137,18 +150,11 @@ export function AgentCard({
           {row.state === 'blocked' ? (
             <span className="border-attention text-attention shrink-0 border px-1">blocked</span>
           ) : null}
+          {row.state === 'finished' ? (
+            <SnoozeButton sessionID={row.id} size="sm" className={hoverOnly(compact)} />
+          ) : null}
           {finished ? (
-            <HandledButton
-              sessionID={row.id}
-              size="sm"
-              className={cn(
-                'relative z-10 -my-1 self-center',
-                // Mouse: only on hover, left of the age (the project name gives way). Touch: in
-                // focus mode's list a swipe does it, so no button.
-                compact ? 'hidden' : 'pointer-fine:hidden',
-                'pointer-fine:group-hover/card:inline-flex'
-              )}
-            />
+            <HandledButton sessionID={row.id} size="sm" className={hoverOnly(compact)} />
           ) : null}
           <Age row={row} now={now} />
         </div>

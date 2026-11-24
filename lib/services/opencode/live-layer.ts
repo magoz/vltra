@@ -49,7 +49,8 @@ import {
   toTranscript,
   untilRpcID,
   UntilWaits,
-  withVltraMarker
+  withVltraMarker,
+  withVltraSnooze
 } from '@/lib/services/opencode/mapping'
 import type { RunEnd } from '@/lib/services/opencode/mapping'
 import { OpenCode } from '@/lib/services/opencode/service'
@@ -440,6 +441,18 @@ const makeConnection = (
 
           yield* client.session
             .update({ sessionID: id, metadata: withVltraMarker(info.metadata, marker) })
+            .pipe(action('session.update', sessionID))
+        }),
+      setSnoozed: ({ sessionID, snoozed }) =>
+        Effect.gen(function* () {
+          const id = yield* decodeSessionId(sessionID)
+
+          const info = yield* client.session
+            .get({ sessionID: id })
+            .pipe(action('session.get', sessionID))
+
+          yield* client.session
+            .update({ sessionID: id, metadata: withVltraSnooze(info.metadata, snoozed) })
             .pipe(action('session.update', sessionID))
         }),
       interruptReason: sessionID =>

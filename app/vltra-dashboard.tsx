@@ -14,6 +14,7 @@ import { removePushDeviceAction } from '@/app/remove-push-device-action'
 import { reopenAction } from '@/app/reopen-action'
 import { retireWorktreeAction } from '@/app/retire-worktree-action'
 import { savePushDeviceAction } from '@/app/save-push-device-action'
+import { snoozeAction, unsnoozeAction } from '@/app/snooze-action'
 import { suggestBranchAction } from '@/app/suggest-branch-action'
 import { testPushAction } from '@/app/test-push-action'
 import { useVltraLive } from '@/app/use-vltra-live'
@@ -27,6 +28,8 @@ import type { VltraSnapshot } from '@/lib/data/vltra/types'
 const serverActions: VltraActions = {
   markHandled: markHandledAction,
   reopen: reopenAction,
+  snooze: snoozeAction,
+  unsnooze: unsnoozeAction,
   markViewed: markViewedAction,
   launch: launchAction,
   dismissLaunch: dismissLaunchAction,

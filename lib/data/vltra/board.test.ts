@@ -208,7 +208,7 @@ describe('agents board', () => {
 
 describe('needs me (focus mode)', () => {
   it('lists blocked (newest wait first), then finished (newest first), nothing else', () => {
-    const needsMe = buildNeedsMe(live, undefined)
+    const needsMe = buildNeedsMe(live, undefined, now)
 
     expect(ids(needsMe.blocked)).toEqual(['ses_wait_short', 'ses_wait_long'])
     expect(ids(needsMe.finished)).toEqual(['ses_tmp', 'ses_fail', 'ses_done', 'ses_done_old'])
@@ -225,19 +225,19 @@ describe('needs me (focus mode)', () => {
   })
 
   it('narrows to one project', () => {
-    expect(ids(needsMeOrder(buildNeedsMe(live, 'prj_vltra')))).toEqual([
+    expect(ids(needsMeOrder(buildNeedsMe(live, 'prj_vltra', now)))).toEqual([
       'ses_wait_short',
       'ses_wait_long',
       'ses_fail',
       'ses_done',
       'ses_done_old'
     ])
-    expect(ids(needsMeOrder(buildNeedsMe(live, otherProjectID)))).toEqual(['ses_tmp'])
-    expect(ids(needsMeOrder(buildNeedsMe(live, 'prj_box')))).toEqual([])
+    expect(ids(needsMeOrder(buildNeedsMe(live, otherProjectID, now)))).toEqual(['ses_tmp'])
+    expect(ids(needsMeOrder(buildNeedsMe(live, 'prj_box', now)))).toEqual([])
   })
 
   it('opens the next session after a handled one, else the one before, else nothing', () => {
-    const list = needsMeOrder(buildNeedsMe(live, undefined))
+    const list = needsMeOrder(buildNeedsMe(live, undefined, now))
     const next = (id: string, from = list) => nextNeedsMe(from, id)?.row.id
 
     expect(next('ses_tmp')).toBe('ses_fail')
@@ -263,6 +263,7 @@ describe('counts', () => {
     expect(countRows(rowsOf(live), now)).toEqual({
       blocked: 2,
       finished: 4,
+      snoozed: 0,
       working: 1,
       stuck: 0,
       waiting: 0,

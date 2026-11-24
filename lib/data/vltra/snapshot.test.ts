@@ -135,6 +135,7 @@ describe('grouping and ordering', () => {
     expect(snapshot.counts).toEqual({
       blocked: 0,
       finished: 1,
+      snoozed: 0,
       working: 1,
       stuck: 0,
       waiting: 0,

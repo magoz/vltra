@@ -11,6 +11,7 @@ import type { VltraNav, SessionSelection } from '@/app/vltra-context'
 import { vltraHref, moveTo } from '@/app/vltra-href'
 import type { VltraPlace, VltraScreen } from '@/app/vltra-href'
 import { VltraShell } from '@/app/vltra-shell'
+import { SnoozeProvider } from '@/app/snooze-dialog'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
 import { Toaster } from '@/components/ui/sonner'
 import { fromSnapshot as liveFromSnapshot } from '@/lib/data/vltra/board'
@@ -100,6 +101,8 @@ type Input<K extends keyof VltraActions> = Parameters<VltraActions[K]>[0]
 export type ActionCall =
   | { readonly action: 'markHandled'; readonly input: Input<'markHandled'> }
   | { readonly action: 'reopen'; readonly input: Input<'reopen'> }
+  | { readonly action: 'snooze'; readonly input: Input<'snooze'> }
+  | { readonly action: 'unsnooze'; readonly input: Input<'unsnooze'> }
   | { readonly action: 'markViewed'; readonly input: Input<'markViewed'> }
   | { readonly action: 'launch'; readonly input: Input<'launch'> }
   | { readonly action: 'dismissLaunch'; readonly input: Input<'dismissLaunch'> }
@@ -161,6 +164,8 @@ export const fakeActions = (failWith?: string, values: Partial<FakeValues> = {})
   const actions: VltraActions = {
     markHandled: input => record({ action: 'markHandled', input }),
     reopen: input => record({ action: 'reopen', input }),
+    snooze: input => record({ action: 'snooze', input }),
+    unsnooze: input => record({ action: 'unsnooze', input }),
     markViewed: input => record({ action: 'markViewed', input }),
     launch: input => recordValue({ action: 'launch', input }, { launchID: answers.launchID }),
     dismissLaunch: input => record({ action: 'dismissLaunch', input }),
@@ -194,7 +199,11 @@ function WithHandled({
 }) {
   const flow = useHandledFlow(actions, rows)
 
-  return <HandledProvider flow={flow}>{children}</HandledProvider>
+  return (
+    <HandledProvider flow={flow}>
+      <SnoozeProvider>{children}</SnoozeProvider>
+    </HandledProvider>
+  )
 }
 
 /** The dashboard's providers: `actions`, and Handled / Undo / Reopen over `rows`. */

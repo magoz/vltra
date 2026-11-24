@@ -379,6 +379,7 @@ describe('stuck (retrying or quiet working rows)', () => {
     expect(countRows(rows, now)).toEqual({
       blocked: 0,
       finished: 1,
+      snoozed: 0,
       working: 2,
       stuck: 1,
       waiting: 0,

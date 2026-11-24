@@ -18,7 +18,9 @@ import {
   toSignals,
   toTranscript,
   vltraReopened,
-  withVltraMarker
+  vltraSnoozed,
+  withVltraMarker,
+  withVltraSnooze
 } from '@/lib/services/opencode/mapping'
 import type { RunEnd } from '@/lib/services/opencode/mapping'
 import type { JsonValue } from '@/lib/services/opencode/testing/opencode-server'
@@ -714,6 +716,37 @@ describe('session row mapping', () => {
       expect(toSessionRecord(info).handled).toBe(1790806673204)
     })
   )
+})
+
+describe('the snooze marker in session metadata', () => {
+  const snoozed = { idle: 10, until: 99 }
+
+  it('reads metadata.vltra.snoozed; absent or malformed reads as not snoozed', () => {
+    expect(vltraSnoozed({ vltra: { handled: 5, snoozed } })).toEqual(snoozed)
+    expect(vltraSnoozed({ vltra: { snoozed: { idle: 10 } } })).toBeUndefined()
+    expect(vltraSnoozed({ vltra: { snoozed: 'tomorrow' } })).toBeUndefined()
+    expect(vltraSnoozed(undefined)).toBeUndefined()
+  })
+
+  it('sets and removes only the snooze, keeping every other key', () => {
+    const others = { plugin: { pinned: true }, vltra: { handled: 5, note: 'kept' } }
+
+    expect(withVltraSnooze(others, snoozed)).toEqual({
+      plugin: { pinned: true },
+      vltra: { handled: 5, note: 'kept', snoozed }
+    })
+    expect(withVltraSnooze({ ...others, vltra: { ...others.vltra, snoozed } }, undefined)).toEqual(
+      others
+    )
+    expect(withVltraSnooze({ plugin: 1, vltra: { snoozed } }, undefined)).toEqual({ plugin: 1 })
+  })
+
+  it('Done and Reopen end a snooze', () => {
+    expect(withVltraMarker({ vltra: { snoozed, note: 'kept' } }, { handled: 10 })).toEqual({
+      vltra: { note: 'kept', handled: 10 }
+    })
+    expect(withVltraMarker({ vltra: { snoozed, handled: 10 } }, { handled: undefined })).toEqual({})
+  })
 })
 
 describe('Vltra markers in session metadata', () => {

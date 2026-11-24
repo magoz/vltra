@@ -39,6 +39,7 @@ describe('shortcuts', () => {
       '← → column',
       '↵ open',
       'h ⌘D done',
+      's snooze',
       'u ⌘U undo',
       'n ⌘K new',
       '/ filter',

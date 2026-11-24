@@ -110,7 +110,7 @@ export const failureMessage = (error: VltraActionError): string =>
       SchemaError: () => 'Invalid input',
       OpenCodeInvalidInputError: invalid => invalid.message,
       SessionNotFoundError: () => 'Session not found',
-      SessionNotFinishedError: () => 'Only a finished session can be marked done',
+      SessionNotFinishedError: () => 'Only a finished session can be marked done or snoozed',
       OpenCodeUnavailableError: () => 'OpenCode is not reachable',
       // OpenCode's own words (sanitized), e.g. the worktree plugin's refusals.
       OpenCodeRejectedError: rejected => rejected.message,

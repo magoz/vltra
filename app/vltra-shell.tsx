@@ -14,6 +14,7 @@ import { LauncherDialog } from '@/app/launcher-dialog'
 import { ShortcutsDialog } from '@/app/shortcuts-dialog'
 import type { StreamStatus } from '@/app/use-vltra-live'
 import { HandledProvider, useHandledFlow } from '@/app/use-handled'
+import { SnoozeProvider } from '@/app/snooze-dialog'
 import { useKeys } from '@/app/use-keys'
 import { useLauncherList } from '@/app/use-launcher-list'
 import { useOpenFromNotification, usePushRefresh } from '@/app/use-push'
@@ -205,7 +206,7 @@ export function VltraShell({
     CommandKey.$match({
       Tab: ({ screen: target }) => nav.show(target),
       Session: ({ index }) => {
-        const item = focusList(view)[index]
+        const item = focusList(view, now)[index]
 
         if (item === undefined) return
 
@@ -236,32 +237,38 @@ export function VltraShell({
     <VltraProvider vltra={vltra}>
       <LauncherProvider launcher={launcher}>
         <HandledProvider flow={flow}>
-          <div className="flex min-h-dvh flex-col font-mono text-sm lg:h-dvh">
-            <VltraHeader
-              screen={screen}
-              counts={counts}
-              stream={stream}
-              connection={live.connection}
-              usage={usage}
-              now={now}
-              onNew={() => openLauncher()}
-              onShortcuts={() => setShortcutsOpen(true)}
-            />
-            <ConnectionLine stream={stream} connection={live.connection} />
-            <main className="flex min-h-0 flex-1 flex-col max-lg:pb-14">{children}</main>
-            <BottomTabs screen={screen} onNew={() => openLauncher()} />
-            <LauncherDialog
-              open={launcherOpen}
-              request={request}
-              list={launcherList.list}
-              onOpenChange={setLauncherOpen}
-              onLaunched={(id, branch) => {
-                awaitLaunch(id)
-                toast(`Provisioning ${branch}…`)
-              }}
-            />
-            <ShortcutsDialog screen={screen} open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
-          </div>
+          <SnoozeProvider>
+            <div className="flex min-h-dvh flex-col font-mono text-sm lg:h-dvh">
+              <VltraHeader
+                screen={screen}
+                counts={counts}
+                stream={stream}
+                connection={live.connection}
+                usage={usage}
+                now={now}
+                onNew={() => openLauncher()}
+                onShortcuts={() => setShortcutsOpen(true)}
+              />
+              <ConnectionLine stream={stream} connection={live.connection} />
+              <main className="flex min-h-0 flex-1 flex-col max-lg:pb-14">{children}</main>
+              <BottomTabs screen={screen} onNew={() => openLauncher()} />
+              <LauncherDialog
+                open={launcherOpen}
+                request={request}
+                list={launcherList.list}
+                onOpenChange={setLauncherOpen}
+                onLaunched={(id, branch) => {
+                  awaitLaunch(id)
+                  toast(`Provisioning ${branch}…`)
+                }}
+              />
+              <ShortcutsDialog
+                screen={screen}
+                open={shortcutsOpen}
+                onOpenChange={setShortcutsOpen}
+              />
+            </div>
+          </SnoozeProvider>
         </HandledProvider>
       </LauncherProvider>
     </VltraProvider>

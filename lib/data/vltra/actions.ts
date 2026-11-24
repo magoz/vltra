@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from 'effect'
+import { Clock, Effect, Option, Schema } from 'effect'
 import { fromSnapshot, projectKey } from '@/lib/data/vltra/board'
 import { busyStates } from '@/lib/data/vltra/checkouts'
 import { ProjectBusyError, SessionNotFinishedError } from '@/lib/data/vltra/errors'
@@ -7,7 +7,7 @@ import { snapshotRows } from '@/lib/data/vltra/snapshot'
 import { canMarkDone, isHandled, isReopened } from '@/lib/data/vltra/state'
 import { VltraStore } from '@/lib/data/vltra/store'
 import type { VltraRow, MarkHandledOutcome, ReopenOutcome } from '@/lib/data/vltra/types'
-import { SessionNotFoundError } from '@/lib/services/opencode/errors'
+import { OpenCodeInvalidInputError, SessionNotFoundError } from '@/lib/services/opencode/errors'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type { OpenCodeConnection } from '@/lib/services/opencode/service'
 
@@ -27,6 +27,18 @@ export type ReopenInput = typeof ReopenInput.Type
 export const MarkViewedInput = Schema.Struct({ sessionID: Id })
 
 export type MarkViewedInput = typeof MarkViewedInput.Type
+
+/** Snooze until `until` (epoch ms; the browser picks it: a day at the time set in Settings). */
+export const SnoozeInput = Schema.Struct({ sessionID: Id, until: Schema.Finite })
+
+export type SnoozeInput = typeof SnoozeInput.Type
+
+export const UnsnoozeInput = Schema.Struct({ sessionID: Id })
+
+export type UnsnoozeInput = typeof UnsnoozeInput.Type
+
+/** The longest snooze: a date further out is a typo, not a plan. */
+export const maxSnooze = 366 * 24 * 60 * 60 * 1000
 
 /** A Projects card: its `projectKey` (a project id, or `other`). */
 export const DeleteProjectInput = Schema.Struct({ project: Id })
@@ -137,6 +149,64 @@ export const reopen = (input: ReopenInput) =>
       const outcome: ReopenOutcome = 'reopened'
 
       return outcome
+    })
+  )
+
+/**
+ * Snooze a finished root session's latest run until `until`: `metadata.vltra.snoozed = { idle,
+ * until }`, with `idle` read fresh from OpenCode, so the run that ends next brings it back. Only
+ * finished rows (blocked ones wait on me; working ones are not mine to hide), and only a time
+ * ahead, within `maxSnooze`.
+ */
+export const snooze = (input: SnoozeInput) =>
+  Effect.gen(function* () {
+    const now = yield* Clock.currentTimeMillis
+
+    if (input.until <= now || input.until > now + maxSnooze) {
+      return yield* new OpenCodeInvalidInputError({
+        field: 'until',
+        message: 'Pick a time ahead, within a year'
+      })
+    }
+
+    const view = yield* Effect.flatMap(VltraStore, store => store.view)
+    const row = snapshotRows(view.snapshot).find(item => item.id === input.sessionID)
+
+    if (row === undefined) {
+      return yield* view.model.sessions.has(input.sessionID)
+        ? new SessionNotFinishedError({ sessionID: input.sessionID })
+        : new SessionNotFoundError({ sessionID: input.sessionID })
+    }
+
+    if (row.state !== 'finished') {
+      return yield* new SessionNotFinishedError({ sessionID: input.sessionID, state: row.state })
+    }
+
+    yield* withConnection(connection =>
+      Effect.gen(function* () {
+        const info = yield* readSession(connection, input.sessionID)
+
+        if (info.idle === undefined) {
+          return yield* new SessionNotFinishedError({ sessionID: input.sessionID })
+        }
+
+        yield* connection.setSnoozed({
+          sessionID: input.sessionID,
+          snoozed: { idle: info.idle, until: input.until }
+        })
+      })
+    )
+  })
+
+/** Bring a snoozed session back now: remove its snooze marker (none: nothing to do). */
+export const unsnooze = (input: UnsnoozeInput) =>
+  withConnection(connection =>
+    Effect.gen(function* () {
+      const info = yield* readSession(connection, input.sessionID)
+
+      if (info.snoozed === undefined) return
+
+      yield* connection.setSnoozed({ sessionID: input.sessionID, snoozed: undefined })
     })
   )
 

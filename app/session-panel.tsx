@@ -13,6 +13,7 @@ import { useVltraActions } from '@/app/vltra-actions'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
 import { useLauncher } from '@/app/launcher-context'
 import { isReopenable } from '@/app/session-row'
+import { SnoozeButton } from '@/app/snooze-dialog'
 import { StateMarker } from '@/app/state-marker'
 import { useHandled } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
@@ -174,6 +175,9 @@ function OpenCodeChat({
 function ToolbarActions({ row }: { readonly row: BoardRow['row'] }) {
   return (
     <>
+      {row.state === 'finished' ? (
+        <SnoozeButton sessionID={row.id} size="sm" className="lg:hidden" />
+      ) : null}
       {canMarkDone(row) ? (
         <HandledButton sessionID={row.id} size="sm" className="lg:hidden" />
       ) : null}

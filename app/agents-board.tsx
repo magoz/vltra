@@ -10,6 +10,7 @@ import { PendingLaunches } from '@/app/pending-launches'
 import { ProjectFilter } from '@/app/project-filter'
 import type { ProjectFilterHandle } from '@/app/project-filter'
 import { SessionSplit } from '@/app/session-panel'
+import { useSnoozePicker } from '@/app/snooze-dialog'
 import { useHandled } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
 import {
@@ -219,6 +220,7 @@ function Segments({
 function Board({ project }: { readonly project: string | undefined }) {
   const { view, now, selection } = useVltra()
   const flow = useHandled()
+  const snoozePicker = useSnoozePicker()
   const board = useMemo(() => buildAgentsBoard(view, now, project), [view, now, project])
   const [segment, setSegment] = useState<BoardColumn>(() => initialColumn(board))
   const [cursor, setCursor] = useState<Cursor>()
@@ -270,6 +272,10 @@ function Board({ project }: { readonly project: string | undefined }) {
       if (position !== undefined) selection.select(position.item.row.id)
     },
     h: handled,
+    s:
+      position?.item.row.state === 'finished'
+        ? () => snoozePicker.pick(position.item.row.id)
+        : undefined,
     u: () => {
       const id = flow.undo()
 

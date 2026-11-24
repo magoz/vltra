@@ -140,6 +140,10 @@ Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   after it, else the one before), or the empty state. The list marks the open session only (tint
   and left edge); `j`/`k` add a cursor (outline) that any change of the open session spends
   (`Cursor.under`), so a session that leaves the list (it works again) leaves nothing marked.
+  Snoozing works the same way (the picker, `snooze-dialog.tsx`, snoozes through Focus' own
+  `HandledProvider`, so the next opens): snoozed sessions leave the list (`focusList(live, now)`)
+  for a collapsed **Snoozed · N** section at its foot (`snoozed-list.tsx`, `snoozedList`, with
+  Wake); DESIGN.md "Snooze".
   Phone:
   the list full width; a session opens full screen (the pane becomes `fixed inset-0`), its back
   button returns to the list.
@@ -261,7 +265,12 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   optimistic overrides (until the server's next word on that row, `withOverrides`), Handled
   raises a sonner toast with Undo (= reopen, after the handled write). No "handle all", no drag
   and drop. Phone: swipe a finished card left (`use-swipe.ts`); the board's cards keep the `✔ Done`
-  button, Focus' list rows do not (swipe only).
+  button, Focus' list rows do not (swipe only). Snooze / Wake go through the same flow
+  (`snooze`, `unsnooze`: overrides `snoozed` / `awake`, a `Snoozed until …` toast with Undo; `u`
+  undoes the last Done or Snooze). `SnoozeProvider` (`snooze-dialog.tsx`, in the shell and again
+  in Focus) holds the picker: tomorrow, Monday, in a week (`1`–`3`) or a day, at the wake time
+  (`use-wake-time.ts`, localStorage, Settings; pure date math in `snooze-time.ts`). Snooze shows
+  for finished rows only (cards beside `✔ Done`, the phone's toolbar, `s` in Focus and Agents).
 - Keys (`use-keys.ts`, desktop; ignored while typing (except `Escape`), with modifiers and in
   dialogs; in the chat, `chat-keys.ts` hands Vltra the keys the chat does not own, see the
   session panel): shell `1`–`5` the tabs, `n` the launcher (and `⌘K` / `Ctrl+K`,
@@ -337,7 +346,8 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   (`#eeeeee` on `#131313`, 29%), rendered from `app/home-screen-icon.svg` with `rsvg-convert`;
   the favicon (`app/icon.svg`) at 42% on transparent, ink following the light/dark scheme; static
   (no status dot).
-- **Settings** (`?view=settings`, `settings-page.tsx`): notifications (DESIGN.md "Notifications").
+- **Settings** (`?view=settings`, `settings-page.tsx`): notifications (DESIGN.md "Notifications"),
+  then Snooze's wake time (`useWakeTime`, this browser only).
   `use-push.ts` owns this browser's side: the service worker (`public/sw.js` at `/sw.js`, push and
   click only, never a `fetch` handler), its subscription and permission (`PushState`: on, off,
   denied, unsupported or iPhone-Safari-needs-the-Home-Screen-app). Turn on asks from the click

@@ -9,6 +9,7 @@ import type {
   RunningWatch,
   SessionRecord,
   SessionStats,
+  Snooze,
   Transcript
 } from '@/lib/data/vltra/types'
 import type {
@@ -65,6 +66,14 @@ export type OpenCodeConnection = {
   readonly setHandled: (
     input: { readonly sessionID: string } & VltraMarker
   ) => Effect.Effect<void, ActionError>
+  /**
+   * Set (or, `undefined`, remove) Vltra's snooze marker, `metadata.vltra.snoozed`; the rest of the
+   * metadata is written back as it was (read-modify-write, like `setHandled`).
+   */
+  readonly setSnoozed: (input: {
+    readonly sessionID: string
+    readonly snoozed: Snooze | undefined
+  }) => Effect.Effect<void, ActionError>
   /**
    * Why the session's latest run was interrupted, from its durable log
    * (`GET /api/experimental/session/:id/log`); none when it did not end interrupted.

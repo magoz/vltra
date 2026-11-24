@@ -182,7 +182,7 @@ describe('POST /api/vltra/sessions/:id/handled', () => {
         expect(yield* answer('ses_finished', 'null')).toEqual(failure(400, 'Invalid input'))
         expect(yield* answer('ses_missing')).toEqual(failure(404, 'Session not found'))
         expect(yield* answer('ses_working')).toEqual(
-          failure(409, 'Only a finished session can be marked done')
+          failure(409, 'Only a finished session can be marked done or snoozed')
         )
       }).pipe(Effect.provide(layer))
 
@@ -481,7 +481,7 @@ describe('failure statuses', () => {
       [
         new SessionNotFinishedError({ sessionID: 'ses_1', state: 'working' }),
         409,
-        'Only a finished session can be marked done'
+        'Only a finished session can be marked done or snoozed'
       ],
       [new LaunchInProgressError({ id: 'l' }), 409, 'The launch is still running'],
       [new RetireRefusedError({ directory: '/x', reason: 'Busy' }), 409, 'Busy'],

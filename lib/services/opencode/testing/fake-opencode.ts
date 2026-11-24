@@ -10,6 +10,7 @@ import type {
   RunningWatch,
   SessionRecord,
   SessionStats,
+  Snooze,
   Transcript
 } from '@/lib/data/vltra/types'
 import {
@@ -17,7 +18,13 @@ import {
   OpenCodeUnavailableError,
   SessionNotFoundError
 } from '@/lib/services/opencode/errors'
-import { vltraHandled, vltraReopened, withVltraMarker } from '@/lib/services/opencode/mapping'
+import {
+  vltraHandled,
+  vltraReopened,
+  vltraSnoozed,
+  withVltraMarker,
+  withVltraSnooze
+} from '@/lib/services/opencode/mapping'
 import { OpenCode } from '@/lib/services/opencode/service'
 import type {
   ActionError,
@@ -43,6 +50,7 @@ export type FakeCall =
   | { readonly op: 'removeSession'; readonly sessionID: string }
   | { readonly op: 'generateText'; readonly prompt: string }
   | ({ readonly op: 'stats' } & StatsInput)
+  | { readonly op: 'setSnoozed'; readonly sessionID: string; readonly snoozed: Snooze | undefined }
   | { readonly op: 'shellPid'; readonly shellID: string; readonly directory: string }
   | { readonly op: 'watches'; readonly directories: ReadonlyArray<string> }
 
@@ -193,10 +201,17 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
         )
       }))
 
+    /** Vltra's markers as stored in `next`. */
+    const markersOf = (next: Session.Metadata) => ({
+      handled: vltraHandled(next),
+      reopened: vltraReopened(next),
+      snoozed: vltraSnoozed(next)
+    })
+
     const storeMetadata = (sessionID: string, next: Session.Metadata) =>
       Effect.andThen(
         Ref.update(metadata, map => new Map(map).set(sessionID, next)),
-        patchSession(sessionID, { handled: vltraHandled(next), reopened: vltraReopened(next) })
+        patchSession(sessionID, markersOf(next))
       )
 
     const metadataOf = (session: SessionRecord) =>
@@ -204,37 +219,49 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
         Ref.get(metadata),
         map =>
           map.get(session.id) ??
-          withVltraMarker(
-            undefined,
-            session.reopened === undefined
-              ? { handled: session.handled }
-              : { handled: undefined, reopened: session.reopened }
+          withVltraSnooze(
+            withVltraMarker(
+              undefined,
+              session.reopened === undefined
+                ? { handled: session.handled }
+                : { handled: undefined, reopened: session.reopened }
+            ),
+            session.snoozed
           )
       )
 
     /** Like OpenCode: replace the whole object, then emit `session.metadata.updated`. */
-    const setHandled = (sessionID: string, marker: VltraMarker) =>
+    const writeMetadata = (
+      sessionID: string,
+      change: (current: Session.Metadata) => Session.Metadata
+    ) =>
       Effect.gen(function* () {
-        yield* record({ op: 'setHandled', sessionID, ...marker })
-
         const found = yield* readSession(sessionID)
 
         if (Option.isNone(found)) return yield* new SessionNotFoundError({ sessionID })
 
-        const next = withVltraMarker(yield* metadataOf(found.value), marker)
+        const next = change(yield* metadataOf(found.value))
 
         yield* storeMetadata(sessionID, next)
 
         yield* emit(
           OpenCodeSignal.Apply({
-            event: VltraEvent.HandledChanged({
-              sessionID,
-              handled: vltraHandled(next),
-              reopened: vltraReopened(next)
-            })
+            event: VltraEvent.HandledChanged({ sessionID, ...markersOf(next) })
           })
         )
       })
+
+    const setHandled = (sessionID: string, marker: VltraMarker) =>
+      Effect.andThen(
+        record({ op: 'setHandled', sessionID, ...marker }),
+        writeMetadata(sessionID, current => withVltraMarker(current, marker))
+      )
+
+    const setSnoozed = (sessionID: string, snoozed: Snooze | undefined) =>
+      Effect.andThen(
+        record({ op: 'setSnoozed', sessionID, snoozed }),
+        writeMetadata(sessionID, current => withVltraSnooze(current, snoozed))
+      )
 
     const loadSnapshot = Effect.gen(function* () {
       const held = yield* Ref.getAndSet(gate, Option.none())
@@ -317,6 +344,7 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
           value => value.worktrees.find(entry => entry.projectID === projectID)?.directories ?? []
         ),
       setHandled: ({ sessionID, ...marker }) => setHandled(sessionID, marker),
+      setSnoozed: ({ sessionID, snoozed }) => setSnoozed(sessionID, snoozed),
       interruptReason: sessionID =>
         Effect.andThen(
           record({ op: 'interruptReason', sessionID }),

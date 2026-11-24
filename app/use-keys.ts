@@ -14,6 +14,7 @@ export type VltraKey =
   | 'j'
   | 'k'
   | 'h'
+  | 's'
   | 'u'
   | '1'
   | '2'
@@ -40,6 +41,7 @@ const vltraKeys: ReadonlyArray<string> = [
   'j',
   'k',
   'h',
+  's',
   'u',
   '1',
   '2',

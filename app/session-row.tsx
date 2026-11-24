@@ -12,9 +12,10 @@ import {
 } from '@/app/vltra-format'
 import { sessionHref, useVltra } from '@/app/vltra-context'
 import { ReopenButton } from '@/app/handled-button'
+import { wakeText } from '@/app/snooze-time'
 import { StateMarker } from '@/app/state-marker'
 import type { BoardRow } from '@/lib/data/vltra/board'
-import { isWaiting } from '@/lib/data/vltra/state'
+import { isSnoozed, isWaiting } from '@/lib/data/vltra/state'
 import type { VltraRow } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
@@ -116,7 +117,11 @@ function StateLabel({ row, now }: { readonly row: VltraRow; readonly now: number
     }
 
     case 'finished':
-      return <EndLabel row={row} />
+      return isSnoozed(row, now) && row.snoozedUntil !== undefined ? (
+        <span>snoozed · {wakeText(row.snoozedUntil, now)}</span>
+      ) : (
+        <EndLabel row={row} />
+      )
     case 'handled':
       return row.gone ? <GoneLabel /> : <span>done</span>
   }

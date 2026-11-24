@@ -25,6 +25,7 @@ import type {
   RunningWatch,
   SessionRecord,
   SessionStats,
+  Snooze,
   TokenCounts,
   Transcript,
   TranscriptEntry
@@ -46,6 +47,14 @@ const decodeVltraReopened = Schema.decodeUnknownOption(
   Schema.Struct({ vltra: Schema.Struct({ reopened: Schema.Finite }) })
 )
 
+const decodeVltraSnoozed = Schema.decodeUnknownOption(
+  Schema.Struct({
+    vltra: Schema.Struct({
+      snoozed: Schema.Struct({ idle: Schema.Finite, until: Schema.Finite })
+    })
+  })
+)
+
 const isJsonObject = Schema.is(Schema.Record(Schema.String, Schema.Json))
 
 /** `metadata.vltra.handled`, when present and a number; anything else reads as unhandled. */
@@ -56,21 +65,53 @@ export const vltraHandled = (metadata: Session.Metadata | undefined): number | u
 export const vltraReopened = (metadata: Session.Metadata | undefined): number | undefined =>
   Option.getOrUndefined(Option.map(decodeVltraReopened(metadata), value => value.vltra.reopened))
 
+/** `metadata.vltra.snoozed`, when present and well-formed; anything else reads as not snoozed. */
+export const vltraSnoozed = (metadata: Session.Metadata | undefined): Snooze | undefined =>
+  Option.getOrUndefined(Option.map(decodeVltraSnoozed(metadata), value => value.vltra.snoozed))
+
+/** `metadata` split into Vltra's own keys and everyone else's. */
+const splitVltra = (metadata: Session.Metadata | undefined) => {
+  const { vltra, ...others } = metadata ?? {}
+
+  return { others, vltra: isJsonObject(vltra) ? vltra : {} }
+}
+
+const joinVltra = (
+  others: Session.Metadata,
+  vltra: { readonly [key: string]: Schema.Json }
+): Session.Metadata => (Object.keys(vltra).length === 0 ? others : { ...others, vltra })
+
 /**
  * The whole metadata object to write back (OpenCode replaces it): every other key kept, Vltra's
- * markers replaced by `marker` (absent ones removed, and `vltra` dropped once empty).
+ * markers replaced by `marker` (absent ones removed, and `vltra` dropped once empty). Done and
+ * Reopen both end a snooze, so `snoozed` goes too.
  */
 export const withVltraMarker = (
   metadata: Session.Metadata | undefined,
   marker: VltraMarker
 ): Session.Metadata => {
-  const source: Session.Metadata = metadata ?? {}
-  const { vltra, ...others } = source
-  const { handled: _handled, reopened: _reopened, ...kept } = isJsonObject(vltra) ? vltra : {}
+  const { others, vltra } = splitVltra(metadata)
+  const { handled: _handled, reopened: _reopened, snoozed: _snoozed, ...kept } = vltra
   const handled = marker.handled === undefined ? kept : { ...kept, handled: marker.handled }
   const next = marker.reopened === undefined ? handled : { ...handled, reopened: marker.reopened }
 
-  return Object.keys(next).length === 0 ? others : { ...others, vltra: next }
+  return joinVltra(others, next)
+}
+
+/** The whole metadata object with `metadata.vltra.snoozed` set to `snoozed`, or removed. */
+export const withVltraSnooze = (
+  metadata: Session.Metadata | undefined,
+  snoozed: Snooze | undefined
+): Session.Metadata => {
+  const { others, vltra } = splitVltra(metadata)
+  const { snoozed: _snoozed, ...kept } = vltra
+
+  return joinVltra(
+    others,
+    snoozed === undefined
+      ? kept
+      : { ...kept, snoozed: { idle: snoozed.idle, until: snoozed.until } }
+  )
 }
 
 type OpenCodeTokens = Session.Info['tokens']
@@ -95,7 +136,8 @@ export const toSessionRecord = (info: Session.Info): SessionRecord => ({
   archived: millis(info.time.archived),
   outcome: info.outcome,
   handled: vltraHandled(info.metadata),
-  reopened: vltraReopened(info.metadata)
+  reopened: vltraReopened(info.metadata),
+  snoozed: vltraSnoozed(info.metadata)
 })
 
 export const toPendingPermission = (request: Permission.Request): PendingPermission => ({
@@ -665,7 +707,8 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
         VltraEvent.HandledChanged({
           sessionID: event.data.sessionID,
           handled: vltraHandled(event.data.metadata),
-          reopened: vltraReopened(event.data.metadata)
+          reopened: vltraReopened(event.data.metadata),
+          snoozed: vltraSnoozed(event.data.metadata)
         })
       )
     case 'permission.asked':

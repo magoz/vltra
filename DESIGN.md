@@ -97,6 +97,17 @@ Priority: blocked > working > finished > handled.
   `until` watch (see Waits). Shown in
   Projects and counted, never in the needs-me list.
 - **Undo / Reopen** removes the handled marker, so the session is `finished` again.
+- **Snooze** (finished sessions only): `metadata.vltra.snoozed = { idle, until }`, the run it was
+  set on and when it ends. Not a state: like stuck, it is computed with the clock (`isSnoozed`):
+  a finished row whose latest run is the snoozed one, before `until`, leaves the needs-me list
+  (Focus, the board's Need you, the `need you` count) for Focus' collapsed **Snoozed · N**
+  section (soonest first, `tomorrow 9:00` / `Thu 9:00` / `Dec 3 9:00`, Wake), and Projects says
+  `snoozed · Thu 9:00`. It comes back by itself at `until` (no server event: the clock), or
+  when a new run ends (another `idle`), like a new run ends Done; blocked and working always
+  show. Done and Reopen remove it. The picker (a card's or the toolbar's Snooze, `s`):
+  tomorrow, next Monday, in a week (`1`–`3`), or a day, each at the wake time set in Settings
+  (09:00 by default; kept in the browser, which sends a plain instant), capped at a year. No
+  push when a snooze ends.
 - OpenCode's own "viewed" (`viewed < idle` = unread in OpenCode UIs) is independent: opening a
   session's panel in Vltra still calls `POST /api/session/:id/view { idle }` to keep OpenCode's
   unread dots right, but it never changes Vltra state.

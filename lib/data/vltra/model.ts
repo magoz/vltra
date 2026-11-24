@@ -349,8 +349,10 @@ export const applyEvent = (model: VltraModel, event: VltraEvent): VltraModel =>
       updateSession(model, sessionID, session => describeCall(touch(session, at), callID, detail)),
     Viewed: ({ sessionID, idle }) =>
       updateSession(model, sessionID, session => markViewed(session, idle)),
-    HandledChanged: ({ sessionID, handled, reopened }) =>
-      updateSession(model, sessionID, session => patchInfo(session, { handled, reopened })),
+    HandledChanged: ({ sessionID, handled, reopened, snoozed }) =>
+      updateSession(model, sessionID, session =>
+        patchInfo(session, { handled, reopened, snoozed })
+      ),
     InterruptRecovered: ({ sessionID, idle, reason }) =>
       updateSession(model, sessionID, session => recoverInterrupt(session, idle, reason)),
     PermissionAsked: ({ permission }) => ({

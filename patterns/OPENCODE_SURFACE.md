@@ -128,6 +128,9 @@ step. Verified in 2.0.20 (`core/src/session/projector.ts`):
   `POST /api/vltra/sessions/:id/handled` / `.../reopen` (same Effects as the server actions).
 - Reading: `vltraHandled` decodes `metadata.vltra.handled` as a finite number; absent or malformed
   metadata reads as unhandled.
+- The snooze marker, `metadata.vltra.snoozed = { idle, until }`, is written the same way
+  (`setSnoozed`, `withVltraSnooze`: only that key changes) and read by `vltraSnoozed`; writing
+  `handled` (Done, Reopen) drops it.
 - Children and forks inherit the parent's metadata at creation (so a subagent may start with the
   parent's marker; only root rows are ever handled, and a child's own run ends later anyway).
 - Mark handled reads the stored `time.idle` fresh (not the event time, which can differ by the

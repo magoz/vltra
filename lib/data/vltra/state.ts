@@ -164,12 +164,32 @@ export const isStuck = (row: VltraRow, now: number): boolean =>
   row.state === 'working' &&
   (pendingRetry(row) !== undefined || isQuiet(row, now) || overdueWatches(row, now).length > 0)
 
-/** Root rows by rolled-up state, plus the stuck and the waiting working ones. */
+/**
+ * Snoozed is not a state either: a finished row whose latest run I snoozed (`snoozedUntil`, set
+ * only for that run) until a time still ahead. It leaves the needs-me list, and comes back by
+ * itself when the time comes or a new run ends. Blocked and working always show.
+ */
+export const isSnoozed = (row: VltraRow, now: number): boolean =>
+  row.state === 'finished' && row.snoozedUntil !== undefined && now < row.snoozedUntil
+
+/**
+ * Root rows by rolled-up state, finished ones split into needing me and snoozed, plus the stuck
+ * and the waiting working ones.
+ */
 export const countRows = (rows: ReadonlyArray<VltraRow>, now: number): VltraCounts => {
-  const counts = { blocked: 0, finished: 0, working: 0, stuck: 0, waiting: 0, handled: 0 }
+  const counts = {
+    blocked: 0,
+    finished: 0,
+    snoozed: 0,
+    working: 0,
+    stuck: 0,
+    waiting: 0,
+    handled: 0
+  }
 
   for (const row of rows) {
-    counts[row.state] += 1
+    if (isSnoozed(row, now)) counts.snoozed += 1
+    else counts[row.state] += 1
 
     if (isStuck(row, now)) counts.stuck += 1
 

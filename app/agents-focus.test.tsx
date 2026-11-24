@@ -532,3 +532,75 @@ describe('keyboard', () => {
     expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
   })
 })
+
+describe('snooze', () => {
+  const dialog = () => screen.getByRole('dialog')
+
+  it('a row snoozes until a day: it leaves the list for Snoozed, and the next opens', async () => {
+    const { live, calls } = renderFocus({ live: finishedOnly(), session: 'ses_done_old' })
+
+    fireEvent.click(within(row('ses_done_old')).getByRole('button', { name: 'Snooze' }))
+
+    expect(within(dialog()).getByText('Done old')).toBeTruthy()
+
+    fireEvent.click(within(dialog()).getByRole('button', { name: /Tomorrow/ }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(rowIDs(list())).toEqual(['ses_done_new'])
+    expect(iframe()?.getAttribute('src')).toBe(webLink(live, 'ses_done_new'))
+
+    // Tomorrow at 09:00, local: the default wake time.
+    const tomorrow = new Date(now)
+
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    tomorrow.setHours(9, 0, 0, 0)
+
+    await waitFor(() =>
+      expect(calls()).toEqual([
+        { action: 'snooze', input: { sessionID: 'ses_done_old', until: tomorrow.getTime() } }
+      ])
+    )
+
+    const snoozed = screen.getByRole('region', { name: 'Snoozed' })
+    const toggle = within(snoozed).getByRole('button', { name: /Snoozed/ })
+
+    expect(toggle.textContent).toContain('1')
+    fireEvent.click(toggle)
+
+    const sleeping = within(snoozed).getByRole('list', { name: 'Snoozed sessions' })
+
+    expect(within(sleeping).getByText('Done old')).toBeTruthy()
+    expect(within(sleeping).getByText('tomorrow 9:00')).toBeTruthy()
+
+    fireEvent.click(within(sleeping).getByRole('button', { name: 'Wake' }))
+
+    await waitFor(() =>
+      expect(calls()).toContainEqual({ action: 'unsnooze', input: { sessionID: 'ses_done_old' } })
+    )
+    expect(rowIDs(list())).toEqual(['ses_done_new', 'ses_done_old'])
+  })
+
+  it('s opens the picker for the open finished session; 2 picks Monday; u undoes', async () => {
+    const { calls } = renderFocus({ session: 'ses_done_new' })
+
+    press('s')
+    fireEvent.keyDown(dialog(), { key: '2' })
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(rowIDs(list())).not.toContain('ses_done_new')
+
+    press('u')
+
+    await waitFor(() => expect(calls().map(call => call.action)).toEqual(['snooze', 'unsnooze']))
+    expect(rowIDs(list())).toContain('ses_done_new')
+  })
+
+  it('a blocked session cannot be snoozed', () => {
+    renderFocus({ session: 'ses_wait_new' })
+
+    press('s')
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(within(row('ses_wait_new')).queryByRole('button', { name: 'Snooze' })).toBeNull()
+  })
+})

@@ -2,9 +2,12 @@
 
 import { useVltra } from '@/app/vltra-context'
 import { relativeTime } from '@/app/vltra-format'
+import { formatWakeTime, parseWakeTime } from '@/app/snooze-time'
 import { PushState, usePush } from '@/app/use-push'
 import type { Push } from '@/app/use-push'
+import { useWakeTime } from '@/app/use-wake-time'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 type Status = { readonly label: string; readonly detail: string; readonly on: boolean }
@@ -113,9 +116,42 @@ function Devices({ push, now }: { readonly push: Push; readonly now: number }) {
   )
 }
 
+/** When snoozed sessions come back on their day (kept in this browser, 09:00 unless changed). */
+function SnoozeTime() {
+  const [time, save] = useWakeTime()
+
+  return (
+    <section aria-labelledby="settings-snooze" className="bg-background border">
+      <h3 id="settings-snooze" className="border-b px-3 py-2 font-semibold">
+        Snooze
+      </h3>
+      <div className="flex flex-col gap-3 p-3">
+        <label className="flex items-center gap-3">
+          <span>Back at</span>
+          <Input
+            type="time"
+            value={formatWakeTime(time)}
+            onChange={event => {
+              const next = parseWakeTime(event.target.value)
+
+              if (next !== undefined) save(next)
+            }}
+            className="w-32"
+          />
+        </label>
+        <p className="text-muted-foreground text-xs">
+          A snoozed session comes back to Focus at this time on the day you pick, in this
+          browser&apos;s time zone (or sooner, when its agent ends a new run). Kept in this browser.
+        </p>
+      </div>
+    </section>
+  )
+}
+
 /**
- * Settings (`?view=settings`): Vltra's notifications (DESIGN.md "Notifications"). Each browser
- * turns them on for itself; the list shows every device the server pushes to.
+ * Settings (`?view=settings`): Vltra's notifications (DESIGN.md "Notifications"), each browser
+ * turning them on for itself, the list showing every device the server pushes to; and when
+ * snoozed sessions come back.
  */
 export function SettingsPage() {
   const { now } = useVltra()
@@ -141,6 +177,7 @@ export function SettingsPage() {
             </div>
           </div>
         </section>
+        <SnoozeTime />
       </div>
     </div>
   )

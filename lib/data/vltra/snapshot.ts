@@ -174,6 +174,7 @@ const buildNode = (
     outcome: info.outcome,
     interrupt: info.outcome === 'interrupted' ? session.interrupt : undefined,
     handled: info.handled,
+    snoozedUntil: info.snoozed?.idle === info.idle ? info.snoozed?.until : undefined,
     viewed: info.viewed,
     gone,
     ownState: own,

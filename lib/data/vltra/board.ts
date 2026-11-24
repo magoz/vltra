@@ -1,6 +1,6 @@
 import { isWithin } from '@/lib/data/vltra/checkouts'
 import { worktreeName } from '@/lib/data/vltra/palette'
-import { canMarkDone, compareStates, isStuck, isWaiting } from '@/lib/data/vltra/state'
+import { canMarkDone, compareStates, isSnoozed, isStuck, isWaiting } from '@/lib/data/vltra/state'
 import type {
   VltraChange,
   VltraConnection,
@@ -78,23 +78,40 @@ export const applyChange = (live: LiveVltra, change: VltraChange): AppliedChange
  * An optimistic Handled / Undo / Reopen: show `row` as `target` until the server sends anything
  * new for it (a different row object), then trust the server again.
  */
-export type RowOverride = {
-  readonly base: VltraRow
-  readonly target: 'handled' | 'finished'
-}
+export type RowChange =
+  | { readonly target: 'handled' }
+  | { readonly target: 'finished' }
+  | { readonly target: 'snoozed'; readonly until: number }
+  | { readonly target: 'awake' }
 
-const overridden = (row: VltraRow, target: RowOverride['target']): VltraRow => {
-  if (target === 'handled') {
-    return canMarkDone(row)
-      ? { ...row, state: 'handled', ownState: 'handled', handled: row.idle }
-      : row
+export type RowOverride = RowChange & { readonly base: VltraRow }
+
+const overridden = (row: VltraRow, change: RowChange): VltraRow => {
+  switch (change.target) {
+    case 'handled': {
+      if (!canMarkDone(row)) return row
+
+      const { snoozedUntil: _snoozed, ...rest } = row
+
+      return { ...rest, state: 'handled', ownState: 'handled', handled: row.idle }
+    }
+
+    case 'finished': {
+      if (row.state !== 'handled' || row.idle === undefined) return row
+
+      const { handled: _handled, ...rest } = row
+
+      return { ...rest, state: 'finished', ownState: 'finished' }
+    }
+
+    case 'snoozed':
+      return row.state === 'finished' ? { ...row, snoozedUntil: change.until } : row
+    case 'awake': {
+      const { snoozedUntil: _snoozed, ...rest } = row
+
+      return rest
+    }
   }
-
-  if (row.state !== 'handled' || row.idle === undefined) return row
-
-  const { handled: _handled, ...rest } = row
-
-  return { ...rest, state: 'finished', ownState: 'finished' }
 }
 
 /** The live vltra with pending optimistic overrides applied (only to unchanged rows). */
@@ -110,7 +127,7 @@ export const withOverrides = (
 
   const rows = new Map(live.rows)
 
-  for (const [id, override] of active) rows.set(id, overridden(override.base, override.target))
+  for (const [id, override] of active) rows.set(id, overridden(override.base, override))
 
   return { ...live, rows }
 }
@@ -206,18 +223,20 @@ export type NeedsMe = {
   readonly finished: ReadonlyArray<BoardRow>
 }
 
-const needsMeOf = (rows: ReadonlyArray<BoardRow>): NeedsMe => ({
+const needsMeOf = (rows: ReadonlyArray<BoardRow>, now: number): NeedsMe => ({
   blocked: rows.filter(item => item.row.state === 'blocked').toSorted(newestFirst),
-  finished: rows.filter(item => item.row.state === 'finished').toSorted(newestFirst)
+  finished: rows
+    .filter(item => item.row.state === 'finished' && !isSnoozed(item.row, now))
+    .toSorted(newestFirst)
 })
 
 /**
- * The needs-me sessions, narrowed to `project` (a `projectKey`) when given: blocked, newest wait
- * first (a blocked run stopped moving when it asked, so its `activeAt` is when the wait began);
- * finished, newest first.
+ * The needs-me sessions as of `now`, narrowed to `project` (a `projectKey`) when given: blocked,
+ * newest wait first (a blocked run stopped moving when it asked, so its `activeAt` is when the
+ * wait began); finished but not snoozed, newest first.
  */
-export const buildNeedsMe = (live: LiveVltra, project: string | undefined): NeedsMe =>
-  needsMeOf(projectRows(live, project))
+export const buildNeedsMe = (live: LiveVltra, project: string | undefined, now: number): NeedsMe =>
+  needsMeOf(projectRows(live, project), now)
 
 /** Needs-me order (focus mode's list, the board's Need you column): blocked, then finished. */
 export const needsMeOrder = (needsMe: NeedsMe): ReadonlyArray<BoardRow> => [
@@ -226,8 +245,14 @@ export const needsMeOrder = (needsMe: NeedsMe): ReadonlyArray<BoardRow> => [
 ]
 
 /** Focus' list: every session that needs me (no project filter), in needs-me order. */
-export const focusList = (live: LiveVltra): ReadonlyArray<BoardRow> =>
-  needsMeOrder(buildNeedsMe(live, undefined))
+export const focusList = (live: LiveVltra, now: number): ReadonlyArray<BoardRow> =>
+  needsMeOrder(buildNeedsMe(live, undefined, now))
+
+/** The sessions snoozed as of `now` (focus mode's Snoozed section), the soonest back first. */
+export const snoozedList = (live: LiveVltra, now: number): ReadonlyArray<BoardRow> =>
+  allRows(live)
+    .filter(item => isSnoozed(item.row, now))
+    .toSorted((left, right) => (left.row.snoozedUntil ?? 0) - (right.row.snoozedUntil ?? 0))
 
 /**
  * The session focus mode opens once `id` is handled, from `list` (the needs-me order as it was
@@ -262,7 +287,7 @@ export const buildAgentsBoard = (
 
   return {
     columns: {
-      needsYou: needsMeOrder(needsMeOf(rows)),
+      needsYou: needsMeOrder(needsMeOf(rows, now)),
       working: inState('working').toSorted(
         (left, right) =>
           Number(isStuck(right.row, now)) - Number(isStuck(left.row, now)) ||

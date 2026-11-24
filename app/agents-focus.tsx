@@ -8,7 +8,15 @@ import { SessionPanel } from '@/app/session-panel'
 import { HandledProvider, useHandled } from '@/app/use-handled'
 import type { HandledFlow } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
-import { boardRow, focusList, nextNeedsMe, pendingLaunches } from '@/lib/data/vltra/board'
+import { SnoozedList } from '@/app/snoozed-list'
+import { SnoozeProvider, useSnoozePicker } from '@/app/snooze-dialog'
+import {
+  boardRow,
+  focusList,
+  nextNeedsMe,
+  pendingLaunches,
+  snoozedList
+} from '@/lib/data/vltra/board'
 import type { BoardRow } from '@/lib/data/vltra/board'
 import { canMarkDone } from '@/lib/data/vltra/state'
 import { cn } from '@/lib/utils'
@@ -52,10 +60,65 @@ function EmptyPane({ empty }: { readonly empty: boolean }) {
   )
 }
 
+/** The `s` key: the cursor's finished session, else the open one, to the snooze picker. */
+function useSnoozeKey(rows: ReadonlyArray<BoardRow['row'] | undefined>) {
+  const { pick } = useSnoozePicker()
+  const target = rows.find(row => row?.state === 'finished')
+
+  useKeys({ s: target === undefined ? undefined : () => pick(target.id) })
+}
+
+function FocusList({
+  list,
+  snoozed,
+  focused,
+  launches
+}: {
+  readonly list: ReadonlyArray<BoardRow>
+  readonly snoozed: ReadonlyArray<BoardRow>
+  readonly focused: BoardRow | undefined
+  readonly launches: ReturnType<typeof pendingLaunches>
+}) {
+  return (
+    <section
+      aria-label="Need you"
+      className="flex flex-col lg:w-[26rem] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain lg:border-r"
+    >
+      {launches.length === 0 ? null : (
+        <section aria-label="Provisioning" className="pt-3">
+          <h2 className="text-muted-foreground flex items-baseline justify-between px-3 pb-1.5 text-xs tracking-widest uppercase">
+            <span>Provisioning</span>
+            <span className="tabular-nums">{launches.length}</span>
+          </h2>
+          <PendingLaunches launches={launches} compact className="border-t" />
+        </section>
+      )}
+      {list.length === 0 ? null : (
+        <ul aria-label="Sessions" className={cn(launches.length > 0 && 'mt-3 border-t')}>
+          {list.map(item => (
+            <AgentCard
+              key={item.row.id}
+              item={item}
+              cursor={item.row.id === focused?.row.id}
+              compact
+            />
+          ))}
+        </ul>
+      )}
+      {list.length === 0 ? (
+        <p className="text-muted-foreground px-3 py-10 text-center lg:hidden">Nothing needs you.</p>
+      ) : null}
+      <SnoozedList items={snoozed} />
+      <div aria-hidden="true" className="h-6 shrink-0" />
+    </section>
+  )
+}
+
 function Focus() {
-  const { view, selection } = useVltra()
+  const { view, now, selection } = useVltra()
   const flow = useHandled()
-  const list = useMemo(() => focusList(view), [view])
+  const list = useMemo(() => focusList(view, now), [view, now])
+  const snoozed = useMemo(() => snoozedList(view, now), [view, now])
   const launches = useMemo(() => pendingLaunches(view.launches), [view.launches])
   const [moved, setMoved] = useState<Cursor>()
   const { selected } = selection
@@ -66,14 +129,14 @@ function Focus() {
   const selectedItem = selectedRow === undefined ? undefined : boardRow(view, selectedRow)
 
   /**
-   * Marks `id` handled; when it is the open session (or `always`, the `h` key), the next needs-me
-   * session opens, or nothing (the empty state) once none is left.
+   * Done or Snooze on `id` (`act`); when it is the open session (or `always`, the `h` key), the
+   * next needs-me session opens, or nothing (the empty state) once none is left.
    */
-  const handle = (id: string, always: boolean) => {
+  const advance = (id: string, act: () => void, always: boolean) => {
     const next = nextNeedsMe(list, id)
     const open = id === selected
 
-    flow.markHandled(id)
+    act()
 
     if (!open && !always) return
 
@@ -84,15 +147,19 @@ function Focus() {
     }
   }
 
-  const handleRef = useRef(handle)
+  const advanceRef = useRef(advance)
 
   useEffect(() => {
-    handleRef.current = handle
+    advanceRef.current = advance
   })
 
-  // Handled from a row's or the panel's button, or a swipe: the same advance as `h`.
+  // Done from a row's or the panel's button, or a swipe, and every snooze: the same advance as `h`.
   const advancing: HandledFlow = useMemo(
-    () => ({ ...flow, markHandled: id => handleRef.current(id, false) }),
+    () => ({
+      ...flow,
+      markHandled: id => advanceRef.current(id, () => flow.markHandled(id), false),
+      snooze: (id, until) => advanceRef.current(id, () => flow.snooze(id, until), false)
+    }),
     [flow]
   )
 
@@ -108,7 +175,7 @@ function Focus() {
   const handledKey = () => {
     const target = [focused?.row, selectedRow].find(row => row !== undefined && canMarkDone(row))
 
-    if (target !== undefined) handle(target.id, true)
+    if (target !== undefined) advance(target.id, () => flow.markHandled(target.id), true)
   }
 
   useKeys({
@@ -129,55 +196,34 @@ function Focus() {
 
   return (
     <HandledProvider flow={advancing}>
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <section
-          aria-label="Need you"
-          className="flex flex-col lg:w-[26rem] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain lg:border-r"
-        >
-          {launches.length === 0 ? null : (
-            <section aria-label="Provisioning" className="pt-3">
-              <h2 className="text-muted-foreground flex items-baseline justify-between px-3 pb-1.5 text-xs tracking-widest uppercase">
-                <span>Provisioning</span>
-                <span className="tabular-nums">{launches.length}</span>
-              </h2>
-              <PendingLaunches launches={launches} compact className="border-t" />
-            </section>
-          )}
-          {list.length === 0 ? null : (
-            <ul aria-label="Sessions" className={cn(launches.length > 0 && 'mt-3 border-t')}>
-              {list.map(item => (
-                <AgentCard
-                  key={item.row.id}
-                  item={item}
-                  cursor={item.row.id === focused?.row.id}
-                  compact
-                />
-              ))}
-            </ul>
-          )}
-          {list.length === 0 ? (
-            <p className="text-muted-foreground px-3 py-10 text-center lg:hidden">
-              Nothing needs you.
-            </p>
-          ) : null}
-          <div aria-hidden="true" className="h-6 shrink-0" />
-        </section>
-        <section
-          aria-label="Session"
-          className={cn(
-            'bg-background flex min-h-0 min-w-0 flex-1 flex-col',
-            selected === undefined ? 'max-lg:hidden' : 'max-lg:fixed max-lg:inset-0 max-lg:z-30'
-          )}
-        >
-          {selected === undefined ? (
-            <EmptyPane empty={list.length === 0} />
-          ) : (
-            <SessionPanel sessionID={selected} item={selectedItem} onClose={selection.close} />
-          )}
-        </section>
-      </div>
+      <SnoozeProvider>
+        <SnoozeKey rows={[focused?.row, selectedRow]} />
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          <FocusList list={list} snoozed={snoozed} focused={focused} launches={launches} />
+          <section
+            aria-label="Session"
+            className={cn(
+              'bg-background flex min-h-0 min-w-0 flex-1 flex-col',
+              selected === undefined ? 'max-lg:hidden' : 'max-lg:fixed max-lg:inset-0 max-lg:z-30'
+            )}
+          >
+            {selected === undefined ? (
+              <EmptyPane empty={list.length === 0} />
+            ) : (
+              <SessionPanel sessionID={selected} item={selectedItem} onClose={selection.close} />
+            )}
+          </section>
+        </div>
+      </SnoozeProvider>
     </HandledProvider>
   )
+}
+
+/** `s` inside Focus' own snooze picker (so a snooze opens the next session). */
+function SnoozeKey({ rows }: { readonly rows: ReadonlyArray<BoardRow['row'] | undefined> }) {
+  useSnoozeKey(rows)
+
+  return null
 }
 
 /**
@@ -189,7 +235,9 @@ function Focus() {
  * opens the next one in list order. The list marks the open session only; `j` / `k` add a cursor
  * until another session opens. Phone: the list; a session opens full screen. Keys: `j`/`k`
  * (`↓`/`↑`) move, `Enter` opens, `h` done (the cursor's finished session, else the open one;
- * the next opens), `u` undo (the shell adds the tabs and `Escape` closes).
+ * the next opens), `s` snooze (the same session: the picker, then the next opens), `u` undo
+ * (the shell adds the tabs and `Escape` closes). Snoozed sessions leave the list for a collapsed
+ * Snoozed section at its foot (`snoozed-list.tsx`).
  */
 export function AgentsFocus() {
   return <Focus />

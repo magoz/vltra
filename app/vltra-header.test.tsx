@@ -18,6 +18,7 @@ const connected: VltraConnection = { status: 'connected', since: 0, failures: 0,
 const counts: VltraCounts = {
   blocked: 2,
   finished: 4,
+  snoozed: 0,
   working: 17,
   stuck: 2,
   waiting: 0,
@@ -187,7 +188,15 @@ describe('count line', () => {
   it('keeps every count, even at zero', () => {
     render(
       <CountLine
-        counts={{ blocked: 1, finished: 0, working: 0, stuck: 0, waiting: 0, handled: 3 }}
+        counts={{
+          blocked: 1,
+          finished: 0,
+          working: 0,
+          stuck: 0,
+          waiting: 0,
+          snoozed: 0,
+          handled: 3
+        }}
       />
     )
 

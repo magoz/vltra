@@ -2,7 +2,7 @@ import { mkdirSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from '@effect/vitest'
 import { ConfigProvider, Effect, Layer, Option, Schedule } from 'effect'
-import { markHandled, markViewed, reopen } from '@/lib/data/vltra/actions'
+import { markHandled, markViewed, reopen, snooze } from '@/lib/data/vltra/actions'
 import { loadSessionSummary } from '@/lib/data/vltra/session-detail'
 import { ShellPortsLive } from '@/lib/data/vltra/shell-ports'
 import { snapshotRows } from '@/lib/data/vltra/snapshot'
@@ -337,6 +337,43 @@ describe.skipIf(!binary.available)('Vltra against a real opencode serve', () => 
         }).pipe(Effect.provide(vltraLayer(server)))
       }).pipe(Effect.scoped),
     120_000
+  )
+
+  it.live(
+    'a snooze is stored on the session, read back through the event, and ended by Done',
+    () =>
+      Effect.gen(function* () {
+        const server = yield* startOpenCodeServer(binary.available ? binary.path : 'opencode')
+        const sessionID = 'ses_vltraitsnooze0000000001'
+
+        yield* importSession(server, { id: sessionID, idle: Date.now() })
+
+        yield* Effect.gen(function* () {
+          yield* eventually(rowIn(sessionID, 'finished'), 'finished session')
+
+          const until = Date.now() + 2 * 24 * 60 * 60 * 1000
+
+          yield* snooze({ sessionID, until })
+
+          const snoozed = yield* eventually(
+            value => (findRow(value, sessionID)?.snoozedUntil === until ? true : undefined),
+            'snooze via the metadata event'
+          )
+
+          expect(snoozed).toBe(true)
+
+          const stored = yield* storedSession(server, sessionID)
+
+          expect(stored.metadata).toEqual({ vltra: { snoozed: { idle: stored.time.idle, until } } })
+
+          expect(yield* markHandled({ sessionID })).toBe('handled')
+          yield* eventually(rowIn(sessionID, 'handled'), 'handled')
+          expect((yield* storedSession(server, sessionID)).metadata).toEqual({
+            vltra: { handled: stored.time.idle }
+          })
+        }).pipe(Effect.provide(vltraLayer(server)))
+      }).pipe(Effect.scoped),
+    60_000
   )
 
   it.live(
