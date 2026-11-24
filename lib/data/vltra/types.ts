@@ -182,18 +182,29 @@ export type SessionActivity = typeof SessionActivity.Type
 
 /**
  * A shell command OpenCode still runs for a session (`/api/shell`, `metadata.sessionID`). Once
- * the run has ended it is a background script, and OpenCode wakes the agent when it exits.
+ * the run has ended it is a background script, and OpenCode wakes the agent when it exits;
+ * unless it listens on a port: then it is a service (a dev server) nobody waits on.
  */
 export const SessionShell = Schema.Struct({
   id: Schema.String,
   /** The command's first line, clipped. */
   command: Schema.String,
-  started: Schema.Number
+  started: Schema.Number,
+  /** TCP ports its process tree listens on (checked by Vltra every few seconds). */
+  ports: Schema.Array(Schema.Number)
 })
 
 export type SessionShell = typeof SessionShell.Type
 
-export type RunningShell = SessionShell & { readonly sessionID: string }
+/** A running shell as OpenCode reports it. */
+export type RunningShell = {
+  readonly id: string
+  readonly sessionID: string
+  readonly command: string
+  readonly started: number
+  /** Its process, when OpenCode reports one (to find the ports its tree listens on). */
+  readonly pid: number | undefined
+}
 
 export const SessionLinks = Schema.Struct({
   /** OpenCode's own web UI for this session. */
@@ -252,8 +263,9 @@ const rowFields = {
    */
   activeAt: Schema.Number,
   /**
-   * Shell commands still running for this session. With no run active they are background
-   * scripts the agent waits on: an unhandled run then counts as working, not finished.
+   * Shell commands still running for this session. With no run active, those that listen on no
+   * port are background scripts the agent waits on: an unhandled run then counts as working,
+   * not finished.
    */
   shells: Schema.Array(SessionShell),
   permissions: Schema.Array(PendingPermission),

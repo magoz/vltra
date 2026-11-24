@@ -10,6 +10,7 @@ import type { HandledFlow } from '@/app/use-handled'
 import { useKeys } from '@/app/use-keys'
 import { boardRow, focusList, nextNeedsMe, pendingLaunches } from '@/lib/data/vltra/board'
 import type { BoardRow } from '@/lib/data/vltra/board'
+import { canMarkDone } from '@/lib/data/vltra/state'
 import { cn } from '@/lib/utils'
 
 /**
@@ -105,7 +106,7 @@ function Focus() {
   }
 
   const handledKey = () => {
-    const target = [focused?.row, selectedRow].find(row => row?.state === 'finished')
+    const target = [focused?.row, selectedRow].find(row => row !== undefined && canMarkDone(row))
 
     if (target !== undefined) handle(target.id, true)
   }

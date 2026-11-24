@@ -69,7 +69,13 @@ Priority: blocked > working > finished > handled.
   shell naming the session (`metadata.sessionID`, `/api/shell` per loaded location, `shell.created`
   / `shell.exited` / `shell.deleted`) runs, an unhandled run that ended is `working`, labelled
   `waiting on <command> · 4m` (or `N scripts`), never stuck. A handled run stays handled (a dev
-  server left running does not bring it back). `until` watches are not seen yet.
+  server left running does not bring it back). **Services** are not waits: every 5 s Vltra
+  reads the ports each running shell's process tree listens on (`/proc`, same machine; the pid
+  from `/api/shell`, looked up once for shells whose run ended, since `shell.created` lacks it).
+  A shell that listens (a dev server) holds nothing; cards show `serving :3000`. **Done** also
+  applies to a run that only waits on scripts (`canMarkDone`: a watcher that never exits), from
+  the card, the toolbar, `h` and `⌘D`; the next run that ends needs me again. `until` watches
+  are not seen yet.
 - **Stuck** is not a state: a working session shows `retrying (n×, reason)`
   (`session.retry.scheduled`) or `quiet Nm` (no step/tool activity for 10+ minutes). Shown in
   Projects and counted, never in the needs-me list.

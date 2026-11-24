@@ -290,7 +290,9 @@ describe('OpenCode event mapping', () => {
               id: 'sh_20f0db8c7001',
               sessionID,
               command: 'sleep 6; echo done',
-              started: 1795548887239
+              started: 1795548887239,
+              // The event carries none; Vltra looks it up when it matters.
+              pid: undefined
             }
           })
         })

@@ -74,6 +74,13 @@ export type VltraEvent = Data.TaggedEnum<{
   ShellStarted: { readonly shell: RunningShell }
   /** A shell command exited, timed out, was killed, or was removed. */
   ShellEnded: { readonly shellID: string }
+  /** Vltra read a running shell's process id (`shell.created` does not carry it). */
+  ShellProcessFound: { readonly shellID: string; readonly pid: number }
+  /**
+   * Vltra read the ports the checked shells' process trees listen on (not an OpenCode event).
+   * Shells not checked keep what they had.
+   */
+  ShellsChecked: { readonly ports: ReadonlyMap<string, ReadonlyArray<number>> }
   ProjectUpserted: { readonly project: ProjectRecord }
   WorktreesLoaded: { readonly projectID: string; readonly directories: ReadonlyArray<string> }
   /**
@@ -126,6 +133,8 @@ export const eventSessionID = (event: VltraEvent): string | undefined =>
     FormSettled: () => undefined,
     ShellStarted: ({ shell }) => shell.sessionID,
     ShellEnded: () => undefined,
+    ShellProcessFound: () => undefined,
+    ShellsChecked: () => undefined,
     ProjectUpserted: () => undefined,
     WorktreesLoaded: () => undefined,
     DirectoriesChecked: () => undefined

@@ -6,6 +6,8 @@ import {
   compareStates,
   countRows,
   highestPriority,
+  isHandled,
+  isService,
   ownState,
   rollUpState
 } from '@/lib/data/vltra/state'
@@ -87,11 +89,16 @@ const childrenByParent = (model: VltraModel) => {
   return children
 }
 
+/**
+ * `rootHandled`: I marked the root's latest run done, so no background script in its subtree
+ * holds it (or a subagent) working any more.
+ */
 const buildNode = (
   tree: Tree,
   session: TrackedSession,
   depth: number,
-  visited: ReadonlySet<string>
+  visited: ReadonlySet<string>,
+  rootHandled: boolean
 ): Node => {
   const info = session.info
   const permissions = tree.pending.permissions.get(info.id) ?? []
@@ -100,16 +107,18 @@ const buildNode = (
   const shells = (tree.pending.shells.get(info.id) ?? []).map(shell => ({
     id: shell.id,
     command: shell.command,
-    started: shell.started
+    started: shell.started,
+    ports: tree.model.shellPorts.get(shell.id) ?? []
   }))
 
+  const scripts = rootHandled ? 0 : shells.filter(shell => !isService(shell)).length
   const gone = isFolderGone(tree.model, session)
-  const own = ownState(session, permissions.length + forms.length, gone, shells.length)
+  const own = ownState(session, permissions.length + forms.length, gone, scripts)
   const path = new Set(visited).add(info.id)
 
   const childNodes = (tree.children.get(info.id) ?? [])
     .filter(child => !path.has(child.info.id))
-    .map(child => buildNode(tree, child, depth + 1, path))
+    .map(child => buildNode(tree, child, depth + 1, path, rootHandled))
 
   const descendants = childNodes.flatMap(child => [
     { ...child.row, depth: depth + 1 },
@@ -191,7 +200,7 @@ export const buildRows = (model: VltraModel, webUrl: URL): ReadonlyArray<VltraRo
   return Array.from(model.sessions.values())
     .filter(session => isRoot(model, session))
     .flatMap(session => {
-      const row = toRootRow(buildNode(tree, session, 0, new Set()))
+      const row = toRootRow(buildNode(tree, session, 0, new Set(), isHandled(session.info)))
 
       return isVisible(session, row) ? [row] : []
     })

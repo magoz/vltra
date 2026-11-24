@@ -5,6 +5,7 @@ import { LaunchesLive } from '@/lib/data/vltra/launches'
 import type { Launches } from '@/lib/data/vltra/launches'
 import { NotifierLive } from '@/lib/data/vltra/notifier'
 import { SessionSummaries, SessionSummariesLive } from '@/lib/data/vltra/session-detail'
+import { ShellPortsLive } from '@/lib/data/vltra/shell-ports'
 import { StatsLive } from '@/lib/data/vltra/stats'
 import type { Stats } from '@/lib/data/vltra/stats'
 import { VltraStore, VltraStoreLive } from '@/lib/data/vltra/store'
@@ -17,6 +18,8 @@ import type { GitHub } from '@/lib/services/github/service'
 import { OpenCodeLive } from '@/lib/services/opencode/live-layer'
 import type { OpenCodeUnavailableError } from '@/lib/services/opencode/errors'
 import type { OpenCode } from '@/lib/services/opencode/service'
+import { ProcessesLive } from '@/lib/services/processes/live-layer'
+import type { Processes } from '@/lib/services/processes/service'
 import { PushLive } from '@/lib/services/push/live-layer'
 import type { Push } from '@/lib/services/push/service'
 import { ReposLive } from '@/lib/services/repos/live-layer'
@@ -31,6 +34,7 @@ export type VltraServices =
   | Stats
   | GitHubStats
   | Directories
+  | Processes
   | Repos
   | Launches
   | Usage
@@ -38,13 +42,14 @@ export type VltraServices =
   | Push
 
 /**
- * Store + OpenCode client + session folder checks + finished-run summary and stats caches (GitHub's
+ * Store + OpenCode client + session folder and shell port checks + finished-run summary and stats caches (GitHub's
  * merged pull requests too) + the launcher's repositories and launch registry + the subscription
  * quotas + Web Push, with the watcher, the notifier (and any running launch) forked for the
  * lifetime of the runtime.
  */
 export const VltraLayer = Layer.mergeAll(
   VltraWatcherLive(),
+  ShellPortsLive(),
   NotifierLive,
   SessionSummariesLive,
   StatsLive,
@@ -55,6 +60,7 @@ export const VltraLayer = Layer.mergeAll(
   Layer.provideMerge(PushLive),
   Layer.provideMerge(OpenCodeLive),
   Layer.provideMerge(DirectoriesLive),
+  Layer.provideMerge(ProcessesLive),
   Layer.provideMerge(ReposLive),
   Layer.provideMerge(UsageLive),
   Layer.provideMerge(GitHubLive)

@@ -42,6 +42,7 @@ export type FakeCall =
   | { readonly op: 'removeSession'; readonly sessionID: string }
   | { readonly op: 'generateText'; readonly prompt: string }
   | ({ readonly op: 'stats' } & StatsInput)
+  | { readonly op: 'shellPid'; readonly shellID: string; readonly directory: string }
 
 /** How the fake answers the launcher's calls; each defaults to a quick success (text: a refusal). */
 export type FakeLauncherBehavior = {
@@ -379,7 +380,15 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
           record({ op: 'stats', ...input }),
           Effect.flatMap(Ref.get(stats), answer => answer(input))
         ),
-      projects: Effect.map(Ref.get(snapshot), value => value.projects)
+      projects: Effect.map(Ref.get(snapshot), value => value.projects),
+      // The snapshot's shells, by id (events carry no pid, the stored shell does).
+      shellPid: ({ shellID, directory }) =>
+        Effect.andThen(
+          record({ op: 'shellPid', shellID, directory }),
+          Effect.map(Ref.get(snapshot), value =>
+            Option.fromNullishOr(value.shells.find(shell => shell.id === shellID)?.pid)
+          )
+        )
     })
 
     const layer = Layer.succeed(OpenCode, {

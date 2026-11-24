@@ -1,5 +1,5 @@
 import type { TrackedSession } from '@/lib/data/vltra/model'
-import type { SessionRecord } from '@/lib/data/vltra/types'
+import type { RunningShell, SessionRecord } from '@/lib/data/vltra/types'
 
 // Small builders for Vltra domain values in tests.
 
@@ -31,6 +31,20 @@ export const trackedSession = (
   startedAt: undefined,
   activityAt: undefined,
   interrupt: undefined,
+  ...overrides
+})
+
+/** A shell `sessionID` runs: `pnpm test`, started at `baseTime`, without a process to check. */
+export const runningShell = (
+  id: string,
+  sessionID: string,
+  overrides: Partial<RunningShell> = {}
+): RunningShell => ({
+  id,
+  sessionID,
+  command: 'pnpm test',
+  started: baseTime,
+  pid: undefined,
   ...overrides
 })
 

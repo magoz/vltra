@@ -1,4 +1,10 @@
-import { isQuiet, lastActivityAt, pendingRetry, waitingShells } from '@/lib/data/vltra/state'
+import {
+  isQuiet,
+  lastActivityAt,
+  pendingRetry,
+  servingShells,
+  waitingShells
+} from '@/lib/data/vltra/state'
 import type { VltraRow, SessionActivity } from '@/lib/data/vltra/types'
 
 // Display formatting for the dashboard. Pure; times are epoch milliseconds.
@@ -87,6 +93,25 @@ export const scriptText = (row: VltraRow, now: number): string | undefined => {
   const what = shells.length === 1 ? oldest.command : plural(shells.length, 'script', 'scripts')
 
   return `waiting on ${what} · ${relativeTime(oldest.started, now)}`
+}
+
+/**
+ * The services a session left running (shells listening on a port): `serving :3000` (or
+ * `serving :3000, :6006`), with their commands for a tooltip; else nothing.
+ */
+export const servingText = (
+  row: VltraRow
+): { readonly text: string; readonly commands: string } | undefined => {
+  const shells = servingShells(row)
+
+  if (shells.length === 0) return undefined
+
+  const ports = Array.from(new Set(shells.flatMap(shell => shell.ports))).toSorted((a, b) => a - b)
+
+  return {
+    text: `serving ${ports.map(port => `:${port}`).join(', ')}`,
+    commands: shells.map(shell => shell.command).join('\n')
+  }
 }
 
 /** How the latest run ended (a Projects row's label). */

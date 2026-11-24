@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { boardRow } from '@/lib/data/vltra/board'
 import type { BoardRow } from '@/lib/data/vltra/board'
 import { worktreeAt } from '@/lib/data/vltra/checkouts'
+import { canMarkDone } from '@/lib/data/vltra/state'
 
 /**
  * Opening a session's panel marks its latest run viewed in OpenCode (its own unread dots). Vltra
@@ -41,13 +42,14 @@ function useMarkViewed(sessionID: string, row: BoardRow['row'] | undefined) {
 }
 
 /**
- * `⌘D` marks the open session done when it is finished, like its `✔ Done` (so in Focus the next
+ * `⌘D` marks the open session done when it is finished (or only waits on background scripts),
+ * like its `✔ Done` (so in Focus the next
  * session opens); in the chat too, even while typing (`forwardChatKeys`). The shell's
  * `useCommandKeys` takes the key from the browser either way.
  */
 function useDoneKey(row: BoardRow['row'] | undefined) {
   const { markHandled } = useHandled()
-  const done = row?.state === 'finished' ? row.id : undefined
+  const done = row !== undefined && canMarkDone(row) ? row.id : undefined
   const latest = useRef({ done, markHandled })
 
   useEffect(() => {
@@ -172,7 +174,7 @@ function OpenCodeChat({
 function ToolbarActions({ row }: { readonly row: BoardRow['row'] }) {
   return (
     <>
-      {row.state === 'finished' ? (
+      {canMarkDone(row) ? (
         <HandledButton sessionID={row.id} size="sm" className="lg:hidden" />
       ) : null}
       {isReopenable(row) ? <ReopenButton sessionID={row.id} size="sm" /> : null}

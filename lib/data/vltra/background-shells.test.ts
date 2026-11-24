@@ -3,8 +3,15 @@ import { VltraEvent } from '@/lib/data/vltra/events'
 import { applyEvent, fromSnapshot } from '@/lib/data/vltra/model'
 import type { OpenCodeSnapshot, VltraModel } from '@/lib/data/vltra/model'
 import { buildRows } from '@/lib/data/vltra/snapshot'
-import { countRows, isStuck, quietAfter, waitingShells } from '@/lib/data/vltra/state'
-import { baseTime, sessionRecord, webUrl } from '@/lib/data/vltra/testing/fixtures'
+import {
+  canMarkDone,
+  countRows,
+  isStuck,
+  quietAfter,
+  servingShells,
+  waitingShells
+} from '@/lib/data/vltra/state'
+import { baseTime, runningShell, sessionRecord, webUrl } from '@/lib/data/vltra/testing/fixtures'
 import type { RunningShell, VltraRow } from '@/lib/data/vltra/types'
 import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 
@@ -13,17 +20,8 @@ import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 
 const minute = 60 * 1000
 
-const shell = (
-  id: string,
-  sessionID: string,
-  fields: Partial<RunningShell> = {}
-): RunningShell => ({
-  id,
-  sessionID,
-  command: 'pnpm test',
-  started: baseTime - 4 * minute,
-  ...fields
-})
+const shell = (id: string, sessionID: string, fields: Partial<RunningShell> = {}) =>
+  runningShell(id, sessionID, { started: baseTime - 4 * minute, ...fields })
 
 const ended = (id: string, fields: Parameters<typeof sessionRecord>[1] = {}) =>
   sessionRecord(id, { idle: baseTime, outcome: 'succeeded', ...fields })
@@ -46,9 +44,10 @@ describe('background scripts', () => {
 
     expect(row).toMatchObject({ state: 'working', running: false })
     expect(row.shells).toEqual([
-      { id: 'sh_1', command: 'pnpm test', started: baseTime - 4 * minute }
+      { id: 'sh_1', command: 'pnpm test', started: baseTime - 4 * minute, ports: [] }
     ])
     expect(waitingShells(row)).toEqual(row.shells)
+    expect(canMarkDone(row)).toBe(true)
   })
 
   it('finish the run once the last script ends', () => {
@@ -132,5 +131,99 @@ describe('background scripts', () => {
     )
 
     expect(model.shells.size).toBe(0)
+  })
+
+  it('Done applies to a run waiting on scripts, never to an active run or an ask', () => {
+    const running = modelOf({
+      sessions: [sessionRecord('ses_1')],
+      running: ['ses_1'],
+      shells: [shell('sh_1', 'ses_1')]
+    })
+
+    const asking = modelOf({
+      sessions: [ended('ses_1')],
+      shells: [shell('sh_1', 'ses_1')],
+      permissions: [{ id: 'per_1', sessionID: 'ses_1', action: 'bash', resources: [] }]
+    })
+
+    expect(canMarkDone(rowOf(running, 'ses_1'))).toBe(false)
+    expect(canMarkDone(rowOf(asking, 'ses_1'))).toBe(false)
+  })
+
+  it("Done on the root releases a subagent's script too", () => {
+    const model = modelOf({
+      sessions: [
+        ended('ses_root', { handled: baseTime }),
+        ended('ses_child', { parentID: 'ses_root' })
+      ],
+      shells: [shell('sh_1', 'ses_child')]
+    })
+
+    expect(rowOf(model, 'ses_root').state).toBe('handled')
+  })
+})
+
+describe('services (shells listening on a port)', () => {
+  const waiting = modelOf({
+    sessions: [ended('ses_1')],
+    shells: [shell('sh_dev', 'ses_1', { command: 'pnpm dev' }), shell('sh_test', 'ses_1')]
+  })
+
+  it('do not hold a run working: only scripts do', () => {
+    const checked = applyEvent(
+      waiting,
+      VltraEvent.ShellsChecked({
+        ports: new Map([
+          ['sh_dev', [3000]],
+          ['sh_test', []]
+        ])
+      })
+    )
+
+    const row = rowOf(checked, 'ses_1')
+
+    expect(row.state).toBe('working')
+    expect(waitingShells(row).map(item => item.id)).toEqual(['sh_test'])
+    expect(servingShells(row).map(item => item.ports)).toEqual([[3000]])
+
+    const served = rowOf(
+      applyEvent(checked, VltraEvent.ShellEnded({ shellID: 'sh_test' })),
+      'ses_1'
+    )
+
+    expect(served.state).toBe('finished')
+    expect(servingShells(served).map(item => item.command)).toEqual(['pnpm dev'])
+  })
+
+  it('keep their ports until checked again, and leave with their shell', () => {
+    const first = applyEvent(
+      waiting,
+      VltraEvent.ShellsChecked({ ports: new Map([['sh_dev', [3000]]]) })
+    )
+
+    const second = applyEvent(
+      first,
+      VltraEvent.ShellsChecked({ ports: new Map([['sh_test', []]]) })
+    )
+
+    expect(second.shellPorts).toEqual(
+      new Map([
+        ['sh_dev', [3000]],
+        ['sh_test', []]
+      ])
+    )
+
+    const ended = applyEvent(second, VltraEvent.ShellEnded({ shellID: 'sh_dev' }))
+
+    expect(Array.from(ended.shellPorts.keys())).toEqual(['sh_test'])
+  })
+
+  it('a looked-up process id fills a known shell, never brings back an ended one', () => {
+    const found = applyEvent(waiting, VltraEvent.ShellProcessFound({ shellID: 'sh_dev', pid: 42 }))
+
+    expect(found.shells.get('sh_dev')?.pid).toBe(42)
+    expect(applyEvent(waiting, VltraEvent.ShellProcessFound({ shellID: 'sh_x', pid: 7 }))).toBe(
+      waiting
+    )
   })
 })

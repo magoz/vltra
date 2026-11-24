@@ -4,7 +4,7 @@ import { busyStates } from '@/lib/data/vltra/checkouts'
 import { ProjectBusyError, SessionNotFinishedError } from '@/lib/data/vltra/errors'
 import { folderGone } from '@/lib/data/vltra/folders'
 import { snapshotRows } from '@/lib/data/vltra/snapshot'
-import { isHandled, isReopened } from '@/lib/data/vltra/state'
+import { canMarkDone, isHandled, isReopened } from '@/lib/data/vltra/state'
 import { VltraStore } from '@/lib/data/vltra/store'
 import type { VltraRow, MarkHandledOutcome, ReopenOutcome } from '@/lib/data/vltra/types'
 import { SessionNotFoundError } from '@/lib/services/opencode/errors'
@@ -57,7 +57,8 @@ const readSession = (connection: OpenCodeConnection, sessionID: string) =>
 /**
  * Mark the latest run of a finished root session handled: `metadata.vltra.handled = idle`, with
  * `idle` read fresh from OpenCode (clearing a `reopened` marker). Rejected unless the watcher sees
- * the root row finished (not running, nothing pending in its subtree); already handled runs are
+ * the root row finished, or ended and only waiting on background scripts (`canMarkDone`: not
+ * running, nothing pending in its subtree); already handled runs are
  * left alone, and so are sessions whose folder is gone unless I reopened them.
  */
 export const markHandled = (input: MarkHandledInput) =>
@@ -72,7 +73,7 @@ export const markHandled = (input: MarkHandledInput) =>
         : new SessionNotFoundError({ sessionID: input.sessionID })
     }
 
-    if (row.state !== 'finished' && row.state !== 'handled') {
+    if (!canMarkDone(row) && row.state !== 'handled') {
       return yield* new SessionNotFinishedError({ sessionID: input.sessionID, state: row.state })
     }
 

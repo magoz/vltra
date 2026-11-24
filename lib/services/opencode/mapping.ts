@@ -203,7 +203,8 @@ export const toRunningShell = (info: ShellInfo): Option.Option<RunningShell> =>
         id: info.id,
         sessionID,
         command: clip(info.command.trim().split('\n')[0] ?? '', detailLimit),
-        started: info.time.started
+        started: info.time.started,
+        pid: info.pid
       }))
     : Option.none()
 

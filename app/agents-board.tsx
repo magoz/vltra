@@ -19,6 +19,7 @@ import {
   pendingLaunches
 } from '@/lib/data/vltra/board'
 import type { AgentsBoard as Board, BoardColumn, BoardRow } from '@/lib/data/vltra/board'
+import { canMarkDone } from '@/lib/data/vltra/state'
 import type { Launch } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
@@ -248,13 +249,14 @@ function Board({ project }: { readonly project: string | undefined }) {
     focus(position === undefined ? firstCard(board) : sideways(board, position, direction))
 
   const handled = () => {
-    if (position === undefined || position.item.row.state !== 'finished') return
+    if (position === undefined || !canMarkDone(position.item.row)) return
 
-    const rows = board.columns.needsYou
+    // Finished cards are in Need you; ones only waiting on background scripts in Working.
+    const rows = board.columns[position.column]
     const next = rows[position.index + 1] ?? rows[position.index - 1]
 
     flow.markHandled(position.item.row.id)
-    setCursor({ column: 'needsYou', id: next?.row.id ?? '', index: position.index })
+    setCursor({ column: position.column, id: next?.row.id ?? '', index: position.index })
   }
 
   useKeys({

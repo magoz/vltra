@@ -1,6 +1,6 @@
 import { isWithin } from '@/lib/data/vltra/checkouts'
 import { worktreeName } from '@/lib/data/vltra/palette'
-import { compareStates, isStuck } from '@/lib/data/vltra/state'
+import { canMarkDone, compareStates, isStuck } from '@/lib/data/vltra/state'
 import type {
   VltraChange,
   VltraConnection,
@@ -85,7 +85,7 @@ export type RowOverride = {
 
 const overridden = (row: VltraRow, target: RowOverride['target']): VltraRow => {
   if (target === 'handled') {
-    return row.state === 'finished'
+    return canMarkDone(row)
       ? { ...row, state: 'handled', ownState: 'handled', handled: row.idle }
       : row
   }

@@ -6,9 +6,10 @@ import {
   endText,
   pendingText,
   relativeTime,
-  scriptText
+  scriptText,
+  servingText
 } from '@/app/vltra-format'
-import { baseTime, sessionRecord } from '@/lib/data/vltra/testing/fixtures'
+import { baseTime, runningShell, sessionRecord } from '@/lib/data/vltra/testing/fixtures'
 
 describe('formatting', () => {
   it('ages compactly', () => {
@@ -50,12 +51,8 @@ describe('formatting', () => {
     const ended = sessionRecord('ses_1', { idle: baseTime, outcome: 'succeeded' })
     const now = baseTime + 4 * 60_000
 
-    const script = (id: string, command: string, started: number) => ({
-      id,
-      sessionID: 'ses_1',
-      command,
-      started
-    })
+    const script = (id: string, command: string, started: number) =>
+      runningShell(id, 'ses_1', { command, started })
 
     const one = rowFrom(
       { sessions: [ended], shells: [script('sh_1', 'pnpm test', baseTime)] },
@@ -76,5 +73,35 @@ describe('formatting', () => {
     expect(scriptText(one, now)).toBe('waiting on pnpm test · 4m')
     expect(scriptText(two, now)).toBe('waiting on 2 scripts · 4m')
     expect(scriptText(rowFrom({ sessions: [ended] }, 'ses_1'), now)).toBeUndefined()
+  })
+
+  it('says which ports the services a session left running listen on', () => {
+    const row = rowFrom(
+      {
+        sessions: [sessionRecord('ses_1', { idle: baseTime, handled: baseTime })],
+        shells: [
+          runningShell('sh_1', 'ses_1', { command: 'pnpm dev' }),
+          runningShell('sh_2', 'ses_1', { command: 'pnpm storybook' }),
+          runningShell('sh_3', 'ses_1', { command: 'pnpm test' })
+        ]
+      },
+      'ses_1'
+    )
+
+    const ports = new Map([
+      ['sh_1', [3000]],
+      ['sh_2', [6006, 3000]]
+    ])
+
+    const checked = {
+      ...row,
+      shells: row.shells.map(shell => ({ ...shell, ports: ports.get(shell.id) ?? [] }))
+    }
+
+    expect(servingText(checked)).toEqual({
+      text: 'serving :3000, :6006',
+      commands: 'pnpm dev\npnpm storybook'
+    })
+    expect(servingText(row)).toBeUndefined()
   })
 })

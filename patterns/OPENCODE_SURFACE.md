@@ -22,7 +22,7 @@ stable API; the integration suite is the tripwire when OpenCode is upgraded.
 | Loaded locations     | `GET /api/debug/location` (falls back to running sessions' dirs)     |
 | Pending permissions  | `GET /api/permission/request?location[directory]=…` per location     |
 | Pending forms        | `GET /api/form?location[directory]=…` per location                   |
-| Running shells       | `GET /api/shell?location[directory]=…` per location (2.2.6)          |
+| Running shells       | `GET /api/shell?location[directory]=…` per location (2.2.6), `pid`   |
 | Projects / worktrees | `GET /api/project`, `GET /api/worktree?projectID=…`                  |
 | One session          | `GET /api/session/:id` (outside window, created/moved/forked)        |
 | Transcript tail      | `GET /api/session/:id/message?order=desc&limit=…` (one page)         |
@@ -97,7 +97,8 @@ reasons), `session.retry.scheduled`, `session.status`, `session.viewed`,
 `session.usage.updated`, `permission.asked/replied`, `form.created/replied/cancelled`,
 `project.updated`, `worktree.updated`, `worktree.resolved`, `shell.created` / `shell.exited` /
 `shell.deleted` (background scripts: the `shell` tool tags its shells `metadata.sessionID`; only
-`created` carries it, so Vltra keeps shell id → session; shells without one are ignored). Live activity (never a state change):
+`created` carries it, so Vltra keeps shell id → session; shells without one are ignored; no
+event carries the `pid`, which only the shell list has). Live activity (never a state change):
 `session.step.started` / `session.reasoning.started` → thinking, `session.text.started` →
 writing, `session.tool.input.started` → tool name, `session.tool.called` → tool input summary
 (command, path, pattern, ...). Each of those (and the run start) also stamps the session's last

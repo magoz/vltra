@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AgentCard } from '@/app/agent-card'
 import { fakeActions, itemFor, rowFrom, WithVltra } from '@/app/testing/dashboard-fixtures'
 import { swipeDistance } from '@/app/use-swipe'
-import { baseTime, sessionRecord } from '@/lib/data/vltra/testing/fixtures'
+import { baseTime, runningShell, sessionRecord } from '@/lib/data/vltra/testing/fixtures'
 import type { VltraRow } from '@/lib/data/vltra/types'
 
 const now = baseTime + 5 * 60 * 1000
@@ -205,19 +205,40 @@ describe('working cards', () => {
     expect(screen.queryByText(/quiet|retrying/)).toBeNull()
   })
 
-  it('flag the background script a run that ended waits on, with no Done button', () => {
+  it('flag the background script a run that ended waits on, and offer Done (a watcher may never exit)', async () => {
     const row = rowFrom(
       {
         sessions: [sessionRecord('ses_1', { idle: baseTime, outcome: 'succeeded' })],
-        shells: [{ id: 'sh_1', sessionID: 'ses_1', command: 'pnpm test', started: baseTime }]
+        shells: [runningShell('sh_1', 'ses_1')]
       },
       'ses_1'
     )
 
-    renderCard(row)
+    const { calls } = renderCard(row)
 
     expect(row.state).toBe('working')
     expect(screen.getByText('waiting on pnpm test · 5m')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /done/i }))
+
+    await waitFor(() =>
+      expect(calls).toEqual([{ action: 'markHandled', input: { sessionID: 'ses_1' } }])
+    )
+  })
+
+  it('offers no Done while the run itself is active', () => {
+    const row = rowFrom(
+      {
+        sessions: [sessionRecord('ses_1')],
+        running: ['ses_1'],
+        shells: [runningShell('sh_1', 'ses_1')]
+      },
+      'ses_1',
+      { activityAt: now }
+    )
+
+    renderCard(row)
+
     expect(screen.queryByRole('button', { name: /done/i })).toBeNull()
   })
 })

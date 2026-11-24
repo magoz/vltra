@@ -105,17 +105,31 @@ export const lastActivityAt = (row: VltraRow): number | undefined => {
 export const pendingRetry = (row: VltraRow) =>
   runningRows(row).find(item => item.retry !== undefined)?.retry
 
+/** A shell whose process tree listens on a port: a service (dev server), not a script to wait on. */
+export const isService = (shell: SessionShell): boolean => shell.ports.length > 0
+
 /**
  * The background scripts a working row only waits on: nothing in its subtree runs, and the
- * sessions working because of a shell still hold one. Oldest first.
+ * sessions working because of a shell still hold one (services aside). Oldest first.
  */
 export const waitingShells = (row: VltraRow): ReadonlyArray<SessionShell> =>
   row.state !== 'working' || runningRows(row).length > 0
     ? []
     : [row, ...row.children]
         .filter(item => item.ownState === 'working')
-        .flatMap(item => item.shells)
+        .flatMap(item => item.shells.filter(shell => !isService(shell)))
         .toSorted((left, right) => left.started - right.started)
+
+/** The services (shells listening on a port) still running in the row's subtree. */
+export const servingShells = (row: VltraRow): ReadonlyArray<SessionShell> =>
+  [row, ...row.children].flatMap(item => item.shells.filter(isService))
+
+/**
+ * Whether Done applies: the latest run finished, or it ended and only waits on background
+ * scripts (a watcher that never exits would otherwise hold it working for good).
+ */
+export const canMarkDone = (row: VltraRow): boolean =>
+  row.state === 'finished' || waitingShells(row).length > 0
 
 /** Working, and nothing in its running subtree has done anything for `quietAfter`. */
 export const isQuiet = (row: VltraRow, now: number): boolean => {

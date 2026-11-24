@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { scriptText, sessionTitle, stuckText } from '@/app/vltra-format'
+import { scriptText, servingText, sessionTitle, stuckText } from '@/app/vltra-format'
 import { useVltra } from '@/app/vltra-context'
 import { useLauncher } from '@/app/launcher-context'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
@@ -12,23 +12,29 @@ import { PrBadge } from '@/app/worktree-badges'
 import { useSwipeLeft } from '@/app/use-swipe'
 import type { BoardRow } from '@/lib/data/vltra/board'
 import { worktreeAt } from '@/lib/data/vltra/checkouts'
+import { canMarkDone } from '@/lib/data/vltra/state'
 import type { VltraRow } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
 /**
  * What a card says beyond its title, if anything: why a working run looks stuck
- * (`retrying (n×, …)`, `quiet Nm`), the background script it waits on, and a deleted folder.
+ * (`retrying (n×, …)`, `quiet Nm`), the background script it waits on, the services it left
+ * running (`serving :3000`), and a deleted folder.
  */
 function Flags({ row, now }: { readonly row: VltraRow; readonly now: number }) {
   const stuck = row.state === 'working' ? stuckText(row, now) : undefined
   const script = scriptText(row, now)
+  const serving = servingText(row)
 
-  if (stuck === undefined && script === undefined && !row.gone) return null
+  if (stuck === undefined && script === undefined && serving === undefined && !row.gone) {
+    return null
+  }
 
   return (
     <FactLine>
       {stuck === undefined ? null : <span className="text-destructive">{stuck}</span>}
       {script === undefined ? null : <span className="break-all">{script}</span>}
+      {serving === undefined ? null : <span title={serving.commands}>{serving.text}</span>}
       {row.gone ? <GoneLabel /> : null}
     </FactLine>
   )
@@ -77,7 +83,8 @@ export function AgentCard({
   const { row } = item
   const { now, selection } = useVltra()
   const { markHandled } = useHandled()
-  const finished = row.state === 'finished'
+  // Finished, or ended and only waiting on background scripts.
+  const finished = canMarkDone(row)
   const swipe = useSwipeLeft(finished ? () => markHandled(row.id) : undefined)
   const ref = useRef<HTMLLIElement>(null)
 

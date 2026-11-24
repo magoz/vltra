@@ -4,6 +4,7 @@ import { describe, expect, it } from '@effect/vitest'
 import { ConfigProvider, Effect, Layer, Option, Schedule } from 'effect'
 import { markHandled, markViewed, reopen } from '@/lib/data/vltra/actions'
 import { loadSessionSummary } from '@/lib/data/vltra/session-detail'
+import { ShellPortsLive } from '@/lib/data/vltra/shell-ports'
 import { snapshotRows } from '@/lib/data/vltra/snapshot'
 import { VltraStore, VltraStoreLive } from '@/lib/data/vltra/store'
 import type { VltraRow, VltraSnapshot } from '@/lib/data/vltra/types'
@@ -12,6 +13,7 @@ import type { WatcherOptions } from '@/lib/data/vltra/watcher'
 import { DirectoriesLive } from '@/lib/services/directories/live-layer'
 import { OpenCode } from '@/lib/services/opencode/service'
 import { OpenCodeLive } from '@/lib/services/opencode/live-layer'
+import { ProcessesLive } from '@/lib/services/processes/live-layer'
 import {
   findOpenCode,
   requiredVersion,
@@ -48,10 +50,11 @@ const testConfig = (server: OpenCodeServer) =>
   )
 
 const vltraLayer = (server: OpenCodeServer, watcher: WatcherOptions = options) =>
-  VltraWatcherLive(watcher).pipe(
+  Layer.mergeAll(VltraWatcherLive(watcher), ShellPortsLive('200 millis')).pipe(
     Layer.provideMerge(VltraStoreLive),
     Layer.provideMerge(OpenCodeLive),
     Layer.provideMerge(DirectoriesLive),
+    Layer.provideMerge(ProcessesLive),
     Layer.provideMerge(testConfig(server))
   )
 
@@ -376,6 +379,23 @@ describe.skipIf(!binary.available)('Vltra against a real opencode serve', () => 
           const finished = yield* eventually(rowIn(sessionID, 'finished'), 'scripts ended')
 
           expect(finished.shells).toEqual([])
+
+          // A dev server: its event has no pid, so Vltra looks it up, finds the port its tree
+          // listens on, and the run stays finished (a service is nobody's wait).
+          const listen = `require('net').createServer().listen(0, '127.0.0.1')`
+
+          yield* server.json<Created>('POST', `/api/shell?${locationQuery(server)}`, {
+            command: `${process.execPath} -e "${listen}"`,
+            metadata: { sessionID }
+          })
+
+          const serving = yield* eventually(value => {
+            const row = findRow(value, sessionID)
+
+            return row?.shells[0]?.ports.length === 1 ? row : undefined
+          }, 'service port')
+
+          expect(serving.state).toBe('finished')
         }).pipe(Effect.provide(vltraLayer(server)))
       }).pipe(Effect.scoped),
     60_000

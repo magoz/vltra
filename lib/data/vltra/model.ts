@@ -38,6 +38,11 @@ export type VltraModel = {
   readonly forms: ReadonlyMap<string, PendingForm>
   /** Running shell commands by shell id (background scripts once their run has ended). */
   readonly shells: ReadonlyMap<string, RunningShell>
+  /**
+   * The ports each running shell's process tree listens on (checked by Vltra, not reported by
+   * OpenCode); absent until checked. A shell that listens is a service, not a script to wait on.
+   */
+  readonly shellPorts: ReadonlyMap<string, ReadonlyArray<number>>
   readonly projects: ReadonlyMap<string, ProjectRecord>
   /** Saved worktree directories per project. */
   readonly worktrees: ReadonlyMap<string, ReadonlyArray<string>>
@@ -70,6 +75,7 @@ export const emptyModel: VltraModel = {
   permissions: new Map(),
   forms: new Map(),
   shells: new Map(),
+  shellPorts: new Map(),
   projects: new Map(),
   worktrees: new Map(),
   directoryGone: new Map()
@@ -106,6 +112,7 @@ export const fromSnapshot = (
     permissions: new Map(snapshot.permissions.map(item => [item.id, item] as const)),
     forms: new Map(snapshot.forms.map(item => [item.id, item] as const)),
     shells: new Map(snapshot.shells.map(item => [item.id, item] as const)),
+    shellPorts: new Map(),
     projects: new Map(snapshot.projects.map(item => [item.id, item] as const)),
     worktrees: new Map(snapshot.worktrees.map(item => [item.projectID, item.directories] as const)),
     directoryGone
@@ -315,7 +322,28 @@ export const applyEvent = (model: VltraModel, event: VltraEvent): VltraModel =>
     FormCreated: ({ form }) => ({ ...model, forms: withEntry(model.forms, form.id, form) }),
     FormSettled: ({ formID }) => ({ ...model, forms: withoutEntry(model.forms, formID) }),
     ShellStarted: ({ shell }) => ({ ...model, shells: withEntry(model.shells, shell.id, shell) }),
-    ShellEnded: ({ shellID }) => ({ ...model, shells: withoutEntry(model.shells, shellID) }),
+    ShellEnded: ({ shellID }) => ({
+      ...model,
+      shells: withoutEntry(model.shells, shellID),
+      shellPorts: withoutEntry(model.shellPorts, shellID)
+    }),
+    ShellProcessFound: ({ shellID, pid }) => {
+      const shell = model.shells.get(shellID)
+
+      return shell === undefined
+        ? model
+        : { ...model, shells: withEntry(model.shells, shellID, { ...shell, pid }) }
+    },
+    ShellsChecked: ({ ports }) => ({
+      ...model,
+      shellPorts: new Map(
+        Array.from(model.shells.keys()).flatMap(id => {
+          const known = ports.get(id) ?? model.shellPorts.get(id)
+
+          return known === undefined ? [] : [[id, known] as const]
+        })
+      )
+    }),
     ProjectUpserted: ({ project }) => ({
       ...model,
       projects: withEntry(model.projects, project.id, project)

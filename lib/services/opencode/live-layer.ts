@@ -563,7 +563,15 @@ const makeConnection = (
       projects: client.project.list().pipe(
         request('project.list'),
         Effect.map(list => list.map(toProjectRecord))
-      )
+      ),
+      // The location's list rather than `shell.get`: no shell id schema to decode one with.
+      shellPid: ({ shellID, directory }) =>
+        client.shell.list({ location: { directory } }).pipe(
+          request('shell.list'),
+          Effect.map(response =>
+            Option.fromNullishOr(response.data.find(info => info.id === shellID)?.pid)
+          )
+        )
     } satisfies OpenCodeConnection
   })
 

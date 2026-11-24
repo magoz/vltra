@@ -5,7 +5,7 @@ import { ProjectBusyError } from '@/lib/data/vltra/errors'
 import { fromSnapshot } from '@/lib/data/vltra/model'
 import type { OpenCodeSnapshot } from '@/lib/data/vltra/model'
 import { VltraStore, makeVltraStore } from '@/lib/data/vltra/store'
-import { baseTime, sessionRecord, webUrl } from '@/lib/data/vltra/testing/fixtures'
+import { baseTime, runningShell, sessionRecord, webUrl } from '@/lib/data/vltra/testing/fixtures'
 import { snapshotRows } from '@/lib/data/vltra/snapshot'
 import {
   makeFakeDirectories,
@@ -147,6 +147,27 @@ describe('mark handled', () => {
         ]
       )
       expect(yield* fake.calls).toEqual([])
+    })
+  )
+
+  it.effect('handles a run that ended and only waits on a background script', () =>
+    Effect.gen(function* () {
+      const waiting: OpenCodeSnapshot = {
+        ...emptySnapshot,
+        sessions: [sessionRecord('ses_waiting', { idle, outcome: 'succeeded' })],
+        shells: [runningShell('sh_1', 'ses_waiting', { command: 'tsc --watch' })]
+      }
+
+      const fake = yield* makeFakeOpenCode(waiting)
+
+      yield* Effect.gen(function* () {
+        const rows = snapshotRows(yield* Effect.flatMap(VltraStore, store => store.snapshot))
+
+        expect(rows.find(item => item.id === 'ses_waiting')?.state).toBe('working')
+        expect(yield* markHandled({ sessionID: 'ses_waiting' })).toBe('handled')
+      }).pipe(Effect.provide(services(fake, presentDirectories, waiting)))
+
+      expect(yield* fake.metadata('ses_waiting')).toEqual({ vltra: { handled: idle } })
     })
   )
 

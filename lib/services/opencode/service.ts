@@ -133,6 +133,14 @@ export type OpenCodeConnection = {
   readonly stats: (input: StatsInput) => Effect.Effect<SessionStats, RejectableError>
   /** `GET /api/project`: every project OpenCode knows. */
   readonly projects: Effect.Effect<ReadonlyArray<ProjectRecord>, OpenCodeRequestError>
+  /**
+   * The shell's process id from `GET /api/shell?location[directory]=…` (`shell.created` does not
+   * carry it); none once the shell is gone or has no process.
+   */
+  readonly shellPid: (input: {
+    readonly shellID: string
+    readonly directory: string
+  }) => Effect.Effect<Option.Option<number>, OpenCodeRequestError>
 }
 
 export type StatsInput = {
