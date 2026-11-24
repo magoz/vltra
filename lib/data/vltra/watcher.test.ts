@@ -5,7 +5,7 @@ import { VltraEvent, OpenCodeSignal } from '@/lib/data/vltra/events'
 import { snapshotRows } from '@/lib/data/vltra/snapshot'
 import { quietAfter } from '@/lib/data/vltra/state'
 import { VltraStore, makeVltraStore } from '@/lib/data/vltra/store'
-import { baseTime, sessionRecord, webUrl } from '@/lib/data/vltra/testing/fixtures'
+import { baseTime, runningWatch, sessionRecord, webUrl } from '@/lib/data/vltra/testing/fixtures'
 import type { InterruptReason } from '@/lib/data/vltra/types'
 import { defaultWatcherOptions, VltraWatcherLive } from '@/lib/data/vltra/watcher'
 import {
@@ -36,6 +36,10 @@ const rowStates = Effect.map(snapshot, value =>
 )
 
 const connection = Effect.map(snapshot, value => value.connection)
+
+/** OpenCode calls but the `until` watches read every (re)connect does. */
+const opencodeCalls = (fake: FakeOpenCode) =>
+  Effect.map(fake.calls, calls => calls.filter(call => call.op !== 'watches'))
 
 const initial = {
   ...emptySnapshot,
@@ -364,7 +368,7 @@ describe('session folders', () => {
         yield* settle
 
         expect(yield* rowOf('ses_worktree')).toMatchObject({ state: 'handled', gone: true })
-        expect(yield* fake.calls).toEqual([])
+        expect(yield* opencodeCalls(fake)).toEqual([])
       }).pipe(Effect.provide(withWatcher(fake, directories.layer)))
     })
   )
@@ -438,7 +442,7 @@ describe('session folders', () => {
         yield* settle
 
         expect(yield* rowStates).toEqual({ ses_missed: 'handled', ses_live: 'handled' })
-        expect(yield* fake.calls).toEqual([])
+        expect(yield* opencodeCalls(fake)).toEqual([])
       }).pipe(Effect.provide(withWatcher(fake, directories.layer)))
     })
   )
@@ -480,7 +484,7 @@ describe('interrupt reasons', () => {
         yield* fake.emit(ended('ses_root', 'user'))
         yield* settle
 
-        expect(yield* fake.calls).toEqual([
+        expect(yield* opencodeCalls(fake)).toEqual([
           { op: 'setHandled', sessionID: 'ses_root', handled: baseTime + 6 }
         ])
         expect(yield* rowOf('ses_root')).toMatchObject({
@@ -493,7 +497,7 @@ describe('interrupt reasons', () => {
         yield* fake.emit(ended('ses_child', 'user'))
         yield* settle
 
-        expect((yield* fake.calls).length).toBe(1)
+        expect((yield* opencodeCalls(fake)).length).toBe(1)
         expect((yield* rowOf('ses_root'))?.state).toBe('handled')
       }).pipe(Effect.provide(withWatcher(fake)))
     })
@@ -508,7 +512,7 @@ describe('interrupt reasons', () => {
         yield* fake.emit(ended('ses_root', 'inactivity'))
         yield* settle
 
-        expect(yield* fake.calls).toEqual([])
+        expect(yield* opencodeCalls(fake)).toEqual([])
         expect(yield* rowOf('ses_root')).toMatchObject({
           state: 'finished',
           outcome: 'interrupted',
@@ -576,5 +580,57 @@ describe('interrupt reasons', () => {
         expect((yield* rowOf('ses_evicted'))?.interrupt).toBe('inactivity')
       }).pipe(Effect.provide(withWatcher(fake)))
     })
+  )
+})
+
+describe('until watches', () => {
+  const here = '/home/me/dev/repos/vltra'
+  const gone = '/tmp/tmp.gone'
+
+  const sessions = {
+    ...emptySnapshot,
+    sessions: [
+      sessionRecord('ses_waiting', { idle: baseTime + 1, outcome: 'succeeded' }),
+      sessionRecord('ses_done', {
+        directory: '/home/me/dev/repos/done',
+        idle: baseTime + 1,
+        handled: baseTime + 1
+      }),
+      sessionRecord('ses_busy', { directory: '/home/me/dev/repos/busy', handled: baseTime }),
+      sessionRecord('ses_old', { directory: gone, idle: baseTime + 1, outcome: 'succeeded' })
+    ],
+    running: ['ses_busy']
+  }
+
+  it.effect(
+    'are read on connect for the existing folders of sessions that may wait, then follow changes',
+    () =>
+      Effect.gen(function* () {
+        const fake = yield* makeFakeOpenCode(sessions)
+        const directories = yield* makeFakeDirectories([gone])
+
+        yield* fake.setWatches(here, [runningWatch('w_ci', 'ses_waiting', { label: 'CI' })])
+
+        yield* Effect.gen(function* () {
+          yield* settle
+
+          expect(yield* rowStates).toMatchObject({ ses_waiting: 'working', ses_done: 'handled' })
+
+          // Not the handled session's folder, nor a deleted one: running and unhandled ones.
+          expect((yield* fake.calls).filter(call => call.op === 'watches')).toEqual([
+            { op: 'watches', directories: ['/home/me/dev/repos/busy', here] }
+          ])
+
+          yield* fake.emit(
+            OpenCodeSignal.Apply({
+              event: VltraEvent.WatchesChanged({ sessionID: 'ses_waiting', watches: [] })
+            })
+          )
+
+          yield* settle
+
+          expect((yield* rowStates).ses_waiting).toBe('finished')
+        }).pipe(Effect.provide(withWatcher(fake, directories.layer)))
+      })
   )
 })

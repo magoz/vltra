@@ -7,6 +7,7 @@ import type { OpenCodeSnapshot } from '@/lib/data/vltra/model'
 import type {
   FileChange,
   InterruptReason,
+  RunningWatch,
   SessionRecord,
   SessionStats,
   Transcript
@@ -43,6 +44,7 @@ export type FakeCall =
   | { readonly op: 'generateText'; readonly prompt: string }
   | ({ readonly op: 'stats' } & StatsInput)
   | { readonly op: 'shellPid'; readonly shellID: string; readonly directory: string }
+  | { readonly op: 'watches'; readonly directories: ReadonlyArray<string> }
 
 /** How the fake answers the launcher's calls; each defaults to a quick success (text: a refusal). */
 export type FakeLauncherBehavior = {
@@ -107,6 +109,11 @@ export type FakeOpenCode = {
   readonly setInterruptReason: (sessionID: string, reason: InterruptReason) => Effect.Effect<void>
   /** Override how the launcher's calls answer. */
   readonly setLauncherBehavior: (behavior: Partial<FakeLauncherBehavior>) => Effect.Effect<void>
+  /** The `until` watches a directory answers with (default: none). */
+  readonly setWatches: (
+    directory: string,
+    watches: ReadonlyArray<RunningWatch>
+  ) => Effect.Effect<void>
   /** How `stats` answers (default: no activity, `from` defaulting to `to`). */
   readonly setStats: (
     answer: (input: StatsInput) => Effect.Effect<SessionStats, RejectableError>
@@ -145,6 +152,11 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
     const metadata = yield* Ref.make<ReadonlyMap<string, Session.Metadata>>(new Map())
     const interrupts = yield* Ref.make<ReadonlyMap<string, InterruptReason>>(new Map())
     const launcher = yield* Ref.make(defaultLauncherBehavior)
+
+    const watchesByDirectory = yield* Ref.make<ReadonlyMap<string, ReadonlyArray<RunningWatch>>>(
+      new Map()
+    )
+
     const created = yield* Ref.make(0)
 
     const stats = yield* Ref.make(
@@ -381,6 +393,16 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
           Effect.flatMap(Ref.get(stats), answer => answer(input))
         ),
       projects: Effect.map(Ref.get(snapshot), value => value.projects),
+      watches: directories => {
+        const distinct = Array.from(new Set(directories)).toSorted()
+
+        return Effect.andThen(
+          record({ op: 'watches', directories: distinct }),
+          Effect.map(Ref.get(watchesByDirectory), map =>
+            distinct.flatMap(directory => map.get(directory) ?? [])
+          )
+        )
+      },
       // The snapshot's shells, by id (events carry no pid, the stored shell does).
       shellPid: ({ shellID, directory }) =>
         Effect.andThen(
@@ -440,7 +462,9 @@ export const makeFakeOpenCode = (initial: OpenCodeSnapshot = emptySnapshot) =>
         Ref.update(interrupts, map => new Map(map).set(sessionID, reason)),
       setLauncherBehavior: behavior =>
         Ref.update(launcher, current => ({ ...current, ...behavior })),
-      setStats: answer => Ref.set(stats, answer)
+      setStats: answer => Ref.set(stats, answer),
+      setWatches: (directory, watches) =>
+        Ref.update(watchesByDirectory, map => new Map(map).set(directory, watches))
     }
 
     return fake

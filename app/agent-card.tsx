@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { scriptText, servingText, sessionTitle, stuckText } from '@/app/vltra-format'
+import { servingText, sessionTitle, stuckText, waitText } from '@/app/vltra-format'
 import { useVltra } from '@/app/vltra-context'
 import { useLauncher } from '@/app/launcher-context'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
@@ -18,23 +18,27 @@ import { cn } from '@/lib/utils'
 
 /**
  * What a card says beyond its title, if anything: why a working run looks stuck
- * (`retrying (n×, …)`, `quiet Nm`), the background script it waits on, the services it left
- * running (`serving :3000`), and a deleted folder.
+ * (`retrying (n×, …)`, `quiet Nm`), what it waits on (scripts, `until` watches), the services it
+ * left running (`serving :3000`), and a deleted folder.
  */
 function Flags({ row, now }: { readonly row: VltraRow; readonly now: number }) {
   const stuck = row.state === 'working' ? stuckText(row, now) : undefined
-  const script = scriptText(row, now)
+  const waiting = waitText(row, now)
   const serving = servingText(row)
 
-  if (stuck === undefined && script === undefined && serving === undefined && !row.gone) {
+  if (stuck === undefined && waiting === undefined && serving === undefined && !row.gone) {
     return null
   }
 
   return (
     <FactLine>
       {stuck === undefined ? null : <span className="text-destructive">{stuck}</span>}
-      {script === undefined ? null : <span className="break-all">{script}</span>}
-      {serving === undefined ? null : <span title={serving.commands}>{serving.text}</span>}
+      {waiting === undefined ? null : (
+        <span title={waiting.details} className="break-all">
+          {waiting.text}
+        </span>
+      )}
+      {serving === undefined ? null : <span title={serving.details}>{serving.text}</span>}
       {row.gone ? <GoneLabel /> : null}
     </FactLine>
   )

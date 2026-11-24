@@ -359,7 +359,9 @@ describe.skipIf(!binary.available)('Vltra against a real opencode serve', () => 
           const waiting = yield* eventually(rowIn(sessionID, 'working'), 'script from snapshot')
 
           expect(waiting.running).toBe(false)
-          expect(waiting.shells).toMatchObject([{ id: first.data.id, command: 'sleep 60' }])
+          expect(waiting.waits).toMatchObject([
+            { kind: 'script', id: first.data.id, command: 'sleep 60' }
+          ])
 
           // One started while Vltra listens arrives as an event; ending both finishes the run.
           const second = yield* server.json<Created>(
@@ -369,7 +371,7 @@ describe.skipIf(!binary.available)('Vltra against a real opencode serve', () => 
           )
 
           yield* eventually(
-            value => (findRow(value, sessionID)?.shells.length === 2 ? true : undefined),
+            value => (findRow(value, sessionID)?.waits.length === 2 ? true : undefined),
             'script from event'
           )
 
@@ -378,7 +380,7 @@ describe.skipIf(!binary.available)('Vltra against a real opencode serve', () => 
 
           const finished = yield* eventually(rowIn(sessionID, 'finished'), 'scripts ended')
 
-          expect(finished.shells).toEqual([])
+          expect(finished.waits).toEqual([])
 
           // A dev server: its event has no pid, so Vltra looks it up, finds the port its tree
           // listens on, and the run stays finished (a service is nobody's wait).
@@ -392,7 +394,7 @@ describe.skipIf(!binary.available)('Vltra against a real opencode serve', () => 
           const serving = yield* eventually(value => {
             const row = findRow(value, sessionID)
 
-            return row?.shells[0]?.ports.length === 1 ? row : undefined
+            return row?.services[0]?.ports.length === 1 ? row : undefined
           }, 'service port')
 
           expect(serving.state).toBe('finished')

@@ -6,6 +6,7 @@ import type {
   FileChange,
   InterruptReason,
   ProjectRecord,
+  RunningWatch,
   SessionRecord,
   SessionStats,
   Transcript
@@ -137,6 +138,12 @@ export type OpenCodeConnection = {
    * The shell's process id from `GET /api/shell?location[directory]=…` (`shell.created` does not
    * carry it); none once the shell is gone or has no process.
    */
+  /**
+   * The dotfiles `until` plugin's waits (its `waits` RPC) in each directory. Asking loads a
+   * location OpenCode had not loaded, which resumes its saved watches. Never fails: a directory
+   * without the plugin, or that cannot load, has none.
+   */
+  readonly watches: (directories: Iterable<string>) => Effect.Effect<ReadonlyArray<RunningWatch>>
   readonly shellPid: (input: {
     readonly shellID: string
     readonly directory: string

@@ -15,11 +15,12 @@ import { HandledProvider, useHandledFlow } from '@/app/use-handled'
 import { Toaster } from '@/components/ui/sonner'
 import { fromSnapshot as liveFromSnapshot } from '@/lib/data/vltra/board'
 import type { BoardRow, LiveVltra } from '@/lib/data/vltra/board'
-import { fromSnapshot } from '@/lib/data/vltra/model'
+import { VltraEvent } from '@/lib/data/vltra/events'
+import { applyEvent, fromSnapshot } from '@/lib/data/vltra/model'
 import type { VltraModel, OpenCodeSnapshot, TrackedSession } from '@/lib/data/vltra/model'
 import { buildRows, buildSnapshot } from '@/lib/data/vltra/snapshot'
 import { baseTime, webUrl } from '@/lib/data/vltra/testing/fixtures'
-import type { VltraRow } from '@/lib/data/vltra/types'
+import type { RunningWatch, VltraRow } from '@/lib/data/vltra/types'
 import { defaultStatsPeriod } from '@/lib/data/vltra/stats-period'
 import type { StatsPeriod } from '@/lib/data/vltra/stats-period'
 import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
@@ -28,16 +29,24 @@ import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 
 type LiveFacts = Partial<Pick<TrackedSession, 'activity' | 'retry' | 'activityAt' | 'interrupt'>>
 
+/** What OpenCode reports, plus the `until` watches the watcher reads after it. */
+export type Scenario = Partial<OpenCodeSnapshot> & {
+  readonly watches?: ReadonlyArray<RunningWatch>
+}
+
 const modelFrom = (
-  snapshot: Partial<OpenCodeSnapshot>,
+  { watches = [], ...snapshot }: Scenario,
   live: ReadonlyMap<string, LiveFacts>,
   at: number,
   gone: ReadonlyArray<string> = []
 ): VltraModel => {
-  const model = fromSnapshot(
-    { ...emptySnapshot, ...snapshot },
-    at,
-    new Map(gone.map(directory => [directory, true] as const))
+  const model = applyEvent(
+    fromSnapshot(
+      { ...emptySnapshot, ...snapshot },
+      at,
+      new Map(gone.map(directory => [directory, true] as const))
+    ),
+    VltraEvent.WatchesLoaded({ watches })
   )
 
   const sessions = new Map(model.sessions)
@@ -53,7 +62,7 @@ const modelFrom = (
 
 /** The root row `id`; `gone` lists session folders deleted from disk. */
 export const rowFrom = (
-  snapshot: Partial<OpenCodeSnapshot>,
+  snapshot: Scenario,
   id: string,
   live: LiveFacts = {},
   gone: ReadonlyArray<string> = []
@@ -68,7 +77,7 @@ export const rowFrom = (
 
 /** A live vltra as the dashboard sees it after loading `GET /api/vltra` at `now`. */
 export const liveFrom = (
-  snapshot: Partial<OpenCodeSnapshot>,
+  snapshot: Scenario,
   now: number,
   live: ReadonlyMap<string, LiveFacts> = new Map()
 ): LiveVltra =>

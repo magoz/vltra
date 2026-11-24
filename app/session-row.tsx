@@ -6,9 +6,9 @@ import {
   endText,
   pendingText,
   relativeTime,
-  scriptText,
   sessionTitle,
-  stuckText
+  stuckText,
+  waitText
 } from '@/app/vltra-format'
 import { sessionHref, useVltra } from '@/app/vltra-context'
 import { ReopenButton } from '@/app/handled-button'
@@ -106,7 +106,7 @@ function StateLabel({ row, now }: { readonly row: VltraRow; readonly now: number
       return stuck === undefined ? (
         <span>
           {row.activity === undefined
-            ? (scriptText(row, now) ?? 'working')
+            ? (waitText(row, now)?.text ?? 'working')
             : activityText(row.activity)}
         </span>
       ) : (

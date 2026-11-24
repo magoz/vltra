@@ -23,6 +23,7 @@ stable API; the integration suite is the tripwire when OpenCode is upgraded.
 | Pending permissions  | `GET /api/permission/request?location[directory]=…` per location     |
 | Pending forms        | `GET /api/form?location[directory]=…` per location                   |
 | Running shells       | `GET /api/shell?location[directory]=…` per location (2.2.6), `pid`   |
+| `until` waits        | `POST /api/rpc/dotfiles-until/waits?location[directory]=…` `{}`      |
 | Projects / worktrees | `GET /api/project`, `GET /api/worktree?projectID=…`                  |
 | One session          | `GET /api/session/:id` (outside window, created/moved/forked)        |
 | Transcript tail      | `GET /api/session/:id/message?order=desc&limit=…` (one page)         |
@@ -98,7 +99,10 @@ reasons), `session.retry.scheduled`, `session.status`, `session.viewed`,
 `project.updated`, `worktree.updated`, `worktree.resolved`, `shell.created` / `shell.exited` /
 `shell.deleted` (background scripts: the `shell` tool tags its shells `metadata.sessionID`; only
 `created` carries it, so Vltra keeps shell id → session; shells without one are ignored; no
-event carries the `pid`, which only the shell list has). Live activity (never a state change):
+event carries the `pid`, which only the shell list has), `rpc.dotfiles-until.changed` (plugin
+RPC events reach `/api/event` typed as `rpc.${string}` with `location` and a free `data`; the
+`until` plugin's carries `{ sessionID, waits }`, decoded in `mapping.ts`; its contract lives in
+the dotfiles' `plugins/until/rpc.ts`, its README's "Observers"). Live activity (never a state change):
 `session.step.started` / `session.reasoning.started` → thinking, `session.text.started` →
 writing, `session.tool.input.started` → tool name, `session.tool.called` → tool input summary
 (command, path, pattern, ...). Each of those (and the run start) also stamps the session's last

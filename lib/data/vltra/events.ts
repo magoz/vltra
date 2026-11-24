@@ -7,6 +7,7 @@ import type {
   ProjectRecord,
   RetryInfo,
   RunningShell,
+  RunningWatch,
   SessionActivity,
   SessionRecord
 } from '@/lib/data/vltra/types'
@@ -81,6 +82,10 @@ export type VltraEvent = Data.TaggedEnum<{
    * Shells not checked keep what they had.
    */
   ShellsChecked: { readonly ports: ReadonlyMap<string, ReadonlyArray<number>> }
+  /** Vltra read the `until` watches of every folder that may wait (replaces all it knew). */
+  WatchesLoaded: { readonly watches: ReadonlyArray<RunningWatch> }
+  /** The `until` watches that will wake `sessionID` now (`rpc.dotfiles-until.changed`). */
+  WatchesChanged: { readonly sessionID: string; readonly watches: ReadonlyArray<RunningWatch> }
   ProjectUpserted: { readonly project: ProjectRecord }
   WorktreesLoaded: { readonly projectID: string; readonly directories: ReadonlyArray<string> }
   /**
@@ -135,6 +140,9 @@ export const eventSessionID = (event: VltraEvent): string | undefined =>
     ShellEnded: () => undefined,
     ShellProcessFound: () => undefined,
     ShellsChecked: () => undefined,
+    // Waits matter only for sessions Vltra shows; an unknown one is read with its next event.
+    WatchesLoaded: () => undefined,
+    WatchesChanged: () => undefined,
     ProjectUpserted: () => undefined,
     WorktreesLoaded: () => undefined,
     DirectoriesChecked: () => undefined

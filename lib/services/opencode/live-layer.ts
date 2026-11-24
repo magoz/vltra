@@ -17,6 +17,7 @@ import type {
   PendingForm,
   PendingPermission,
   RunningShell,
+  RunningWatch,
   SessionRecord
 } from '@/lib/data/vltra/types'
 import {
@@ -39,12 +40,15 @@ import {
   toPendingPermission,
   toProjectRecord,
   toRunningShell,
+  toRunningWatches,
   toFileChange,
   toResolvedLocation,
   toSessionRecord,
   toSessionStats,
   toSignals,
   toTranscript,
+  untilRpcID,
+  UntilWaits,
   withVltraMarker
 } from '@/lib/services/opencode/mapping'
 import type { RunEnd } from '@/lib/services/opencode/mapping'
@@ -179,6 +183,22 @@ const makeSessionReader = (client: OpenCodeClient) => (sessionID: string) =>
       Effect.succeed(Option.none<SessionRecord>())
     ),
     request('session.get')
+  )
+
+/**
+ * The `until` plugin's waits in `directory` (its `waits` RPC). Nothing when the plugin is not
+ * installed, answers otherwise, or the location cannot load (a deleted folder): no watch holds
+ * anything then, which is how Vltra behaved before watches.
+ */
+const readWatches = (client: OpenCodeClient, directory: string) =>
+  client.rpc.call({ rpcID: untilRpcID, method: 'waits', location: { directory }, input: {} }).pipe(
+    Effect.flatMap(response => Schema.decodeUnknownEffect(UntilWaits)(response.output)),
+    request('rpc.call'),
+    Effect.map(toRunningWatches),
+    Effect.tapError(error =>
+      Effect.logDebug('until waits unavailable for location', directory, error.message)
+    ),
+    Effect.orElseSucceed((): ReadonlyArray<RunningWatch> => [])
   )
 
 const makeSnapshot = (
@@ -564,6 +584,10 @@ const makeConnection = (
         request('project.list'),
         Effect.map(list => list.map(toProjectRecord))
       ),
+      watches: directories =>
+        Effect.forEach(new Set(directories), directory => readWatches(client, directory), {
+          concurrency
+        }).pipe(Effect.map(lists => lists.flat())),
       // The location's list rather than `shell.get`: no shell id schema to decode one with.
       shellPid: ({ shellID, directory }) =>
         client.shell.list({ location: { directory } }).pipe(

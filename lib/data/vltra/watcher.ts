@@ -4,6 +4,7 @@ import {
   applyEvent,
   fromSnapshot,
   isFolderGone,
+  mayWaitDirectories,
   sessionDirectories,
   snapshotDirectories,
   uncheckedDirectories
@@ -74,13 +75,18 @@ const currentModel = Effect.flatMap(VltraStore, store => Effect.map(store.view, 
 const checkDirectories = (directories: Iterable<string>) =>
   Effect.flatMap(Directories, service => service.check(directories))
 
-/** A fresh model for a snapshot, with its sessions' folders checked first. */
-const modelFromSnapshot = (snapshot: OpenCodeSnapshot) =>
+/**
+ * A fresh model for a snapshot, with its sessions' folders checked first, then the `until`
+ * watches of the folders that may wait (only existing ones: most old sessions' are gone).
+ */
+const modelFromSnapshot = (connection: OpenCodeConnection, snapshot: OpenCodeSnapshot) =>
   Effect.gen(function* () {
     const directoryGone = yield* checkDirectories(snapshotDirectories(snapshot))
     const now = yield* Clock.currentTimeMillis
+    const model = fromSnapshot(snapshot, now, directoryGone)
+    const watches = yield* connection.watches(mayWaitDirectories(model))
 
-    return { model: fromSnapshot(snapshot, now, directoryGone), now }
+    return { model: applyEvent(model, VltraEvent.WatchesLoaded({ watches })), now }
   })
 
 /** Checks the folders of sessions the model has not checked yet (new or moved sessions). */
@@ -279,7 +285,7 @@ const applySignal = (
     Resync: () =>
       Effect.gen(function* () {
         const snapshot = yield* connection.snapshot
-        const { model } = yield* modelFromSnapshot(snapshot)
+        const { model } = yield* modelFromSnapshot(connection, snapshot)
 
         yield* setModel(model)
         yield* Queue.offer(recheck, undefined)
@@ -330,7 +336,7 @@ export const connectOnce = (options: WatcherOptions, reasons: RunReasons) =>
 
       const snapshot = yield* connection.snapshot
       const store = yield* VltraStore
-      const { model, now: connectedAt } = yield* modelFromSnapshot(snapshot)
+      const { model, now: connectedAt } = yield* modelFromSnapshot(connection, snapshot)
 
       yield* store.commit(() => ({
         model,

@@ -8,15 +8,21 @@ import {
   countRows,
   isStuck,
   quietAfter,
-  servingShells,
-  waitingShells
+  servicesOf,
+  waitingOn
 } from '@/lib/data/vltra/state'
-import { baseTime, runningShell, sessionRecord, webUrl } from '@/lib/data/vltra/testing/fixtures'
-import type { RunningShell, VltraRow } from '@/lib/data/vltra/types'
+import {
+  baseTime,
+  runningShell,
+  runningWatch,
+  sessionRecord,
+  webUrl
+} from '@/lib/data/vltra/testing/fixtures'
+import type { RunningShell, RunningWatch, VltraRow } from '@/lib/data/vltra/types'
 import { emptySnapshot } from '@/lib/services/opencode/testing/fake-opencode'
 
-// A run that ends while a shell it started in the background still runs is waiting on that
-// script (OpenCode wakes the agent when it exits), so it works rather than needing me.
+// A run that ends while something will wake its agent (a background script, an `until` watch)
+// is waiting, so it works rather than needing me.
 
 const minute = 60 * 1000
 
@@ -26,8 +32,15 @@ const shell = (id: string, sessionID: string, fields: Partial<RunningShell> = {}
 const ended = (id: string, fields: Parameters<typeof sessionRecord>[1] = {}) =>
   sessionRecord(id, { idle: baseTime, outcome: 'succeeded', ...fields })
 
-const modelOf = (snapshot: Partial<OpenCodeSnapshot>): VltraModel =>
-  fromSnapshot({ ...emptySnapshot, ...snapshot }, baseTime)
+/** A snapshot, then the `until` watches the watcher reads after it. */
+const modelOf = ({
+  watches = [],
+  ...snapshot
+}: Partial<OpenCodeSnapshot> & { readonly watches?: ReadonlyArray<RunningWatch> }): VltraModel =>
+  applyEvent(
+    fromSnapshot({ ...emptySnapshot, ...snapshot }, baseTime),
+    VltraEvent.WatchesLoaded({ watches })
+  )
 
 const rowOf = (model: VltraModel, id: string): VltraRow => {
   const row = buildRows(model, webUrl).find(item => item.id === id)
@@ -37,16 +50,20 @@ const rowOf = (model: VltraModel, id: string): VltraRow => {
   return row
 }
 
-describe('background scripts', () => {
-  it('keep a run that ended working, and say what it waits on', () => {
-    const model = modelOf({ sessions: [ended('ses_1')], shells: [shell('sh_1', 'ses_1')] })
-    const row = rowOf(model, 'ses_1')
+const ids = (row: VltraRow) => waitingOn(row).map(wait => wait.id)
 
-    expect(row).toMatchObject({ state: 'working', running: false })
-    expect(row.shells).toEqual([
-      { id: 'sh_1', command: 'pnpm test', started: baseTime - 4 * minute, ports: [] }
+describe('background scripts', () => {
+  it('keep a run that ended working, as waits', () => {
+    const row = rowOf(
+      modelOf({ sessions: [ended('ses_1')], shells: [shell('sh_1', 'ses_1')] }),
+      'ses_1'
+    )
+
+    expect(row).toMatchObject({ state: 'working', running: false, services: [] })
+    expect(row.waits).toEqual([
+      { kind: 'script', id: 'sh_1', command: 'pnpm test', started: baseTime - 4 * minute }
     ])
-    expect(waitingShells(row)).toEqual(row.shells)
+    expect(waitingOn(row)).toEqual(row.waits)
     expect(canMarkDone(row)).toBe(true)
   })
 
@@ -56,8 +73,7 @@ describe('background scripts', () => {
       shells: [shell('sh_2', 'ses_1', { started: baseTime - minute }), shell('sh_1', 'ses_1')]
     })
 
-    // Oldest first.
-    expect(waitingShells(rowOf(waiting, 'ses_1')).map(item => item.id)).toEqual(['sh_1', 'sh_2'])
+    expect(ids(rowOf(waiting, 'ses_1'))).toEqual(['sh_1', 'sh_2'])
 
     const one = applyEvent(waiting, VltraEvent.ShellEnded({ shellID: 'sh_1' }))
 
@@ -66,7 +82,7 @@ describe('background scripts', () => {
     const none = applyEvent(one, VltraEvent.ShellEnded({ shellID: 'sh_2' }))
 
     expect(rowOf(none, 'ses_1').state).toBe('finished')
-    expect(waitingShells(rowOf(none, 'ses_1'))).toEqual([])
+    expect(waitingOn(rowOf(none, 'ses_1'))).toEqual([])
   })
 
   it('a started script holds back the run that ends after it', () => {
@@ -92,7 +108,7 @@ describe('background scripts', () => {
       shells: [shell('sh_1', 'ses_1')]
     })
 
-    expect(waitingShells(rowOf(model, 'ses_1'))).toEqual([])
+    expect(waitingOn(rowOf(model, 'ses_1'))).toEqual([])
   })
 
   it('never make a handled run need me again, nor bring it back to working', () => {
@@ -113,10 +129,10 @@ describe('background scripts', () => {
     const row = rowOf(model, 'ses_root')
 
     expect(row).toMatchObject({ ownState: 'finished', state: 'working' })
-    expect(waitingShells(row).map(item => item.command)).toEqual(['gh run watch 42'])
+    expect(ids(row)).toEqual(['sh_1'])
   })
 
-  it('a long script is not stuck: nothing is quiet, it is waiting', () => {
+  it('a long wait is not stuck: nothing is quiet, it is waiting', () => {
     const model = modelOf({ sessions: [ended('ses_1')], shells: [shell('sh_1', 'ses_1')] })
     const now = baseTime + 3 * quietAfter
 
@@ -126,14 +142,19 @@ describe('background scripts', () => {
 
   it('leave with their session', () => {
     const model = applyEvent(
-      modelOf({ sessions: [ended('ses_1')], shells: [shell('sh_1', 'ses_1')] }),
+      modelOf({
+        sessions: [ended('ses_1')],
+        shells: [shell('sh_1', 'ses_1')],
+        watches: [runningWatch('w_1', 'ses_1')]
+      }),
       VltraEvent.SessionRemoved({ sessionID: 'ses_1' })
     )
 
     expect(model.shells.size).toBe(0)
+    expect(model.watches.size).toBe(0)
   })
 
-  it('Done applies to a run waiting on scripts, never to an active run or an ask', () => {
+  it('Done applies to a run that waits, never to an active run or an ask', () => {
     const running = modelOf({
       sessions: [sessionRecord('ses_1')],
       running: ['ses_1'],
@@ -169,7 +190,7 @@ describe('services (shells listening on a port)', () => {
     shells: [shell('sh_dev', 'ses_1', { command: 'pnpm dev' }), shell('sh_test', 'ses_1')]
   })
 
-  it('do not hold a run working: only scripts do', () => {
+  it('are no waits: only the scripts hold the run', () => {
     const checked = applyEvent(
       waiting,
       VltraEvent.ShellsChecked({
@@ -183,8 +204,8 @@ describe('services (shells listening on a port)', () => {
     const row = rowOf(checked, 'ses_1')
 
     expect(row.state).toBe('working')
-    expect(waitingShells(row).map(item => item.id)).toEqual(['sh_test'])
-    expect(servingShells(row).map(item => item.ports)).toEqual([[3000]])
+    expect(ids(row)).toEqual(['sh_test'])
+    expect(servicesOf(row)).toEqual([{ id: 'sh_dev', command: 'pnpm dev', ports: [3000] }])
 
     const served = rowOf(
       applyEvent(checked, VltraEvent.ShellEnded({ shellID: 'sh_test' })),
@@ -192,7 +213,7 @@ describe('services (shells listening on a port)', () => {
     )
 
     expect(served.state).toBe('finished')
-    expect(servingShells(served).map(item => item.command)).toEqual(['pnpm dev'])
+    expect(servicesOf(served).map(service => service.command)).toEqual(['pnpm dev'])
   })
 
   it('keep their ports until checked again, and leave with their shell', () => {
@@ -213,9 +234,9 @@ describe('services (shells listening on a port)', () => {
       ])
     )
 
-    const ended = applyEvent(second, VltraEvent.ShellEnded({ shellID: 'sh_dev' }))
+    const gone = applyEvent(second, VltraEvent.ShellEnded({ shellID: 'sh_dev' }))
 
-    expect(Array.from(ended.shellPorts.keys())).toEqual(['sh_test'])
+    expect(Array.from(gone.shellPorts.keys())).toEqual(['sh_test'])
   })
 
   it('a looked-up process id fills a known shell, never brings back an ended one', () => {
@@ -225,5 +246,76 @@ describe('services (shells listening on a port)', () => {
     expect(applyEvent(waiting, VltraEvent.ShellProcessFound({ shellID: 'sh_x', pid: 7 }))).toBe(
       waiting
     )
+  })
+})
+
+describe('until watches', () => {
+  const ci = runningWatch('w_ci', 'ses_1', {
+    label: 'PR 288 CI',
+    started: baseTime - 12 * minute,
+    nextAt: baseTime + 20_000,
+    expiresAt: baseTime + 60 * minute
+  })
+
+  it('keep a run that ended working, as waits with their label and times', () => {
+    const row = rowOf(modelOf({ sessions: [ended('ses_1')], watches: [ci] }), 'ses_1')
+
+    expect(row.state).toBe('working')
+    expect(row.waits).toEqual([
+      {
+        kind: 'watch',
+        id: 'w_ci',
+        label: 'PR 288 CI',
+        recurring: false,
+        started: baseTime - 12 * minute,
+        nextAt: baseTime + 20_000,
+        expiresAt: baseTime + 60 * minute
+      }
+    ])
+    expect(canMarkDone(row)).toBe(true)
+  })
+
+  it("follow `changed`: the session's waits replace its old ones; none finishes the run", () => {
+    const model = modelOf({ sessions: [ended('ses_1')], watches: [ci] })
+
+    const replaced = applyEvent(
+      model,
+      VltraEvent.WatchesChanged({
+        sessionID: 'ses_1',
+        watches: [runningWatch('w_sync', 'ses_1', { recurring: true })]
+      })
+    )
+
+    expect(ids(rowOf(replaced, 'ses_1'))).toEqual(['w_sync'])
+
+    const none = applyEvent(
+      replaced,
+      VltraEvent.WatchesChanged({ sessionID: 'ses_1', watches: [] })
+    )
+
+    expect(rowOf(none, 'ses_1').state).toBe('finished')
+    expect(none.watches.has('ses_1')).toBe(false)
+  })
+
+  it('wait alongside scripts, oldest first', () => {
+    const model = modelOf({
+      sessions: [ended('ses_1')],
+      shells: [shell('sh_1', 'ses_1')],
+      watches: [ci]
+    })
+
+    expect(ids(rowOf(model, 'ses_1'))).toEqual(['w_ci', 'sh_1'])
+  })
+
+  it('a location read twice lists each watch once', () => {
+    const model = modelOf({ sessions: [ended('ses_1')], watches: [ci, ci] })
+
+    expect(model.watches.get('ses_1')).toEqual([ci])
+  })
+
+  it('never hold a handled run', () => {
+    const model = modelOf({ sessions: [ended('ses_1', { handled: baseTime })], watches: [ci] })
+
+    expect(rowOf(model, 'ses_1').state).toBe('handled')
   })
 })

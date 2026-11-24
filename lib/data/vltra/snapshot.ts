@@ -7,7 +7,6 @@ import {
   countRows,
   highestPriority,
   isHandled,
-  isService,
   ownState,
   rollUpState
 } from '@/lib/data/vltra/state'
@@ -23,6 +22,8 @@ import type {
   PendingForm,
   PendingPermission,
   RunningShell,
+  SessionService,
+  SessionWait,
   WorktreeKind
 } from '@/lib/data/vltra/types'
 
@@ -90,8 +91,42 @@ const childrenByParent = (model: VltraModel) => {
 }
 
 /**
- * `rootHandled`: I marked the root's latest run done, so no background script in its subtree
- * holds it (or a subagent) working any more.
+ * What will wake the session's agent (its shells that listen on no port, its `until` watches),
+ * and the services it left running (shells that listen). Oldest first.
+ */
+const waitsAndServices = (tree: Tree, sessionID: string) => {
+  const shells = tree.pending.shells.get(sessionID) ?? []
+  const ports = (shell: RunningShell) => tree.model.shellPorts.get(shell.id) ?? []
+
+  const scripts = shells.flatMap((shell): ReadonlyArray<SessionWait> =>
+    ports(shell).length > 0
+      ? []
+      : [{ kind: 'script', id: shell.id, command: shell.command, started: shell.started }]
+  )
+
+  const watches = (tree.model.watches.get(sessionID) ?? []).map((watch): SessionWait => ({
+    kind: 'watch',
+    id: watch.id,
+    label: watch.label,
+    recurring: watch.recurring,
+    started: watch.started,
+    nextAt: watch.nextAt,
+    expiresAt: watch.expiresAt
+  }))
+
+  const services = shells.flatMap((shell): ReadonlyArray<SessionService> =>
+    ports(shell).length > 0 ? [{ id: shell.id, command: shell.command, ports: ports(shell) }] : []
+  )
+
+  return {
+    waits: [...scripts, ...watches].toSorted((left, right) => left.started - right.started),
+    services
+  }
+}
+
+/**
+ * `rootHandled`: I marked the root's latest run done, so no wait in its subtree holds it (or a
+ * subagent) working any more.
  */
 const buildNode = (
   tree: Tree,
@@ -103,17 +138,16 @@ const buildNode = (
   const info = session.info
   const permissions = tree.pending.permissions.get(info.id) ?? []
   const forms = tree.pending.forms.get(info.id) ?? []
-
-  const shells = (tree.pending.shells.get(info.id) ?? []).map(shell => ({
-    id: shell.id,
-    command: shell.command,
-    started: shell.started,
-    ports: tree.model.shellPorts.get(shell.id) ?? []
-  }))
-
-  const scripts = rootHandled ? 0 : shells.filter(shell => !isService(shell)).length
+  const { waits, services } = waitsAndServices(tree, info.id)
   const gone = isFolderGone(tree.model, session)
-  const own = ownState(session, permissions.length + forms.length, gone, scripts)
+
+  const own = ownState(
+    session,
+    permissions.length + forms.length,
+    gone,
+    rootHandled ? 0 : waits.length
+  )
+
   const path = new Set(visited).add(info.id)
 
   const childNodes = (tree.children.get(info.id) ?? [])
@@ -152,7 +186,8 @@ const buildNode = (
     activity: session.running ? session.activity : undefined,
     activityAt: session.running ? session.activityAt : undefined,
     activeAt: activeAt(session),
-    shells,
+    waits,
+    services,
     permissions,
     forms,
     links: sessionLinks(tree.webUrl, info.id)

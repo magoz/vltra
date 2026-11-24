@@ -22,6 +22,7 @@ import type {
   PendingPermission,
   ProjectRecord,
   RunningShell,
+  RunningWatch,
   SessionRecord,
   SessionStats,
   TokenCounts,
@@ -207,6 +208,42 @@ export const toRunningShell = (info: ShellInfo): Option.Option<RunningShell> =>
         pid: info.pid
       }))
     : Option.none()
+
+/**
+ * The dotfiles `until` plugin's RPC (`plugins/until/rpc.ts` in the dotfiles): its observer
+ * contract is the `waits` method and the `changed` event, both carrying waits.
+ */
+export const untilRpcID = 'dotfiles-until'
+
+const UntilWait = Schema.Struct({
+  id: Schema.String,
+  sessionID: Schema.String,
+  label: Schema.String,
+  kind: Schema.Literals(['until', 'recurring']),
+  startedAt: Schema.Finite,
+  nextAt: Schema.Finite,
+  expiresAt: Schema.optionalKey(Schema.Finite)
+})
+
+/** The `waits` method's output (decode it at the call: an older plugin answers otherwise). */
+export const UntilWaits = Schema.Struct({ waits: Schema.Array(UntilWait) })
+
+const decodeUntilChanged = Schema.decodeUnknownOption(
+  Schema.Struct({ sessionID: Schema.String, waits: UntilWaits.fields.waits })
+)
+
+const toRunningWatch = (wait: typeof UntilWait.Type): RunningWatch => ({
+  id: wait.id,
+  sessionID: wait.sessionID,
+  label: wait.label,
+  recurring: wait.kind === 'recurring',
+  started: wait.startedAt,
+  nextAt: wait.nextAt,
+  expiresAt: wait.expiresAt
+})
+
+export const toRunningWatches = (output: typeof UntilWaits.Type): ReadonlyArray<RunningWatch> =>
+  output.waits.map(toRunningWatch)
 
 export const toProjectRecord = (project: Project.Info): ProjectRecord => ({
   id: project.id,
@@ -661,6 +698,13 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
         : apply(VltraEvent.ShellEnded({ shellID: event.data.id }))
     case 'shell.deleted':
       return apply(VltraEvent.ShellEnded({ shellID: event.data.id }))
+    case `rpc.${untilRpcID}.changed`:
+      // The session's waits now; an event without them (an older plugin) says nothing.
+      return Option.match(decodeUntilChanged(event.data), {
+        onNone: () => [],
+        onSome: ({ sessionID, waits }) =>
+          apply(VltraEvent.WatchesChanged({ sessionID, watches: waits.map(toRunningWatch) }))
+      })
     case 'project.updated':
       return apply(
         VltraEvent.ProjectUpserted({

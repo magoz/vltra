@@ -181,20 +181,56 @@ export const SessionActivity = Schema.Struct({
 export type SessionActivity = typeof SessionActivity.Type
 
 /**
- * A shell command OpenCode still runs for a session (`/api/shell`, `metadata.sessionID`). Once
- * the run has ended it is a background script, and OpenCode wakes the agent when it exits;
- * unless it listens on a port: then it is a service (a dev server) nobody waits on.
+ * Something that will wake the session's agent, which waits on it once its run has ended:
+ * - `script`: a shell command OpenCode runs for the session (`/api/shell`, `metadata.sessionID`)
+ *   that listens on no port; OpenCode wakes the agent when it exits.
+ * - `watch`: an `until` watch (the dotfiles plugin's `waits`): woken when its condition holds or
+ *   at its deadline, or on every tick when `recurring`.
  */
-export const SessionShell = Schema.Struct({
+export const SessionWait = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('script'),
+    id: Schema.String,
+    /** The command's first line, clipped. */
+    command: Schema.String,
+    started: Schema.Number
+  }),
+  Schema.Struct({
+    kind: Schema.Literal('watch'),
+    id: Schema.String,
+    label: Schema.String,
+    recurring: Schema.Boolean,
+    started: Schema.Number,
+    /** The next check, or the next recurring wake. */
+    nextAt: Schema.Number,
+    expiresAt: Schema.optional(Schema.Number)
+  })
+])
+
+export type SessionWait = typeof SessionWait.Type
+
+/**
+ * A shell command OpenCode runs for the session whose process tree listens on a port (a dev
+ * server): nobody waits on it (Vltra checks the ports every few seconds).
+ */
+export const SessionService = Schema.Struct({
   id: Schema.String,
-  /** The command's first line, clipped. */
   command: Schema.String,
-  started: Schema.Number,
-  /** TCP ports its process tree listens on (checked by Vltra every few seconds). */
   ports: Schema.Array(Schema.Number)
 })
 
-export type SessionShell = typeof SessionShell.Type
+export type SessionService = typeof SessionService.Type
+
+/** A running `until` watch that will wake `sessionID`, as the plugin's `waits` reports it. */
+export type RunningWatch = {
+  readonly id: string
+  readonly sessionID: string
+  readonly label: string
+  readonly recurring: boolean
+  readonly started: number
+  readonly nextAt: number
+  readonly expiresAt: number | undefined
+}
 
 /** A running shell as OpenCode reports it. */
 export type RunningShell = {
@@ -263,11 +299,12 @@ const rowFields = {
    */
   activeAt: Schema.Number,
   /**
-   * Shell commands still running for this session. With no run active, those that listen on no
-   * port are background scripts the agent waits on: an unhandled run then counts as working,
-   * not finished.
+   * What will wake this session's agent (scripts, `until` watches). With no run active, an
+   * unhandled run that waits counts as working, not finished.
    */
-  shells: Schema.Array(SessionShell),
+  waits: Schema.Array(SessionWait),
+  /** Services this session left running (shells listening on a port). */
+  services: Schema.Array(SessionService),
   permissions: Schema.Array(PendingPermission),
   forms: Schema.Array(PendingForm),
   links: SessionLinks

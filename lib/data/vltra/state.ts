@@ -6,7 +6,8 @@ import type {
   VltraRow,
   VltraState,
   SessionRecord,
-  SessionShell
+  SessionService,
+  SessionWait
 } from '@/lib/data/vltra/types'
 
 /** A working session with no step/tool/text activity for this long is quiet (stuck). */
@@ -37,16 +38,16 @@ export const isReopened = (info: Pick<SessionRecord, 'idle' | 'handled' | 'reope
  * - working: an execution is active.
  * - handled when its folder is gone (deleting the folder retires its sessions), unless I reopened
  *   its latest run. What OpenCode still reports (pending requests, a running execution) wins.
- * - finished: the latest run ended (any outcome) and is not handled. While a shell it started
- *   still runs (a background script; OpenCode wakes the agent when it exits), it is working.
- * - handled: the latest run is handled, or the session never ran. A script left running after
- *   that (a dev server) does not bring it back.
+ * - finished: the latest run ended (any outcome) and is not handled. While something will wake
+ *   its agent (`waits`: a background script, an `until` watch), it is working.
+ * - handled: the latest run is handled, or the session never ran. A wait left after that does
+ *   not bring it back.
  */
 export const ownState = (
   session: TrackedSession,
   pending: number,
   gone: boolean,
-  shells = 0
+  waits = 0
 ): VltraState => {
   if (pending > 0) return 'blocked'
 
@@ -54,7 +55,7 @@ export const ownState = (
 
   if (gone && !isReopened(session.info)) return 'handled'
 
-  if (!isHandled(session.info)) return shells > 0 ? 'working' : 'finished'
+  if (!isHandled(session.info)) return waits > 0 ? 'working' : 'finished'
 
   return 'handled'
 }
@@ -105,31 +106,28 @@ export const lastActivityAt = (row: VltraRow): number | undefined => {
 export const pendingRetry = (row: VltraRow) =>
   runningRows(row).find(item => item.retry !== undefined)?.retry
 
-/** A shell whose process tree listens on a port: a service (dev server), not a script to wait on. */
-export const isService = (shell: SessionShell): boolean => shell.ports.length > 0
-
 /**
- * The background scripts a working row only waits on: nothing in its subtree runs, and the
- * sessions working because of a shell still hold one (services aside). Oldest first.
+ * What a working row only waits on (scripts, `until` watches): nothing in its subtree runs, and
+ * the sessions working because of a wait still hold one. Oldest first.
  */
-export const waitingShells = (row: VltraRow): ReadonlyArray<SessionShell> =>
+export const waitingOn = (row: VltraRow): ReadonlyArray<SessionWait> =>
   row.state !== 'working' || runningRows(row).length > 0
     ? []
     : [row, ...row.children]
         .filter(item => item.ownState === 'working')
-        .flatMap(item => item.shells.filter(shell => !isService(shell)))
+        .flatMap(item => item.waits)
         .toSorted((left, right) => left.started - right.started)
 
 /** The services (shells listening on a port) still running in the row's subtree. */
-export const servingShells = (row: VltraRow): ReadonlyArray<SessionShell> =>
-  [row, ...row.children].flatMap(item => item.shells.filter(isService))
+export const servicesOf = (row: VltraRow): ReadonlyArray<SessionService> =>
+  [row, ...row.children].flatMap(item => item.services)
 
 /**
- * Whether Done applies: the latest run finished, or it ended and only waits on background
- * scripts (a watcher that never exits would otherwise hold it working for good).
+ * Whether Done applies: the latest run finished, or it ended and only waits (a watcher that never
+ * exits, a watch I no longer care about, would otherwise hold it working for good).
  */
 export const canMarkDone = (row: VltraRow): boolean =>
-  row.state === 'finished' || waitingShells(row).length > 0
+  row.state === 'finished' || waitingOn(row).length > 0
 
 /** Working, and nothing in its running subtree has done anything for `quietAfter`. */
 export const isQuiet = (row: VltraRow, now: number): boolean => {

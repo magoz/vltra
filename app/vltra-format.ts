@@ -2,10 +2,10 @@ import {
   isQuiet,
   lastActivityAt,
   pendingRetry,
-  servingShells,
-  waitingShells
+  servicesOf,
+  waitingOn
 } from '@/lib/data/vltra/state'
-import type { VltraRow, SessionActivity } from '@/lib/data/vltra/types'
+import type { VltraRow, SessionActivity, SessionWait } from '@/lib/data/vltra/types'
 
 // Display formatting for the dashboard. Pure; times are epoch milliseconds.
 
@@ -80,37 +80,78 @@ export const stuckText = (row: VltraRow, now: number): string | undefined => {
   return undefined
 }
 
+/** A one-line text and the fuller lines for its tooltip. */
+export type Described = { readonly text: string; readonly details: string }
+
+/** Local wall-clock time: `20:31`. */
+const clockTime = (at: number) => {
+  const date = new Date(at)
+
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+/** A time ahead: `in 12m`, `in 3h`, `soon` within a minute. */
+const ahead = (at: number, now: number) =>
+  at - now < minute ? 'soon' : `in ${relativeTime(now, at)}`
+
+const waitName = (wait: SessionWait) => (wait.kind === 'script' ? wait.command : `"${wait.label}"`)
+
+const waitDetail = (wait: SessionWait, now: number) => {
+  if (wait.kind === 'script')
+    return `$ ${wait.command} · running ${relativeTime(wait.started, now)}`
+
+  const next = `${wait.recurring ? 'next wake' : 'next check'} ${clockTime(wait.nextAt)}`
+  const end = wait.expiresAt === undefined ? '' : ` · until ${clockTime(wait.expiresAt)}`
+
+  return `${waitName(wait)} · ${next}${end}`
+}
+
+const waitsName = (waits: ReadonlyArray<SessionWait>) =>
+  waits.every(wait => wait.kind === 'script')
+    ? plural(waits.length, 'script', 'scripts')
+    : waits.every(wait => wait.kind === 'watch')
+      ? plural(waits.length, 'watch', 'watches')
+      : `${waits.length} things`
+
 /**
- * What a working row only waits on, background scripts: `waiting on pnpm test · 4m` (the command
- * and how long it has run), `waiting on 2 scripts · 4m` (the oldest); else nothing.
+ * What a working row only waits on (`waitingOn`): `waiting on pnpm test · 4m` (a script, how long
+ * it has run), `waiting on "PR 288 CI" · 12m` (an `until` watch, how long it has waited),
+ * `waiting on "sync" · next wake in 12m` (a recurring watch), `waiting on 2 scripts · 4m` (the
+ * oldest); the tooltip has each with its next check and deadline. Else nothing.
  */
-export const scriptText = (row: VltraRow, now: number): string | undefined => {
-  const shells = waitingShells(row)
-  const oldest = shells[0]
+export const waitText = (row: VltraRow, now: number): Described | undefined => {
+  const waits = waitingOn(row)
+  const [first] = waits
 
-  if (oldest === undefined) return undefined
+  if (first === undefined) return undefined
 
-  const what = shells.length === 1 ? oldest.command : plural(shells.length, 'script', 'scripts')
+  const when =
+    waits.length === 1 && first.kind === 'watch' && first.recurring
+      ? `next wake ${ahead(first.nextAt, now)}`
+      : relativeTime(first.started, now)
 
-  return `waiting on ${what} · ${relativeTime(oldest.started, now)}`
+  return {
+    text: `waiting on ${waits.length === 1 ? waitName(first) : waitsName(waits)} · ${when}`,
+    details: waits.map(wait => waitDetail(wait, now)).join('\n')
+  }
 }
 
 /**
  * The services a session left running (shells listening on a port): `serving :3000` (or
  * `serving :3000, :6006`), with their commands for a tooltip; else nothing.
  */
-export const servingText = (
-  row: VltraRow
-): { readonly text: string; readonly commands: string } | undefined => {
-  const shells = servingShells(row)
+export const servingText = (row: VltraRow): Described | undefined => {
+  const services = servicesOf(row)
 
-  if (shells.length === 0) return undefined
+  if (services.length === 0) return undefined
 
-  const ports = Array.from(new Set(shells.flatMap(shell => shell.ports))).toSorted((a, b) => a - b)
+  const ports = Array.from(new Set(services.flatMap(service => service.ports))).toSorted(
+    (a, b) => a - b
+  )
 
   return {
     text: `serving ${ports.map(port => `:${port}`).join(', ')}`,
-    commands: shells.map(shell => shell.command).join('\n')
+    details: services.map(service => service.command).join('\n')
   }
 }
 

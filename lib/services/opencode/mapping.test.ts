@@ -12,7 +12,9 @@ import {
   sanitizeMessage,
   toFormField,
   toolDetail,
+  toRunningWatches,
   toSessionRecord,
+  UntilWaits,
   toSignals,
   toTranscript,
   vltraReopened,
@@ -263,6 +265,49 @@ const wire = {
     location,
     data: { id: 'sh_20f0db8c7001' }
   },
+  // The dotfiles `until` plugin's change notice (an RPC event), as `/api/event` serves it.
+  untilChanged: {
+    id: 'evt_27',
+    created: 1795550344184,
+    type: 'rpc.dotfiles-until.changed',
+    location,
+    data: {
+      sessionID,
+      waits: [
+        {
+          id: 'e27fb68a',
+          sessionID,
+          label: 'PR 288 CI',
+          kind: 'until',
+          startedAt: 1795548725924,
+          nextAt: 1795548847149,
+          expiresAt: 1795552325911
+        },
+        {
+          id: 'a1b2c3d4',
+          sessionID,
+          label: 'sync',
+          kind: 'recurring',
+          startedAt: 1795548725000,
+          nextAt: 1795548900000
+        }
+      ]
+    }
+  },
+  untilChangedOld: {
+    id: 'evt_28',
+    created: 1795550344185,
+    type: 'rpc.dotfiles-until.changed',
+    location,
+    data: { sessionID }
+  },
+  otherPlugin: {
+    id: 'evt_29',
+    created: 1795550344186,
+    type: 'rpc.other-plugin.changed',
+    location,
+    data: { sessionID, waits: [] }
+  },
   textDelta: {
     id: 'evt_13',
     created: 1790806577088,
@@ -310,6 +355,66 @@ describe('OpenCode event mapping', () => {
       ])
     })
   )
+
+  it.effect("until's changed event carries the session's waits; anything else says nothing", () =>
+    Effect.gen(function* () {
+      expect(yield* signalsFor(wire.untilChanged)).toEqual([
+        OpenCodeSignal.Apply({
+          event: VltraEvent.WatchesChanged({
+            sessionID,
+            watches: [
+              {
+                id: 'e27fb68a',
+                sessionID,
+                label: 'PR 288 CI',
+                recurring: false,
+                started: 1795548725924,
+                nextAt: 1795548847149,
+                expiresAt: 1795552325911
+              },
+              {
+                id: 'a1b2c3d4',
+                sessionID,
+                label: 'sync',
+                recurring: true,
+                started: 1795548725000,
+                nextAt: 1795548900000,
+                expiresAt: undefined
+              }
+            ]
+          })
+        })
+      ])
+
+      // An older plugin (no waits) and other plugins' events are not Vltra's business.
+      expect(yield* signalsFor(wire.untilChangedOld)).toEqual([])
+      expect(yield* signalsFor(wire.otherPlugin)).toEqual([])
+    })
+  )
+
+  it('reads the waits method output; anything else does not decode', () => {
+    const decode = Schema.decodeUnknownOption(UntilWaits)
+
+    const output = decode({
+      waits: [{ id: 'w', sessionID, label: 'l', kind: 'until', startedAt: 1, nextAt: 2 }]
+    })
+
+    expect(Option.map(output, toRunningWatches)).toEqual(
+      Option.some([
+        {
+          id: 'w',
+          sessionID,
+          label: 'l',
+          recurring: false,
+          started: 1,
+          nextAt: 2,
+          expiresAt: undefined
+        }
+      ])
+    )
+    expect(decode(undefined)).toEqual(Option.none())
+    expect(decode({ watches: [] })).toEqual(Option.none())
+  })
 
   it.effect('session.created asks for the stored session row', () =>
     Effect.gen(function* () {

@@ -6,10 +6,15 @@ import {
   endText,
   pendingText,
   relativeTime,
-  scriptText,
-  servingText
+  servingText,
+  waitText
 } from '@/app/vltra-format'
-import { baseTime, runningShell, sessionRecord } from '@/lib/data/vltra/testing/fixtures'
+import {
+  baseTime,
+  runningShell,
+  runningWatch,
+  sessionRecord
+} from '@/lib/data/vltra/testing/fixtures'
 
 describe('formatting', () => {
   it('ages compactly', () => {
@@ -47,60 +52,87 @@ describe('formatting', () => {
     expect(endText({ outcome: 'succeeded' })).toBe('finished')
   })
 
-  it('says which background script a working row waits on, and for how long', () => {
+  it('says what a working row waits on, and for how long', () => {
     const ended = sessionRecord('ses_1', { idle: baseTime, outcome: 'succeeded' })
     const now = baseTime + 4 * 60_000
 
     const script = (id: string, command: string, started: number) =>
       runningShell(id, 'ses_1', { command, started })
 
-    const one = rowFrom(
-      { sessions: [ended], shells: [script('sh_1', 'pnpm test', baseTime)] },
-      'ses_1'
-    )
+    const text = (snapshot: Parameters<typeof rowFrom>[0]) =>
+      waitText(rowFrom({ sessions: [ended], ...snapshot }, 'ses_1'), now)?.text
 
-    const two = rowFrom(
-      {
-        sessions: [ended],
+    const ci = runningWatch('w_ci', 'ses_1', {
+      label: 'PR 288 CI',
+      nextAt: now + 20_000,
+      expiresAt: now + 60 * 60_000
+    })
+
+    expect(text({ shells: [script('sh_1', 'pnpm test', baseTime)] })).toBe(
+      'waiting on pnpm test · 4m'
+    )
+    expect(
+      text({
         shells: [
           script('sh_2', 'pnpm build', baseTime + 60_000),
           script('sh_1', 'pnpm test', baseTime)
         ]
-      },
-      'ses_1'
+      })
+    ).toBe('waiting on 2 scripts · 4m')
+    expect(text({ watches: [ci] })).toBe('waiting on "PR 288 CI" · 4m')
+    expect(
+      text({
+        watches: [
+          runningWatch('w_s', 'ses_1', {
+            label: 'sync',
+            recurring: true,
+            nextAt: now + 12 * 60_000
+          })
+        ]
+      })
+    ).toBe('waiting on "sync" · next wake in 12m')
+    expect(
+      text({
+        watches: [
+          runningWatch('w_s', 'ses_1', { label: 'sync', recurring: true, nextAt: now + 5_000 })
+        ]
+      })
+    ).toBe('waiting on "sync" · next wake soon')
+    expect(text({ watches: [ci], shells: [script('sh_1', 'pnpm test', baseTime + 1)] })).toBe(
+      'waiting on 2 things · 4m'
     )
+    expect(text({})).toBeUndefined()
 
-    expect(scriptText(one, now)).toBe('waiting on pnpm test · 4m')
-    expect(scriptText(two, now)).toBe('waiting on 2 scripts · 4m')
-    expect(scriptText(rowFrom({ sessions: [ended] }, 'ses_1'), now)).toBeUndefined()
+    const details = waitText(
+      rowFrom(
+        { sessions: [ended], watches: [ci], shells: [script('sh_1', 'pnpm test', baseTime + 1)] },
+        'ses_1'
+      ),
+      now
+    )?.details
+
+    expect(details).toMatch(
+      /^"PR 288 CI" · next check \d\d:\d\d · until \d\d:\d\d\n\$ pnpm test · running 3m$/
+    )
   })
 
   it('says which ports the services a session left running listen on', () => {
     const row = rowFrom(
-      {
-        sessions: [sessionRecord('ses_1', { idle: baseTime, handled: baseTime })],
-        shells: [
-          runningShell('sh_1', 'ses_1', { command: 'pnpm dev' }),
-          runningShell('sh_2', 'ses_1', { command: 'pnpm storybook' }),
-          runningShell('sh_3', 'ses_1', { command: 'pnpm test' })
-        ]
-      },
+      { sessions: [sessionRecord('ses_1', { idle: baseTime, handled: baseTime })] },
       'ses_1'
     )
 
-    const ports = new Map([
-      ['sh_1', [3000]],
-      ['sh_2', [6006, 3000]]
-    ])
-
-    const checked = {
+    const serving = {
       ...row,
-      shells: row.shells.map(shell => ({ ...shell, ports: ports.get(shell.id) ?? [] }))
+      services: [
+        { id: 'sh_1', command: 'pnpm dev', ports: [3000] },
+        { id: 'sh_2', command: 'pnpm storybook', ports: [6006, 3000] }
+      ]
     }
 
-    expect(servingText(checked)).toEqual({
+    expect(servingText(serving)).toEqual({
       text: 'serving :3000, :6006',
-      commands: 'pnpm dev\npnpm storybook'
+      details: 'pnpm dev\npnpm storybook'
     })
     expect(servingText(row)).toBeUndefined()
   })

@@ -1,5 +1,5 @@
 import type { TrackedSession } from '@/lib/data/vltra/model'
-import type { RunningShell, SessionRecord } from '@/lib/data/vltra/types'
+import type { RunningShell, RunningWatch, SessionRecord } from '@/lib/data/vltra/types'
 
 // Small builders for Vltra domain values in tests.
 
@@ -45,6 +45,22 @@ export const runningShell = (
   command: 'pnpm test',
   started: baseTime,
   pid: undefined,
+  ...overrides
+})
+
+/** An `until` watch that will wake `sessionID`: started at `baseTime`, next check a minute on. */
+export const runningWatch = (
+  id: string,
+  sessionID: string,
+  overrides: Partial<RunningWatch> = {}
+): RunningWatch => ({
+  id,
+  sessionID,
+  label: `watch ${id}`,
+  recurring: false,
+  started: baseTime,
+  nextAt: baseTime + 60_000,
+  expiresAt: undefined,
   ...overrides
 })
 

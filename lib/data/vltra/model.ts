@@ -1,4 +1,5 @@
 import { VltraEvent } from '@/lib/data/vltra/events'
+import { isHandled } from '@/lib/data/vltra/state'
 import type {
   InterruptReason,
   PendingForm,
@@ -6,6 +7,7 @@ import type {
   ProjectRecord,
   RetryInfo,
   RunningShell,
+  RunningWatch,
   SessionActivity,
   SessionRecord
 } from '@/lib/data/vltra/types'
@@ -43,6 +45,8 @@ export type VltraModel = {
    * OpenCode); absent until checked. A shell that listens is a service, not a script to wait on.
    */
   readonly shellPorts: ReadonlyMap<string, ReadonlyArray<number>>
+  /** The `until` watches that will wake each session, by session id (none: absent). */
+  readonly watches: ReadonlyMap<string, ReadonlyArray<RunningWatch>>
   readonly projects: ReadonlyMap<string, ProjectRecord>
   /** Saved worktree directories per project. */
   readonly worktrees: ReadonlyMap<string, ReadonlyArray<string>>
@@ -76,6 +80,7 @@ export const emptyModel: VltraModel = {
   forms: new Map(),
   shells: new Map(),
   shellPorts: new Map(),
+  watches: new Map(),
   projects: new Map(),
   worktrees: new Map(),
   directoryGone: new Map()
@@ -91,6 +96,23 @@ const track = (info: SessionRecord): TrackedSession => ({
   activityAt: undefined,
   interrupt: undefined
 })
+
+/** Watches by the session they wake (a location's `waits` may be read twice: ids dedupe). */
+const groupWatches = (
+  watches: ReadonlyArray<RunningWatch>
+): ReadonlyMap<string, ReadonlyArray<RunningWatch>> => {
+  const groups = new Map<string, Map<string, RunningWatch>>()
+
+  for (const watch of watches) {
+    const group = groups.get(watch.sessionID) ?? new Map<string, RunningWatch>()
+
+    groups.set(watch.sessionID, group.set(watch.id, watch))
+  }
+
+  return new Map(
+    Array.from(groups, ([sessionID, group]) => [sessionID, Array.from(group.values())])
+  )
+}
 
 /**
  * The model for a fresh snapshot loaded at `now`, with the checked session directories. Running
@@ -113,6 +135,7 @@ export const fromSnapshot = (
     forms: new Map(snapshot.forms.map(item => [item.id, item] as const)),
     shells: new Map(snapshot.shells.map(item => [item.id, item] as const)),
     shellPorts: new Map(),
+    watches: new Map(),
     projects: new Map(snapshot.projects.map(item => [item.id, item] as const)),
     worktrees: new Map(snapshot.worktrees.map(item => [item.projectID, item.directories] as const)),
     directoryGone
@@ -134,6 +157,23 @@ export const uncheckedDirectories = (model: VltraModel): ReadonlyArray<string> =
 /** Whether the session's folder is known to be gone from disk. */
 export const isFolderGone = (model: VltraModel, session: TrackedSession): boolean =>
   model.directoryGone.get(session.info.directory) === true
+
+/**
+ * Where an `until` watch can hold a session: the folders (still on disk) of root sessions that
+ * run, or whose latest run ended unhandled. A watch armed while a run is active matters once it
+ * ends, and `until` only reports changes to watches, not run ends.
+ */
+export const mayWaitDirectories = (model: VltraModel): ReadonlySet<string> =>
+  new Set(
+    Array.from(model.sessions.values()).flatMap(session =>
+      (session.info.parentID === undefined || !model.sessions.has(session.info.parentID)) &&
+      session.info.archived === undefined &&
+      model.directoryGone.get(session.info.directory) === false &&
+      (session.running || !isHandled(session.info))
+        ? [session.info.directory]
+        : []
+    )
+  )
 
 const withEntry = <V>(map: ReadonlyMap<string, V>, key: string, value: V) =>
   new Map(map).set(key, value)
@@ -276,7 +316,8 @@ export const applyEvent = (model: VltraModel, event: VltraEvent): VltraModel =>
       sessions: withoutEntry(model.sessions, sessionID),
       permissions: withoutSession(model.permissions, sessionID),
       forms: withoutSession(model.forms, sessionID),
-      shells: withoutSession(model.shells, sessionID)
+      shells: withoutSession(model.shells, sessionID),
+      watches: withoutEntry(model.watches, sessionID)
     }),
     SessionRenamed: ({ sessionID, title }) =>
       updateSession(model, sessionID, session => patchInfo(session, { title })),
@@ -326,6 +367,14 @@ export const applyEvent = (model: VltraModel, event: VltraEvent): VltraModel =>
       ...model,
       shells: withoutEntry(model.shells, shellID),
       shellPorts: withoutEntry(model.shellPorts, shellID)
+    }),
+    WatchesLoaded: ({ watches }) => ({ ...model, watches: groupWatches(watches) }),
+    WatchesChanged: ({ sessionID, watches }) => ({
+      ...model,
+      watches:
+        watches.length === 0
+          ? withoutEntry(model.watches, sessionID)
+          : withEntry(model.watches, sessionID, watches)
     }),
     ShellProcessFound: ({ shellID, pid }) => {
       const shell = model.shells.get(shellID)

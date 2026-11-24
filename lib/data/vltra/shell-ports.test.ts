@@ -68,7 +68,8 @@ describe('shell port check', () => {
         const row = yield* rowState
 
         expect(row?.state).toBe('finished')
-        expect(row?.shells).toMatchObject([{ id: 'sh_dev', ports: [3000] }])
+        expect(row?.services).toEqual([{ id: 'sh_dev', command: 'pnpm dev', ports: [3000] }])
+        expect(row?.waits).toEqual([])
       }).pipe(Effect.provide(layer))
     })
   )

@@ -45,8 +45,8 @@ and forms pause a run, they do not end it.
 | State | Group | Meaning | Leaves on |
 |---|---|---|---|
 | `blocked` | needs me | a permission or form is pending on the session or a descendant | answer / deny / cancel (never "handled") |
-| `working` | | a run is active, or the latest run ended unhandled while a background script it started still runs | the run ends; the last script exits |
-| `finished` | needs me | the latest run ended (succeeded, failed, or interrupted by `inactivity`), is not handled, and no background script of it still runs | I mark it handled |
+| `working` | | a run is active, or the latest run ended unhandled while something will wake its agent (a wait: background script, `until` watch) | the run ends; the last wait ends |
+| `finished` | needs me | the latest run ended (succeeded, failed, or interrupted by `inactivity`), is not handled, and nothing will wake its agent | I mark it handled |
 | `handled` | | I handled the latest run, or the session never ran | the next run starts |
 
 Priority: blocked > working > finished > handled.
@@ -64,18 +64,27 @@ Priority: blocked > working > finished > handled.
   declared but unused. If Vltra missed the event, it recovers the reason from `session.log`.
 - **Failed** runs are `finished` with a red mark, not their own state.
 - **Folder gone = handled**: a session whose folder no longer exists (a deleted `/tmp/tmp.*` scratch folder, a worktree removed after merge) is `handled` unless it is blocked or working: deleting the folder retires its sessions, so they need no marker ("folder deleted"). Vltra checks the folders itself (same machine) on every snapshot and every minute. Reopen still works (OpenCode accepts metadata writes to a gone folder since 2.2.6; 2.0.x refused them): it sets `metadata.vltra.reopened = <time.idle>` (and drops `handled`), so the run is `finished` again until Done writes `handled` (and drops `reopened`). Vltra writes one marker or none, never both.
-- **Background scripts**: an agent that starts a shell in the background (`shell` with
-  `background: true`) ends its run and waits; OpenCode wakes it when the script exits. While a
-  shell naming the session (`metadata.sessionID`, `/api/shell` per loaded location, `shell.created`
-  / `shell.exited` / `shell.deleted`) runs, an unhandled run that ended is `working`, labelled
-  `waiting on <command> · 4m` (or `N scripts`), never stuck. A handled run stays handled (a dev
-  server left running does not bring it back). **Services** are not waits: every 5 s Vltra
-  reads the ports each running shell's process tree listens on (`/proc`, same machine; the pid
-  from `/api/shell`, looked up once for shells whose run ended, since `shell.created` lacks it).
-  A shell that listens (a dev server) holds nothing; cards show `serving :3000`. **Done** also
-  applies to a run that only waits on scripts (`canMarkDone`: a watcher that never exits), from
-  the card, the toolbar, `h` and `⌘D`; the next run that ends needs me again. `until` watches
-  are not seen yet.
+- **Waits**: an agent that ends its run waiting on something that will wake it is not done.
+  While a wait holds, an unhandled run that ended is `working` (rows carry `waits`), never
+  stuck; a handled run stays handled (a wait left behind does not bring it back). Two kinds:
+  - **Scripts**: a shell started in the background (`shell` with `background: true`); OpenCode
+    wakes the agent when it exits. Shells naming the session (`metadata.sessionID`,
+    `/api/shell` per loaded location, `shell.created` / `shell.exited` / `shell.deleted`).
+  - **`until` watches** (the dotfiles plugin, `dotfiles-until`): its `waits` RPC lists every
+    watch that will wake an agent (running, `wake: agent` or recurring; the family root's
+    session), and its `changed` event carries a session's waits now. Vltra reads `waits` on
+    every (re)connect for the existing folders of root sessions that run or ended unhandled
+    (asking loads the location, which resumes its saved watches), then applies `changed`.
+  - Labels: `waiting on pnpm test · 4m`, `waiting on "PR 288 CI" · 12m`, `waiting on "sync" ·
+    next wake in 12m`, `waiting on 2 things · 12m`; the tooltip has each wait's next check and
+    deadline.
+  - **Services** are not waits: every 5 s Vltra reads the ports each running shell's process
+    tree listens on (`/proc`, same machine; the pid from `/api/shell`, looked up once for shells
+    whose run ended, since `shell.created` lacks it). A shell that listens (a dev server) holds
+    nothing; rows carry it in `services`, cards show `serving :3000`.
+  - **Done** also applies to a run that only waits (`canMarkDone`: a watcher that never exits,
+    a watch I no longer care about), from the card, the toolbar, `h` and `⌘D`. It cancels
+    nothing: when the wait wakes the agent, the run that ends after needs me again.
 - **Stuck** is not a state: a working session shows `retrying (n×, reason)`
   (`session.retry.scheduled`) or `quiet Nm` (no step/tool activity for 10+ minutes). Shown in
   Projects and counted, never in the needs-me list.
