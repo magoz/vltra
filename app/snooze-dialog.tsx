@@ -1,15 +1,17 @@
 'use client'
 
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useContext, useMemo, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
-import { dayToUntil, formatWakeTime, snoozePresets, tomorrowDay, wakeText } from '@/app/snooze-time'
+import { dayAt, formatWakeTime, snoozePresets, startOfDay, wakeText } from '@/app/snooze-time'
+import type { WakeTime } from '@/app/snooze-time'
+import { TimeField } from '@/app/time-field'
 import { sessionTitle } from '@/app/vltra-format'
 import { useVltra } from '@/app/vltra-context'
 import { useHandled } from '@/app/use-handled'
 import { useWakeTime } from '@/app/use-wake-time'
 import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 /** Opens the snooze picker for a session. */
@@ -45,33 +47,31 @@ export function SnoozeProvider({ children }: { readonly children: ReactNode }) {
 }
 
 /**
- * Snooze until: tomorrow, next Monday or a week from today (`1`–`3`), or a picked day, each at
- * the wake time set in Settings.
+ * Snooze until: tomorrow, next Monday or a week from today (`1`–`3`) at the wake time set in
+ * Settings, or a day of the calendar at a time of my own (the wake time unless changed; today
+ * too, for a time still ahead).
  */
 function SnoozeDialog({
   sessionID,
   onClose
 }: {
-  readonly sessionID: string | undefined
+  readonly sessionID: string
   readonly onClose: () => void
 }) {
   const { view, now } = useVltra()
   const { snooze } = useHandled()
   const [wakeTime] = useWakeTime()
-  const [day, setDay] = useState('')
-  const row = sessionID === undefined ? undefined : view.rows.get(sessionID)
+  const [day, setDay] = useState<Date>()
+  const [time, setTime] = useState<WakeTime>()
+  const row = view.rows.get(sessionID)
   const presets = snoozePresets(now, wakeTime)
-  const picked = dayToUntil(day, wakeTime)
+  const picked = day === undefined ? undefined : dayAt(day, time ?? wakeTime)
+  const ready = picked !== undefined && picked > now
 
-  const choose = useCallback(
-    (until: number) => {
-      if (sessionID !== undefined) snooze(sessionID, until)
-
-      setDay('')
-      onClose()
-    },
-    [sessionID, snooze, onClose]
-  )
+  const choose = (until: number) => {
+    snooze(sessionID, until)
+    onClose()
+  }
 
   const onKeyDown = (event: KeyboardEvent) => {
     const preset = presets[Number(event.key) - 1]
@@ -84,14 +84,14 @@ function SnoozeDialog({
 
   return (
     <Dialog
-      open={sessionID !== undefined}
+      open
       onOpenChange={open => {
         if (!open) onClose()
       }}
     >
       <DialogContent
         onKeyDown={onKeyDown}
-        className="top-[12vh] left-1/2 w-[22rem] -translate-x-1/2 gap-3 p-4"
+        className="top-[8vh] left-1/2 w-[20rem] -translate-x-1/2 gap-3 p-4"
       >
         <DialogTitle>Snooze until</DialogTitle>
         <DialogDescription className="truncate">
@@ -115,28 +115,32 @@ function SnoozeDialog({
           ))}
         </ul>
         <form
-          className="flex gap-2"
+          aria-label="Pick a day and time"
+          className="flex flex-col items-center gap-3 border-t pt-3"
           onSubmit={event => {
             event.preventDefault()
 
-            if (picked !== undefined && picked > now) choose(picked)
+            if (ready) choose(picked)
           }}
         >
-          <Input
-            type="date"
-            aria-label="Day"
-            min={tomorrowDay(now)}
-            value={day}
-            onChange={event => setDay(event.target.value)}
-            className="flex-1"
+          <Calendar
+            mode="single"
+            selected={day}
+            onSelect={setDay}
+            today={startOfDay(now)}
+            defaultMonth={startOfDay(now)}
+            disabled={{ before: startOfDay(now) }}
           />
-          <Button type="submit" disabled={picked === undefined || picked <= now}>
-            Snooze
-          </Button>
+          <div className="flex w-full items-center gap-2">
+            <TimeField label="Time" value={time ?? wakeTime} onChange={setTime} />
+            <Button type="submit" variant="solid" className="flex-1" disabled={!ready}>
+              {ready ? `Snooze until ${wakeText(picked, now)}` : 'Pick a day'}
+            </Button>
+          </div>
         </form>
-        <p className={cn('text-muted-foreground text-xs')}>
-          Back at {formatWakeTime(wakeTime)} on the day (Settings), or when its agent ends a new
-          run.
+        <p className="text-muted-foreground text-xs">
+          Back then (the presets at {formatWakeTime(wakeTime)}, set in Settings), or when its agent
+          ends a new run.
         </p>
       </DialogContent>
     </Dialog>

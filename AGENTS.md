@@ -268,8 +268,10 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   button, Focus' list rows do not (swipe only). Snooze / Wake go through the same flow
   (`snooze`, `unsnooze`: overrides `snoozed` / `awake`, a `Snoozed until …` toast with Undo; `u`
   undoes the last Done or Snooze). `SnoozeProvider` (`snooze-dialog.tsx`, in the shell and again
-  in Focus) holds the picker: tomorrow, Monday, in a week (`1`–`3`) or a day, at the wake time
-  (`use-wake-time.ts`, localStorage, Settings; pure date math in `snooze-time.ts`). Snooze shows
+  in Focus) holds the picker: tomorrow, Monday, in a week (`1`–`3`) at the wake time
+  (`use-wake-time.ts`, localStorage, Settings; pure date math in `snooze-time.ts`), or a day
+  of the calendar (`components/ui/calendar.tsx`, react-day-picker) at a typed time
+  (`time-field.tsx`, also Settings'; no native date or time pickers). Snooze shows
   for finished rows only (cards beside `✔ Done`, the phone's toolbar, `s` in Focus and Agents).
 - Keys (`use-keys.ts`, desktop; ignored while typing (except `Escape`), with modifiers and in
   dialogs; in the chat, `chat-keys.ts` hands Vltra the keys the chat does not own, see the

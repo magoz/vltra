@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
-  dayToUntil,
+  dayAt,
   defaultWakeTime,
   formatWakeTime,
   parseWakeTime,
   snoozePresets,
-  tomorrowDay,
+  startOfDay,
   wakeText
 } from '@/app/snooze-time'
 
@@ -21,7 +21,8 @@ describe('wake time', () => {
     expect(parseWakeTime('09:00')).toEqual({ hours: 9, minutes: 0 })
     expect(parseWakeTime('23:59')).toEqual({ hours: 23, minutes: 59 })
     expect(parseWakeTime('24:00')).toBeUndefined()
-    expect(parseWakeTime('9:00')).toBeUndefined()
+    expect(parseWakeTime('9:30')).toEqual({ hours: 9, minutes: 30 })
+    expect(parseWakeTime('9:3')).toBeUndefined()
     expect(parseWakeTime('')).toBeUndefined()
     expect(formatWakeTime(defaultWakeTime)).toBe('09:00')
     expect(formatWakeTime({ hours: 7, minutes: 5 })).toBe('07:05')
@@ -50,16 +51,16 @@ describe('snooze presets', () => {
   })
 })
 
-describe('picked day', () => {
-  it('is that day at the wake time; a malformed value is none', () => {
-    expect(dayToUntil('2026-12-03', defaultWakeTime)).toBe(local(12, 3, 9))
-    expect(dayToUntil('', defaultWakeTime)).toBeUndefined()
-    expect(dayToUntil('03/12/2026', defaultWakeTime)).toBeUndefined()
+describe('picked day and time', () => {
+  it('is that day at that time, local', () => {
+    const december3 = new Date(2026, 11, 3)
+
+    expect(dayAt(december3, defaultWakeTime)).toBe(local(12, 3, 9))
+    expect(dayAt(december3, { hours: 18, minutes: 45 })).toBe(local(12, 3, 18, 45))
   })
 
-  it('starts the picker at tomorrow', () => {
-    expect(tomorrowDay(tuesday)).toBe('2026-11-25')
-    expect(tomorrowDay(local(12, 31, 12))).toBe('2027-01-01')
+  it("starts the calendar at today's midnight", () => {
+    expect(startOfDay(tuesday).getTime()).toBe(local(11, 24))
   })
 })
 

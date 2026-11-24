@@ -105,8 +105,10 @@ Priority: blocked > working > finished > handled.
   `snoozed · Thu 9:00`. It comes back by itself at `until` (no server event: the clock), or
   when a new run ends (another `idle`), like a new run ends Done; blocked and working always
   show. Done and Reopen remove it. The picker (a card's or the toolbar's Snooze, `s`):
-  tomorrow, next Monday, in a week (`1`–`3`), or a day, each at the wake time set in Settings
-  (09:00 by default; kept in the browser, which sends a plain instant), capped at a year. No
+  tomorrow, next Monday, in a week (`1`–`3`) at the wake time set in Settings (09:00 by
+  default; kept in the browser, which sends a plain instant), or a day on the calendar
+  (shadcn's, in Vltra's look) at a typed time (`HH:MM`, the wake time unless changed; today
+  too, for a time ahead), capped at a year. No
   push when a snooze ends.
 - OpenCode's own "viewed" (`viewed < idle` = unread in OpenCode UIs) is independent: opening a
   session's panel in Vltra still calls `POST /api/session/:id/view { idle }` to keep OpenCode's

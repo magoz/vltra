@@ -1,14 +1,15 @@
-// When a snooze ends, picked in the browser: a day (tomorrow, next Monday, in a week, or a date)
-// at the wake time set in Settings, in the browser's own zone. Pure; times are epoch milliseconds.
+// When a snooze ends, picked in the browser: tomorrow, next Monday or in a week at the wake time
+// set in Settings, or a day and time of my own, in the browser's own zone. Pure; times are epoch
+// milliseconds.
 
 /** The time of day snoozes end, `HH:MM` (Settings; 09:00 unless changed). */
 export type WakeTime = { readonly hours: number; readonly minutes: number }
 
 export const defaultWakeTime: WakeTime = { hours: 9, minutes: 0 }
 
-const clock = /^([01]\d|2[0-3]):([0-5]\d)$/
+const clock = /^([01]?\d|2[0-3]):([0-5]\d)$/
 
-/** `HH:MM` (an `<input type="time">` value) as a wake time; anything else is no time. */
+/** `HH:MM` (or `H:MM`) as a time of day; anything else is no time. */
 export const parseWakeTime = (value: string): WakeTime | undefined => {
   const match = clock.exec(value)
 
@@ -21,7 +22,7 @@ const pad = (value: number) => String(value).padStart(2, '0')
 export const formatWakeTime = (time: WakeTime): string => `${pad(time.hours)}:${pad(time.minutes)}`
 
 /** `days` days after `now`'s day, at `time`, local. */
-const dayAt = (now: number, days: number, time: WakeTime) => {
+const daysAhead = (now: number, days: number, time: WakeTime) => {
   const date = new Date(now)
 
   date.setDate(date.getDate() + days)
@@ -41,32 +42,22 @@ export type SnoozePreset = { readonly label: string; readonly until: number }
 
 /** The menu's choices as of `now`: tomorrow, next Monday, a week from today, each at `time`. */
 export const snoozePresets = (now: number, time: WakeTime): ReadonlyArray<SnoozePreset> => [
-  { label: 'Tomorrow', until: dayAt(now, 1, time) },
-  { label: 'Monday', until: dayAt(now, toMonday(now), time) },
-  { label: 'In a week', until: dayAt(now, 7, time) }
+  { label: 'Tomorrow', until: daysAhead(now, 1, time) },
+  { label: 'Monday', until: daysAhead(now, toMonday(now), time) },
+  { label: 'In a week', until: daysAhead(now, 7, time) }
 ]
 
-const isoDay = /^(\d{4})-(\d{2})-(\d{2})$/
-
-/** A picked day (`YYYY-MM-DD`, an `<input type="date">` value) at `time`, local. */
-export const dayToUntil = (day: string, time: WakeTime): number | undefined => {
-  const match = isoDay.exec(day)
-
-  if (match === null) return undefined
-
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+/** A picked day (local midnight, as the calendar gives it) at `time`, local. */
+export const dayAt = (day: Date, time: WakeTime): number => {
+  const date = new Date(day)
 
   date.setHours(time.hours, time.minutes, 0, 0)
 
-  return Number.isNaN(date.getTime()) ? undefined : date.getTime()
+  return date.getTime()
 }
 
-/** `now`'s next day as `YYYY-MM-DD`: the earliest a date picker offers. */
-export const tomorrowDay = (now: number): string => {
-  const date = new Date(dayAt(now, 1, defaultWakeTime))
-
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
+/** `now`'s day at local midnight: the first day the calendar offers. */
+export const startOfDay = (now: number): Date => new Date(new Date(now).setHours(0, 0, 0, 0))
 
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 

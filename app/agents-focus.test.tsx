@@ -595,6 +595,47 @@ describe('snooze', () => {
     expect(rowIDs(list())).toContain('ses_done_new')
   })
 
+  it('a day of the calendar at a time of my own', async () => {
+    const { calls } = renderFocus({ session: 'ses_done_new' })
+
+    press('s')
+
+    const submit = () => within(dialog()).getByRole('button', { name: /Snooze until|Pick a day/ })
+
+    expect(submit()).toHaveProperty('disabled', true)
+
+    const target = new Date(now)
+
+    target.setDate(target.getDate() + 2)
+
+    const iso = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`
+    const cell = dialog().querySelector(`td[data-day="${iso}"] button`)
+
+    if (!(cell instanceof HTMLElement)) throw new Error(`no day ${iso}`)
+
+    fireEvent.click(cell)
+
+    const time = within(dialog()).getByRole('textbox', { name: 'Time' })
+
+    // Starts at the wake time; a half-typed time is marked, the last valid one stays.
+    expect(time).toHaveProperty('value', '09:00')
+    fireEvent.change(time, { target: { value: '18:3' } })
+    expect(time.getAttribute('aria-invalid')).toBe('true')
+    fireEvent.change(time, { target: { value: '18:30' } })
+
+    target.setHours(18, 30, 0, 0)
+    expect(submit().textContent).toMatch(/^Snooze until \w{3} 18:30$/)
+
+    fireEvent.click(submit())
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() =>
+      expect(calls()).toEqual([
+        { action: 'snooze', input: { sessionID: 'ses_done_new', until: target.getTime() } }
+      ])
+    )
+  })
+
   it('a blocked session cannot be snoozed', () => {
     renderFocus({ session: 'ses_wait_new' })
 
