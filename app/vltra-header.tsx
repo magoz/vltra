@@ -116,7 +116,10 @@ function Separator() {
   return <span className="text-muted-foreground"> · </span>
 }
 
-/** The count line: `4 need you · 17 working · 2 stuck` (needs me = blocked + finished). */
+/**
+ * The count line: `4 need you · 17 working (5 waiting) · 2 stuck` (needs me = blocked +
+ * finished; waiting: working rows whose agent only waits, shown when any).
+ */
 export function CountLine({ counts }: { readonly counts: VltraCounts }) {
   const needMe = counts.blocked + counts.finished
 
@@ -133,6 +136,9 @@ export function CountLine({ counts }: { readonly counts: VltraCounts }) {
       <Separator />
       <span className={cn('whitespace-nowrap', counts.working === 0 && 'text-muted-foreground')}>
         {counts.working} working
+        {counts.waiting > 0 ? (
+          <span className="text-muted-foreground"> ({counts.waiting} waiting)</span>
+        ) : null}
       </span>
       <Separator />
       <span

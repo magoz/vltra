@@ -132,7 +132,14 @@ describe('grouping and ordering', () => {
   })
 
   it('counts root rows by rolled-up state', () => {
-    expect(snapshot.counts).toEqual({ blocked: 0, finished: 1, working: 1, stuck: 0, handled: 2 })
+    expect(snapshot.counts).toEqual({
+      blocked: 0,
+      finished: 1,
+      working: 1,
+      stuck: 0,
+      waiting: 0,
+      handled: 2
+    })
   })
 
   it('orders by run times, never by time.updated', () => {

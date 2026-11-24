@@ -381,6 +381,7 @@ describe('stuck (retrying or quiet working rows)', () => {
       finished: 1,
       working: 2,
       stuck: 1,
+      waiting: 0,
       handled: 1
     })
   })

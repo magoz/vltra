@@ -1,9 +1,11 @@
 import {
   isQuiet,
   lastActivityAt,
+  overdueWatches,
   pendingRetry,
   servicesOf,
-  waitingOn
+  waitingOn,
+  watchDueAt
 } from '@/lib/data/vltra/state'
 import type { VltraRow, SessionActivity, SessionWait } from '@/lib/data/vltra/types'
 
@@ -67,7 +69,10 @@ export const pendingText = (row: Pick<VltraRow, 'pending'>): string =>
     .filter(part => part !== undefined)
     .join(' · ')
 
-/** Why a working row looks stuck: `retrying (2×, rate limited)` or `quiet 14m`; else nothing. */
+/**
+ * Why a working row looks stuck: `retrying (2×, rate limited)`, `quiet 14m`, or `"PR 288 CI"
+ * overdue 5m` (an `until` watch nothing checks, or whose wake never came); else nothing.
+ */
 export const stuckText = (row: VltraRow, now: number): string | undefined => {
   const retry = pendingRetry(row)
 
@@ -76,6 +81,12 @@ export const stuckText = (row: VltraRow, now: number): string | undefined => {
   const last = lastActivityAt(row)
 
   if (last !== undefined && isQuiet(row, now)) return `quiet ${relativeTime(last, now)}`
+
+  const [overdue] = overdueWatches(row, now)
+
+  if (overdue !== undefined) {
+    return `"${overdue.label}" overdue ${relativeTime(watchDueAt(overdue), now)}`
+  }
 
   return undefined
 }

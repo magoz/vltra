@@ -15,7 +15,14 @@ import type { VltraConnection, VltraCounts, UsagePool, UsageSummary } from '@/li
 
 const connected: VltraConnection = { status: 'connected', since: 0, failures: 0, version: '2.0.20' }
 
-const counts: VltraCounts = { blocked: 2, finished: 4, working: 17, stuck: 2, handled: 12 }
+const counts: VltraCounts = {
+  blocked: 2,
+  finished: 4,
+  working: 17,
+  stuck: 2,
+  waiting: 0,
+  handled: 12
+}
 
 afterEach(cleanup)
 
@@ -169,8 +176,20 @@ describe('count line', () => {
     )
   })
 
+  it('says how many working sessions only wait, when any', () => {
+    render(<CountLine counts={{ ...counts, waiting: 5 }} />)
+
+    expect(screen.getByLabelText('Session counts').textContent).toBe(
+      '6 need you · 17 working (5 waiting) · 2 stuck'
+    )
+  })
+
   it('keeps every count, even at zero', () => {
-    render(<CountLine counts={{ blocked: 1, finished: 0, working: 0, stuck: 0, handled: 3 }} />)
+    render(
+      <CountLine
+        counts={{ blocked: 1, finished: 0, working: 0, stuck: 0, waiting: 0, handled: 3 }}
+      />
+    )
 
     expect(screen.getByLabelText('Session counts').textContent).toBe(
       '1 needs you · 0 working · 0 stuck'

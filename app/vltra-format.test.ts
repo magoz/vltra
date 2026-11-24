@@ -7,6 +7,7 @@ import {
   pendingText,
   relativeTime,
   servingText,
+  stuckText,
   waitText
 } from '@/app/vltra-format'
 import {
@@ -114,6 +115,19 @@ describe('formatting', () => {
     expect(details).toMatch(
       /^"PR 288 CI" · next check \d\d:\d\d · until \d\d:\d\d\n\$ pnpm test · running 3m$/
     )
+  })
+
+  it('says which watch a stuck row waits on overdue, and since when', () => {
+    const row = rowFrom(
+      {
+        sessions: [sessionRecord('ses_1', { idle: baseTime, outcome: 'succeeded' })],
+        watches: [runningWatch('w_ci', 'ses_1', { label: 'PR 288 CI', nextAt: baseTime })]
+      },
+      'ses_1'
+    )
+
+    expect(stuckText(row, baseTime + 5 * 60_000)).toBe('"PR 288 CI" overdue 5m')
+    expect(stuckText(row, baseTime + 60_000)).toBeUndefined()
   })
 
   it('says which ports the services a session left running listen on', () => {

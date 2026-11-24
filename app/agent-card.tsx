@@ -12,7 +12,7 @@ import { PrBadge } from '@/app/worktree-badges'
 import { useSwipeLeft } from '@/app/use-swipe'
 import type { BoardRow } from '@/lib/data/vltra/board'
 import { worktreeAt } from '@/lib/data/vltra/checkouts'
-import { canMarkDone } from '@/lib/data/vltra/state'
+import { canMarkDone, isWaiting } from '@/lib/data/vltra/state'
 import type { VltraRow } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
@@ -130,6 +130,7 @@ export function AgentCard({
           <StateMarker
             state={row.state}
             failed={row.outcome === 'failed'}
+            waiting={isWaiting(row)}
             className="shrink-0 translate-y-px self-center"
           />
           <span className="min-w-0 flex-1 truncate">{item.project}</span>

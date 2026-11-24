@@ -1,6 +1,6 @@
 import { isWithin } from '@/lib/data/vltra/checkouts'
 import { worktreeName } from '@/lib/data/vltra/palette'
-import { canMarkDone, compareStates, isStuck } from '@/lib/data/vltra/state'
+import { canMarkDone, compareStates, isStuck, isWaiting } from '@/lib/data/vltra/state'
 import type {
   VltraChange,
   VltraConnection,
@@ -245,8 +245,9 @@ export const nextNeedsMe = (list: ReadonlyArray<BoardRow>, id: string): BoardRow
 /**
  * The Agents board as of `now`, narrowed to `project` (a `projectKey`) when given:
  * - needs you: `buildNeedsMe` in `needsMeOrder` (blocked, then finished, newest first);
- * - working: stuck first, then the newest session first (`created`, which never moves, so live
- *   activity does not reshuffle the column);
+ * - working: stuck first, then those the agent runs, then those that only wait (`isWaiting`),
+ *   each the newest session first (`created`, which never moves, so live activity does not
+ *   reshuffle the column);
  * - handled: active within `handledWindow`, newest first; the rest only counted.
  */
 export const buildAgentsBoard = (
@@ -265,6 +266,7 @@ export const buildAgentsBoard = (
       working: inState('working').toSorted(
         (left, right) =>
           Number(isStuck(right.row, now)) - Number(isStuck(left.row, now)) ||
+          Number(isWaiting(left.row)) - Number(isWaiting(right.row)) ||
           right.row.created - left.row.created
       ),
       handled: recent.toSorted(newestFirst)

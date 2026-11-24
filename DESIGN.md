@@ -73,8 +73,13 @@ Priority: blocked > working > finished > handled.
   - **`until` watches** (the dotfiles plugin, `dotfiles-until`): its `waits` RPC lists every
     watch that will wake an agent (running, `wake: agent` or recurring; the family root's
     session), and its `changed` event carries a session's waits now. Vltra reads `waits` on
-    every (re)connect for the existing folders of root sessions that run or ended unhandled
-    (asking loads the location, which resumes its saved watches), then applies `changed`.
+    every (re)connect, and every minute while connected, for the existing folders of root
+    sessions that run or ended unhandled (asking loads the location, which resumes its saved
+    watches: OpenCode unloading one pauses them without a `changed`), and applies `changed`.
+    A watch past its next check or deadline by 2 minutes is **overdue**: the row is stuck,
+    `"PR 288 CI" overdue 5m`.
+  - On the board a waiting row has a grey half-filled marker, sorts after the rows the agent
+    runs in Working, and counts in the header: `10 working (4 waiting)`.
   - Labels: `waiting on pnpm test · 4m`, `waiting on "PR 288 CI" · 12m`, `waiting on "sync" ·
     next wake in 12m`, `waiting on 2 things · 12m`; the tooltip has each wait's next check and
     deadline.
@@ -86,7 +91,8 @@ Priority: blocked > working > finished > handled.
     a watch I no longer care about), from the card, the toolbar, `h` and `⌘D`. It cancels
     nothing: when the wait wakes the agent, the run that ends after needs me again.
 - **Stuck** is not a state: a working session shows `retrying (n×, reason)`
-  (`session.retry.scheduled`) or `quiet Nm` (no step/tool activity for 10+ minutes). Shown in
+  (`session.retry.scheduled`), `quiet Nm` (no step/tool activity for 10+ minutes) or an overdue
+  `until` watch (see Waits). Shown in
   Projects and counted, never in the needs-me list.
 - **Undo / Reopen** removes the handled marker, so the session is `finished` again.
 - OpenCode's own "viewed" (`viewed < idle` = unread in OpenCode UIs) is independent: opening a

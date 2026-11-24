@@ -118,6 +118,9 @@ export const waitingOn = (row: VltraRow): ReadonlyArray<SessionWait> =>
         .flatMap(item => item.waits)
         .toSorted((left, right) => left.started - right.started)
 
+/** Working only because something will wake its agent: nothing in it runs. */
+export const isWaiting = (row: VltraRow): boolean => waitingOn(row).length > 0
+
 /** The services (shells listening on a port) still running in the row's subtree. */
 export const servicesOf = (row: VltraRow): ReadonlyArray<SessionService> =>
   [row, ...row.children].flatMap(item => item.services)
@@ -126,8 +129,7 @@ export const servicesOf = (row: VltraRow): ReadonlyArray<SessionService> =>
  * Whether Done applies: the latest run finished, or it ended and only waits (a watcher that never
  * exits, a watch I no longer care about, would otherwise hold it working for good).
  */
-export const canMarkDone = (row: VltraRow): boolean =>
-  row.state === 'finished' || waitingOn(row).length > 0
+export const canMarkDone = (row: VltraRow): boolean => row.state === 'finished' || isWaiting(row)
 
 /** Working, and nothing in its running subtree has done anything for `quietAfter`. */
 export const isQuiet = (row: VltraRow, now: number): boolean => {
@@ -136,18 +138,42 @@ export const isQuiet = (row: VltraRow, now: number): boolean => {
   return row.state === 'working' && last !== undefined && now - last >= quietAfter
 }
 
-/** Stuck is not a state: a working row that is retrying or quiet. */
-export const isStuck = (row: VltraRow, now: number): boolean =>
-  row.state === 'working' && (pendingRetry(row) !== undefined || isQuiet(row, now))
+/**
+ * Past its next check or its deadline by this much, an `until` watch is overdue: nothing checks
+ * it (its location stays unloaded), or its wake never came. Leaves room for a slow check (30 s)
+ * and wake retries (up to 30 s), and for the minute between refreshes.
+ */
+export const overdueAfter = 2 * 60 * 1000
 
-/** Root rows by rolled-up state, plus the stuck working ones. */
+type WatchWait = Extract<SessionWait, { readonly kind: 'watch' }>
+
+/** When the watch should have done something by: its next check, or its deadline if sooner. */
+export const watchDueAt = (wait: WatchWait): number =>
+  Math.min(wait.nextAt, wait.expiresAt ?? wait.nextAt)
+
+/** The watches a waiting row holds on that are overdue (see `overdueAfter`), most overdue first. */
+export const overdueWatches = (row: VltraRow, now: number): ReadonlyArray<WatchWait> =>
+  waitingOn(row)
+    .flatMap(wait =>
+      wait.kind === 'watch' && now - watchDueAt(wait) >= overdueAfter ? [wait] : []
+    )
+    .toSorted((left, right) => watchDueAt(left) - watchDueAt(right))
+
+/** Stuck is not a state: a working row that is retrying, quiet, or waits on an overdue watch. */
+export const isStuck = (row: VltraRow, now: number): boolean =>
+  row.state === 'working' &&
+  (pendingRetry(row) !== undefined || isQuiet(row, now) || overdueWatches(row, now).length > 0)
+
+/** Root rows by rolled-up state, plus the stuck and the waiting working ones. */
 export const countRows = (rows: ReadonlyArray<VltraRow>, now: number): VltraCounts => {
-  const counts = { blocked: 0, finished: 0, working: 0, stuck: 0, handled: 0 }
+  const counts = { blocked: 0, finished: 0, working: 0, stuck: 0, waiting: 0, handled: 0 }
 
   for (const row of rows) {
     counts[row.state] += 1
 
     if (isStuck(row, now)) counts.stuck += 1
+
+    if (isWaiting(row)) counts.waiting += 1
   }
 
   return counts

@@ -106,7 +106,7 @@ Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   URL) around `VltraShell` (`vltra-shell.tsx`): the tabs `Focus | Agents | Projects | Stats | Settings`
   (`vltra-header.tsx`; on the phone Settings is a `⚙`), in
   the desktop header (the `vltra` wordmark first, `components/brand/logo.tsx`, as the title, in
-  ink; then the tabs; the count line `N need you · N working · N stuck`, centred; on the right the usage
+  ink; then the tabs; the count line `N need you · N working (N waiting) · N stuck`, centred, `waiting` only when any; on the right the usage
   line, New, `?` and the connection) or the phone's bottom tab bar (`BottomTabs`, with `+`; no header there, only
   `ConnectionLine`: a slim `reconnecting…` line on top once a reconnect lasts 3s, the wait starting
   over when the page shows again), and each tab shows the open session itself (Focus' pane,
@@ -145,7 +145,7 @@ Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
   button returns to the list.
 - **Agents**, the board (`?view=agents`, `agents-board.tsx`): columns `Need you | Working |
 Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, each card
-  badged `blocked`), then finished (newest first). Working: stuck first, then newest session (`created`, so live activity does not reshuffle).
+  badged `blocked`), then finished (newest first). Working: stuck first, then the ones the agent runs, then the ones that only wait (grey half-filled marker), each newest session first (`created`, so live activity does not reshuffle).
   Done (handled): active in the last 24h, newest first, then "N more → Projects". Cards
   (`agent-card.tsx`) are minimal: marker (red for a failed run), the project (`boardRow`; the
   global project's sessions by their directory), the `blocked` badge, `✔ Done` left of the age

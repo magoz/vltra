@@ -633,4 +633,25 @@ describe('until watches', () => {
         }).pipe(Effect.provide(withWatcher(fake, directories.layer)))
       })
   )
+
+  it.effect('are read again every recount while connected, catching what no event said', () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOpenCode(sessions)
+      const directories = yield* makeFakeDirectories([gone])
+
+      yield* Effect.gen(function* () {
+        yield* settle
+
+        expect((yield* rowStates).ses_waiting).toBe('finished')
+
+        // A watch whose location OpenCode had unloaded: no `changed` announced it.
+        yield* fake.setWatches(here, [runningWatch('w_ci', 'ses_waiting')])
+        yield* TestClock.adjust(defaultWatcherOptions.recount)
+        yield* settle
+
+        expect((yield* rowStates).ses_waiting).toBe('working')
+        expect((yield* fake.calls).filter(call => call.op === 'watches')).toHaveLength(2)
+      }).pipe(Effect.provide(withWatcher(fake, directories.layer)))
+    })
+  )
 })

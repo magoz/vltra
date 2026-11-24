@@ -14,6 +14,7 @@ import { sessionHref, useVltra } from '@/app/vltra-context'
 import { ReopenButton } from '@/app/handled-button'
 import { StateMarker } from '@/app/state-marker'
 import type { BoardRow } from '@/lib/data/vltra/board'
+import { isWaiting } from '@/lib/data/vltra/state'
 import type { VltraRow } from '@/lib/data/vltra/types'
 import { cn } from '@/lib/utils'
 
@@ -152,6 +153,7 @@ export function ProjectRow({
       <StateMarker
         state={row.state}
         failed={row.outcome === 'failed'}
+        waiting={isWaiting(row)}
         className="translate-y-px self-center"
       />
       <RowLink

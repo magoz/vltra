@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { boardRow } from '@/lib/data/vltra/board'
 import type { BoardRow } from '@/lib/data/vltra/board'
 import { worktreeAt } from '@/lib/data/vltra/checkouts'
-import { canMarkDone } from '@/lib/data/vltra/state'
+import { canMarkDone, isWaiting } from '@/lib/data/vltra/state'
 
 /**
  * Opening a session's panel marks its latest run viewed in OpenCode (its own unread dots). Vltra
@@ -259,7 +259,11 @@ export function SessionPanel({ sessionID, item, onClose }: SessionPanelProps) {
             ‹
           </Button>
           {row === undefined ? null : (
-            <StateMarker state={row.state} failed={row.outcome === 'failed'} />
+            <StateMarker
+              state={row.state}
+              failed={row.outcome === 'failed'}
+              waiting={isWaiting(row)}
+            />
           )}
           <h2 className="min-w-0 truncate font-semibold">{title}</h2>
           {item === undefined ? null : <Location item={item} />}

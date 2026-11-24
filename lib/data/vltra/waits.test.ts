@@ -2,11 +2,14 @@ import { describe, expect, it } from '@effect/vitest'
 import { VltraEvent } from '@/lib/data/vltra/events'
 import { applyEvent, fromSnapshot } from '@/lib/data/vltra/model'
 import type { OpenCodeSnapshot, VltraModel } from '@/lib/data/vltra/model'
-import { buildRows } from '@/lib/data/vltra/snapshot'
+import { buildAgentsBoard, fromSnapshot as liveFromSnapshot } from '@/lib/data/vltra/board'
+import { buildRows, buildSnapshot } from '@/lib/data/vltra/snapshot'
 import {
   canMarkDone,
   countRows,
   isStuck,
+  overdueAfter,
+  overdueWatches,
   quietAfter,
   servicesOf,
   waitingOn
@@ -317,5 +320,71 @@ describe('until watches', () => {
     const model = modelOf({ sessions: [ended('ses_1', { handled: baseTime })], watches: [ci] })
 
     expect(rowOf(model, 'ses_1').state).toBe('handled')
+  })
+})
+
+describe('overdue watches', () => {
+  const watch = (fields: Partial<RunningWatch>) =>
+    modelOf({ sessions: [ended('ses_1')], watches: [runningWatch('w_ci', 'ses_1', fields)] })
+
+  it('a watch past its next check by overdueAfter makes the row stuck; before that, it waits', () => {
+    const row = rowOf(watch({ nextAt: baseTime }), 'ses_1')
+
+    expect(isStuck(row, baseTime + overdueAfter - 1)).toBe(false)
+    expect(isStuck(row, baseTime + overdueAfter)).toBe(true)
+    expect(overdueWatches(row, baseTime + overdueAfter).map(wait => wait.id)).toEqual(['w_ci'])
+  })
+
+  it('a deadline that passed counts even when the next check is later', () => {
+    const row = rowOf(watch({ nextAt: baseTime + 60 * minute, expiresAt: baseTime }), 'ses_1')
+
+    expect(isStuck(row, baseTime + overdueAfter)).toBe(true)
+  })
+
+  it('scripts are never overdue, and a row the agent runs is not waiting', () => {
+    const script = rowOf(
+      modelOf({ sessions: [ended('ses_1')], shells: [shell('sh_1', 'ses_1')] }),
+      'ses_1'
+    )
+
+    const running = rowOf(
+      modelOf({
+        sessions: [sessionRecord('ses_1')],
+        running: ['ses_1'],
+        watches: [runningWatch('w_ci', 'ses_1', { nextAt: baseTime })]
+      }),
+      'ses_1'
+    )
+
+    expect(overdueWatches(script, baseTime + 60 * minute)).toEqual([])
+    expect(overdueWatches(running, baseTime + overdueAfter)).toEqual([])
+  })
+})
+
+describe('waiting on the board', () => {
+  it('counts the rows that only wait, and lists them after the ones the agent runs', () => {
+    const model = modelOf({
+      sessions: [
+        ended('ses_waiting', { created: baseTime + 2 }),
+        sessionRecord('ses_running', { created: baseTime + 1 })
+      ],
+      running: ['ses_running'],
+      shells: [shell('sh_1', 'ses_waiting')]
+    })
+
+    const rows = buildRows(model, webUrl)
+
+    const live = liveFromSnapshot(
+      buildSnapshot(model, {
+        connection: { status: 'connected', since: baseTime, failures: 0 },
+        webUrl,
+        now: baseTime
+      })
+    )
+
+    expect(countRows(rows, baseTime)).toMatchObject({ working: 2, waiting: 1 })
+    expect(
+      buildAgentsBoard(live, baseTime, undefined).columns.working.map(item => item.row.id)
+    ).toEqual(['ses_running', 'ses_waiting'])
   })
 })

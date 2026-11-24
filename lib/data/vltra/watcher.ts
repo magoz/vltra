@@ -28,8 +28,9 @@ export type WatcherOptions = {
   /** How long to wait for the stream's `server.connected` marker. */
   readonly connectTimeout: Duration.Input
   /**
-   * How often to re-project the snapshot so time-based counts (`stuck`) stay current, and to
-   * re-check session folders (worktrees are deleted after merge, even under live sessions).
+   * How often to re-project the snapshot so time-based counts (`stuck`) stay current, to
+   * re-check session folders (worktrees are deleted after merge, even under live sessions), and,
+   * while connected, to re-read `until` waits.
    */
   readonly recount: Duration.Input
 }
@@ -99,6 +100,18 @@ const checkNewDirectories = Effect.gen(function* () {
 
   yield* applyToModel(VltraEvent.DirectoriesChecked({ directories }))
 })
+
+/**
+ * Re-reads the `until` waits of the folders that may wait. `changed` misses what happens without
+ * a change to a watch: OpenCode unloading a location pauses its watches silently, and asking
+ * loads it again, which resumes them. A `changed` racing a refresh is set right by the next one.
+ */
+const refreshWatches = (connection: OpenCodeConnection) =>
+  Effect.gen(function* () {
+    const watches = yield* connection.watches(mayWaitDirectories(yield* currentModel))
+
+    yield* applyToModel(VltraEvent.WatchesLoaded({ watches }))
+  })
 
 /** Upsert a session (and any missing ancestors) read from OpenCode. */
 const refreshSession = (connection: OpenCodeConnection, sessionID: string) =>
@@ -361,6 +374,11 @@ export const connectOnce = (options: WatcherOptions, reasons: RunReasons) =>
       )
 
       yield* Queue.offer(recheck, undefined)
+
+      // The snapshot just read them; then every recount while connected.
+      yield* Effect.forkScoped(
+        Effect.forever(Effect.andThen(Effect.sleep(options.recount), refreshWatches(connection)))
+      )
 
       const ended = yield* Stream.fromQueue(signals).pipe(
         Stream.runForEach(signal => applySignal(connection, reasons, recheck, signal)),

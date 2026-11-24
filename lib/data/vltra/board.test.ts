@@ -265,6 +265,7 @@ describe('counts', () => {
       finished: 4,
       working: 1,
       stuck: 0,
+      waiting: 0,
       handled: 4
     })
   })

@@ -351,13 +351,15 @@ export type VltraProject = typeof VltraProject.Type
 
 /**
  * Root rows by rolled-up state (needs me = blocked + finished). `stuck` counts working rows that
- * are retrying or quiet; it overlaps `working`.
+ * are retrying, quiet or wait on an overdue watch; `waiting` those that only wait (scripts,
+ * `until` watches); both overlap `working`.
  */
 export const VltraCounts = Schema.Struct({
   blocked: Schema.Number,
   finished: Schema.Number,
   working: Schema.Number,
   stuck: Schema.Number,
+  waiting: Schema.Number,
   handled: Schema.Number
 })
 
