@@ -21,6 +21,7 @@ import type {
   PendingForm,
   PendingPermission,
   ProjectRecord,
+  RunningShell,
   SessionRecord,
   SessionStats,
   TokenCounts,
@@ -186,6 +187,25 @@ export const toolDetail = (input: ToolInput): string | undefined => {
 
   return undefined
 }
+
+/** OpenCode's shell record (`/api/shell`, `shell.created`). */
+export type ShellInfo = Extract<OpenCodeEvent, { readonly type: 'shell.created' }>['data']['info']
+
+const decodeShellSession = Schema.decodeUnknownOption(Schema.Struct({ sessionID: Schema.String }))
+
+/**
+ * A running shell command that names its session (`metadata.sessionID`, set by the shell tool);
+ * none for finished shells and ones no session started.
+ */
+export const toRunningShell = (info: ShellInfo): Option.Option<RunningShell> =>
+  info.status === 'running'
+    ? Option.map(decodeShellSession(info.metadata), ({ sessionID }) => ({
+        id: info.id,
+        sessionID,
+        command: clip(info.command.trim().split('\n')[0] ?? '', detailLimit),
+        started: info.time.started
+      }))
+    : Option.none()
 
 export const toProjectRecord = (project: Project.Info): ProjectRecord => ({
   id: project.id,
@@ -629,6 +649,17 @@ export const toSignals = (event: OpenCodeEvent): ReadonlyArray<OpenCodeSignal> =
     case 'form.replied':
     case 'form.cancelled':
       return apply(VltraEvent.FormSettled({ formID: event.data.id }))
+    case 'shell.created':
+      return Option.match(toRunningShell(event.data.info), {
+        onNone: () => [],
+        onSome: shell => apply(VltraEvent.ShellStarted({ shell }))
+      })
+    case 'shell.exited':
+      return event.data.status === 'running'
+        ? []
+        : apply(VltraEvent.ShellEnded({ shellID: event.data.id }))
+    case 'shell.deleted':
+      return apply(VltraEvent.ShellEnded({ shellID: event.data.id }))
     case 'project.updated':
       return apply(
         VltraEvent.ProjectUpserted({

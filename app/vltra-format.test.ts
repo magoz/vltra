@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { activityText, elapsedText, endText, pendingText, relativeTime } from '@/app/vltra-format'
+import { rowFrom } from '@/app/testing/dashboard-fixtures'
+import {
+  activityText,
+  elapsedText,
+  endText,
+  pendingText,
+  relativeTime,
+  scriptText
+} from '@/app/vltra-format'
+import { baseTime, sessionRecord } from '@/lib/data/vltra/testing/fixtures'
 
 describe('formatting', () => {
   it('ages compactly', () => {
@@ -35,5 +44,37 @@ describe('formatting', () => {
     expect(endText({ outcome: 'failed' })).toBe('run failed')
     expect(endText({ outcome: 'interrupted', interrupt: 'inactivity' })).toBe('stopped by OpenCode')
     expect(endText({ outcome: 'succeeded' })).toBe('finished')
+  })
+
+  it('says which background script a working row waits on, and for how long', () => {
+    const ended = sessionRecord('ses_1', { idle: baseTime, outcome: 'succeeded' })
+    const now = baseTime + 4 * 60_000
+
+    const script = (id: string, command: string, started: number) => ({
+      id,
+      sessionID: 'ses_1',
+      command,
+      started
+    })
+
+    const one = rowFrom(
+      { sessions: [ended], shells: [script('sh_1', 'pnpm test', baseTime)] },
+      'ses_1'
+    )
+
+    const two = rowFrom(
+      {
+        sessions: [ended],
+        shells: [
+          script('sh_2', 'pnpm build', baseTime + 60_000),
+          script('sh_1', 'pnpm test', baseTime)
+        ]
+      },
+      'ses_1'
+    )
+
+    expect(scriptText(one, now)).toBe('waiting on pnpm test · 4m')
+    expect(scriptText(two, now)).toBe('waiting on 2 scripts · 4m')
+    expect(scriptText(rowFrom({ sessions: [ended] }, 'ses_1'), now)).toBeUndefined()
   })
 })

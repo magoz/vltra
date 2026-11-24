@@ -5,7 +5,8 @@ import type {
   VltraCounts,
   VltraRow,
   VltraState,
-  SessionRecord
+  SessionRecord,
+  SessionShell
 } from '@/lib/data/vltra/types'
 
 /** A working session with no step/tool/text activity for this long is quiet (stuck). */
@@ -36,17 +37,24 @@ export const isReopened = (info: Pick<SessionRecord, 'idle' | 'handled' | 'reope
  * - working: an execution is active.
  * - handled when its folder is gone (deleting the folder retires its sessions), unless I reopened
  *   its latest run. What OpenCode still reports (pending requests, a running execution) wins.
- * - finished: the latest run ended (any outcome) and is not handled.
- * - handled: the latest run is handled, or the session never ran.
+ * - finished: the latest run ended (any outcome) and is not handled. While a shell it started
+ *   still runs (a background script; OpenCode wakes the agent when it exits), it is working.
+ * - handled: the latest run is handled, or the session never ran. A script left running after
+ *   that (a dev server) does not bring it back.
  */
-export const ownState = (session: TrackedSession, pending: number, gone: boolean): VltraState => {
+export const ownState = (
+  session: TrackedSession,
+  pending: number,
+  gone: boolean,
+  shells = 0
+): VltraState => {
   if (pending > 0) return 'blocked'
 
   if (session.running) return 'working'
 
   if (gone && !isReopened(session.info)) return 'handled'
 
-  if (!isHandled(session.info)) return 'finished'
+  if (!isHandled(session.info)) return shells > 0 ? 'working' : 'finished'
 
   return 'handled'
 }
@@ -96,6 +104,18 @@ export const lastActivityAt = (row: VltraRow): number | undefined => {
 /** The retry a running session in the row's subtree is waiting on, if any. */
 export const pendingRetry = (row: VltraRow) =>
   runningRows(row).find(item => item.retry !== undefined)?.retry
+
+/**
+ * The background scripts a working row only waits on: nothing in its subtree runs, and the
+ * sessions working because of a shell still hold one. Oldest first.
+ */
+export const waitingShells = (row: VltraRow): ReadonlyArray<SessionShell> =>
+  row.state !== 'working' || runningRows(row).length > 0
+    ? []
+    : [row, ...row.children]
+        .filter(item => item.ownState === 'working')
+        .flatMap(item => item.shells)
+        .toSorted((left, right) => left.started - right.started)
 
 /** Working, and nothing in its running subtree has done anything for `quietAfter`. */
 export const isQuiet = (row: VltraRow, now: number): boolean => {

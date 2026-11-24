@@ -5,6 +5,7 @@ import type {
   PendingPermission,
   ProjectRecord,
   RetryInfo,
+  RunningShell,
   SessionActivity,
   SessionRecord
 } from '@/lib/data/vltra/types'
@@ -35,6 +36,8 @@ export type VltraModel = {
   readonly sessions: ReadonlyMap<string, TrackedSession>
   readonly permissions: ReadonlyMap<string, PendingPermission>
   readonly forms: ReadonlyMap<string, PendingForm>
+  /** Running shell commands by shell id (background scripts once their run has ended). */
+  readonly shells: ReadonlyMap<string, RunningShell>
   readonly projects: ReadonlyMap<string, ProjectRecord>
   /** Saved worktree directories per project. */
   readonly worktrees: ReadonlyMap<string, ReadonlyArray<string>>
@@ -53,6 +56,8 @@ export type OpenCodeSnapshot = {
   readonly running: ReadonlyArray<string>
   readonly permissions: ReadonlyArray<PendingPermission>
   readonly forms: ReadonlyArray<PendingForm>
+  /** Running shell commands of every loaded location that name their session. */
+  readonly shells: ReadonlyArray<RunningShell>
   readonly projects: ReadonlyArray<ProjectRecord>
   readonly worktrees: ReadonlyArray<{
     readonly projectID: string
@@ -64,6 +69,7 @@ export const emptyModel: VltraModel = {
   sessions: new Map(),
   permissions: new Map(),
   forms: new Map(),
+  shells: new Map(),
   projects: new Map(),
   worktrees: new Map(),
   directoryGone: new Map()
@@ -99,6 +105,7 @@ export const fromSnapshot = (
     sessions: new Map(snapshot.sessions.map(info => [info.id, tracked(info)] as const)),
     permissions: new Map(snapshot.permissions.map(item => [item.id, item] as const)),
     forms: new Map(snapshot.forms.map(item => [item.id, item] as const)),
+    shells: new Map(snapshot.shells.map(item => [item.id, item] as const)),
     projects: new Map(snapshot.projects.map(item => [item.id, item] as const)),
     worktrees: new Map(snapshot.worktrees.map(item => [item.projectID, item.directories] as const)),
     directoryGone
@@ -261,7 +268,8 @@ export const applyEvent = (model: VltraModel, event: VltraEvent): VltraModel =>
       ...model,
       sessions: withoutEntry(model.sessions, sessionID),
       permissions: withoutSession(model.permissions, sessionID),
-      forms: withoutSession(model.forms, sessionID)
+      forms: withoutSession(model.forms, sessionID),
+      shells: withoutSession(model.shells, sessionID)
     }),
     SessionRenamed: ({ sessionID, title }) =>
       updateSession(model, sessionID, session => patchInfo(session, { title })),
@@ -306,6 +314,8 @@ export const applyEvent = (model: VltraModel, event: VltraEvent): VltraModel =>
     }),
     FormCreated: ({ form }) => ({ ...model, forms: withEntry(model.forms, form.id, form) }),
     FormSettled: ({ formID }) => ({ ...model, forms: withoutEntry(model.forms, formID) }),
+    ShellStarted: ({ shell }) => ({ ...model, shells: withEntry(model.shells, shell.id, shell) }),
+    ShellEnded: ({ shellID }) => ({ ...model, shells: withoutEntry(model.shells, shellID) }),
     ProjectUpserted: ({ project }) => ({
       ...model,
       projects: withEntry(model.projects, project.id, project)

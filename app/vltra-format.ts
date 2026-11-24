@@ -1,4 +1,4 @@
-import { isQuiet, lastActivityAt, pendingRetry } from '@/lib/data/vltra/state'
+import { isQuiet, lastActivityAt, pendingRetry, waitingShells } from '@/lib/data/vltra/state'
 import type { VltraRow, SessionActivity } from '@/lib/data/vltra/types'
 
 // Display formatting for the dashboard. Pure; times are epoch milliseconds.
@@ -72,6 +72,21 @@ export const stuckText = (row: VltraRow, now: number): string | undefined => {
   if (last !== undefined && isQuiet(row, now)) return `quiet ${relativeTime(last, now)}`
 
   return undefined
+}
+
+/**
+ * What a working row only waits on, background scripts: `waiting on pnpm test · 4m` (the command
+ * and how long it has run), `waiting on 2 scripts · 4m` (the oldest); else nothing.
+ */
+export const scriptText = (row: VltraRow, now: number): string | undefined => {
+  const shells = waitingShells(row)
+  const oldest = shells[0]
+
+  if (oldest === undefined) return undefined
+
+  const what = shells.length === 1 ? oldest.command : plural(shells.length, 'script', 'scripts')
+
+  return `waiting on ${what} · ${relativeTime(oldest.started, now)}`
 }
 
 /** How the latest run ended (a Projects row's label). */

@@ -53,12 +53,14 @@ const markerFields = (marker: Marker): Partial<SessionRecord> => {
 
 // The DESIGN.md table, written independently of the implementation's branch order.
 // A gone folder makes the session handled unless I reopened its latest run, but never hides
-// what OpenCode reports. The reopened marker means nothing while the folder exists.
+// what OpenCode reports. The reopened marker means nothing while the folder exists. A running
+// background script holds back what would be finished (working until it exits), nothing else.
 const expected = (input: {
   readonly pending: number
   readonly running: boolean
   readonly marker: Marker
   readonly gone: boolean
+  readonly shells: number
 }): VltraState => {
   const candidates: Array<VltraState> = ['handled']
 
@@ -69,7 +71,7 @@ const expected = (input: {
   const unhandled: ReadonlyArray<Marker> = ['none', 'older-run', 'reopened', 'reopened-older-run']
 
   if (input.gone ? input.marker === 'reopened' : unhandled.includes(input.marker)) {
-    candidates.push('finished')
+    candidates.push(input.shells > 0 ? 'working' : 'finished')
   }
 
   return (
@@ -130,19 +132,21 @@ describe('ownState', () => {
       outcomes.flatMap(outcome =>
         markers.flatMap(marker =>
           [undefined, baseTime + 10].flatMap(viewed =>
-            [false, true].map(gone => ({ pending, running, outcome, marker, viewed, gone }))
+            [false, true].flatMap(gone =>
+              [0, 1].map(shells => ({ pending, running, outcome, marker, viewed, gone, shells }))
+            )
           )
         )
       )
     )
   )
 
-  it('covers every combination of pending, running, outcome, marker, viewed and gone', () => {
-    expect(cases).toHaveLength(512)
+  it('covers every combination of pending, running, outcome, marker, viewed, gone and shells', () => {
+    expect(cases).toHaveLength(1024)
   })
 
   it.each(cases)(
-    'pending=$pending running=$running $outcome marker=$marker viewed=$viewed gone=$gone',
+    'pending=$pending running=$running $outcome marker=$marker viewed=$viewed gone=$gone shells=$shells',
     input => {
       const info = sessionRecord('ses_1', {
         outcome: input.outcome,
@@ -151,7 +155,12 @@ describe('ownState', () => {
       })
 
       expect(
-        ownState(trackedSession(info, { running: input.running }), input.pending, input.gone)
+        ownState(
+          trackedSession(info, { running: input.running }),
+          input.pending,
+          input.gone,
+          input.shells
+        )
       ).toBe(expected(input))
     }
   )
@@ -165,6 +174,15 @@ describe('ownState', () => {
     expect(ownState(trackedSession({ ...ended, outcome: 'failed' }), 0, false)).toBe('finished')
     expect(ownState(trackedSession({ ...ended, handled: 10 }), 0, false)).toBe('handled')
     expect(ownState(trackedSession(sessionRecord('ses_1')), 0, false)).toBe('handled')
+  })
+
+  it('a run that ended waiting on a background script works until the script exits', () => {
+    const ended = sessionRecord('ses_1', { idle: 10, outcome: 'succeeded' })
+
+    expect(ownState(trackedSession(ended), 0, false, 1)).toBe('working')
+    expect(ownState(trackedSession(ended), 1, false, 1)).toBe('blocked')
+    // A script left running after I handled the run (a dev server) does not bring it back.
+    expect(ownState(trackedSession({ ...ended, handled: 10 }), 0, false, 1)).toBe('handled')
   })
 
   it('a pending request is never handled away', () => {

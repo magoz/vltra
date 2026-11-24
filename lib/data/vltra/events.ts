@@ -6,6 +6,7 @@ import type {
   PendingPermission,
   ProjectRecord,
   RetryInfo,
+  RunningShell,
   SessionActivity,
   SessionRecord
 } from '@/lib/data/vltra/types'
@@ -69,6 +70,10 @@ export type VltraEvent = Data.TaggedEnum<{
   PermissionReplied: { readonly requestID: string }
   FormCreated: { readonly form: PendingForm }
   FormSettled: { readonly formID: string }
+  /** OpenCode started a shell command for a session (`shell.created`). */
+  ShellStarted: { readonly shell: RunningShell }
+  /** A shell command exited, timed out, was killed, or was removed. */
+  ShellEnded: { readonly shellID: string }
   ProjectUpserted: { readonly project: ProjectRecord }
   WorktreesLoaded: { readonly projectID: string; readonly directories: ReadonlyArray<string> }
   /**
@@ -119,6 +124,8 @@ export const eventSessionID = (event: VltraEvent): string | undefined =>
     PermissionReplied: () => undefined,
     FormCreated: ({ form }) => form.sessionID,
     FormSettled: () => undefined,
+    ShellStarted: ({ shell }) => shell.sessionID,
+    ShellEnded: () => undefined,
     ProjectUpserted: () => undefined,
     WorktreesLoaded: () => undefined,
     DirectoriesChecked: () => undefined

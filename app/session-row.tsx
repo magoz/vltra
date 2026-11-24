@@ -6,6 +6,7 @@ import {
   endText,
   pendingText,
   relativeTime,
+  scriptText,
   sessionTitle,
   stuckText
 } from '@/app/vltra-format'
@@ -103,7 +104,11 @@ function StateLabel({ row, now }: { readonly row: VltraRow; readonly now: number
       const stuck = stuckText(row, now)
 
       return stuck === undefined ? (
-        <span>{row.activity === undefined ? 'working' : activityText(row.activity)}</span>
+        <span>
+          {row.activity === undefined
+            ? (scriptText(row, now) ?? 'working')
+            : activityText(row.activity)}
+        </span>
       ) : (
         <span className="text-destructive">{stuck}</span>
       )

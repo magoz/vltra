@@ -45,8 +45,8 @@ and forms pause a run, they do not end it.
 | State | Group | Meaning | Leaves on |
 |---|---|---|---|
 | `blocked` | needs me | a permission or form is pending on the session or a descendant | answer / deny / cancel (never "handled") |
-| `working` | | a run is active | the run ends |
-| `finished` | needs me | the latest run ended (succeeded, failed, or interrupted by `inactivity`) and is not handled | I mark it handled |
+| `working` | | a run is active, or the latest run ended unhandled while a background script it started still runs | the run ends; the last script exits |
+| `finished` | needs me | the latest run ended (succeeded, failed, or interrupted by `inactivity`), is not handled, and no background script of it still runs | I mark it handled |
 | `handled` | | I handled the latest run, or the session never ran | the next run starts |
 
 Priority: blocked > working > finished > handled.
@@ -64,6 +64,12 @@ Priority: blocked > working > finished > handled.
   declared but unused. If Vltra missed the event, it recovers the reason from `session.log`.
 - **Failed** runs are `finished` with a red mark, not their own state.
 - **Folder gone = handled**: a session whose folder no longer exists (a deleted `/tmp/tmp.*` scratch folder, a worktree removed after merge) is `handled` unless it is blocked or working: deleting the folder retires its sessions, so they need no marker ("folder deleted"). Vltra checks the folders itself (same machine) on every snapshot and every minute. Reopen still works (OpenCode accepts metadata writes to a gone folder since 2.2.6; 2.0.x refused them): it sets `metadata.vltra.reopened = <time.idle>` (and drops `handled`), so the run is `finished` again until Done writes `handled` (and drops `reopened`). Vltra writes one marker or none, never both.
+- **Background scripts**: an agent that starts a shell in the background (`shell` with
+  `background: true`) ends its run and waits; OpenCode wakes it when the script exits. While a
+  shell naming the session (`metadata.sessionID`, `/api/shell` per loaded location, `shell.created`
+  / `shell.exited` / `shell.deleted`) runs, an unhandled run that ended is `working`, labelled
+  `waiting on <command> · 4m` (or `N scripts`), never stuck. A handled run stays handled (a dev
+  server left running does not bring it back). `until` watches are not seen yet.
 - **Stuck** is not a state: a working session shows `retrying (n×, reason)`
   (`session.retry.scheduled`) or `quiet Nm` (no step/tool activity for 10+ minutes). Shown in
   Projects and counted, never in the needs-me list.

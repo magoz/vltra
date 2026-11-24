@@ -13,7 +13,12 @@ import type { Endpoint } from '@opencode/client/effect/service'
 import { Data, DateTime, Duration, Effect, Layer, Option, Predicate, Schema, Stream } from 'effect'
 import { FetchHttpClient, HttpClient, HttpClientRequest } from 'effect/unstable/http'
 import type { OpenCodeSnapshot } from '@/lib/data/vltra/model'
-import type { PendingForm, PendingPermission, SessionRecord } from '@/lib/data/vltra/types'
+import type {
+  PendingForm,
+  PendingPermission,
+  RunningShell,
+  SessionRecord
+} from '@/lib/data/vltra/types'
 import {
   branchModel,
   endpointOverride,
@@ -33,6 +38,7 @@ import {
   toPendingForm,
   toPendingPermission,
   toProjectRecord,
+  toRunningShell,
   toFileChange,
   toResolvedLocation,
   toSessionRecord,
@@ -272,9 +278,27 @@ const makeSnapshot = (
     const permissions = new Map(pending.flatMap(([items]) => items.map(item => [item.id, item])))
     const forms = new Map(pending.flatMap(([, items]) => items.map(item => [item.id, item])))
 
+    // Shells live per location too; a running one keeps its session working (background scripts).
+    const shells = yield* Effect.forEach(
+      directories,
+      directory =>
+        client.shell.list({ location: { directory } }).pipe(
+          request('shell.list'),
+          Effect.map(response =>
+            response.data.flatMap(info => Option.toArray(toRunningShell(info)))
+          ),
+          Effect.tapError(error =>
+            Effect.logWarning('Shells unavailable for location', directory, error.message)
+          ),
+          Effect.orElseSucceed((): ReadonlyArray<RunningShell> => [])
+        ),
+      { concurrency }
+    ).pipe(Effect.map(lists => lists.flat()))
+
     yield* loadMissing([
       ...Array.from(permissions.values(), item => item.sessionID),
-      ...Array.from(forms.values(), item => item.sessionID)
+      ...Array.from(forms.values(), item => item.sessionID),
+      ...shells.map(item => item.sessionID)
     ])
 
     // Load ancestors so subagent sessions nest under their root.
@@ -310,6 +334,7 @@ const makeSnapshot = (
       running,
       permissions: Array.from(permissions.values()),
       forms: Array.from(forms.values()),
+      shells,
       projects: projects.map(toProjectRecord),
       worktrees
     } satisfies OpenCodeSnapshot

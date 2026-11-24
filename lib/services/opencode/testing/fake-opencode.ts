@@ -121,6 +121,7 @@ export const emptySnapshot: OpenCodeSnapshot = {
   running: [],
   permissions: [],
   forms: [],
+  shells: [],
   projects: [],
   worktrees: []
 }

@@ -20,6 +20,7 @@ import type {
   Launch,
   PendingForm,
   PendingPermission,
+  RunningShell,
   WorktreeKind
 } from '@/lib/data/vltra/types'
 
@@ -34,6 +35,7 @@ export type SnapshotOptions = {
 type Pending = {
   readonly permissions: ReadonlyMap<string, ReadonlyArray<PendingPermission>>
   readonly forms: ReadonlyMap<string, ReadonlyArray<PendingForm>>
+  readonly shells: ReadonlyMap<string, ReadonlyArray<RunningShell>>
 }
 
 type Tree = {
@@ -94,8 +96,15 @@ const buildNode = (
   const info = session.info
   const permissions = tree.pending.permissions.get(info.id) ?? []
   const forms = tree.pending.forms.get(info.id) ?? []
+
+  const shells = (tree.pending.shells.get(info.id) ?? []).map(shell => ({
+    id: shell.id,
+    command: shell.command,
+    started: shell.started
+  }))
+
   const gone = isFolderGone(tree.model, session)
-  const own = ownState(session, permissions.length + forms.length, gone)
+  const own = ownState(session, permissions.length + forms.length, gone, shells.length)
   const path = new Set(visited).add(info.id)
 
   const childNodes = (tree.children.get(info.id) ?? [])
@@ -134,6 +143,7 @@ const buildNode = (
     activity: session.running ? session.activity : undefined,
     activityAt: session.running ? session.activityAt : undefined,
     activeAt: activeAt(session),
+    shells,
     permissions,
     forms,
     links: sessionLinks(tree.webUrl, info.id)
@@ -173,7 +183,8 @@ export const buildRows = (model: VltraModel, webUrl: URL): ReadonlyArray<VltraRo
     children: childrenByParent(model),
     pending: {
       permissions: groupBySession(model.permissions.values()),
-      forms: groupBySession(model.forms.values())
+      forms: groupBySession(model.forms.values()),
+      shells: groupBySession(model.shells.values())
     }
   }
 

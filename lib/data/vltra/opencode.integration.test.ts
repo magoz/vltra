@@ -337,6 +337,51 @@ describe.skipIf(!binary.available)('Vltra against a real opencode serve', () => 
   )
 
   it.live(
+    'a run that ended waits on its background scripts: working until they exit',
+    () =>
+      Effect.gen(function* () {
+        const server = yield* startOpenCodeServer(binary.available ? binary.path : 'opencode')
+        const sessionID = 'ses_vltraitscript0000000001'
+
+        // As the `shell` tool leaves a background command: a shell naming its session. Started
+        // before Vltra connects, so the snapshot (not an event) must find it.
+        yield* importSession(server, { id: sessionID, idle: Date.now() })
+
+        const first = yield* server.json<Created>('POST', `/api/shell?${locationQuery(server)}`, {
+          command: 'sleep 60',
+          metadata: { sessionID }
+        })
+
+        yield* Effect.gen(function* () {
+          const waiting = yield* eventually(rowIn(sessionID, 'working'), 'script from snapshot')
+
+          expect(waiting.running).toBe(false)
+          expect(waiting.shells).toMatchObject([{ id: first.data.id, command: 'sleep 60' }])
+
+          // One started while Vltra listens arrives as an event; ending both finishes the run.
+          const second = yield* server.json<Created>(
+            'POST',
+            `/api/shell?${locationQuery(server)}`,
+            { command: 'sleep 61', metadata: { sessionID } }
+          )
+
+          yield* eventually(
+            value => (findRow(value, sessionID)?.shells.length === 2 ? true : undefined),
+            'script from event'
+          )
+
+          yield* server.request('DELETE', `/api/shell/${first.data.id}?${locationQuery(server)}`)
+          yield* server.request('DELETE', `/api/shell/${second.data.id}?${locationQuery(server)}`)
+
+          const finished = yield* eventually(rowIn(sessionID, 'finished'), 'scripts ended')
+
+          expect(finished.shells).toEqual([])
+        }).pipe(Effect.provide(vltraLayer(server)))
+      }).pipe(Effect.scoped),
+    60_000
+  )
+
+  it.live(
     'a session whose folder was deleted counts as handled until reopened, also after a restart',
     () =>
       Effect.gen(function* () {

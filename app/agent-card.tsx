@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { sessionTitle, stuckText } from '@/app/vltra-format'
+import { scriptText, sessionTitle, stuckText } from '@/app/vltra-format'
 import { useVltra } from '@/app/vltra-context'
 import { useLauncher } from '@/app/launcher-context'
 import { HandledButton, ReopenButton } from '@/app/handled-button'
@@ -17,16 +17,18 @@ import { cn } from '@/lib/utils'
 
 /**
  * What a card says beyond its title, if anything: why a working run looks stuck
- * (`retrying (n×, …)`, `quiet Nm`), and a deleted folder.
+ * (`retrying (n×, …)`, `quiet Nm`), the background script it waits on, and a deleted folder.
  */
 function Flags({ row, now }: { readonly row: VltraRow; readonly now: number }) {
   const stuck = row.state === 'working' ? stuckText(row, now) : undefined
+  const script = scriptText(row, now)
 
-  if (stuck === undefined && !row.gone) return null
+  if (stuck === undefined && script === undefined && !row.gone) return null
 
   return (
     <FactLine>
       {stuck === undefined ? null : <span className="text-destructive">{stuck}</span>}
+      {script === undefined ? null : <span className="break-all">{script}</span>}
       {row.gone ? <GoneLabel /> : null}
     </FactLine>
   )

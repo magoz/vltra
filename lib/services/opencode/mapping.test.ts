@@ -212,6 +212,57 @@ const wire = {
       executed: true
     }
   },
+  // Shell events as served by `opencode serve` v2.2.6 (a background `shell` tool call).
+  shellCreated: {
+    id: 'evt_23',
+    created: 1795548887243,
+    type: 'shell.created',
+    location,
+    data: {
+      info: {
+        id: 'sh_20f0db8c7001',
+        status: 'running',
+        command: 'sleep 6; echo done\nsecond line',
+        cwd: '/tmp/vltra/work',
+        shell: '/usr/bin/zsh',
+        file: '/tmp/vltra/shell/sh_20f0db8c7001.out',
+        metadata: { sessionID },
+        time: { started: 1795548887239 }
+      }
+    }
+  },
+  shellCreatedWithoutSession: {
+    id: 'evt_24',
+    created: 1795548887243,
+    type: 'shell.created',
+    location,
+    data: {
+      info: {
+        id: 'sh_20f0db8c7002',
+        status: 'running',
+        command: 'make',
+        cwd: '/tmp/vltra/work',
+        shell: '/usr/bin/zsh',
+        file: '/tmp/vltra/shell/sh_20f0db8c7002.out',
+        metadata: {},
+        time: { started: 1795548887239 }
+      }
+    }
+  },
+  shellExited: {
+    id: 'evt_25',
+    created: 1795548893261,
+    type: 'shell.exited',
+    location,
+    data: { id: 'sh_20f0db8c7001', exit: 0, status: 'exited' }
+  },
+  shellDeleted: {
+    id: 'evt_26',
+    created: 1795548893262,
+    type: 'shell.deleted',
+    location,
+    data: { id: 'sh_20f0db8c7001' }
+  },
   textDelta: {
     id: 'evt_13',
     created: 1790806577088,
@@ -227,6 +278,34 @@ describe('OpenCode event mapping', () => {
   it.effect('server.connected marks the subscription as live', () =>
     Effect.gen(function* () {
       expect(yield* signalsFor(wire.connected)).toEqual([OpenCodeSignal.Connected()])
+    })
+  )
+
+  it.effect("shell events track a session's running shells (background scripts)", () =>
+    Effect.gen(function* () {
+      expect(yield* signalsFor(wire.shellCreated)).toEqual([
+        OpenCodeSignal.Apply({
+          event: VltraEvent.ShellStarted({
+            shell: {
+              id: 'sh_20f0db8c7001',
+              sessionID,
+              command: 'sleep 6; echo done',
+              started: 1795548887239
+            }
+          })
+        })
+      ])
+
+      // A shell no session started (`POST /api/shell` without metadata) is not tracked.
+      expect(yield* signalsFor(wire.shellCreatedWithoutSession)).toEqual([])
+
+      expect(yield* signalsFor(wire.shellExited)).toEqual([
+        OpenCodeSignal.Apply({ event: VltraEvent.ShellEnded({ shellID: 'sh_20f0db8c7001' }) })
+      ])
+
+      expect(yield* signalsFor(wire.shellDeleted)).toEqual([
+        OpenCodeSignal.Apply({ event: VltraEvent.ShellEnded({ shellID: 'sh_20f0db8c7001' }) })
+      ])
     })
   )
 

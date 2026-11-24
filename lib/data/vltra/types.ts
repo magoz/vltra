@@ -180,6 +180,21 @@ export const SessionActivity = Schema.Struct({
 
 export type SessionActivity = typeof SessionActivity.Type
 
+/**
+ * A shell command OpenCode still runs for a session (`/api/shell`, `metadata.sessionID`). Once
+ * the run has ended it is a background script, and OpenCode wakes the agent when it exits.
+ */
+export const SessionShell = Schema.Struct({
+  id: Schema.String,
+  /** The command's first line, clipped. */
+  command: Schema.String,
+  started: Schema.Number
+})
+
+export type SessionShell = typeof SessionShell.Type
+
+export type RunningShell = SessionShell & { readonly sessionID: string }
+
 export const SessionLinks = Schema.Struct({
   /** OpenCode's own web UI for this session. */
   web: Schema.String,
@@ -236,6 +251,11 @@ const rowFields = {
    * Never OpenCode's `time.updated`, which metadata writes (handled markers) bump.
    */
   activeAt: Schema.Number,
+  /**
+   * Shell commands still running for this session. With no run active they are background
+   * scripts the agent waits on: an unhandled run then counts as working, not finished.
+   */
+  shells: Schema.Array(SessionShell),
   permissions: Schema.Array(PendingPermission),
   forms: Schema.Array(PendingForm),
   links: SessionLinks

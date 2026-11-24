@@ -204,6 +204,22 @@ describe('working cards', () => {
 
     expect(screen.queryByText(/quiet|retrying/)).toBeNull()
   })
+
+  it('flag the background script a run that ended waits on, with no Done button', () => {
+    const row = rowFrom(
+      {
+        sessions: [sessionRecord('ses_1', { idle: baseTime, outcome: 'succeeded' })],
+        shells: [{ id: 'sh_1', sessionID: 'ses_1', command: 'pnpm test', started: baseTime }]
+      },
+      'ses_1'
+    )
+
+    renderCard(row)
+
+    expect(row.state).toBe('working')
+    expect(screen.getByText('waiting on pnpm test · 5m')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /done/i })).toBeNull()
+  })
 })
 
 describe('handled cards', () => {
