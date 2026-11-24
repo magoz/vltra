@@ -139,8 +139,8 @@ function SnoozeDialog({
           </div>
         </form>
         <p className="text-muted-foreground text-xs">
-          Back then (the presets at {formatWakeTime(wakeTime)}, set in Settings), or when its agent
-          ends a new run.
+          Presets come back at {formatWakeTime(wakeTime)} (Settings). A new run of its agent brings
+          it back sooner.
         </p>
       </DialogContent>
     </Dialog>
