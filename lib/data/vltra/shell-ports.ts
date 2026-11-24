@@ -7,10 +7,12 @@ import { VltraStore } from '@/lib/data/vltra/store'
 import type { RunningShell } from '@/lib/data/vltra/types'
 import { OpenCode } from '@/lib/services/opencode/service'
 import { Processes } from '@/lib/services/processes/service'
+import type { ProcessTree } from '@/lib/services/processes/service'
 
 // Which running shells are services: a background shell whose process tree listens on a port (a
-// dev server) is not a script the agent waits on, so it must not hold its session working. A
-// server starts listening a few seconds after its shell, so the check repeats.
+// dev server) is not a script the agent waits on, so it must not hold its session working; a
+// tree that runs tests is a script whatever it listens on. A server starts listening a few
+// seconds after its shell, so the check repeats.
 
 /** How often running shells are checked. Cheap: a few `/proc` reads per shell. */
 export const shellPortsEvery: Duration.Input = '5 seconds'
@@ -74,16 +76,20 @@ const lookUpPids = (lookedUp: LookedUp) =>
     )
   })
 
-/** The shells' ports by shell id, from their processes' (none: no process to check). */
-const portsByShell = (
+/**
+ * The ports that make each shell a service, by shell id: what its process tree listens on,
+ * unless the tree runs tests (their server is part of the run, which ends with them). None for a
+ * shell without a process to check.
+ */
+const servicePortsByShell = (
   shells: ReadonlyArray<RunningShell>,
-  byPid: ReadonlyMap<number, ReadonlyArray<number>>
+  trees: ReadonlyMap<number, ProcessTree>
 ) =>
   new Map(
     shells.flatMap(shell => {
-      const ports = shell.pid === undefined ? undefined : byPid.get(shell.pid)
+      const tree = shell.pid === undefined ? undefined : trees.get(shell.pid)
 
-      return ports === undefined ? [] : [[shell.id, ports] as const]
+      return tree === undefined ? [] : [[shell.id, tree.runsTests ? [] : tree.ports] as const]
     })
   )
 
@@ -106,7 +112,7 @@ export const checkShellPorts = (lookedUp: LookedUp) =>
     if (pids.length === 0) return
 
     const processes = yield* Processes
-    const ports = portsByShell(shells, yield* processes.listening(pids))
+    const ports = servicePortsByShell(shells, yield* processes.inspect(pids))
 
     const changed = Array.from(ports).some(
       ([id, found]) => !samePorts(before.shellPorts.get(id), found)

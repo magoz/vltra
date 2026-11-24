@@ -30,7 +30,7 @@ Router, React 19, Effect 4, shadcn/ui (Base UI), Tailwind v4.
 | Snapshot rows / grouping         | `lib/data/vltra/snapshot.ts`, `links.ts`                         | Roll-up, projects → worktrees → rows, deep links          |
 | Watcher, resync, backoff         | `lib/data/vltra/watcher.ts`, `store.ts`                          | Also interrupt reasons; `LONG_LIVED_WATCHER.md`           |
 | Waits (scripts, `until` watches) | `snapshot.ts` (`waitsAndServices`), `state.ts` (`waitingOn`)     | `until` contract: `mapping.ts`; DESIGN.md "Waits"         |
-| Scripts vs services (ports)      | `lib/data/vltra/shell-ports.ts`, `lib/services/processes/`       | Ports a shell's process tree listens on (`/proc`), 5 s    |
+| Scripts vs services (ports)      | `lib/data/vltra/shell-ports.ts`, `lib/services/processes/`       | Ports a shell's tree listens on; test runners stay scripts |
 | Action Effects + inputs          | `lib/data/vltra/actions.ts`                                      | Handled, reopen, viewed (asks: in OpenCode's chat)        |
 | Rollout script                   | `scripts/import-handled.ts`                                      | `pnpm vltra:import-handled`, one-off, never auto-run      |
 | OpenCode client                  | `lib/services/opencode/`                                         | See `patterns/OPENCODE_SURFACE.md`                        |

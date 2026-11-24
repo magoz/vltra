@@ -41,8 +41,9 @@ export type VltraModel = {
   /** Running shell commands by shell id (background scripts once their run has ended). */
   readonly shells: ReadonlyMap<string, RunningShell>
   /**
-   * The ports each running shell's process tree listens on (checked by Vltra, not reported by
-   * OpenCode); absent until checked. A shell that listens is a service, not a script to wait on.
+   * The ports that make each running shell a service: what its process tree listens on, none
+   * when the tree runs tests (checked by Vltra, not reported by OpenCode); absent until checked.
+   * A shell with any is a service, not a script to wait on.
    */
   readonly shellPorts: ReadonlyMap<string, ReadonlyArray<number>>
   /** The `until` watches that will wake each session, by session id (none: absent). */

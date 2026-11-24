@@ -86,7 +86,9 @@ Priority: blocked > working > finished > handled.
   - **Services** are not waits: every 5 s Vltra reads the ports each running shell's process
     tree listens on (`/proc`, same machine; the pid from `/api/shell`, looked up once for shells
     whose run ended, since `shell.created` lacks it). A shell that listens (a dev server) holds
-    nothing; rows carry it in `services`, cards show `serving :3000`.
+    nothing; rows carry it in `services`, cards show `serving :3000`. A tree that runs a test
+    runner (Playwright, Vitest, Jest, Cypress, … in any process's arguments) is a script
+    whatever it listens on: its server (Playwright's `webServer`) ends with the tests.
   - **Done** also applies to a run that only waits (`canMarkDone`: a watcher that never exits,
     a watch I no longer care about), from the card, the toolbar, `h` and `⌘D`. It cancels
     nothing: when the wait wakes the agent, the run that ends after needs me again.

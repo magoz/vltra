@@ -74,6 +74,31 @@ describe('shell port check', () => {
     })
   )
 
+  it.effect('a test run that starts its own server stays a wait (Playwright webServer)', () =>
+    Effect.gen(function* () {
+      const e2e = runningShell('sh_e2e', 'ses_1', { command: 'pnpm test:e2e', pid: 300 })
+
+      const { processes, layer, check } = yield* setUp({
+        ...emptySnapshot,
+        sessions: [ended],
+        shells: [e2e]
+      })
+
+      yield* processes.listen(300, [3000])
+      yield* processes.runTests(300)
+
+      yield* Effect.gen(function* () {
+        yield* check
+
+        const row = yield* rowState
+
+        expect(row?.state).toBe('working')
+        expect(row?.services).toEqual([])
+        expect(row?.waits).toMatchObject([{ kind: 'script', id: 'sh_e2e' }])
+      }).pipe(Effect.provide(layer))
+    })
+  )
+
   it.effect('commits nothing while the ports stay the same', () =>
     Effect.gen(function* () {
       const { processes, layer, check } = yield* setUp({

@@ -1,9 +1,11 @@
 import { readdir, readFile, readlink } from 'node:fs/promises'
 import { Effect, Layer } from 'effect'
 import { Processes } from '@/lib/services/processes/service'
+import type { ProcessTree } from '@/lib/services/processes/service'
 
-// Linux `/proc`: a process's children (`task/<tid>/children`), its open sockets (`fd/*` links
-// to `socket:[inode]`), and the kernel's TCP tables (`net/tcp`, `net/tcp6`).
+// Linux `/proc`: a process's children (`task/<tid>/children`), its arguments (`cmdline`), its
+// open sockets (`fd/*` links to `socket:[inode]`), and the kernel's TCP tables (`net/tcp`,
+// `net/tcp6`).
 
 /** `st` of a listening socket in `/proc/net/tcp*`. */
 const listenState = '0A'
@@ -93,11 +95,29 @@ const socketInodes = (pid: number) =>
     })
   })
 
-const portsOf = (pid: number, sockets: ReadonlyMap<string, number>) =>
-  Effect.gen(function* () {
-    const inodes = (yield* Effect.forEach(yield* tree(pid), socketInodes)).flat()
+/**
+ * A test runner's own files: its package (`node_modules/vitest/…`, `@playwright/test/cli.js`) or
+ * its bin (`.bin/jest`). Matched against every argument, so `node …/vitest.mjs run` and
+ * `pnpm exec playwright test` both count, while `pnpm test` (a script) shows up in its children.
+ */
+const testRunner =
+  /(^|\/)(@playwright\/test|playwright|vitest|jest|cypress|mocha|wdio|testcafe)(\/|\.[cm]?js$|$)/
 
-    return Array.from(
+/** Whether a process's arguments (`/proc/<pid>/cmdline`) are a test runner's. */
+export const runsTests = (argv: ReadonlyArray<string>): boolean =>
+  argv.some(argument => testRunner.test(argument))
+
+/** The process's arguments (`cmdline` is NUL-separated). */
+const argv = (pid: number) =>
+  Effect.map(text(`/proc/${pid}/cmdline`), raw => raw.split('\0').filter(item => item !== ''))
+
+const inspectTree = (pid: number, sockets: ReadonlyMap<string, number>) =>
+  Effect.gen(function* () {
+    const processes = yield* tree(pid)
+    const inodes = (yield* Effect.forEach(processes, socketInodes)).flat()
+    const commands = yield* Effect.forEach(processes, argv)
+
+    const ports = Array.from(
       new Set(
         inodes.flatMap(inode => {
           const port = sockets.get(inode)
@@ -106,10 +126,14 @@ const portsOf = (pid: number, sockets: ReadonlyMap<string, number>) =>
         })
       )
     ).toSorted((left, right) => left - right)
+
+    const inspected: ProcessTree = { ports, runsTests: commands.some(runsTests) }
+
+    return inspected
   })
 
 export const ProcessesLive = Layer.succeed(Processes, {
-  listening: pids =>
+  inspect: pids =>
     Effect.gen(function* () {
       const distinct = Array.from(new Set(pids))
 
@@ -118,12 +142,12 @@ export const ProcessesLive = Layer.succeed(Processes, {
       const tables = yield* Effect.forEach(['/proc/net/tcp', '/proc/net/tcp6'], text)
       const sockets = new Map(tables.flatMap(table => Array.from(listeningSockets(table))))
 
-      const ports = yield* Effect.forEach(
+      const trees = yield* Effect.forEach(
         distinct,
-        pid => Effect.map(portsOf(pid, sockets), found => [pid, found] as const),
+        pid => Effect.map(inspectTree(pid, sockets), found => [pid, found] as const),
         { concurrency: 4 }
       )
 
-      return new Map(ports)
+      return new Map(trees)
     })
 })
