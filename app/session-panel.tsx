@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { autoFocusComposer, focusComposer } from '@/app/chat-composer'
 import { useChatFrame } from '@/app/chat-keys'
-import { showInChat } from '@/app/chat-navigation'
+import { ChatMove, chatMove, showInChat } from '@/app/chat-navigation'
 import { useCloseDoneTabs } from '@/app/chat-tabs'
 import { CommandKey, commandKey, inDialog } from '@/app/command-keys'
 import { useVltra } from '@/app/vltra-context'
@@ -102,22 +102,82 @@ function useInsertKeys(frame: RefObject<HTMLIFrameElement | null>) {
 
 /**
  * Moves the chat to `url` when the open session changes (`showInChat`: inside OpenCode's router
- * once it has loaded), focusing the new session's composer like a first load does.
+ * once it has loaded), focusing the new session's composer like a first load does. Returns the
+ * session the chat was last sent to (or followed to, `useFollowChat`).
  */
-function useChatSession(frame: RefObject<HTMLIFrameElement | null>, url: string) {
-  const shown = useRef(url)
+function useChatSession(
+  frame: RefObject<HTMLIFrameElement | null>,
+  sessionID: string,
+  url: string
+): RefObject<string> {
+  const shown = useRef(sessionID)
 
   useEffect(() => {
     const element = frame.current
 
-    if (element === null || shown.current === url) return
+    if (element === null || shown.current === sessionID) return
 
-    shown.current = url
+    shown.current = sessionID
 
     if (showInChat(element, url) === 'loading') return
 
     return autoFocusComposer(element, true)
-  }, [frame, url])
+  }, [frame, sessionID, url])
+
+  return shown
+}
+
+/** How often the chat's URL is read (`useFollowChat`). */
+const followInterval = 250
+
+/**
+ * Keeps the open session the one on screen when OpenCode moves the chat itself (its tabs and
+ * links, the next tab after an archive): Vltra opens that session too (replacing the history
+ * entry), or closes the panel when OpenCode went home with no tab left (`chatMove`). OpenCode's
+ * router moves with `history.pushState`, which fires no event, so the frame's URL is read every
+ * `followInterval`.
+ */
+function useFollowChat(
+  frame: RefObject<HTMLIFrameElement | null>,
+  shown: RefObject<string>,
+  onClose: () => void
+) {
+  const { view, selection } = useVltra()
+  const latest = useRef({ rows: view.rows, select: selection.select, onClose })
+
+  useEffect(() => {
+    latest.current = { rows: view.rows, select: selection.select, onClose }
+  })
+
+  useEffect(() => {
+    let last = frame.current?.contentDocument?.URL ?? 'about:blank'
+
+    const timer = window.setInterval(() => {
+      const href = frame.current?.contentDocument?.URL
+
+      if (href === undefined || href === last) return
+
+      const from = last
+
+      last = href
+
+      const { rows, select, onClose: close } = latest.current
+
+      ChatMove.$match(
+        chatMove(from, href, shown.current, id => rows.has(id)),
+        {
+          Follow: ({ sessionID }) => {
+            shown.current = sessionID
+            select(sessionID)
+          },
+          Close: close,
+          Stay: () => undefined
+        }
+      )
+    }, followInterval)
+
+    return () => window.clearInterval(timer)
+  }, [frame, shown])
 }
 
 /**
@@ -126,23 +186,27 @@ function useChatSession(frame: RefObject<HTMLIFrameElement | null>, url: string)
  * pressed in the chat that it does not own reach Vltra (`useChatFrame`). OpenCode has no embed
  * mode, so its full app chrome shows; done sessions leave its tab strip (`useCloseDoneTabs`). One
  * frame for every session: `src` is the first, then `useChatSession` moves it, as a new frame
- * would start the whole app again (a second and more).
+ * would start the whole app again (a second and more); when OpenCode moves it, Vltra follows
+ * (`useFollowChat`).
  */
 function OpenCodeChat({
   sessionID,
   url,
-  title
+  title,
+  onClose
 }: {
   readonly sessionID: string
   readonly url: string
   readonly title: string
+  readonly onClose: () => void
 }) {
   const frame = useRef<HTMLIFrameElement>(null)
   const loaded = useChatFrame(frame)
   const [src] = useState(url)
 
   useInsertKeys(frame)
-  useChatSession(frame, url)
+  const shown = useChatSession(frame, sessionID, url)
+  useFollowChat(frame, shown, onClose)
   useCloseDoneTabs(frame, loaded, sessionID, url)
 
   return (
@@ -227,6 +291,38 @@ function Location({ item }: { readonly item: BoardRow }) {
   )
 }
 
+/**
+ * How long a session that left the board keeps its panel: an archive in the chat can reach Vltra
+ * before `useFollowChat` sees OpenCode move to its next tab, which then opens instead.
+ */
+const goneGrace = 1000
+
+/**
+ * Closes the panel when its session leaves the board while open (archived in the chat with no
+ * other tab for OpenCode to move to, deleted), after `goneGrace`. One never on the board (a deep
+ * link) keeps the panel and its note.
+ */
+function useCloseWhenGone(sessionID: string, onBoard: boolean, onClose: () => void) {
+  const seen = useRef<string | undefined>(undefined)
+
+  useEffect(() => {
+    if (onBoard) {
+      seen.current = sessionID
+
+      return
+    }
+
+    if (seen.current !== sessionID) return
+
+    const timer = window.setTimeout(() => {
+      seen.current = undefined
+      onClose()
+    }, goneGrace)
+
+    return () => window.clearTimeout(timer)
+  }, [sessionID, onBoard, onClose])
+}
+
 type SessionPanelProps = {
   readonly sessionID: string
   /** The row, when the session is on the board. */
@@ -248,6 +344,7 @@ export function SessionPanel({ sessionID, item, onClose }: SessionPanelProps) {
 
   useMarkViewed(sessionID, row)
   useDoneKey(row)
+  useCloseWhenGone(sessionID, row !== undefined, onClose)
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -290,7 +387,7 @@ export function SessionPanel({ sessionID, item, onClose }: SessionPanelProps) {
           This session is not on the board, so Vltra has no OpenCode link for it.
         </p>
       ) : (
-        <OpenCodeChat sessionID={sessionID} url={row.links.web} title={title} />
+        <OpenCodeChat sessionID={sessionID} url={row.links.web} title={title} onClose={onClose} />
       )}
     </div>
   )

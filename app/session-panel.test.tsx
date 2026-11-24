@@ -51,6 +51,7 @@ const doneRow = (fields: Partial<SessionRecord> = {}) =>
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 describe('session panel', () => {
@@ -242,5 +243,43 @@ describe('session panel', () => {
     ).toBeTruthy()
     expect(document.querySelector('iframe')).toBeNull()
     expect(screen.queryByRole('link')).toBeNull()
+  })
+
+  it('closes once its session leaves the board (archived, deleted), not for one never on it', () => {
+    const { onClose } = renderPanel(undefined)
+
+    expect(onClose).not.toHaveBeenCalled()
+    cleanup()
+
+    const row = doneRow()
+    const close = vi.fn<() => void>()
+    const actions = fakeActions().actions
+
+    const panel = (shown: VltraRow | undefined) => (
+      <WithVltra
+        actions={actions}
+        rows={shown === undefined ? undefined : new Map([[shown.id, shown]])}
+        now={baseTime}
+      >
+        <SessionPanel
+          sessionID="ses_1"
+          item={shown === undefined ? undefined : itemFor(shown)}
+          onClose={close}
+        />
+      </WithVltra>
+    )
+
+    const view = render(panel(row))
+
+    expect(close).not.toHaveBeenCalled()
+
+    vi.useFakeTimers()
+    view.rerender(panel(undefined))
+
+    // A grace first: an archive can reach Vltra before the chat's move to the next tab.
+    vi.advanceTimersByTime(999)
+    expect(close).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(close).toHaveBeenCalledTimes(1)
   })
 })

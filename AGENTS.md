@@ -326,7 +326,13 @@ Done` (`buildAgentsBoard` in `board.ts`). Need you: blocked (newest wait first, 
   time (no hidden pages, no pools). The panel is not keyed by session: switching moves that one
   frame inside OpenCode's router (`showInChat` in `chat-navigation.ts`: `replaceState` +
   `popstate`, ~40ms) instead of a new frame starting OpenCode again (a second and more); a frame
-  not loaded yet loads the URL instead.
+  not loaded yet loads the URL instead. The other way, Vltra follows the chat (`useFollowChat`,
+  `chatMove`): when OpenCode moves it itself (its tabs and links, the next tab after an archive),
+  `?session=` follows (replaced) if Vltra lists that session (not subagents or archived ones),
+  and OpenCode going home with no tab left closes the panel. Its `pushState` fires no event, so
+  the frame's URL is read every 250ms. The open session leaving the board (archived with no tab
+  to move to, deleted) closes the panel too after 1s (`useCloseWhenGone`); a deep link to one never on it
+  keeps the panel's note.
 - Mutations go through `VltraActions` (`app/vltra-actions.tsx`): the dashboard provides the server
   actions (the launcher's `launch`, `newSession`, `retireWorktree`, `dismissLaunch` and
   `suggestBranch` return `VltraActionValue`s when they carry a value), component tests provide
