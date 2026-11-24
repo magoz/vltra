@@ -59,6 +59,22 @@ export const dayAt = (day: Date, time: WakeTime): number => {
 /** `now`'s day at local midnight: the first day the calendar offers. */
 export const startOfDay = (now: number): Date => new Date(new Date(now).setHours(0, 0, 0, 0))
 
+/**
+ * The day a time of day next comes (local midnight): today while `time` is still ahead, else
+ * tomorrow. The picker's day until one is clicked, so a time alone snoozes until it.
+ */
+export const nextDayFor = (now: number, time: WakeTime): Date => {
+  const today = startOfDay(now)
+
+  if (dayAt(today, time) > now) return today
+
+  const tomorrow = new Date(today)
+
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  return tomorrow
+}
+
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']

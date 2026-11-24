@@ -588,9 +588,11 @@ describe('snooze', () => {
 
     press('s')
 
-    const submit = () => within(dialog()).getByRole('button', { name: /Snooze until|Pick a day/ })
+    const submit = () =>
+      within(dialog()).getByRole('button', { name: /Snooze until|Pick a later time/ })
 
-    expect(submit()).toHaveProperty('disabled', true)
+    // Before a day is clicked: the next time the wake time comes.
+    expect(submit()).toHaveProperty('disabled', false)
 
     const target = new Date(now)
 
@@ -620,6 +622,36 @@ describe('snooze', () => {
     await waitFor(() =>
       expect(calls()).toEqual([
         { action: 'snooze', input: { sessionID: 'ses_done_new', until: target.getTime() } }
+      ])
+    )
+  })
+
+  it('a time alone snoozes until it next comes: today while ahead, else tomorrow', async () => {
+    const { calls } = renderFocus({ session: 'ses_done_new' })
+
+    const clock = (at: Date) =>
+      `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
+
+    const later = new Date(now + 2 * 60 * 60 * 1000)
+    const earlier = new Date(now - 2 * 60 * 60 * 1000)
+
+    later.setSeconds(0, 0)
+    earlier.setSeconds(0, 0)
+    earlier.setDate(earlier.getDate() + 1)
+
+    for (const target of [later, earlier]) {
+      press('s')
+      fireEvent.change(within(dialog()).getByRole('textbox', { name: 'Time' }), {
+        target: { value: clock(target) }
+      })
+      fireEvent.click(within(dialog()).getByRole('button', { name: /Snooze until/ }))
+    }
+
+    await waitFor(() =>
+      expect(calls()).toEqual([
+        { action: 'snooze', input: { sessionID: 'ses_done_new', until: later.getTime() } },
+        // Snoozing the open session opened the next one, which `s` snoozes now.
+        { action: 'snooze', input: { sessionID: 'ses_done_old', until: earlier.getTime() } }
       ])
     )
   })

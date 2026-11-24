@@ -2,7 +2,14 @@
 
 import { createContext, useContext, useMemo, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
-import { dayAt, formatWakeTime, snoozePresets, startOfDay, wakeText } from '@/app/snooze-time'
+import {
+  dayAt,
+  formatWakeTime,
+  nextDayFor,
+  snoozePresets,
+  startOfDay,
+  wakeText
+} from '@/app/snooze-time'
 import type { WakeTime } from '@/app/snooze-time'
 import { TimeField } from '@/app/time-field'
 import { sessionTitle } from '@/app/vltra-format'
@@ -48,8 +55,8 @@ export function SnoozeProvider({ children }: { readonly children: ReactNode }) {
 
 /**
  * Snooze until: tomorrow, next Monday or a week from today (`1`–`3`) at the wake time set in
- * Settings, or a day of the calendar at a time of my own (the wake time unless changed; today
- * too, for a time still ahead).
+ * Settings, or a time of my own (the wake time unless changed) on a day of the calendar: the next
+ * day that time comes (today while it is ahead) until another is clicked.
  */
 function SnoozeDialog({
   sessionID,
@@ -65,8 +72,11 @@ function SnoozeDialog({
   const [time, setTime] = useState<WakeTime>()
   const row = view.rows.get(sessionID)
   const presets = snoozePresets(now, wakeTime)
-  const picked = day === undefined ? undefined : dayAt(day, time ?? wakeTime)
-  const ready = picked !== undefined && picked > now
+  const at = time ?? wakeTime
+  // Until a day is clicked, the next time `at` comes: today if still ahead, else tomorrow.
+  const shownDay = day ?? nextDayFor(now, at)
+  const picked = dayAt(shownDay, at)
+  const ready = picked > now
 
   const choose = (until: number) => {
     snooze(sessionID, until)
@@ -125,7 +135,7 @@ function SnoozeDialog({
         >
           <Calendar
             mode="single"
-            selected={day}
+            selected={shownDay}
             onSelect={setDay}
             today={startOfDay(now)}
             defaultMonth={startOfDay(now)}
@@ -134,7 +144,7 @@ function SnoozeDialog({
           <div className="flex w-full items-center gap-2">
             <TimeField label="Time" value={time ?? wakeTime} onChange={setTime} />
             <Button type="submit" variant="solid" className="flex-1" disabled={!ready}>
-              {ready ? `Snooze until ${wakeText(picked, now)}` : 'Pick a day'}
+              {ready ? `Snooze until ${wakeText(picked, now)}` : 'Pick a later time'}
             </Button>
           </div>
         </form>

@@ -3,6 +3,7 @@ import {
   dayAt,
   defaultWakeTime,
   formatWakeTime,
+  nextDayFor,
   parseWakeTime,
   snoozePresets,
   startOfDay,
@@ -57,6 +58,15 @@ describe('picked day and time', () => {
 
     expect(dayAt(december3, defaultWakeTime)).toBe(local(12, 3, 9))
     expect(dayAt(december3, { hours: 18, minutes: 45 })).toBe(local(12, 3, 18, 45))
+  })
+
+  it('a time alone means its next coming: today while ahead, else tomorrow', () => {
+    expect(nextDayFor(tuesday, { hours: 23, minutes: 40 }).getTime()).toBe(local(11, 24))
+    expect(nextDayFor(tuesday, { hours: 15, minutes: 30 }).getTime()).toBe(local(11, 25))
+    expect(nextDayFor(tuesday, defaultWakeTime).getTime()).toBe(local(11, 25))
+    expect(nextDayFor(local(12, 31, 23, 50), defaultWakeTime).getTime()).toBe(
+      new Date(2027, 0, 1).getTime()
+    )
   })
 
   it("starts the calendar at today's midnight", () => {

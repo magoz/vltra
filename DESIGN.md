@@ -108,7 +108,7 @@ Priority: blocked > working > finished > handled.
   tomorrow, next Monday, in a week (`1`–`3`) at the wake time set in Settings (09:00 by
   default; kept in the browser, which sends a plain instant), or a day on the calendar
   (shadcn's, in Vltra's look) at a typed time (`HH:MM`, the wake time unless changed; today
-  too, for a time ahead), capped at a year. No
+  too, for a time ahead; until a day is clicked, the next day the time comes), capped at a year. No
   push when a snooze ends.
 - OpenCode's own "viewed" (`viewed < idle` = unread in OpenCode UIs) is independent: opening a
   session's panel in Vltra still calls `POST /api/session/:id/view { idle }` to keep OpenCode's
